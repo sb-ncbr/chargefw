@@ -69,8 +69,8 @@ enable IPO and host-native optimization; debug, sanitizer, and static-analysis p
 host-native optimization for reproducibility. Ignored `CMakeUserPresets.json` presets may inherit the
 stable `gcc-debug` and `gcc-release` names to customize local build and installation directories.
 
-Installation tests use the parent's build type, C++ compiler, compiler/linker flags, and IPO settings
-for their nested builds. The custom-layout build also inherits ChargeFW's dependency, optimization,
+Installation tests use the parent's build type, C and C++ compilers, compiler/linker flags, and IPO
+settings for their nested builds. The custom-layout build also inherits ChargeFW's dependency, optimization,
 sanitizer, warning, and developer-tool options; it changes the installation layout and builds only the
 native library and CLI. The downstream consumer receives sanitizer requirements from the installed
 library's exported target.

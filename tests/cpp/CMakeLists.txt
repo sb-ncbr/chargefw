@@ -122,6 +122,8 @@ endif()
 # Keep nested builds aligned with the parent without copying its output paths or build targets.
 set(chargefw_install_test_variables
         CMAKE_BUILD_TYPE
+        CMAKE_C_COMPILER
+        CMAKE_C_COMPILER_LAUNCHER
         CMAKE_CXX_COMPILER
         CMAKE_CXX_COMPILER_LAUNCHER
         CHARGEFW_USE_SYSTEM_DEPENDENCIES
@@ -135,7 +137,7 @@ set(chargefw_install_test_variables
 set(chargefw_install_test_configurations Debug Release RelWithDebInfo MinSizeRel
         ${CMAKE_BUILD_TYPE})
 list(REMOVE_DUPLICATES chargefw_install_test_configurations)
-foreach(variable CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS
+foreach(variable CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS
         CMAKE_MODULE_LINKER_FLAGS CMAKE_STATIC_LINKER_FLAGS CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     list(APPEND chargefw_install_test_variables ${variable})
     foreach(configuration IN LISTS chargefw_install_test_configurations)
