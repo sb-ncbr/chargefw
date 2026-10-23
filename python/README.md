@@ -82,14 +82,17 @@ chargefw.io.write("charges.json", result, format="result-json")
 
 ## Documentation
 
-- **[Python API](https://github.com/sb-ncbr/chargefw/blob/main/docs/PYTHON.md)** - read molecules,
+The full documentation is at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/):
+
+- **[Python API](https://chargefw.readthedocs.io/en/latest/PYTHON.html)** - read molecules,
   calculate charges, and inspect methods and results.
-- **[Python recipes](https://github.com/sb-ncbr/chargefw/tree/main/docs/recipes)** - run complete SDF,
-  Gemmi, RDKit, and parameter-set workflows.
-- **[Molecular formats](https://github.com/sb-ncbr/chargefw/blob/main/docs/FORMATS.md)** - check
-  supported input, output, parsing, and mapping semantics.
-- **[Project design](https://github.com/sb-ncbr/chargefw/blob/main/docs/PROJECT.md)** - understand the
+- **[Python recipes](https://chargefw.readthedocs.io/en/latest/recipes/README.html)** - run complete
+  SDF, Gemmi, RDKit, and parameter-set workflows.
+- **[Molecular formats](https://chargefw.readthedocs.io/en/latest/FORMATS.html)** - check supported
+  input, output, parsing, and mapping semantics.
+- **[Project design](https://chargefw.readthedocs.io/en/latest/PROJECT.html)** - understand the
   architecture and scientific scope.
-- **[Source repository](https://github.com/sb-ncbr/chargefw)** - browse the source and report issues.
+- **[Source repository](https://github.com/sb-ncbr/chargefw)** - browse the source and report
+  issues.
 
 ChargeFW is distributed under the MIT license.

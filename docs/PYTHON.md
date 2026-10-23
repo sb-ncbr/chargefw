@@ -32,8 +32,9 @@ Python modules, type declarations, and the `py.typed` marker. Parameter discover
 and does not depend on the current directory or an environment variable.
 
 For contributor CMake builds and the supported validation environments, use the
-[development guide](../DEVELOPMENT.md). Maintainer distribution steps belong to the
-[release procedure](../RELEASING.md).
+[development guide](https://github.com/sb-ncbr/chargefw/blob/main/DEVELOPMENT.md). Maintainer
+distribution steps belong to the
+[release procedure](https://github.com/sb-ncbr/chargefw/blob/main/RELEASING.md).
 
 ## Quick start
 

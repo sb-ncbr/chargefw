@@ -38,6 +38,9 @@ print(result.assignments[0].values)
 
 ## Documentation
 
+The documentation is published at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/). Its
+sources are in this repository:
+
 - **[Python API](docs/PYTHON.md)** - read molecules, calculate charges, and inspect methods and results.
 - **[Python recipes](docs/recipes/README.md)** - run complete SDF, Gemmi, RDKit, and parameter-set
   workflows.
