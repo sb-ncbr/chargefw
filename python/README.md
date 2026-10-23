@@ -82,14 +82,14 @@ chargefw.io.write("charges.json", result, format="result-json")
 
 ## Documentation
 
-- **[Python API](https://github.com/krab1k/chargefw/blob/main/docs/PYTHON.md)** - read molecules,
+- **[Python API](https://github.com/sb-ncbr/chargefw/blob/main/docs/PYTHON.md)** - read molecules,
   calculate charges, and inspect methods and results.
-- **[Python recipes](https://github.com/krab1k/chargefw/tree/main/docs/recipes)** - run complete SDF,
+- **[Python recipes](https://github.com/sb-ncbr/chargefw/tree/main/docs/recipes)** - run complete SDF,
   Gemmi, RDKit, and parameter-set workflows.
-- **[Molecular formats](https://github.com/krab1k/chargefw/blob/main/docs/FORMATS.md)** - check
+- **[Molecular formats](https://github.com/sb-ncbr/chargefw/blob/main/docs/FORMATS.md)** - check
   supported input, output, parsing, and mapping semantics.
-- **[Project design](https://github.com/krab1k/chargefw/blob/main/docs/PROJECT.md)** - understand the
+- **[Project design](https://github.com/sb-ncbr/chargefw/blob/main/docs/PROJECT.md)** - understand the
   architecture and scientific scope.
-- **[Source repository](https://github.com/krab1k/chargefw)** - browse the source and report issues.
+- **[Source repository](https://github.com/sb-ncbr/chargefw)** - browse the source and report issues.
 
 ChargeFW is distributed under the MIT license.

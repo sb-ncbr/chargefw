@@ -21,9 +21,9 @@ classifiers = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/krab1k/chargefw/blob/main/docs/PYTHON.md"
-Examples = "https://github.com/krab1k/chargefw/tree/main/docs/recipes"
-Repository = "https://github.com/krab1k/chargefw"
+Documentation = "https://github.com/sb-ncbr/chargefw/blob/main/docs/PYTHON.md"
+Examples = "https://github.com/sb-ncbr/chargefw/tree/main/docs/recipes"
+Repository = "https://github.com/sb-ncbr/chargefw"
 
 [project.optional-dependencies]
 gemmi = ["gemmi==0.7.4"]
