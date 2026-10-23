@@ -55,7 +55,8 @@ test-command = "pytest {project}/tests/python -q"
 provider = "scikit_build_core.metadata.regex"
 field = "version"
 input = "CMakeLists.txt"
-regex = '(?is)project\s*\(\s*chargefw\s+VERSION\s+(?P<value>[0-9]+\.[0-9]+(?:\.[0-9]+)?)'
+regex = '(?is)project\s*\(\s*chargefw\s+VERSION\s+(?P<numeric>[0-9]+\.[0-9]+\.[0-9]+)\b.*?set\(CHARGEFW_VERSION_SUFFIX\s+"(?P<suffix>[^"]*)"\)'
+result = "{numeric}{suffix}"
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]

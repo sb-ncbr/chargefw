@@ -20,9 +20,11 @@ Install the development dependencies from [DEVELOPMENT.md](DEVELOPMENT.md), `sed
 engines are installed; otherwise the scripts prefer Podman.
 The optional `keyring` command can retrieve stored upload tokens without typing them at each release.
 
-The release version comes from the top-level `project(... VERSION ...)` declaration in `CMakeLists.txt`.
-It also determines the native library version and `chargefw.__version__`. The scripts currently accept
-only `MAJOR.MINOR.PATCH` versions.
+The release version is `MAJOR.MINOR.PATCH` with an optional PEP 440 pre-release suffix `aN`, `bN`, or
+`rcN`, for example `3.0.0a1`. In `CMakeLists.txt`, the numeric part is the `project(... VERSION ...)`
+declaration and the suffix is `CHARGEFW_VERSION_SUFFIX`, empty for final releases. The full version is
+the Python package version, `chargefw.__version__`, the generator version in output files, and the tag
+name; the CMake package version is the numeric part. `01-prepare.sh` updates both parts.
 
 Each script verifies the recorded version and Git commit. Publication scripts additionally verify the
 exact artifact checksums. A repeated upload skips an existing remote file only when its SHA-256 matches;

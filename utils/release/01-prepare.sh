@@ -19,8 +19,12 @@ if git rev-parse --verify --quiet "refs/tags/v$NEW_VERSION" >/dev/null; then
     die "tag v$NEW_VERSION already exists"
 fi
 
+[[ "$NEW_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(.*)$ ]]
+readonly NEW_NUMERIC_VERSION=${BASH_REMATCH[1]}
+readonly NEW_VERSION_SUFFIX=${BASH_REMATCH[2]}
 sed -i -E \
-    "s/^([[:space:]]*VERSION[[:space:]]+)[0-9]+\.[0-9]+\.[0-9]+([[:space:]]*)$/\1${NEW_VERSION}\2/" \
+    -e "s/^([[:space:]]*VERSION[[:space:]]+)[0-9]+\.[0-9]+\.[0-9]+([[:space:]]*)$/\1${NEW_NUMERIC_VERSION}\2/" \
+    -e "s/^set\(CHARGEFW_VERSION_SUFFIX \"[^\"]*\"\)$/set(CHARGEFW_VERSION_SUFFIX \"${NEW_VERSION_SUFFIX}\")/" \
     CMakeLists.txt
 
 [[ $(current_version) == "$NEW_VERSION" ]] || die "version update failed"

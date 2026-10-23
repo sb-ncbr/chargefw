@@ -21,12 +21,19 @@ require_command() {
 }
 
 current_version() {
-    sed -nE 's/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$/\1/p' CMakeLists.txt
+    local numeric suffix
+    numeric=$(sed -nE 's/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$/\1/p' \
+        CMakeLists.txt)
+    suffix=$(sed -nE 's/^set\(CHARGEFW_VERSION_SUFFIX "([^"]*)"\)$/\1/p' CMakeLists.txt)
+    printf '%s%s\n' "$numeric" "$suffix"
 }
 
 validate_version() {
-    [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
-        die "version must have the form MAJOR.MINOR.PATCH"
+    # Canonical PEP 440 spelling keeps artifact filenames identical to the recorded version.
+    local number='(0|[1-9][0-9]*)'
+    [[ "$1" =~ ^$number\.$number\.$number((a|b|rc)$number)?$ ]] ||
+        die "version must have the form MAJOR.MINOR.PATCH with an optional aN, bN, or rcN suffix" \
+            "and no leading zeros"
 }
 
 require_clean_worktree() {
