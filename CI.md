@@ -33,6 +33,10 @@ safety net.
 
 ## 1. Per-commit CI (`ci.yml`)
 
+Status: implemented in `.github/workflows/ci.yml` (lint with pinned clang-format 22.1.8 and Ruff 0.17.2;
+`gcc-debug` on Ubuntu 26.04 with `g++-14`, Python 3.11, and ccache); not yet run on GitHub. Branch protection follows
+the first green run.
+
 Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`.
 
 Jobs:
@@ -40,7 +44,7 @@ Jobs:
 1. **lint** (seconds): `pre-commit run --all-files` (clang-format) with a pinned `clang-format` version,
    and `ruff check` / `ruff format --check` on Python sources.
 2. **gcc-debug** (main cost):
-   - Ubuntu 24.04 runner with GCC 14 (the oldest GCC currently qualified by the Debian 13 container).
+   - Ubuntu 26.04 runner with GCC 14 (the oldest GCC currently qualified by the Debian 13 container).
    - `actions/setup-python` with Python 3.11 (the minimum supported version), then the Python test
      dependencies from [DEVELOPMENT.md](DEVELOPMENT.md#requirements): NumPy, Nanobind, Gemmi 0.7.4,
      pytest, jsonschema, mypy. RDKit is not installed; its tests skip.

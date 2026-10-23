@@ -142,6 +142,13 @@ The pre-commit hook formats all tracked C and C++ files:
 pre-commit run --all-files
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
+pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
+`gcc-debug` with GCC 14 and Python 3.11 using the CTest command above. Update the pinned clang-format and
+Ruff versions in the workflow together with the local tools.
+
 ## Installation and containers
 
 Use the self-contained [native source installation](docs/NATIVE.md#build-and-link), enabling
