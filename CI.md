@@ -34,7 +34,7 @@ safety net.
 ## 1. Per-commit CI (`ci.yml`)
 
 Status: implemented in `.github/workflows/ci.yml` (lint with pinned clang-format 22.1.8 and Ruff 0.17.2;
-`gcc-debug` on Ubuntu 26.04 with `g++-14`, Python 3.11, and ccache); not yet run on GitHub. Branch protection follows
+`gcc-debug` on Ubuntu 26.04 with `g++-14`, Python 3.11, and ccache). The first run passed (lint 12 s, `gcc-debug` 6 min without cache), confirming GCC 14. Branch protection follows
 the first green run.
 
 Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`.
@@ -175,11 +175,11 @@ release restarts with a new version. Tags are never moved or deleted.
 
 Transition:
 
-1. Configure trusted publishers for `release.yml` on PyPI and TestPyPI, and the `testpypi` and `pypi`
+1. Release `3.0.0a1` with the scripts, which accept pre-release versions, to qualify the version
+   model, Read the Docs tag activation, and Figshare on the established upload path.
+2. Configure trusted publishers for `release.yml` on PyPI and TestPyPI, and the `testpypi` and `pypi`
    GitHub environments.
-2. The scripts accept pre-release versions (implemented), so they remain a working fallback for
-   `3.0.0a1`.
-3. Release `3.0.0a1` with the workflow; the scripts are the fallback until that release completes.
+3. Release `3.0.0a2` with the workflow; the scripts are the fallback until that release completes.
 4. In one change after the successful release: rewrite [RELEASING.md](RELEASING.md) for the workflow,
    keep `01-prepare.sh` and `02-validate.sh` (local qualification), remove the build and publication
    scripts and stored upload tokens, and remove the corresponding [TODO.md](TODO.md) item.
@@ -211,8 +211,8 @@ After 3.0.0:
 2. Sphinx documentation and Read the Docs project (basic site published; see section 2 for the
    remaining settings and recipe pages).
 3. `qualification.yml`, manual only while private; enable the schedule when public.
-4. Trusted publishers, GitHub environments, and `release.yml`; `3.0.0a1` via
-   the workflow, then the transition in section 4.
+4. `3.0.0a1` with the scripts; then trusted publishers, GitHub environments, and `release.yml`, with
+   `3.0.0a2` via the workflow, following the transition in section 4.
 5. Linux aarch64 and macOS arm64 wheels in `release.yml`, with platform-specific tests and artifact
    validation, before `3.0.0b1`.
 6. `CITATION.cff` and Figshare before 3.0.0; badges, contributor guidance, and autodoc after.

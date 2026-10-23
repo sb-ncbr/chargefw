@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.28)
 
 project(
   chargefw
-  VERSION 0.1.7
+  VERSION 3.0.0
   DESCRIPTION "Empirical partial atomic charge calculation framework"
   LANGUAGES CXX
 )
 
 # PEP 440 pre-release suffix (aN, bN, or rcN); empty for final releases.
-set(CHARGEFW_VERSION_SUFFIX "")
+set(CHARGEFW_VERSION_SUFFIX "a1")
 if(NOT CHARGEFW_VERSION_SUFFIX MATCHES "^((a|b|rc)(0|[1-9][0-9]*))?$")
   message(FATAL_ERROR "Invalid CHARGEFW_VERSION_SUFFIX: ${CHARGEFW_VERSION_SUFFIX}")
 endif()

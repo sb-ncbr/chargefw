@@ -53,6 +53,7 @@ sources are in this repository:
 
 ## Development
 
+- **[Changelog](CHANGELOG.md)** - see changes in each release.
 - **[Development guide](DEVELOPMENT.md)** - configure, build, test, and validate the repository.
 - **[Release guide](RELEASING.md)** - build, verify, and publish Python distributions.
 - **[Unfinished work](TODO.md)** - see current project gaps.
