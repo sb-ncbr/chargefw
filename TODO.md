@@ -4,6 +4,19 @@ This file lists unfinished product, integration, scientific-qualification, distr
 infrastructure work. Implemented behavior is documented under [`docs/`](docs/), and developer and release
 procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.md).
 
+## 3.0.0 release
+
+The automation items under [Distribution](#distribution), the documentation site (with the completion
+criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
+DOIs are also required for 3.0.0.
+
+- [ ] Ship third-party license notices for bundled dependencies (shared Gemmi and oneTBB libraries;
+  header-only Eigen, nanoflann, CLI11, nlohmann_json) in wheels, the sdist, native installations, and
+  the CLI image.
+- [ ] Build and qualify Linux aarch64 and macOS arm64 wheels.
+- [ ] Document the versioning and compatibility policy in [docs/PROJECT.md](docs/PROJECT.md).
+- [ ] Start `CHANGELOG.md` at the first 3.0.0 pre-release, stating the succession from ChargeFW2.
+
 ## Distribution
 
 - [ ] Automate the manual `cibuildwheel` release process in [RELEASING.md](RELEASING.md), including
