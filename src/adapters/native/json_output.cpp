@@ -266,6 +266,9 @@ constexpr auto metric_scale = 1000.0;
     const auto threshold_value = [](const std::optional<std::size_t>& threshold) -> Json {
         return threshold.has_value() ? Json(*threshold) : Json("unlimited");
     };
+    const auto optional_radius = [](const std::optional<double>& radius) -> Json {
+        return radius.has_value() ? Json(*radius) : Json(nullptr);
+    };
 
     const auto& requested_provenance = result.requested();
     Json requested{
@@ -278,7 +281,7 @@ constexpr auto metric_scale = 1000.0;
           {"max_threads", requested_provenance.max_threads}}},
         {"execution",
          {{"kind", requested_provenance.execution_kind},
-          {"radius_angstrom", requested_provenance.execution_radius}}}};
+          {"radius_angstrom", optional_radius(requested_provenance.execution_radius)}}}};
     requested["method_options"] = method_options_json(requested_provenance.method_options);
 
     auto effective = Json{{"method", nullptr},
@@ -292,8 +295,9 @@ constexpr auto metric_scale = 1000.0;
         for (const auto& issue : value.execution_issues) {
             effective["warnings"].push_back(issue.message);
         }
-        effective["execution"] = {{"mode", calculation::to_string(value.execution_policy.mode())},
-                                  {"radius_angstrom", value.execution_policy.radius()}};
+        effective["execution"] = {
+            {"mode", calculation::to_string(value.execution_policy.mode())},
+            {"radius_angstrom", optional_radius(value.execution_policy.radius())}};
         effective["method_options"] =
             method_options_json({{value.method_id, value.method_options}});
         if (value.fixed_ions.has_value()) {
