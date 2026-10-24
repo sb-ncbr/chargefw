@@ -154,9 +154,10 @@ Ruff versions in the workflow together with the local tools.
 
 ## Installation and containers
 
-Use the self-contained [native source installation](docs/NATIVE.md#build-and-link), enabling
-`CHARGEFW_BUILD_CLI` when the executable is required. It intentionally excludes the Python and test
-dependencies used by the validation presets.
+Use the [native source installation](docs/NATIVE.md#build-and-link), enabling `CHARGEFW_BUILD_CLI` when
+the executable is required. It needs the dependency packages listed there, or
+`CHARGEFW_FETCH_DEPENDENCIES=ON`, but not the Python and test dependencies used by the validation
+presets.
 
 The root `Dockerfile` builds the distributable CLI image:
 
