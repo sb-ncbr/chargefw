@@ -16,6 +16,11 @@
 - Installed binaries find dependency libraries installed outside the system library paths without
   `LD_LIBRARY_PATH`.
 
+### Distribution
+
+- Wheels, native installations, and the CLI image include the license notices of the third-party
+  code in their binaries.
+
 ### Fixes
 
 - mmCIF input accepts tokens longer than 4096 bytes; entries with long values, such as 3J3Q, previously

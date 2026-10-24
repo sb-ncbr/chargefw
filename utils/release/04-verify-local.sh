@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/_common.sh"
 
 [[ $# -eq 0 ]] || die "usage: $0"
-for command in sha256sum uv; do
+for command in python3 sha256sum uv; do
     require_command "$command"
 done
 load_release_state
@@ -25,6 +25,12 @@ wheels=("$ARTIFACT_DIRECTORY"/chargefw-*.whl)
 for python_tag in 311 312 313 314; do
     matches=("$ARTIFACT_DIRECTORY"/chargefw-"$RELEASE_VERSION"-cp"$python_tag"-cp"$python_tag"-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl)
     [[ ${#matches[@]} -eq 1 ]] || die "expected one CPython $python_tag manylinux wheel"
+done
+
+for wheel in "${wheels[@]}"; do
+    python3 -I -c 'import sys, zipfile; sys.exit(sys.argv[2] not in zipfile.ZipFile(sys.argv[1]).namelist())' \
+        "$wheel" "chargefw-$RELEASE_VERSION.dist-info/licenses/licenses/README.md" ||
+        die "$(basename -- "$wheel") does not contain the third-party license notices"
 done
 
 uvx twine check --strict "${artifacts[@]}"

@@ -36,6 +36,7 @@ build.verbose = false
 logging.level = "WARNING"
 install.components = ["python"]
 wheel.packages = ["python/chargefw"]
+wheel.license-files = ["LICENSE", "licenses/**/*"]
 
 [tool.scikit-build.cmake.define]
 CMAKE_INTERPROCEDURAL_OPTIMIZATION = "ON"
