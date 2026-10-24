@@ -113,6 +113,7 @@ set_target_properties(chargefw_python PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
     BUILD_RPATH "$ORIGIN/../.."
     INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH_USE_LINK_PATH ON
 )
 target_link_libraries(chargefw_python PRIVATE chargefw::core)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
