@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example 3.0.0a2
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # Builds the sdist once, builds every wheel from it, and verifies the set before anything is published.
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install build cibuildwheel==3.4.1 twine
+      - run: python -m build --sdist --outdir dist
+      - name: Check the source distribution version
+        run: test -f "dist/chargefw-$VERSION.tar.gz"
+      - run: python -m cibuildwheel --platform linux --output-dir dist "dist/chargefw-$VERSION.tar.gz"
+      - name: Check the artifact set
+        run: |
+          shopt -s nullglob
+          artifacts=(dist/*)
+          test "${#artifacts[@]}" -eq 5
+          for tag in 311 312 313 314; do
+              test -f "dist/chargefw-$VERSION-cp$tag-cp$tag-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+          done
+      - name: Check the third-party notices
+        run: |
+          for wheel in dist/*.whl; do
+              python -I -c 'import sys, zipfile; sys.exit(sys.argv[2] not in zipfile.ZipFile(sys.argv[1]).namelist())' \
+                  "$wheel" "chargefw-$VERSION.dist-info/licenses/licenses/README.md"
+          done
+      - run: python -m twine check --strict dist/*
+      - name: Install a wheel and run a calculation
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke"
+          "$RUNNER_TEMP/smoke/bin/python" -m pip install 'numpy>=1.26'
+          "$RUNNER_TEMP/smoke/bin/python" -m pip install --no-deps --no-index --find-links dist \
+              --only-binary chargefw "chargefw==$VERSION"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/smoke/bin/python" -c \
+              'import sys, chargefw; sys.exit(chargefw.__version__ != sys.argv[1])' "$VERSION"
+          "$RUNNER_TEMP/smoke/bin/python" "$GITHUB_WORKSPACE/docs/recipes/calculate_file.py" \
+              "$GITHUB_WORKSPACE/tests/fixtures/synthetic/sdf/water.sdf" \
+              --format sdf --method qeq --parameter-set QEq_original
+      - name: Write the checksum manifest
+        run: (cd dist && LC_ALL=C sha256sum ./* | LC_ALL=C sort) > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ inputs.version }}
+          path: |
+            dist/
+            SHA256SUMS
+          retention-days: 90
+          if-no-files-found: error

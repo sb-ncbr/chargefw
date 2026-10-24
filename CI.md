@@ -133,6 +133,10 @@ Keep this workflow small; add a job only for a risk that neither `ci.yml` nor lo
 
 ## 4. Release (`release.yml`)
 
+Status: first slice implemented in `.github/workflows/release.yml`: a manually dispatched `build` job that
+builds the sdist and wheels, checks the artifact set, notices, metadata, and a wheel installation, writes
+the checksum manifest, and stores everything as a workflow artifact. Publication jobs remain.
+
 Versions: the numeric `project(VERSION)` plus `CHARGEFW_VERSION_SUFFIX` form the full PEP 440 version
 used for metadata, runtime, output files, scripts, and tags (implemented; see
 [RELEASING.md](RELEASING.md)).
