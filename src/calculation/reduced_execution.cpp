@@ -8,6 +8,7 @@
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -15,6 +16,29 @@
 #include <utility>
 
 namespace chargefw::calculation::detail {
+namespace {
+
+// Neumaier summation: whole-target totals add millions of charges to large running sums, and
+// naive accumulation error would otherwise remain in the conserved charge.
+class CompensatedSum {
+  public:
+    auto add(const double value) noexcept -> void {
+        const auto next = sum_ + value;
+        compensation_ +=
+            std::abs(sum_) >= std::abs(value) ? (sum_ - next) + value : (value - next) + sum_;
+        sum_ = next;
+    }
+
+    [[nodiscard]] auto value() const noexcept -> double {
+        return sum_ + compensation_;
+    }
+
+  private:
+    double sum_ = 0.0;
+    double compensation_ = 0.0;
+};
+
+} // namespace
 
 auto project_classification(const parameters::ParameterClassification& source,
                             const features::SpatialFragment& fragment)
@@ -99,9 +123,11 @@ auto prepare_reduced_charge_context(
             context.reference_charges[atom_index] = q0[atom_index];
         }
         if (!context.reference_charges.empty()) {
-            const auto raw_total = std::accumulate(context.reference_charges.begin(),
-                                                   context.reference_charges.end(), 0.0);
-            const auto offset = (core::total_formal_charge(molecule) - raw_total) /
+            auto raw_total = CompensatedSum{};
+            for (const auto reference : context.reference_charges) {
+                raw_total.add(reference);
+            }
+            const auto offset = (core::total_formal_charge(molecule) - raw_total.value()) /
                                 static_cast<double>(context.reference_charges.size());
             for (auto& reference : context.reference_charges) {
                 reference += offset;
@@ -135,13 +161,14 @@ auto enforce_conserved_charges(std::vector<double>& values, const ReducedChargeC
         throw std::invalid_argument{"assembled charges and source references have different sizes"};
     }
     for (const auto& group : context.conservation_groups) {
-        auto reference_total = 0.0;
-        auto calculated_total = 0.0;
+        auto reference_total = CompensatedSum{};
+        auto calculated_total = CompensatedSum{};
         for (const auto atom_index : group) {
-            reference_total += context.reference_charges.at(atom_index);
-            calculated_total += values.at(atom_index);
+            reference_total.add(context.reference_charges.at(atom_index));
+            calculated_total.add(values.at(atom_index));
         }
-        const auto delta = (reference_total - calculated_total) / static_cast<double>(group.size());
+        const auto delta = (reference_total.value() - calculated_total.value()) /
+                           static_cast<double>(group.size());
         for (const auto atom_index : group) {
             values[atom_index] += delta;
         }
