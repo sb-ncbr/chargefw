@@ -47,6 +47,7 @@ tests/python/       Python package and adapter tests
 tests/fixtures/     Molecular and parameter test data
 cmake/              Dependencies, diagnostics, and installation rules
 docs/               Implemented user documentation
+licenses/           Third-party license notices shipped with binaries
 DEVELOPMENT.md       Developer build and validation manual
 RELEASING.md         Maintainer package release procedure
 Dockerfile           User-facing CLI container image

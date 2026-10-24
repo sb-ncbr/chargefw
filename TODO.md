@@ -10,9 +10,10 @@ The automation items under [Distribution](#distribution), the documentation site
 criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
 DOIs are also required for 3.0.0.
 
-- [ ] Ship third-party license notices for bundled dependencies (shared Gemmi and oneTBB libraries;
-  header-only Eigen, nanoflann, CLI11, nlohmann_json) in wheels, native installations, and the CLI
-  image, and in the sdist as its contents require.
+- [ ] Ship the third-party license notices in [`licenses/`](licenses/) (Gemmi and the code it bundles,
+  oneTBB, Eigen, nanoflann, nlohmann/json, CLI11, and nanobind with robin-map) with native
+  installations, which also covers the CLI image, and in every wheel. The sdist contains no
+  third-party code.
 - [ ] Publish the CLI image to Docker Hub as `sb-ncbr/chargefw` from the release workflow and document
   it as the container installation path.
 - [ ] Document the versioning and compatibility policy in [docs/PROJECT.md](docs/PROJECT.md), including
