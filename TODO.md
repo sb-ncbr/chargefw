@@ -22,8 +22,6 @@ DOIs are also required for 3.0.0.
 
 - [ ] Automate the manual `cibuildwheel` release process in [RELEASING.md](RELEASING.md), including
   artifact retention and publication through trusted PyPI environments.
-- [ ] Confirm a first green run of [`qualification.yml`](.github/workflows/qualification.yml) on
-  GitHub.
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.

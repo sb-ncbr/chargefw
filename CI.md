@@ -113,7 +113,7 @@ The documentation deliverable for 3.0.0 is complete when:
 
 ## 3. Qualification (`qualification.yml`)
 
-Status: implemented in `.github/workflows/qualification.yml`.
+Status: implemented in `.github/workflows/qualification.yml`; first green run for `ca3c314`.
 
 Purpose: detect breakage that arrives without a commit (distribution package updates, base images,
 unpinned Python packages, unavailable pinned downloads) and keep evidence for the documented dependency
