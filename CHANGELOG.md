@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Building from source
+
+- Native builds use installed CLI11, nlohmann/json, Eigen, nanoflann, oneTBB, and Gemmi packages by
+  default and report any that are missing at configure time. The supported versions are listed in
+  [docs/NATIVE.md](docs/NATIVE.md); the minimums match Debian 13. Set
+  `CHARGEFW_FETCH_DEPENDENCIES=ON` to download pinned sources instead, as the developer presets and
+  the Python package build do. This option replaces `CHARGEFW_USE_SYSTEM_DEPENDENCIES`; builds that
+  set it to `ON` should use `CHARGEFW_FETCH_DEPENDENCIES=OFF`.
+- Downloaded dependency sources are verified against SHA-256 checksums.
+- The installed CMake package requires the exact nlohmann/json and Gemmi versions that ChargeFW was
+  built against.
+- Installed binaries find dependency libraries installed outside the system library paths without
+  `LD_LIBRARY_PATH`.
+
+### Fixes
+
+- mmCIF input accepts tokens longer than 4096 bytes; entries with long values, such as 3J3Q, previously
+  failed to parse.
+- Cover execution of SQE+qp conserves the total charge on very large structures; on 3J3Q (2.44 million
+  atoms), rounding had left the total at 1.1e-4 instead of 0.
+
 ## 3.0.0a1
 
 First pre-release of the ChargeFW 3 series, the successor of
