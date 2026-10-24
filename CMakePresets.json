@@ -13,6 +13,7 @@
         "CHARGEFW_BUILD_PYTHON": "ON",
         "CHARGEFW_ENABLE_WARNINGS": "ON",
         "CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS": "OFF",
+        "CHARGEFW_FETCH_DEPENDENCIES": "ON",
         "CHARGEFW_PYTHON_EXECUTABLE": "/usr/bin/python3"
       }
     },

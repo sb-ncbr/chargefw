@@ -6,7 +6,10 @@ are in [AGENTS.md](AGENTS.md); public behavior is documented under [`docs/`](doc
 ## Requirements
 
 Native development requires CMake 3.28 or newer, Ninja, and a C++23-capable GCC or Clang toolchain.
-CMake downloads pinned dependencies when compatible system packages are unavailable.
+The checked-in presets set `CHARGEFW_FETCH_DEPENDENCIES=ON`, so CMake downloads pinned,
+checksum-verified dependency sources. CI and the compatibility containers build against distribution
+packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
+The supported versions are listed in [docs/NATIVE.md](docs/NATIVE.md#build-and-link).
 
 The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.11 or
 newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and

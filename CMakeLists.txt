@@ -29,7 +29,7 @@ option(CHARGEFW_BUILD_PYTHON "Build the ChargeFW Python extension" OFF)
 set(CHARGEFW_PYTHON_EXECUTABLE "" CACHE FILEPATH
     "Python interpreter for ChargeFW bindings (empty uses CMake discovery)")
 option(CHARGEFW_FETCH_DEPENDENCIES
-       "Download pinned dependencies instead of using installed packages" ON)
+       "Download pinned dependencies instead of using installed packages" OFF)
 option(CHARGEFW_ENABLE_WARNINGS "Enable project warnings" ON)
 option(CHARGEFW_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(CHARGEFW_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)

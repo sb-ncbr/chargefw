@@ -6,8 +6,11 @@ not need to manage prepared-feature or classification lifetimes.
 
 ## Build and link
 
-ChargeFW requires CMake 3.28 or newer, Ninja, and a GCC or Clang toolchain with C++23 support. The
-default build downloads pinned dependencies when they are not already available.
+ChargeFW requires CMake 3.28 or newer, Ninja, a GCC or Clang toolchain with C++23 support, and installed
+development packages for nlohmann/json 3.11.3 or newer, Eigen 3.4 or 5, nanoflann 1.7 or newer,
+oneTBB 2022.1 or newer, Gemmi 0.7.4 or newer, and, for the command-line application, CLI11 2.4 or newer.
+To build without them, set `CHARGEFW_FETCH_DEPENDENCIES=ON`; ChargeFW then downloads pinned,
+checksum-verified sources of all of them.
 
 ```bash
 cmake -S . -B build/native-release -G Ninja \
@@ -31,11 +34,11 @@ find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::core)
 ```
 
-By default, ChargeFW downloads pinned, checksum-verified dependency sources, and the installation
-includes the public nlohmann/json and Gemmi development packages and the private oneTBB runtime. With
-`CHARGEFW_FETCH_DEPENDENCIES=OFF`, ChargeFW builds against installed CLI11, nlohmann/json, Eigen,
-nanoflann, oneTBB, and Gemmi packages. Downstream CMake projects then need the nlohmann/json and Gemmi
-packages discoverable and the oneTBB runtime library available.
+The installed package requires the exact nlohmann/json and Gemmi versions that ChargeFW was built
+against, because their types appear in the public headers. With installed dependency packages,
+downstream CMake projects need those packages discoverable and the oneTBB runtime library available.
+With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the installation also includes the nlohmann/json and Gemmi
+development packages and the oneTBB runtime.
 
 The installed prefix can be relocated as a unit. `load_default_parameter_sets()` resolves bundled JSON
 relative to the loaded ChargeFW library.
