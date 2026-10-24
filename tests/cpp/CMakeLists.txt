@@ -164,6 +164,7 @@ add_test(
                 -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
                 -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
                 -DCHARGEFW_FETCH_DEPENDENCIES=${CHARGEFW_FETCH_DEPENDENCIES}
+                -DCHARGEFW_INSTALL_DOCDIR=${CMAKE_INSTALL_DOCDIR}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cmake_consumer.cmake
 )
 add_test(

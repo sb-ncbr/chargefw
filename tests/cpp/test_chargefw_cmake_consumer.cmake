@@ -5,6 +5,9 @@ if(NOT DEFINED CHARGEFW_PARENT_CACHE)
 endif()
 include("${CMAKE_CURRENT_LIST_DIR}/prepare_moved_install.cmake")
 
+expect_files_exist("Installed third-party notices"
+                   "${CHARGEFW_INSTALL_PREFIX}/${CHARGEFW_INSTALL_DOCDIR}/chargefw/licenses/README.md")
+
 # Builds from downloaded dependencies install the public dependency packages with ChargeFW. Builds
 # from installed packages rely on the packages that the ChargeFW build found, from the parent settings.
 file(GLOB_RECURSE nlohmann_configurations

@@ -51,6 +51,12 @@ install(
         COMPONENT documentation
 )
 install(
+        DIRECTORY
+        ${PROJECT_SOURCE_DIR}/licenses
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw
+        COMPONENT documentation
+)
+install(
         FILES
         ${PROJECT_SOURCE_DIR}/docs/NATIVE.md
         ${PROJECT_SOURCE_DIR}/docs/CLI.md
