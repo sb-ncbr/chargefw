@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: If you use ChargeFW, please cite it using the metadata from this file.
+type: software
+title: ChargeFW
+abstract: >-
+  ChargeFW calculates empirical partial atomic charges through a C++ library, a command-line
+  application, and a Python package.
+authors:
+  - family-names: Raček
+    given-names: Tomáš
+    orcid: https://orcid.org/0000-0002-0296-2452
+license: MIT
+repository-code: https://github.com/sb-ncbr/chargefw
+url: https://chargefw.readthedocs.io/
+keywords:
+  - partial atomic charges
+  - cheminformatics
+  - electronegativity equalization
