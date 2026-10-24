@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <istream>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -114,10 +115,12 @@ make_source_mappings(::gemmi::cif::Block& block,
 MmcifReader::MmcifReader(std::istream& input, std::string source,
                          const ::chargefw::adapters::gemmi::InputOptions options)
     : source_{std::move(source)}, options_{options} {
-    document_ = ::gemmi::cif::read_istream(input, std::size_t{4096}, source_.c_str());
+    // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
+    const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read mmCIF input"};
     }
+    document_ = ::gemmi::cif::read_memory(text.data(), text.size(), source_.c_str());
 
     const auto has_coordinates = [](const ::gemmi::cif::Block& block) -> bool {
         return block.has_tag("_atom_site.id");

@@ -120,6 +120,15 @@ _atom_site.pdbx_PDB_model_num
     auto duplicate_reader = mmcif::MmcifReader{duplicate};
     CHECK_THROWS_AS(duplicate_reader.next(), std::runtime_error);
 
+    std::istringstream long_value{atom_site_header("long") +
+                                  "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"
+                                  "_struct.title " +
+                                  std::string(5000, 'x') + "\n"};
+    auto long_reader = mmcif::MmcifReader{long_value};
+    const auto long_record = long_reader.next();
+    REQUIRE(long_record.has_value());
+    CHECK(long_record->molecule.atoms().size() == 1);
+
     for (const auto model_id : {"+1", ".", "?"}) {
         std::istringstream model_input{
             std::string{header} + "HETATM source C L1 . LIG LA 7 ? 0 0 0 1 20 0 17 AUTH AC A1 E1 " +
