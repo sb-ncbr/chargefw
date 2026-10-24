@@ -6,7 +6,7 @@ function(chargefw_setup_dependencies)
 
     if(CHARGEFW_BUILD_CLI)
         if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-            find_package(CLI11 2.7.2 CONFIG QUIET)
+            find_package(CLI11 2.4 CONFIG QUIET)
         endif()
         if(NOT TARGET CLI11::CLI11)
             FetchContent_Declare(
@@ -21,7 +21,7 @@ function(chargefw_setup_dependencies)
     endif()
 
     if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(nlohmann_json 3.12 CONFIG QUIET)
+        find_package(nlohmann_json 3.11.3 CONFIG QUIET)
     endif()
     if(NOT TARGET nlohmann_json::nlohmann_json)
         set(JSON_Install ON)
@@ -35,7 +35,11 @@ function(chargefw_setup_dependencies)
     endif()
 
     if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(Eigen3 5.0 CONFIG QUIET)
+        # Eigen version files accept only one major version per request; 3.4 and 5 are supported.
+        find_package(Eigen3 5 CONFIG QUIET)
+        if(NOT Eigen3_FOUND)
+            find_package(Eigen3 3.4 CONFIG QUIET)
+        endif()
     endif()
     if(NOT TARGET Eigen3::Eigen)
         FetchContent_Declare(
@@ -49,7 +53,7 @@ function(chargefw_setup_dependencies)
     endif()
 
     if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(nanoflann 1.14 CONFIG QUIET)
+        find_package(nanoflann 1.7 CONFIG QUIET)
     endif()
     if(NOT TARGET nanoflann::nanoflann)
         # nanoflann currently does not set CMP0077 itself. Select modern option() behavior so these
@@ -69,7 +73,7 @@ function(chargefw_setup_dependencies)
     endif()
 
     if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(TBB 2023.1 CONFIG QUIET)
+        find_package(TBB 2022.1 CONFIG QUIET)
     endif()
     if(NOT TARGET TBB::tbb)
         # An explicit project-wide IPO choice already initializes fetched targets. Avoid oneTBB's
