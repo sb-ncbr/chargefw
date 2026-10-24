@@ -399,7 +399,7 @@ follow its inspected contents.
 7. `CITATION.cff`, Figshare, the versioning policy, and the CLI image before 3.0.0; badges, contributor
    guidance, and autodoc after.
 
-`ci.yml` and documentation do not depend on the open question below. Section 6 phase 1 should be
+Section 6 phase 1 should be
 implemented before `qualification.yml` and `release.yml` are written.
 
 ## Decisions
@@ -422,9 +422,8 @@ implemented before `qualification.yml` and `release.yml` are written.
   points: library location through `dladdr` (`src/parameters/io/parameter_data_paths.cpp`) and peak
   memory through `getrusage` (`apps/chargefw/output.cpp`, which assumes Linux's kilobyte `ru_maxrss`;
   macOS reports bytes).
+- The per-commit baseline is the oldest supported toolchain, GCC 14 and Python 3.11, with the C and C++
+  compilers pinned together; newer compilers are covered locally and by the Fedora 44 container. The
+  rationale is in [DEVELOPMENT.md](DEVELOPMENT.md#continuous-integration).
 - The CLI image is published to Docker Hub only, as `sb-ncbr/chargefw`, the single image name in the
   documentation. It is built for linux/amd64; linux/arm64 follows the optional-platform rule above.
-
-## Open questions
-
-1. Is GCC 14 / Python 3.11 the right per-commit baseline, or should it track the newest toolchain?

@@ -52,8 +52,10 @@ jobs:
           path: .ccache
           key: ccache-gcc-14-debug-${{ github.sha }}
           restore-keys: ccache-gcc-14-debug-
+      # Oldest supported toolchain; see DEVELOPMENT.md#continuous-integration.
       - run: >-
           cmake --preset gcc-debug
+          -DCMAKE_C_COMPILER=gcc-14
           -DCMAKE_CXX_COMPILER=g++-14
           -DCHARGEFW_FETCH_DEPENDENCIES=OFF
           -DCHARGEFW_PYTHON_EXECUTABLE=${{ steps.python.outputs.python-path }}

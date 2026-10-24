@@ -51,6 +51,7 @@ jobs:
           'numpy>=2.0' 'nanobind>=2.11' 'gemmi==0.7.4' pytest jsonschema mypy
       - run: >-
           cmake --preset gcc-release
+          -DCMAKE_C_COMPILER=gcc-14
           -DCMAKE_CXX_COMPILER=g++-14
           -DCHARGEFW_PYTHON_EXECUTABLE=${{ steps.python.outputs.python-path }}
       - run: cmake --build build/gcc-release
