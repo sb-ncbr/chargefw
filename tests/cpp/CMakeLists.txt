@@ -127,6 +127,8 @@ set(chargefw_install_test_variables
         CMAKE_CXX_COMPILER
         CMAKE_CXX_COMPILER_LAUNCHER
         CHARGEFW_FETCH_DEPENDENCIES
+        nlohmann_json_DIR
+        gemmi_DIR
         CHARGEFW_ENABLE_CCACHE
         CHARGEFW_ENABLE_WARNINGS
         CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS
@@ -161,6 +163,7 @@ add_test(
         COMMAND ${CMAKE_COMMAND}
                 -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
                 -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
+                -DCHARGEFW_FETCH_DEPENDENCIES=${CHARGEFW_FETCH_DEPENDENCIES}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cmake_consumer.cmake
 )
 add_test(
