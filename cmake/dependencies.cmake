@@ -14,6 +14,7 @@ function(chargefw_setup_dependencies)
                     SYSTEM
                     EXCLUDE_FROM_ALL
                     URL https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.7.2.tar.gz
+                    URL_HASH SHA256=46eef3101da70852ec7af026e09d485ccee81813331c8c6052d39344443b83da
             )
             FetchContent_MakeAvailable(cli11)
         endif()
@@ -28,6 +29,7 @@ function(chargefw_setup_dependencies)
                 nlohmann_json
                 SYSTEM
                 URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+                URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
         )
         FetchContent_MakeAvailable(nlohmann_json)
     endif()
@@ -41,6 +43,7 @@ function(chargefw_setup_dependencies)
                 SYSTEM
                 EXCLUDE_FROM_ALL
                 URL https://gitlab.com/libeigen/eigen/-/archive/5.0.1/eigen-5.0.1.tar.gz
+                URL_HASH SHA256=e9c326dc8c05cd1e044c71f30f1b2e34a6161a3b6ecf445d56b53ff1669e3dec
         )
         FetchContent_MakeAvailable(eigen)
     endif()
@@ -59,6 +62,7 @@ function(chargefw_setup_dependencies)
                 SYSTEM
                 EXCLUDE_FROM_ALL
                 URL https://github.com/jlblancoc/nanoflann/archive/refs/tags/2.0.1.tar.gz
+                URL_HASH SHA256=bb3991ad924248d3f20953a951c34878196c11ca112d800acc341c3808443896
         )
         FetchContent_MakeAvailable(nanoflann)
         unset(CMAKE_POLICY_DEFAULT_CMP0077)
@@ -82,6 +86,7 @@ function(chargefw_setup_dependencies)
                 onetbb
                 SYSTEM
                 URL https://github.com/uxlfoundation/oneTBB/archive/refs/tags/v2023.1.0.tar.gz
+                URL_HASH SHA256=191288b52e1e6b17198000b64d77d194bb65e791be46ebc606e9b091781e2070
         )
         FetchContent_MakeAvailable(onetbb)
     endif()
@@ -98,6 +103,7 @@ function(chargefw_setup_dependencies)
                 gemmi
                 SYSTEM
                 URL https://github.com/project-gemmi/gemmi/archive/refs/tags/v0.7.4.tar.gz
+                URL_HASH SHA256=58ed9023e0f75033ebec1da630461bc6e1af661f29f0c41deed66c20315ebe2a
         )
         FetchContent_MakeAvailable(gemmi)
     endif()
@@ -114,6 +120,7 @@ function(chargefw_setup_test_dependencies)
                 SYSTEM
                 EXCLUDE_FROM_ALL
                 URL https://github.com/cschreib/snitch/archive/refs/tags/v1.3.2.tar.gz
+                URL_HASH SHA256=5b3a0af7e5637f02ac95652f2238b89eb227b4881bf4e5ffc6935f184ff11626
         )
         FetchContent_MakeAvailable(snitch)
 
