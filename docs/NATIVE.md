@@ -31,10 +31,11 @@ find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::core)
 ```
 
-When ChargeFW builds its bundled dependencies, the installation includes the public nlohmann/json and
-Gemmi development packages and the private oneTBB runtime. With
-`CHARGEFW_USE_SYSTEM_DEPENDENCIES=ON`, those dependency packages must remain discoverable by downstream
-CMake.
+By default, ChargeFW downloads pinned, checksum-verified dependency sources, and the installation
+includes the public nlohmann/json and Gemmi development packages and the private oneTBB runtime. With
+`CHARGEFW_FETCH_DEPENDENCIES=OFF`, ChargeFW builds against installed CLI11, nlohmann/json, Eigen,
+nanoflann, oneTBB, and Gemmi packages. Downstream CMake projects then need the nlohmann/json and Gemmi
+packages discoverable and the oneTBB runtime library available.
 
 The installed prefix can be relocated as a unit. `load_default_parameter_sets()` resolves bundled JSON
 relative to the loaded ChargeFW library.

@@ -5,10 +5,9 @@ function(chargefw_setup_dependencies)
     set(CHARGEFW_GEMMI_FETCHED OFF PARENT_SCOPE)
 
     if(CHARGEFW_BUILD_CLI)
-        if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-            find_package(CLI11 2.4 CONFIG QUIET)
-        endif()
-        if(NOT TARGET CLI11::CLI11)
+        if(NOT CHARGEFW_FETCH_DEPENDENCIES)
+            find_package(CLI11 2.4 CONFIG REQUIRED)
+        else()
             FetchContent_Declare(
                     cli11
                     SYSTEM
@@ -20,10 +19,9 @@ function(chargefw_setup_dependencies)
         endif()
     endif()
 
-    if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(nlohmann_json 3.11.3 CONFIG QUIET)
-    endif()
-    if(NOT TARGET nlohmann_json::nlohmann_json)
+    if(NOT CHARGEFW_FETCH_DEPENDENCIES)
+        find_package(nlohmann_json 3.11.3 CONFIG REQUIRED)
+    else()
         set(JSON_Install ON)
         FetchContent_Declare(
                 nlohmann_json
@@ -34,14 +32,13 @@ function(chargefw_setup_dependencies)
         FetchContent_MakeAvailable(nlohmann_json)
     endif()
 
-    if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
+    if(NOT CHARGEFW_FETCH_DEPENDENCIES)
         # Eigen version files accept only one major version per request; 3.4 and 5 are supported.
         find_package(Eigen3 5 CONFIG QUIET)
         if(NOT Eigen3_FOUND)
-            find_package(Eigen3 3.4 CONFIG QUIET)
+            find_package(Eigen3 3.4 CONFIG REQUIRED)
         endif()
-    endif()
-    if(NOT TARGET Eigen3::Eigen)
+    else()
         FetchContent_Declare(
                 eigen
                 SYSTEM
@@ -52,10 +49,9 @@ function(chargefw_setup_dependencies)
         FetchContent_MakeAvailable(eigen)
     endif()
 
-    if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(nanoflann 1.7 CONFIG QUIET)
-    endif()
-    if(NOT TARGET nanoflann::nanoflann)
+    if(NOT CHARGEFW_FETCH_DEPENDENCIES)
+        find_package(nanoflann 1.7 CONFIG REQUIRED)
+    else()
         # nanoflann currently does not set CMP0077 itself. Select modern option() behavior so these
         # embedding-project choices remain effective on the first configure.
         set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -72,10 +68,9 @@ function(chargefw_setup_dependencies)
         unset(CMAKE_POLICY_DEFAULT_CMP0077)
     endif()
 
-    if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(TBB 2022.1 CONFIG QUIET)
-    endif()
-    if(NOT TARGET TBB::tbb)
+    if(NOT CHARGEFW_FETCH_DEPENDENCIES)
+        find_package(TBB 2022.1 CONFIG REQUIRED)
+    else()
         # An explicit project-wide IPO choice already initializes fetched targets. Avoid oneTBB's
         # redundant all-enabled-language probe, which is unreliable when C is enabled by a sibling.
         if(DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION)
@@ -95,10 +90,9 @@ function(chargefw_setup_dependencies)
         FetchContent_MakeAvailable(onetbb)
     endif()
 
-    if(CHARGEFW_USE_SYSTEM_DEPENDENCIES)
-        find_package(gemmi 0.7.4 CONFIG QUIET)
-    endif()
-    if(NOT TARGET gemmi::gemmi_cpp)
+    if(NOT CHARGEFW_FETCH_DEPENDENCIES)
+        find_package(gemmi 0.7.4 CONFIG REQUIRED)
+    else()
         set(BUILD_GEMMI_PROGRAM OFF)
         set(BUILD_SHARED_LIBS ON)
         set(INSTALL_DEV_FILES ON)

@@ -29,6 +29,5 @@ COPY . .
 
 RUN cmake --preset gcc-release \
         -DCHARGEFW_PYTHON_EXECUTABLE=/opt/venv/bin/python \
-        -DCHARGEFW_USE_SYSTEM_DEPENDENCIES=ON \
     && cmake --build build/gcc-release --parallel \
     && ctest --test-dir build/gcc-release --output-on-failure -E '^cpptest$'
