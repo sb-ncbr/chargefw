@@ -2,12 +2,32 @@ FROM fedora:44
 
 RUN dnf install --assumeyes \
     ca-certificates \
+    cli11-devel \
     cmake \
+    curl \
+    eigen3-devel \
     gcc-c++ \
+    json-devel \
+    nanoflann-devel \
     ninja-build \
     python3 \
     python3-devel \
+    tbb-devel \
+    zlib-devel \
     && dnf clean all
+
+# Debian and Fedora do not package the Gemmi C++ library; install the version that ChargeFW pins.
+RUN curl --fail --silent --show-error --location --output /tmp/gemmi.tar.gz \
+        https://github.com/project-gemmi/gemmi/archive/refs/tags/v0.7.4.tar.gz \
+    && echo '58ed9023e0f75033ebec1da630461bc6e1af661f29f0c41deed66c20315ebe2a  /tmp/gemmi.tar.gz' \
+        | sha256sum --check --quiet \
+    && mkdir /tmp/gemmi \
+    && tar -xzf /tmp/gemmi.tar.gz -C /tmp/gemmi --strip-components=1 \
+    && cmake -S /tmp/gemmi -B /tmp/gemmi/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_GEMMI_PROGRAM=OFF \
+    && cmake --build /tmp/gemmi/build \
+    && cmake --install /tmp/gemmi/build \
+    && rm -rf /tmp/gemmi /tmp/gemmi.tar.gz
 
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir \
@@ -22,5 +42,6 @@ WORKDIR /source
 COPY . .
 
 RUN cmake --preset gcc-release -DCHARGEFW_PYTHON_EXECUTABLE=/opt/venv/bin/python \
+        -DCHARGEFW_FETCH_DEPENDENCIES=OFF \
     && cmake --build build/gcc-release --parallel \
     && ctest --test-dir build/gcc-release --output-on-failure -E '^cpptest$'
