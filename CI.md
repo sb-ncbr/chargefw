@@ -406,8 +406,8 @@ implemented before `qualification.yml` and `release.yml` are written.
 
 - The name stays "ChargeFW" everywhere; the version continues ChargeFW2's lineage. `chargefw` exists on
   PyPI (0.1, 0.1.2–0.1.7) and TestPyPI (0.1.1–0.1.7). Releases before 3.0.0 are PEP 440 pre-releases
-  (`3.0.0a1`, `3.0.0b1`, `3.0.0rc1`); the compatibility policy after 3.0.0 is documented in
-  [docs/PROJECT.md](docs/PROJECT.md) (TODO).
+  (`3.0.0a1`, `3.0.0b1`, `3.0.0rc1`); the versioning policy is in
+  [docs/PROJECT.md](docs/PROJECT.md#versions).
 - Documentation is hosted on Read the Docs (Community plan, with its single unobtrusive ad), for
   versioned docs, PR previews, and no deployment workflow.
 - Releases are dispatched manually; the workflow creates the tag after TestPyPI verification, as in the

@@ -15,8 +15,6 @@ DOIs are also required for 3.0.0.
   Native installations and the CLI image already install them.
 - [ ] Publish the CLI image to Docker Hub as `sb-ncbr/chargefw` from the release workflow and document
   it as the container installation path.
-- [ ] Document the versioning and compatibility policy in [docs/PROJECT.md](docs/PROJECT.md), including
-  the supported minimum dependency versions.
 
 ## Distribution
 
