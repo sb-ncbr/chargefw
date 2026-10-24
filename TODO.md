@@ -10,22 +10,30 @@ The automation items under [Distribution](#distribution), the documentation site
 criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
 DOIs are also required for 3.0.0.
 
+- [ ] Build native installations against external dependencies with documented minimum versions and
+  installed-package requirements, keeping Python packaging unchanged (phase 1). Design approved; see
+  [CI.md](CI.md#6-system-dependencies-approved-design-not-implemented) for the contracts, decisions,
+  acceptance criteria, and the [incremental steps](CI.md#incremental-steps) with their status.
 - [ ] Ship third-party license notices for bundled dependencies (shared Gemmi and oneTBB libraries;
-  header-only Eigen, nanoflann, CLI11, nlohmann_json) in wheels, the sdist, native installations, and
-  the CLI image.
-- [ ] Build and qualify Linux aarch64 and macOS arm64 wheels.
-- [ ] Document the versioning and compatibility policy in [docs/PROJECT.md](docs/PROJECT.md).
-- [ ] Start `CHANGELOG.md` at the first 3.0.0 pre-release, stating the succession from ChargeFW2.
+  header-only Eigen, nanoflann, CLI11, nlohmann_json) in wheels, native installations, and the CLI
+  image, and in the sdist as its contents require.
+- [ ] Publish the CLI image to Docker Hub as `sb-ncbr/chargefw` from the release workflow and document
+  it as the container installation path.
+- [ ] Document the versioning and compatibility policy in [docs/PROJECT.md](docs/PROJECT.md), including
+  the supported minimum dependency versions.
 
 ## Distribution
 
 - [ ] Automate the manual `cibuildwheel` release process in [RELEASING.md](RELEASING.md), including
   artifact retention and publication through trusted PyPI environments.
 - [ ] Automate repository validation, including formatting, GCC and Clang debug/release tests,
-  AddressSanitizer and UndefinedBehaviorSanitizer tests, installed-package relocation, and the downstream
-  CMake consumer.
-- [ ] Add and qualify wheels for other platforms, architectures, and Python versions as their native and
-  optional Python dependencies permit.
+  AddressSanitizer and UndefinedBehaviorSanitizer tests, installed-package relocation, the downstream
+  CMake consumer, and builds against the minimum, distribution, and current pinned dependency versions.
+- [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
+  macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
+  machinery.
+- [ ] Simplify Python source-build dependency staging and its loader handling once native external
+  dependencies are qualified (phase 2 in [CI.md](CI.md#6-system-dependencies-approved-design-not-implemented)).
 
 ## Integrations
 
