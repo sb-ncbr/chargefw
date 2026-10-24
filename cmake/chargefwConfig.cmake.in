@@ -1,8 +1,8 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(nlohmann_json 3.11.3 CONFIG)
-find_dependency(gemmi 0.7.4 CONFIG)
+find_dependency(nlohmann_json @CHARGEFW_NLOHMANN_JSON_VERSION@ EXACT CONFIG)
+find_dependency(gemmi @CHARGEFW_GEMMI_VERSION@ EXACT CONFIG)
 
 include("${CMAKE_CURRENT_LIST_DIR}/chargefwTargets.cmake")
 check_required_components(chargefw)

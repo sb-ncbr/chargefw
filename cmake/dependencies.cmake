@@ -21,8 +21,10 @@ function(chargefw_setup_dependencies)
 
     if(NOT CHARGEFW_FETCH_DEPENDENCIES)
         find_package(nlohmann_json 3.11.3 CONFIG REQUIRED)
+        set(CHARGEFW_NLOHMANN_JSON_VERSION "${nlohmann_json_VERSION}" PARENT_SCOPE)
     else()
         set(JSON_Install ON)
+        set(CHARGEFW_NLOHMANN_JSON_VERSION 3.12.0 PARENT_SCOPE)
         FetchContent_Declare(
                 nlohmann_json
                 SYSTEM
@@ -92,7 +94,9 @@ function(chargefw_setup_dependencies)
 
     if(NOT CHARGEFW_FETCH_DEPENDENCIES)
         find_package(gemmi 0.7.4 CONFIG REQUIRED)
+        set(CHARGEFW_GEMMI_VERSION "${gemmi_VERSION}" PARENT_SCOPE)
     else()
+        set(CHARGEFW_GEMMI_VERSION 0.7.4 PARENT_SCOPE)
         set(BUILD_GEMMI_PROGRAM OFF)
         set(BUILD_SHARED_LIBS ON)
         set(INSTALL_DEV_FILES ON)
