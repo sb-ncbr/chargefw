@@ -52,7 +52,7 @@ Jobs:
      downstream-consumer tests.
    - ccache keyed on compiler and preset.
    - Dependencies are Ubuntu packages (including Gemmi 0.7.4) with `CHARGEFW_FETCH_DEPENDENCIES=OFF`;
-     only the test framework is downloaded (see [section 6](#6-system-dependencies-approved-design-not-implemented)).
+     only the test framework is downloaded (see [section 6](#6-system-dependencies)).
 
 Cost controls:
 
@@ -127,7 +127,7 @@ Matrix (independent jobs, `fail-fast: false`):
 | clang-asan | `clang-asan` | Build with `--parallel 2` |
 | clang-ubsan | `clang-ubsan` | Build with `--parallel 2` |
 | clang-tidy | `clang-tidy` | Build only |
-| containers | `docker/*` | Matrix over Ubuntu 26.04, Debian 13, Fedora 44; also `docker build .`. Pending [section 6](#6-system-dependencies-approved-design-not-implemented): minimum and distribution dependency sets, plus one current-pin job |
+| containers | `docker/*` | Matrix over Ubuntu 26.04, Debian 13, Fedora 44; also `docker build .`. Pending [section 6](#6-system-dependencies): minimum and distribution dependency sets, plus one current-pin job |
 | recipes | installed package | Optional: runs each recipe on a test fixture, if recipes gain a fixture-based invocation |
 
 The scheduled run reports failures through GitHub notifications; it does not block merges. These
@@ -213,12 +213,11 @@ After 3.0.0:
   pre-commit locally.
 - Dependabot for GitHub Actions versions only.
 
-## 6. System dependencies (approved design, not implemented)
+## 6. System dependencies
 
-> **Review status: phase 1 implemented in small commits (see [Incremental steps](#incremental-steps));
-> its acceptance awaits the first `ci.yml` run on GitHub with `CHARGEFW_FETCH_DEPENDENCIES=OFF`.** The decisions below settle the former review
-> points. Phase 2 is not designed and needs its own review. Sections 1, 3, and 4 and [TODO.md](TODO.md)
-> refer here where they depend on the implementation.
+> **Status: phase 1 implemented and accepted (see [Incremental steps](#incremental-steps)); the first
+> `ci.yml` run with `CHARGEFW_FETCH_DEPENDENCIES=OFF` passed on GitHub for `11395c0`.** Phase 2 is not
+> designed and needs its own review.
 
 Goal: move closer to conventional, portable packaging without adding significant complexity. Linux
 remains the required platform (see Decisions); this section must not introduce platform-specific
@@ -297,7 +296,7 @@ headers expose nlohmann/json and Gemmi types and link them publicly, so an insta
 the same json and Gemmi versions it was built against. TBB, Eigen, nanoflann, and CLI11 are private:
 consumers need the TBB runtime library, not its CMake package.
 
-### Phase 1: native builds (proposed for 3.0.0)
+### Phase 1: native builds (implemented)
 
 1. **Download permission.** Replace `CHARGEFW_USE_SYSTEM_DEPENDENCIES` with
    `CHARGEFW_FETCH_DEPENDENCIES`: `OFF` by default for native
@@ -328,7 +327,8 @@ Acceptance criteria:
   testing every combination;
 - a downstream consumer against an installation whose dependencies are in a non-default prefix,
   checking that discovery reaches the same json and Gemmi packages the build used;
-- the custom-layout installation test no longer depends on fetched source directories;
+- the custom-layout installation test passes with `OFF` (it reuses fetched source directories only
+  when downloading, so it was left unchanged);
 - the Python source build and release wheels pass unchanged, including a clean sdist installation
   verified after its build directory is removed.
 
@@ -390,7 +390,7 @@ follow its inspected contents.
 1. `ci.yml` and branch protection.
 2. Sphinx documentation and Read the Docs project (basic site published; see section 2 for the
    remaining settings and recipe pages).
-3. Phase 1 of [section 6](#6-system-dependencies-approved-design-not-implemented): native dependency
+3. Phase 1 of [section 6](#6-system-dependencies): native dependency
    discovery, installed requirements, the json 3.11 fix, `ci.yml`, and the Dockerfiles; then the
    third-party license-notice item.
 4. `qualification.yml` with its weekly schedule and the dependency-version matrix.

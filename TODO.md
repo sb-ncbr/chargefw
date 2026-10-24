@@ -10,10 +10,6 @@ The automation items under [Distribution](#distribution), the documentation site
 criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
 DOIs are also required for 3.0.0.
 
-- [ ] Build native installations against external dependencies with documented minimum versions and
-  installed-package requirements, keeping Python packaging unchanged (phase 1). Design approved; see
-  [CI.md](CI.md#6-system-dependencies-approved-design-not-implemented) for the contracts, decisions,
-  acceptance criteria, and the [incremental steps](CI.md#incremental-steps) with their status.
 - [ ] Ship third-party license notices for bundled dependencies (shared Gemmi and oneTBB libraries;
   header-only Eigen, nanoflann, CLI11, nlohmann_json) in wheels, native installations, and the CLI
   image, and in the sdist as its contents require.
@@ -33,7 +29,7 @@ DOIs are also required for 3.0.0.
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.
 - [ ] Simplify Python source-build dependency staging and its loader handling once native external
-  dependencies are qualified (phase 2 in [CI.md](CI.md#6-system-dependencies-approved-design-not-implemented)).
+  dependencies are qualified (phase 2 in [CI.md](CI.md#6-system-dependencies)).
 
 ## Integrations
 
