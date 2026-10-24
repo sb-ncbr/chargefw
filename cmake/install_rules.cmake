@@ -1,6 +1,9 @@
+# Installed dependencies outside the system library paths are referenced by their absolute
+# directories; libraries built within this project are found relative to the installation.
 set_target_properties(chargefw_core
         PROPERTIES
         INSTALL_RPATH "$ORIGIN"
+        INSTALL_RPATH_USE_LINK_PATH ON
 )
 
 # Prefer the installed dependency copies over same-named libraries from
@@ -12,6 +15,7 @@ if(TARGET chargefw_cli)
     set_target_properties(chargefw_cli
             PROPERTIES
             INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}"
+            INSTALL_RPATH_USE_LINK_PATH ON
     )
     target_link_options(chargefw_cli PRIVATE "LINKER:--disable-new-dtags")
 endif()
