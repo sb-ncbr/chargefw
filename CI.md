@@ -24,7 +24,7 @@ on 2-vCPU runners, not cost.
 | --- | --- | --- | --- |
 | `ci.yml` | PR, push to `main` | Lint, `gcc-debug` build and full CTest | Required merge check |
 | `docs` (Read the Docs) | PR, push, tag | Sphinx build with warnings as errors | PR preview, published docs |
-| `qualification.yml` | Weekly, manual | Clang, release, sanitizers, clang-tidy | Drift detection |
+| `qualification.yml` | Weekly, manual | Distribution containers, CLI image, pinned dependencies | Drift detection |
 | `release.yml` | Manual, on a `main` commit | sdist, wheels, TestPyPI, tag, approval, PyPI | Publication |
 
 Local validation remains the primary qualification for design-sensitive PRs; CI is the clean-environment
@@ -61,7 +61,7 @@ Cost controls:
   PR. `ci.yml` always runs; documentation-only changes pay one cached build, which is acceptable at the
   expected PR volume. If that becomes slow, add a `changes` job and skip build steps inside the required
   jobs, which then still report success.
-- Recipes are not run by `ci.yml`; recipe checks belong to `qualification.yml` (section 3).
+- Recipes are not run in CI; the release smoke check runs one.
 - Minimal `permissions: contents: read`.
 
 Branch protection on `main`: require `lint` and `gcc-debug`; allow maintainers to merge after local
@@ -113,25 +113,23 @@ The documentation deliverable for 3.0.0 is complete when:
 
 ## 3. Qualification (`qualification.yml`)
 
-Triggers: weekly `schedule` and `workflow_dispatch` (any branch, used for risky PRs). Releases do not call
-it; release qualification of the Linux profiles is local (see Decisions).
+Status: implemented in `.github/workflows/qualification.yml`.
 
-Matrix (independent jobs, `fail-fast: false`):
+Purpose: detect breakage that arrives without a commit (distribution package updates, base images,
+unpinned Python packages, unavailable pinned downloads) and keep evidence for the documented dependency
+versions. Compiler, sanitizer, clang-tidy, and release-profile checks are not repeated here; the
+maintainer runs them locally before a release (see Decisions).
 
-| Job | Preset | Notes |
+Triggers: weekly `schedule` and `workflow_dispatch`. It does not block merges; failures are reported
+through GitHub notifications.
+
+| Job | What it builds | Notes |
 | --- | --- | --- |
-| clang-debug | `clang-debug` | Pinned LLVM from apt.llvm.org |
-| gcc-release | `gcc-release` | Host-native optimization is acceptable on the test runner |
-| rdkit | `gcc-debug` | Matrix over the oldest supported (`2024.9`) and latest RDKit; qualifies the [RDKit TODO](TODO.md#integrations) |
-| clang-release | `clang-release` | |
-| clang-asan | `clang-asan` | Build with `--parallel 2` |
-| clang-ubsan | `clang-ubsan` | Build with `--parallel 2` |
-| clang-tidy | `clang-tidy` | Build only |
-| containers | `docker/*` | Matrix over Ubuntu 26.04, Debian 13, Fedora 44; also `docker build .`. Pending [section 6](#6-system-dependencies): minimum and distribution dependency sets, plus one current-pin job |
-| recipes | installed package | Optional: runs each recipe on a test fixture, if recipes gain a fixture-based invocation |
+| containers | `docker/*` | Debian 13 (minimum dependency versions), Ubuntu 26.04, and Fedora 44 (newest packaged versions), each with the full CTest |
+| cli-image | `Dockerfile` | Builds the distributable CLI image and runs it |
+| pinned-dependencies | `gcc-release` | Downloaded pins, which are newer than any distribution set (see [section 6](#6-system-dependencies)) |
 
-The scheduled run reports failures through GitHub notifications; it does not block merges. These
-checks remain runnable locally as documented in [DEVELOPMENT.md](DEVELOPMENT.md).
+Keep this workflow small; add a job only for a risk that neither `ci.yml` nor local validation covers.
 
 ## 4. Release (`release.yml`)
 
@@ -393,7 +391,7 @@ follow its inspected contents.
 3. Phase 1 of [section 6](#6-system-dependencies): native dependency
    discovery, installed requirements, the json 3.11 fix, `ci.yml`, and the Dockerfiles; then the
    third-party license-notice item.
-4. `qualification.yml` with its weekly schedule and the dependency-version matrix.
+4. `qualification.yml` with its weekly schedule and the dependency-version containers (implemented).
 5. `3.0.0a1` with the scripts (released); then trusted publishers, GitHub environments, and
    `release.yml`, with `3.0.0a2` via the workflow, following the transition in section 4.
 6. Optional: Linux aarch64 and macOS arm64 wheels in `release.yml`, with platform-specific tests and

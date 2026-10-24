@@ -22,9 +22,8 @@ DOIs are also required for 3.0.0.
 
 - [ ] Automate the manual `cibuildwheel` release process in [RELEASING.md](RELEASING.md), including
   artifact retention and publication through trusted PyPI environments.
-- [ ] Automate repository validation, including formatting, GCC and Clang debug/release tests,
-  AddressSanitizer and UndefinedBehaviorSanitizer tests, installed-package relocation, the downstream
-  CMake consumer, and builds against the minimum, distribution, and current pinned dependency versions.
+- [ ] Confirm a first green run of [`qualification.yml`](.github/workflows/qualification.yml) on
+  GitHub.
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.
@@ -33,8 +32,8 @@ DOIs are also required for 3.0.0.
 
 ## Integrations
 
-- [ ] Qualify the optional RDKit adapter against supported RDKit releases with real-toolkit conversion,
-  mapping, property attachment, and SD serialization tests.
+- [ ] Qualify the optional RDKit adapter locally against the oldest supported (2024.9) and the latest
+  RDKit release with real-toolkit conversion, mapping, property attachment, and SD serialization tests.
 - [ ] Compare the Python API with the capabilities actually used by the ACC III backend and add only the
   missing explicit capabilities needed for migration. Document intentionally unsupported legacy
   behavior before replacing the existing backend.

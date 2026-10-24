@@ -1,0 +1,57 @@
+name: Qualification
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Debian 13 builds against the minimum supported dependency versions, Fedora 44 against the newest
+  # packaged ones, and Ubuntu 26.04 against the per-commit CI set.
+  containers:
+    name: container (${{ matrix.image }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [debian-13, ubuntu-26.04, fedora-44]
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --file docker/Dockerfile.${{ matrix.image }} .
+
+  cli-image:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --tag chargefw:qualification .
+      - run: docker run --rm chargefw:qualification parameters
+
+  # The developer presets download the pinned dependency versions, which are newer than any
+  # distribution package set.
+  pinned-dependencies:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: >-
+          python -m pip install
+          'numpy>=2.0' 'nanobind>=2.11' 'gemmi==0.7.4' pytest jsonschema mypy
+      - run: >-
+          cmake --preset gcc-release
+          -DCMAKE_CXX_COMPILER=g++-14
+          -DCHARGEFW_PYTHON_EXECUTABLE=${{ steps.python.outputs.python-path }}
+      - run: cmake --build build/gcc-release
+      - run: ctest --test-dir build/gcc-release --output-on-failure -E '^cpptest$'
