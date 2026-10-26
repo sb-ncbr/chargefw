@@ -133,70 +133,8 @@ Keep this workflow small; add a job only for a risk that neither `ci.yml` nor lo
 
 ## 4. Release (`release.yml`)
 
-Status: all jobs below are implemented in `.github/workflows/release.yml`, with helpers in
-`utils/release/package_index.py` and `utils/release/smoke-test.sh`. The `build` job passed a dry run for
-`3.0.0a1`; the publication jobs are first exercised by `3.0.0a2`. Trusted publishers and the `testpypi`
-and `pypi` environments are configured; the `dockerhub` environment is not yet.
-
-Versions: the numeric `project(VERSION)` plus `CHARGEFW_VERSION_SUFFIX` form the full PEP 440 version
-used for metadata, runtime, output files, scripts, and tags (implemented; see
-[RELEASING.md](RELEASING.md)).
-
-Trigger: `workflow_dispatch` on `main` with the release version as input. The version must match the
-repository's full distribution version and must not exist as a tag or on either package index. Version
-preparation stays a reviewed commit made with `01-prepare.sh`.
-
-Permissions are declared per job; the workflow default is `contents: read`. `testpypi` and `pypi` have
-`id-token: write` for trusted publishing; `tag` and `github-release` have `contents: write`.
-
-Jobs, in the order of [RELEASING.md](RELEASING.md):
-
-1. **qualify**: require a successful `ci.yml` run on the dispatched commit. The Linux profiles are
-   qualified locally with `02-validate.sh` before dispatch. Wheels for optional platforms (see
-   Decisions) are tested on their own runners in the build job.
-2. **build**: one sdist with `python -m build --sdist`, then wheels from that sdist with
-   `pypa/cibuildwheel` using the existing `[tool.cibuildwheel]` configuration (CPython 3.11 to 3.14,
-   manylinux x86-64, including the wheel test command). Optional platforms are added when they work
-   without significant extra machinery (see Decisions).
-3. **verify**: `twine check --strict`; expected artifact set (one sdist, one wheel per configured
-   platform and Python version); third-party license notices present in every wheel and, as its
-   contents require, the sdist; SHA-256 manifest; clean-environment install and
-   smoke calculation (logic from `04-verify-local.sh`). The artifacts and manifest are uploaded once as
-   a workflow artifact with long retention; later jobs download them and check the manifest.
-4. **testpypi**: `pypa/gh-action-pypi-publish` with trusted publishing in a `testpypi` environment, with
-   `skip-existing` only after hash comparison; then compare remote hashes, install from TestPyPI, and
-   run the smoke check.
-5. **tag**: check that production PyPI has no conflicting filenames, then create and push the annotated
-   tag `vVERSION` on the dispatched commit.
-6. **pypi**: `pypi` environment with required reviewer approval; publishes the same files, compares
-   remote hashes, and verifies the PyPI install.
-7. **github-release**: creates the GitHub Release from the tag with the artifacts, checksum manifest, and
-   CHANGELOG section attached (pre-releases marked as such). Figshare archives it.
-8. **docker-image**: builds the root `Dockerfile` from the tagged commit and pushes it to Docker Hub as
-   `sbncbr/chargefw`, in a `dockerhub` environment holding the `DOCKERHUB_TOKEN` secret. Tags: `VERSION` for every
-   release; `MAJOR.MINOR` and `latest` only for final releases. Runs after **pypi**, does not block the
-   release, and is rerun on its own if the push fails.
-
-Recovery: each job is a resumable phase. A job failing on an environmental, network, or index-propagation
-problem is rerun with "Re-run failed jobs", which reuses the stored artifacts; build and verify are never
-rerun after an upload. Upload jobs compare remote hashes before uploading, so a partial upload is safe to
-resume. If source, version, or artifacts must change after any upload, the run is abandoned and the
-release restarts with a new version. Tags are never moved or deleted.
-
-Transition:
-
-1. Release `3.0.0a1` with the scripts, which accept pre-release versions, to qualify the version
-   model, Read the Docs tag activation, and Figshare on the established upload path.
-2. Configure trusted publishers for `release.yml` on PyPI and TestPyPI, the `testpypi` and `pypi`
-   GitHub environments, and a `dockerhub` environment holding an access token for the `sbncbr` Docker
-   Hub account.
-3. Release `3.0.0a2` with the workflow; the scripts are the fallback until that release completes.
-4. In one change after the successful release: rewrite [RELEASING.md](RELEASING.md) for the workflow,
-   keep `01-prepare.sh` and `02-validate.sh` (local qualification), remove the build and publication
-   scripts and stored upload tokens, and remove the corresponding [TODO.md](TODO.md) item.
-
-The CLI container image and native installation license-notice checks are part of the license TODO item
-and are verified by `qualification.yml` (`docker build .`) and the existing installation tests.
+Status: implemented and documented in [RELEASING.md](RELEASING.md). `3.0.0a2` was the first release
+published by the workflow (2026-10-26); the release scripts it replaced were removed.
 
 ## 5. Public-release and citation items
 
@@ -397,8 +335,7 @@ follow its inspected contents.
    discovery, installed requirements, the json 3.11 fix, `ci.yml`, and the Dockerfiles; then the
    third-party license-notice item.
 4. `qualification.yml` with its weekly schedule and the dependency-version containers (implemented).
-5. `3.0.0a1` with the scripts (released); then trusted publishers, GitHub environments, and
-   `release.yml`, with `3.0.0a2` via the workflow, following the transition in section 4.
+5. `3.0.0a1` with the scripts, then `release.yml` with `3.0.0a2` (both released).
 6. Optional: Linux aarch64 and macOS arm64 wheels in `release.yml`, with platform-specific tests and
    artifact validation, if they fit without significant extra machinery. Not a 3.0.0 gate.
 7. `CITATION.cff`, Figshare, the versioning policy, and the CLI image before 3.0.0; badges, contributor
@@ -417,7 +354,7 @@ implemented before `qualification.yml` and `release.yml` are written.
   versioned docs, PR previews, and no deployment workflow.
 - Releases are dispatched manually; the workflow creates the tag after TestPyPI verification, as in the
   current procedure.
-- Release tags are `vVERSION` (for example `v3.0.0a1`), as created by `08-tag.sh`.
+- Release tags are `vVERSION` (for example `v3.0.0a1`).
 - Sanitizers, clang-tidy, and the other Linux profiles are qualified locally by the maintainer before a
   release. CI release jobs cover only what cannot be run locally.
 - Linux x86-64 is the required platform for 3.0.0 (wheels, native SDK, CLI). Other platforms (Linux

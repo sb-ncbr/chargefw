@@ -164,6 +164,9 @@ the newest packaged versions), builds and runs the CLI image, and tests the pinn
 with `gcc-release`. It detects breakage that arrives without a commit, such as distribution package
 updates; compiler, sanitizer, and clang-tidy checks stay in local release validation.
 
+`.github/workflows/release.yml` is dispatched manually to build and publish a release; see
+[RELEASING.md](RELEASING.md).
+
 ## Installation and containers
 
 Use the [native source installation](docs/NATIVE.md#build-and-link), enabling `CHARGEFW_BUILD_CLI` when

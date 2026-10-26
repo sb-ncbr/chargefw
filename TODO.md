@@ -6,16 +6,14 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-The automation items under [Distribution](#distribution), the documentation site (with the completion
-criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
-DOIs are also required for 3.0.0.
+The documentation site (with the completion criteria in
+[CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)) and `CITATION.cff` with Figshare DOIs are also
+required for 3.0.0.
 
 - [ ] Document the `sbncbr/chargefw` CLI image on Docker Hub as the container installation path.
 
 ## Distribution
 
-- [ ] Automate the manual `cibuildwheel` release process in [RELEASING.md](RELEASING.md), including
-  artifact retention and publication through trusted PyPI environments.
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.
