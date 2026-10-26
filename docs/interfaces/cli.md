@@ -1,201 +1,163 @@
-# Command-line interface
+# Command line
 
-The `chargefw` executable imports molecular records, assesses available methods and parameter sets, and
-writes source-mapped partial charges.
+The `chargefw` command calculates charges for molecular files and writes the results to a directory.
+[Installation](../getting-started/installation.md) describes the Docker image and building from source.
 
-See [Installation](../getting-started/installation.md) for the Docker image and building from
-source.
+| Command | What it does |
+| --- | --- |
+| `chargefw calculate INPUT OUTPUT_DIRECTORY` | Calculates charges and writes the results |
+| `chargefw inspect INPUT` | Reports what ChargeFW reads from a file |
+| `chargefw applicability INPUT` | Reports which methods and parameter sets apply, without calculating |
+| `chargefw methods [METHOD]` | Lists the methods, or describes one |
+| `chargefw parameters [PARAMETER_SET]` | Lists the parameter sets, or describes one |
 
-## Commands
+`chargefw COMMAND --help` lists the options of a command.
 
-```text
-chargefw calculate [options] INPUT OUTPUT_DIRECTORY
-chargefw inspect [input-options] INPUT
-chargefw applicability [options] INPUT
-chargefw methods [METHOD]
-chargefw parameters [--method METHOD] [PARAMETER_SET]
+## Calculating charges
+
+```console
+$ chargefw calculate molecule.sdf output
+Wrote output/molecule.chargefw.json
 ```
 
-Run `chargefw COMMAND --help` for the option syntax accepted by the installed version.
+ChargeFW chooses the input format from the file extension: `.sdf` and `.mol`, `.mol2`, `.pdb`, `.cif`
+and `.mmcif`, or `.json` for molecule JSON. It creates the output directory if needed and names the
+results after the input file.
 
-## Calculate charges
+Without other options, ChargeFW chooses the method and parameter set itself, as described in
+[Choosing a method](../guide/methods.md#choosing-a-method). Name them to get the same model every time:
 
 ```bash
-chargefw calculate molecule.sdf output
+chargefw calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.sdf output
 ```
 
-If no method or parameter set is specified, ChargeFW assesses the bundled catalog and chooses the first
-plan in deterministic priority order. The output directory is created if necessary.
+ChargeFW calculates exactly what you request. If the method, parameter set, or execution mode cannot
+handle the molecules, the calculation fails with the reasons; ChargeFW does not switch to another.
 
-### Input options
+### Output files
 
-Input format is selected from the file extension.
+Once ChargeFW has read the input and accepted the options, it writes `<input>.chargefw.json`, the
+[result JSON](../guide/results.md) with all charges and the record of the calculation. It is written
+also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as a
+malformed input file or an invalid option, are reported on standard error and leave no result file. On
+request, ChargeFW also writes the molecules with their charges:
 
-| Extensions | Reader |
-| --- | --- |
-| `.mol`, `.sdf` | Native MOL/SDF reader |
-| `.mol2` | Native Tripos MOL2 reader |
-| `.json` | ChargeFW molecule JSON 1.0 reader |
-| `.pdb` | Gemmi-backed PDB reader |
-| `.cif`, `.mmcif` | Gemmi-backed mmCIF reader |
+```bash
+chargefw calculate --output-mol2 molecule.sdf output    # output/molecule.chargefw.mol2
+chargefw calculate --output-mmcif structure.cif output  # output/structure.chargefw.cif
+```
 
-The [molecular format reference](../reference/formats.md) describes the supported subsets, imported molecular data,
-record mapping, warnings, and errors.
+MOL2 and mmCIF can be written for input in any format. [Choosing an output
+format](../guide/results.md#choosing-an-output-format) compares them.
 
-`--conformers first|all` selects the first conformer/model or all conformers/models. The default is
-`all`.
+ChargeFW writes the result JSON first. If writing MOL2 or mmCIF then fails, the JSON stays, still with
+status `success`, and the command exits with status 6.
 
-PDB and mmCIF input additionally accepts:
+### Progress and cancelling
 
-- `--structural-selection all|polymers-and-ligands|polymers` (default `all`);
-- `--structural-bonds none|explicit|templates|hybrid` (CLI default `hybrid`).
+`--progress` shows the progress of the calculation. Press `Ctrl+C` once to request cancellation.
+ChargeFW checks for it before each molecule, conformer, and fragment; when it stops there, it writes the
+result JSON with status `cancelled` and no charges, and exits with status 5. A request that arrives
+during the last calculation step comes too late, and the calculation finishes normally. Reading the
+input and writing the results do not check for cancellation.
 
-Structural options are rejected for other input formats. Selection, bonding, and alternate-location
-semantics are defined in the [PDB and mmCIF format reference](../reference/formats.md#pdb-and-mmcif-input).
+## Options
 
-The CLI reads the imported collection before calculation and stops at the first malformed record.
-
-### Method and execution options
-
-These options are accepted by both `calculate` and `applicability`, except `--progress`, which applies
-only to `calculate`. For `applicability`, `--threads` sets the thread limit used for plan estimates.
+### Reading the input
 
 | Option | Meaning |
 | --- | --- |
-| `--method ID` | Restrict assessment to one method |
-| `--parameter-set ID` | Parameter set for `--method` (required) |
-| `--permissive-types` | Allow [permissive parameter classification](../reference/parameter-format.md#strict-and-permissive-matching) |
-| `--method-option METHOD.OPTION=VALUE` | Override a method option; repeatable |
-| `--fixed-ions ID` | Select an imported monatomic ion component with no graph bonds; repeatable |
-| `--execution auto|full|cutoff|cover` | Select execution policy; default `auto` |
-| `--radius ANGSTROM` | Radius for cutoff/cover; explicit reduced modes require at least 8 Å |
-| `--cutoff-atom-threshold COUNT|unlimited` | Automatic full-to-cutoff threshold; default 20,000 |
-| `--cover-atom-threshold COUNT|unlimited` | Automatic cutoff-to-cover threshold; default 80,000 |
-| `--threads COUNT` | Maximum calculation threads; `0` delegates to oneTBB |
-| `--progress` | Render calculation progress on standard error |
+| `--conformers first\|all` | Read only the first conformer or model, or all of them (default `all`) |
+| `--structural-selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
+| `--structural-bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
 
-Use `chargefw methods` to list option IDs, defaults, allowed choices, and numeric bounds. Method options
-are method-scoped even when a method is selected explicitly:
+The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
+options in detail. A malformed record in the input stops the command before any calculation.
 
-```bash
-chargefw calculate --method peoe --method-option peoe.iters=8 molecule.sdf output
-chargefw calculate --method sqeqp --parameter-set SQEqp_Schindler2021_CCD_gen \
-    --fixed-ions MG --fixed-ions CA structure.cif output
-chargefw applicability --fixed-ions MG --fixed-ions CA structure.cif
+### Choosing the model
+
+| Option | Meaning |
+| --- | --- |
+| `--method ID` | Use this method |
+| `--parameter-set ID` | Use this parameter set; requires `--method` |
+| `--method-option METHOD.OPTION=VALUE` | Set an option of a method, such as `peoe.iters=8`; repeatable |
+| `--permissive-types` | Let a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
+| `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; repeatable; see [Fixed ions](../guide/fixed-ions.md) |
+
+### Execution
+
+| Option | Meaning |
+| --- | --- |
+| `--execution auto\|full\|cutoff\|cover` | Calculate the whole molecule or fragments (default `auto`); see [Large structures](../guide/large-structures.md) |
+| `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
+| `--cutoff-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cutoff (default 20,000 atoms) |
+| `--cover-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cover (default 80,000 atoms) |
+| `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
+
+### Output and progress
+
+| Option | Meaning |
+| --- | --- |
+| `--output-mol2` | Also write MOL2 |
+| `--output-mmcif` | Also write mmCIF |
+| `--progress` | Show the progress of the calculation |
+
+`applicability` accepts the input, model, and execution options of `calculate`; `inspect` accepts the
+input options.
+
+## Checking before calculating
+
+`chargefw inspect` reports what ChargeFW read, without loading any parameters:
+
+```console
+$ chargefw inspect structure.cif
+records: 1
+record 0 (STRUCTURE) atoms=642 bonds=652 conformers=1 coordinates=true formal_charge=0 elements=H:315,C:202,N:55,O:64,S:6
 ```
 
-Named ions use the shared catalog and imported-component identity contract described in
-[Fixed ions](../guide/fixed-ions.md). Successful calculations retain resolved
-component IDs, source indices, and assigned charges in effective result provenance; see the
-[result JSON reference](../reference/formats.md#chargefw-result-json-10).
+[Preparing input](../guide/input.md#check-the-molecule-before-calculating) explains what to compare.
 
-Explicit method, parameter-set, or execution choices do not fall back to alternatives if they are
-inapplicable. `applicability` reports the reasons without running a calculation.
+`chargefw applicability` lists every plan that could run, with its estimated memory and number of
+operations, the reasons for every rejected method and parameter set, and the plan `calculate` would
+choose. With `--fixed-ions` or execution options, it shows their effect without calculating.
+[Large structures](../guide/large-structures.md#choosing-the-execution-yourself) shows an example.
 
-Automatic and explicit execution share the policy, supported-method, conservation, and approximation
-semantics documented in [Large structures](../guide/large-structures.md). Explicit choices
-do not silently fall back to another mode.
+## Methods and parameter sets
 
-## Output
+`chargefw methods` lists the methods; `chargefw methods METHOD` describes one, including its options:
 
-The output basename is derived from the input filename:
-
-```text
-OUTPUT_DIRECTORY/<input-stem>.chargefw
+```console
+$ chargefw methods peoe
+id: peoe
+name: PEOE
+full name: Partial Equalization of Atomic Electronegativity
+publication: 10.1016/0040-4020(80)80168-2
+notes: With the default zero-charge initialization, every connected component must be formally neutral. initial_charges=formal is a ChargeFW extension that preserves supplied formal charges.
+priority: 120
+requires coordinates: no
+time complexity: O(n + m)
+memory complexity: O(n)
+supports cutoff: no
+supports cover: no
+supports fixed point sources: no
+options:
+  iters (default=6) minimum>=1 maximum<=25
+  initial_charges (default=zero) choices=zero,formal
 ```
 
-Every normal calculation outcome writes result JSON:
-
-```text
-<basename>.json
-```
-
-On success, request fresh molecular representations explicitly:
-
-```bash
-chargefw calculate --output-mol2 molecule.sdf output
-chargefw calculate --output-mmcif structure.cif output
-chargefw calculate --output-mol2 --output-mmcif molecule.sdf output
-```
-
-The requested files use the same basename:
-
-```text
-<basename>.mol2
-<basename>.cif
-```
-
-MOL2 and mmCIF are fresh generated representations for every supported input format and are not written
-unless requested. The [molecular format reference](../reference/formats.md#charge-output) describes their intended use,
-coordinate requirements, generated structures, charge fields, precision, and mapping checks.
-
-Once import and request construction succeed, normal calculation outcomes write `<basename>.json`. On
-success, ChargeFW writes JSON before attempting requested molecular exports. A molecular export failure
-reports `Export error`, exits with status 6, and leaves JSON and any earlier completed export intact; the
-JSON calculation status remains `success`. Files are written directly to their destinations, so a write
-failure can leave that destination incomplete. Import, request-construction, primary JSON output, and other
-filesystem failures are reported on standard error and can occur before a result document is published.
-
-During calculation, press `Ctrl+C` once to request cooperative cancellation. ChargeFW stops at its next
-[cancellation check point](../guide/results.md), writes `<basename>.json` with status
-`cancelled` and no charge assignments, and exits with status 5. This does not interrupt import, request
-construction, or output writing.
-
-### JSON result
-
-ChargeFW writes result JSON schema `1.0`; this is distinct from molecule input JSON schema `1.0`. See the
-[result JSON format](../reference/formats.md#chargefw-result-json-10) for its records, diagnostics, assignments,
-provenance, metrics, and numeric precision.
-
-## Inspection and discovery
-
-Inspect imported records without loading parameter sets:
-
-```bash
-chargefw inspect molecule.sdf
-```
-
-Report runnable plans, rejected alternatives, and the selected plan without calculating:
-
-```bash
-chargefw applicability --method eem --threads 4 molecule.sdf
-```
-
-Each runnable plan reports its estimated peak working memory and operation count for the thread limit;
-the [resource estimates](../guide/large-structures.md#threads-and-estimates) describes the estimate.
-
-List method IDs and full names, inspect one method, or list bundled parameter sets:
-
-```bash
-chargefw methods
-chargefw methods eem
-chargefw parameters
-chargefw parameters --method eem
-chargefw parameters QEq_original
-chargefw parameters SQEqp_Schindler2021_PUB_pept --keys
-```
-
-`chargefw methods METHOD` reports the selected method's identity, publication, human-readable notes,
-priority, coordinate requirement, time and memory complexity, cutoff and cover support, fixed-point-source
-support for `--fixed-ions`, and option schema.
-Complexity uses Big-O notation with `n` for atoms and `m` for bonds, as defined in the
-[Methods and parameter sets](../guide/methods.md).
-
-`chargefw parameters` lists parameter-set IDs and names. Use `--method METHOD` to filter the summary by
-the parameter set's declared method. Pass a parameter-set ID instead to report its method, name,
-publication, notes, priority, and the number and classifiers of its atom and bond keys; the positional ID
-and `--method` cannot be combined. Add `--keys` to a parameter-set ID to list every atom and bond key
-in matching order, as `classifier=type` after the element symbol; an empty type is shown as `""`.
-[Parameter-set JSON](../reference/parameter-format.md#classifiers) defines classifiers and matching precedence.
+`chargefw parameters` lists the parameter sets, `--method METHOD` only those of one method, and
+`chargefw parameters ID` describes one. Add `--keys` to the last form to list every atom and bond type
+the set has values for. The [parameter-set reference](../reference/parameter-sets.md) shows the same
+sets with their publications.
 
 ## Exit statuses
 
 | Status | Meaning |
 | --- | --- |
-| `0` | Calculation or reporting command completed successfully |
-| `1` | Unexpected internal failure |
-| `2` | Invalid input or request, or primary output publication failure |
-| `3` | No executable plan |
-| `4` | Numerical calculation failure |
-| `5` | Calculation cancelled |
-| `6` | A requested molecular export failed after JSON publication |
+| `0` | Success |
+| `1` | Unexpected internal error |
+| `2` | Invalid input or options, or the result JSON could not be written |
+| `3` | No executable plan for the molecules and the requested settings |
+| `4` | The calculation failed numerically, for example did not converge |
+| `5` | The calculation was cancelled |
+| `6` | Writing MOL2 or mmCIF failed after the result JSON was written |
