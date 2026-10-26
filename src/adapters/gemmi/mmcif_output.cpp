@@ -10,11 +10,11 @@
 #include <gemmi/to_cif.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
+#include <format>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -135,17 +135,6 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
         result.push_back(std::move(candidate));
     }
     return result;
-}
-
-[[nodiscard]] auto round_trip_number(const double value) -> std::string {
-    auto buffer = std::array<char, 64>{};
-    const auto [end, error] =
-        std::to_chars(buffer.data(), buffer.data() + buffer.size(), value,
-                      std::chars_format::general, std::numeric_limits<double>::max_digits10);
-    if (error != std::errc{}) {
-        throw std::runtime_error{"cannot serialize floating-point mmCIF value"};
-    }
-    return std::string{buffer.data(), end};
 }
 
 [[nodiscard]] auto known_label(const std::optional<std::string>& value)
@@ -445,9 +434,9 @@ auto write_result_block(::gemmi::cif::Block& block, const ImportedMoleculeRecord
                                    quote(entity),
                                    label_sequence == "." ? "." : quote(label_sequence),
                                    insertion_code == "." ? "." : quote(insertion_code),
-                                   round_trip_number(position.x),
-                                   round_trip_number(position.y),
-                                   round_trip_number(position.z),
+                                   std::format("{}", position.x),
+                                   std::format("{}", position.y),
+                                   std::format("{}", position.z),
                                    "?",
                                    "?",
                                    std::to_string(atom.formal_charge()),
@@ -457,7 +446,7 @@ auto write_result_block(::gemmi::cif::Block& block, const ImportedMoleculeRecord
                                    quote(author_atom),
                                    model_id});
             charge_rows.append_row(
-                {type_id, site_id, round_trip_number(assignment->charges[atom_index])});
+                {type_id, site_id, std::format("{:.4f}", assignment->charges[atom_index])});
         }
     }
 }
@@ -506,7 +495,7 @@ auto write_charges(::gemmi::cif::Block& block, const BlockMapping& mapping,
              ++mapping_index) {
             for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
                 charge_rows.append_row({id, quote(mapping.atom_site_ids[mapping_index][atom_index]),
-                                        round_trip_number(assignment.charges[atom_index])});
+                                        std::format("{:.4f}", assignment.charges[atom_index])});
             }
         }
     }

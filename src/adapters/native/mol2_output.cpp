@@ -3,12 +3,9 @@
 #include <chargefw/core/periodic_table.h>
 
 #include <algorithm>
-#include <array>
 #include <cctype>
-#include <charconv>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <memory>
 #include <ostream>
 #include <print>
@@ -20,17 +17,6 @@
 
 namespace chargefw::adapters::native::mol2_output {
 namespace {
-
-[[nodiscard]] auto round_trip_number(const double value) -> std::string {
-    auto buffer = std::array<char, 64>{};
-    const auto [end, error] =
-        std::to_chars(buffer.data(), buffer.data() + buffer.size(), value,
-                      std::chars_format::general, std::numeric_limits<double>::max_digits10);
-    if (error != std::errc{}) {
-        throw std::runtime_error{"cannot serialize floating-point MOL2 value"};
-    }
-    return std::string{buffer.data(), end};
-}
 
 [[nodiscard]] auto safe_line(std::string value) -> std::string {
     std::ranges::replace_if(
@@ -148,11 +134,9 @@ auto write_record(std::ostream& output, const ImportedMoleculeRecord& record,
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto& atom = molecule.atom(atom_index);
         const auto& position = conformer[atom_index];
-        std::println(output, "{} {} {} {} {} {} 1 UNL {}", atom_index + 1,
-                     atom_name(atom, atom_index), round_trip_number(position.x),
-                     round_trip_number(position.y), round_trip_number(position.z),
-                     core::element_symbol(atom.atomic_number()),
-                     round_trip_number(assignment.charges[atom_index]));
+        std::println(output, "{} {} {} {} {} {} 1 UNL {:.4f}", atom_index + 1,
+                     atom_name(atom, atom_index), position.x, position.y, position.z,
+                     core::element_symbol(atom.atomic_number()), assignment.charges[atom_index]);
     }
 
     std::println(output, "@<TRIPOS>BOND");

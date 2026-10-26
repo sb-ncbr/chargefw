@@ -117,7 +117,7 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
     CHECK(::gemmi::cif::as_string(values[0][0]) == "1");
     CHECK(::gemmi::cif::as_string(values[2][0]) == "2");
     CHECK(::gemmi::cif::as_string(values[2][1]) == "3");
-    CHECK(std::stod(::gemmi::cif::as_string(values[0][2])) == 0.123456789012345);
+    CHECK(::gemmi::cif::as_string(values[0][2]) == "0.1235");
 
     auto round_trip_stream = std::istringstream{output.str()};
     auto round_trip_reader = mmcif_input::MmcifReader{round_trip_stream};
