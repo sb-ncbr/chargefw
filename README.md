@@ -38,7 +38,7 @@ print(result.assignments[0].values)
 On the command line, which the Python package does not install, with the Docker image:
 
 ```bash
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a2 \
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a3 \
     calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.sdf output
 ```
 
