@@ -6,10 +6,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-- [ ] Publish the Figshare item that archives each GitHub Release, and add its DOI to `CITATION.cff`
-  and the README. Publishing the draft currently fails with HTTP 403. Check that the next release
-  creates a new version of the same item. Complete the authors in `CITATION.cff` and add the paper
-  reference once it exists.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
   READMEs and the documentation, show the Docker image as plain `sbncbr/chargefw`, and remove the image
@@ -23,6 +19,7 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Distribution
 
+- [ ] Publish the Figshare item before the ChargeFW publication.
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.
