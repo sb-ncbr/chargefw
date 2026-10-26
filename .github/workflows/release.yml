@@ -15,13 +15,50 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  VERSION: ${{ inputs.version }}
+
+# Each job is a resumable phase: after a network or index failure, use "Re-run failed jobs". Uploads
+# skip only files whose remote SHA-256 matches. If anything must change after an upload, abandon the run
+# and release a new version.
 jobs:
+  # Runs on the commit prepared with utils/release/01-prepare.sh and qualified with 02-validate.sh.
+  qualify:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the dispatched branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - name: Check the repository version and changelog
+        run: |
+          numeric=$(sed -nE 's/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$/\1/p' \
+              CMakeLists.txt)
+          suffix=$(sed -nE 's/^set\(CHARGEFW_VERSION_SUFFIX "([^"]*)"\)$/\1/p' CMakeLists.txt)
+          test "$numeric$suffix" = "$VERSION"
+          grep --quiet --line-regexp --fixed-strings "## $VERSION" CHANGELOG.md
+      - name: Check that the version is unused
+        run: |
+          test -z "$(git ls-remote --tags origin "refs/tags/v$VERSION")"
+          for index in https://test.pypi.org https://pypi.org; do
+              test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                  "$index/pypi/chargefw/$VERSION/json")" = 404
+          done
+      - name: Require a successful CI run on the commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" \
+              --jq .total_count)" -gt 0
+
   # Builds the sdist once, builds every wheel from it, and verifies the set before anything is published.
   build:
+    needs: qualify
     runs-on: ubuntu-26.04
     timeout-minutes: 120
-    env:
-      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -48,17 +85,7 @@ jobs:
           done
       - run: python -m twine check --strict dist/*
       - name: Install a wheel and run a calculation
-        run: |
-          python -m venv "$RUNNER_TEMP/smoke"
-          "$RUNNER_TEMP/smoke/bin/python" -m pip install 'numpy>=1.26'
-          "$RUNNER_TEMP/smoke/bin/python" -m pip install --no-deps --no-index --find-links dist \
-              --only-binary chargefw "chargefw==$VERSION"
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/smoke/bin/python" -c \
-              'import sys, chargefw; sys.exit(chargefw.__version__ != sys.argv[1])' "$VERSION"
-          "$RUNNER_TEMP/smoke/bin/python" "$GITHUB_WORKSPACE/docs/recipes/calculate_file.py" \
-              "$GITHUB_WORKSPACE/tests/fixtures/synthetic/sdf/water.sdf" \
-              --format sdf --method qeq --parameter-set QEq_original
+        run: utils/release/smoke-test.sh "$VERSION" dist/chargefw-"$VERSION"-cp314-cp314-*.whl
       - name: Write the checksum manifest
         run: (cd dist && LC_ALL=C sha256sum ./* | LC_ALL=C sort) > SHA256SUMS
       - uses: actions/upload-artifact@v7
@@ -69,3 +96,181 @@ jobs:
             SHA256SUMS
           retention-days: 90
           if-no-files-found: error
+
+  testpypi:
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/chargefw/${{ inputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.version }}
+          path: release
+      - run: (cd release/dist && sha256sum --check ../SHA256SUMS)
+      - run: python -I utils/release/package_index.py preflight testpypi "$VERSION" release/SHA256SUMS
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: release/dist/
+          skip-existing: true
+      - name: Verify the index and install from it
+        run: |
+          for attempt in $(seq 10); do
+              python -I utils/release/package_index.py verify testpypi "$VERSION" release/SHA256SUMS && break
+              test "$attempt" -lt 10
+              sleep 30
+          done
+          wheel=$(python -I utils/release/package_index.py download-wheel testpypi "$VERSION" \
+              release/SHA256SUMS --output-dir "$RUNNER_TEMP")
+          utils/release/smoke-test.sh "$VERSION" "$wheel"
+
+  tag:
+    needs: testpypi
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.version }}
+          path: release
+      - name: Check PyPI for conflicting files
+        run: python3 -I utils/release/package_index.py preflight pypi "$VERSION" release/SHA256SUMS
+      - name: Create and push the annotated tag
+        run: |
+          tag="v$VERSION"
+          remote=$(git ls-remote origin "refs/tags/$tag^{}" | cut -f1)
+          if [ -z "$remote" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git tag --annotate "$tag" "$GITHUB_SHA" --message "ChargeFW $VERSION"
+              git push origin "refs/tags/$tag"
+              remote=$(git ls-remote origin "refs/tags/$tag^{}" | cut -f1)
+          fi
+          test "$remote" = "$GITHUB_SHA"
+
+  pypi:
+    needs: tag
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    environment:
+      name: pypi
+      url: https://pypi.org/project/chargefw/${{ inputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.version }}
+          path: release
+      - run: (cd release/dist && sha256sum --check ../SHA256SUMS)
+      - run: python -I utils/release/package_index.py preflight pypi "$VERSION" release/SHA256SUMS
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release/dist/
+          skip-existing: true
+      - name: Verify the index and install from it
+        run: |
+          for attempt in $(seq 10); do
+              python -I utils/release/package_index.py verify pypi "$VERSION" release/SHA256SUMS && break
+              test "$attempt" -lt 10
+              sleep 30
+          done
+          wheel=$(python -I utils/release/package_index.py download-wheel pypi "$VERSION" \
+              release/SHA256SUMS --output-dir "$RUNNER_TEMP")
+          utils/release/smoke-test.sh "$VERSION" "$wheel"
+
+  # Figshare archives every GitHub Release.
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ inputs.version }}
+          path: release
+      - name: Extract the changelog section
+        run: >-
+          awk -v heading="## $VERSION" '$0 == heading { found = 1; next } found && /^## / { exit } found'
+          CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+      - name: Create the release
+        run: |
+          files=(release/dist/* release/SHA256SUMS)
+          # gh creates a draft, uploads the files, then publishes; an interruption can leave the draft.
+          if draft=$(gh release view "v$VERSION" --json isDraft --jq .isDraft 2> /dev/null); then
+              gh release upload "v$VERSION" --clobber "${files[@]}"
+              if [ "$draft" = true ]; then
+                  gh release edit "v$VERSION" --draft=false
+              fi
+              exit 0
+          fi
+          options=()
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              options+=(--prerelease)
+          fi
+          gh release create "v$VERSION" --verify-tag --title "ChargeFW $VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md" "${options[@]}" "${files[@]}"
+
+  # Does not block the release; rerun it on its own if the push fails.
+  docker-image:
+    needs: pypi
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    environment: dockerhub
+    permissions:
+      contents: read
+    env:
+      IMAGE: sbncbr/chargefw
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+      - run: docker build --tag "$IMAGE:$VERSION" .
+      - run: docker run --rm "$IMAGE:$VERSION" parameters
+      - name: Push the image
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "${IMAGE%%/*}" --password-stdin
+          # Floating tags move only to the newest final release, so retrying an older run cannot roll
+          # them back.
+          newest() {
+              git tag --list "v$1*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1
+          }
+          tags=("$VERSION")
+          if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              if [ "$(newest "${VERSION%.*}.")" = "v$VERSION" ]; then
+                  tags+=("${VERSION%.*}")
+              fi
+              if [ "$(newest "")" = "v$VERSION" ]; then
+                  tags+=(latest)
+              fi
+          fi
+          for tag in "${tags[@]}"; do
+              docker tag "$IMAGE:$VERSION" "$IMAGE:$tag"
+              docker push "$IMAGE:$tag"
+          done

@@ -33,8 +33,8 @@ safety net.
 ## 1. Per-commit CI (`ci.yml`)
 
 Status: implemented in `.github/workflows/ci.yml` (lint with pinned clang-format 22.1.8 and Ruff 0.17.2;
-`gcc-debug` on Ubuntu 26.04 with `g++-14`, Python 3.11, and ccache). The first run passed (lint 12 s, `gcc-debug` 6 min without cache), confirming GCC 14. Branch protection follows
-the first green run.
+`gcc-debug` on Ubuntu 26.04 with `g++-14`, Python 3.11, and ccache). The first run passed (lint 12 s, `gcc-debug` 6 min without cache), confirming GCC 14. The `main` ruleset
+requires both checks; repository admins can bypass it.
 
 Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`.
 
@@ -133,9 +133,10 @@ Keep this workflow small; add a job only for a risk that neither `ci.yml` nor lo
 
 ## 4. Release (`release.yml`)
 
-Status: first slice implemented in `.github/workflows/release.yml`: a manually dispatched `build` job that
-builds the sdist and wheels, checks the artifact set, notices, metadata, and a wheel installation, writes
-the checksum manifest, and stores everything as a workflow artifact. Publication jobs remain.
+Status: all jobs below are implemented in `.github/workflows/release.yml`, with helpers in
+`utils/release/package_index.py` and `utils/release/smoke-test.sh`. The `build` job passed a dry run for
+`3.0.0a1`; the publication jobs are first exercised by `3.0.0a2`. Trusted publishers and the `testpypi`
+and `pypi` environments are configured; the `dockerhub` environment is not yet.
 
 Versions: the numeric `project(VERSION)` plus `CHARGEFW_VERSION_SUFFIX` form the full PEP 440 version
 used for metadata, runtime, output files, scripts, and tags (implemented; see
@@ -172,7 +173,7 @@ Jobs, in the order of [RELEASING.md](RELEASING.md):
 7. **github-release**: creates the GitHub Release from the tag with the artifacts, checksum manifest, and
    CHANGELOG section attached (pre-releases marked as such). Figshare archives it.
 8. **docker-image**: builds the root `Dockerfile` from the tagged commit and pushes it to Docker Hub as
-   `sb-ncbr/chargefw`, in a `dockerhub` environment holding the access token. Tags: `VERSION` for every
+   `sbncbr/chargefw`, in a `dockerhub` environment holding the `DOCKERHUB_TOKEN` secret. Tags: `VERSION` for every
    release; `MAJOR.MINOR` and `latest` only for final releases. Runs after **pypi**, does not block the
    release, and is rerun on its own if the push fails.
 
@@ -187,8 +188,8 @@ Transition:
 1. Release `3.0.0a1` with the scripts, which accept pre-release versions, to qualify the version
    model, Read the Docs tag activation, and Figshare on the established upload path.
 2. Configure trusted publishers for `release.yml` on PyPI and TestPyPI, the `testpypi` and `pypi`
-   GitHub environments, and the `sb-ncbr` Docker Hub organization with a `dockerhub` environment
-   holding its access token.
+   GitHub environments, and a `dockerhub` environment holding an access token for the `sbncbr` Docker
+   Hub account.
 3. Release `3.0.0a2` with the workflow; the scripts are the fallback until that release completes.
 4. In one change after the successful release: rewrite [RELEASING.md](RELEASING.md) for the workflow,
    keep `01-prepare.sh` and `02-validate.sh` (local qualification), remove the build and publication
@@ -429,5 +430,6 @@ implemented before `qualification.yml` and `release.yml` are written.
 - The per-commit baseline is the oldest supported toolchain, GCC 14 and Python 3.11, with the C and C++
   compilers pinned together; newer compilers are covered locally and by the Fedora 44 container. The
   rationale is in [DEVELOPMENT.md](DEVELOPMENT.md#continuous-integration).
-- The CLI image is published to Docker Hub only, as `sb-ncbr/chargefw`, the single image name in the
+- The CLI image is published to Docker Hub only, as `sbncbr/chargefw` (Docker Hub names cannot contain
+  hyphens), the single image name in the
   documentation. It is built for linux/amd64; linux/arm64 follows the optional-platform rule above.
