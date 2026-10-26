@@ -32,8 +32,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Integrations
 
-- [ ] Qualify the optional RDKit adapter locally against the oldest supported (2024.9) and the latest
-  RDKit release with real-toolkit conversion, mapping, property attachment, and SD serialization tests.
 - [ ] Compare the Python API with the capabilities actually used by the ACC III backend and add only the
   missing explicit capabilities needed for migration. Document intentionally unsupported legacy
   behavior before replacing the existing backend.
@@ -52,13 +50,13 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Scientific qualification
 
-- [ ] Establish method-specific validation and documented tolerances before making broad accuracy claims
-  for cutoff or cover execution. Current whole-molecule-radius and representative-structure checks verify
-  implementation behavior, not a general reduced-mode accuracy envelope.
+- [ ] Decide how to handle 2D coordinates. A 2D molfile or SD record, read by ChargeFW or converted from
+  an RDKit conformer with `Is3D() == False`, becomes 3D coordinates with z = 0, and automatic selection
+  then uses a geometry-dependent method on the flat drawing without a warning. Options: reject 2D
+  coordinates for methods that use geometry, warn, or import the molecule without coordinates.
 
 ## Project infrastructure
 
-- [ ] Add a second maintainer to the Read the Docs project.
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
   installed on Read the Docs, without compiling ChargeFW there; the Python page remains the guide.
 - [ ] After 3.0.0, add README badges for CI, documentation, PyPI version, and DOI.

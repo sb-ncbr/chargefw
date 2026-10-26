@@ -183,8 +183,8 @@ pre-commit run --all-files
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
 pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
-`gcc-debug` with GCC 14 and Python 3.11 using the CTest command above. Update the pinned clang-format and
-Ruff versions in the workflow together with the local tools.
+`gcc-debug` with GCC 14, Python 3.11, and RDKit 2024.9 using the CTest command above. Update the pinned
+clang-format and Ruff versions in the workflow together with the local tools.
 
 The per-commit job uses the oldest supported toolchain on purpose: development usually happens with a
 newer compiler and Python, which accept code that the oldest supported versions reject, so CI catches
@@ -195,8 +195,9 @@ versions differ.
 `.github/workflows/qualification.yml` runs weekly and on demand. It builds and tests the compatibility
 containers (Debian 13 with the minimum supported dependency versions, Ubuntu 26.04, and Fedora 44 with
 the newest packaged versions), builds and runs the CLI image, and tests the pinned dependency downloads
-with `gcc-release`. It detects breakage that arrives without a commit, such as distribution package
-updates; compiler, sanitizer, and clang-tidy checks stay in local release validation.
+with `gcc-release` and the newest RDKit. It detects breakage that arrives without a commit, such as
+distribution package updates or a new RDKit release; compiler, sanitizer, and clang-tidy checks stay in
+local release validation.
 
 `.github/workflows/release.yml` is dispatched manually to build and publish a release; see
 [RELEASING.md](RELEASING.md).
