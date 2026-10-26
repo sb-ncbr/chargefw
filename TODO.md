@@ -10,6 +10,13 @@ The documentation site (with the completion criteria in
 [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)) and `CITATION.cff` with Figshare DOIs are also
 required for 3.0.0.
 
+- [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
+  page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
+  and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
+  pages `PYTHON.html`, `FORMATS.html`, `PROJECT.html`, and `recipes/README.html`. All of them return
+  404. Published descriptions cannot be edited. The 3.0.0 release replaces the default page; confirm
+  that its links work and decide whether the remaining old pages need redirects or placeholder files.
+
 ## Distribution
 
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and
