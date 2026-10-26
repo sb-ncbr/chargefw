@@ -10,11 +10,7 @@ The automation items under [Distribution](#distribution), the documentation site
 criteria in [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)), and `CITATION.cff` with Figshare
 DOIs are also required for 3.0.0.
 
-- [ ] Confirm that the `cibuildwheel` release wheels carry the third-party notices from
-  [`licenses/`](licenses/) in `dist-info/licenses/`; `04-verify-local.sh` checks every release wheel.
-  Native installations and the CLI image already install them.
-- [ ] Publish the CLI image to Docker Hub as `sbncbr/chargefw` from the release workflow and document
-  it as the container installation path.
+- [ ] Document the `sbncbr/chargefw` CLI image on Docker Hub as the container installation path.
 
 ## Distribution
 
