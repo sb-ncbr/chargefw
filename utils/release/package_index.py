@@ -38,10 +38,9 @@ def read_manifest(path):
     return expected
 
 
-def compare(index, version, manifest):
+def compare(index, remote, manifest):
     """Return the manifest files missing from the index; fail on any conflicting file."""
     expected = read_manifest(manifest)
-    remote = remote_files(index, version)
     conflicts = sorted(
         name for name, entry in remote.items() if expected.get(name) != entry["digests"]["sha256"]
     )
@@ -54,26 +53,26 @@ def compare(index, version, manifest):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["preflight", "verify", "download-wheel"])
+    parser.add_argument("command", choices=["preflight", "download-wheel"])
     parser.add_argument("index", choices=sorted(INDEXES))
     parser.add_argument("version")
     parser.add_argument("manifest")
     parser.add_argument("--output-dir", type=Path, default=Path.cwd())
     args = parser.parse_args()
 
-    missing = compare(args.index, args.version, args.manifest)
+    # Use one response throughout: consecutive requests can reach caches holding different lists.
+    remote = remote_files(args.index, args.version)
+    missing = compare(args.index, remote, args.manifest)
     if args.command == "preflight":
         print(f"{args.index}: {len(missing)} files to upload, no conflicts")
     elif missing:
         raise SystemExit(f"{args.index} does not yet list: {', '.join(missing)}")
-    elif args.command == "verify":
-        print(f"{args.index}: every file matches the manifest")
     else:
         # The index hashes were compared with the manifest above; check the downloaded bytes too.
         tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
         wheels = [
             entry
-            for name, entry in remote_files(args.index, args.version).items()
+            for name, entry in remote.items()
             if name.endswith(".whl") and f"-{tag}-{tag}-" in name
         ]
         if len(wheels) != 1:

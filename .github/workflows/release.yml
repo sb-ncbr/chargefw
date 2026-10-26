@@ -125,13 +125,14 @@ jobs:
           skip-existing: true
       - name: Verify the index and install from it
         run: |
+          # The index cache can answer with an older file list from one request to the next, so retry
+          # the complete check and download together.
           for attempt in $(seq 10); do
-              python -I utils/release/package_index.py verify testpypi "$VERSION" release/SHA256SUMS && break
+              wheel=$(python -I utils/release/package_index.py download-wheel testpypi "$VERSION" \
+                  release/SHA256SUMS --output-dir "$RUNNER_TEMP") && break
               test "$attempt" -lt 10
               sleep 30
           done
-          wheel=$(python -I utils/release/package_index.py download-wheel testpypi "$VERSION" \
-              release/SHA256SUMS --output-dir "$RUNNER_TEMP")
           utils/release/smoke-test.sh "$VERSION" "$wheel"
 
   tag:
@@ -188,13 +189,14 @@ jobs:
           skip-existing: true
       - name: Verify the index and install from it
         run: |
+          # The index cache can answer with an older file list from one request to the next, so retry
+          # the complete check and download together.
           for attempt in $(seq 10); do
-              python -I utils/release/package_index.py verify pypi "$VERSION" release/SHA256SUMS && break
+              wheel=$(python -I utils/release/package_index.py download-wheel pypi "$VERSION" \
+                  release/SHA256SUMS --output-dir "$RUNNER_TEMP") && break
               test "$attempt" -lt 10
               sleep 30
           done
-          wheel=$(python -I utils/release/package_index.py download-wheel pypi "$VERSION" \
-              release/SHA256SUMS --output-dir "$RUNNER_TEMP")
           utils/release/smoke-test.sh "$VERSION" "$wheel"
 
   # Figshare archives every GitHub Release.
