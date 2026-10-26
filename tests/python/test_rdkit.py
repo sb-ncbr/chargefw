@@ -163,7 +163,7 @@ def chem() -> Any:
 
 @pytest.mark.usefixtures("fake_rdkit")
 def test_conversion_without_conformers_supports_coordinate_independent_methods() -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.conformers = ()
 
     molecule = chargefw_rdkit.from_mol(target)
@@ -176,7 +176,7 @@ def test_conversion_without_conformers_supports_coordinate_independent_methods()
 
 @pytest.mark.usefixtures("fake_rdkit")
 def test_conversion_and_charge_attachment() -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     molecule = chargefw_rdkit.from_mol(target, source_name="water")
     result = chargefw.calculate(molecule, method="formal")
     chargefw_rdkit.attach_charges(target, result)
@@ -194,7 +194,7 @@ def test_conversion_and_charge_attachment() -> None:
     "bond_type", [FakeBondType.AROMATIC, FakeBondType.DATIVE, FakeBondType.DATIVEONE]
 )
 def test_conversion_rejects_unsupported_bond_types_by_default(bond_type: str) -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.bonds = (FakeBond(bond_type),)
     with pytest.raises(ValueError, match=bond_type):
         chargefw_rdkit.from_mol(target)
@@ -212,7 +212,7 @@ def test_conversion_rejects_unsupported_bond_types_by_default(bond_type: str) ->
     ],
 )
 def test_single_conversion_normalizes_aromatic_and_dative_bonds(bond_type: str) -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.bonds = (FakeBond(bond_type),)
     molecule = chargefw_rdkit.from_mol(target, bond_conversion="single")
     assert molecule.bonds.tolist() == [[0, 1, 1]]
@@ -220,7 +220,7 @@ def test_single_conversion_normalizes_aromatic_and_dative_bonds(bond_type: str) 
 
 @pytest.mark.usefixtures("fake_rdkit")
 def test_single_conversion_rejects_zero_and_query_bonds() -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.bonds = (FakeBond(FakeBondType.ZERO),)
     with pytest.raises(ValueError, match="ZERO"):
         chargefw_rdkit.from_mol(target, bond_conversion="single")
@@ -249,7 +249,7 @@ def test_bond_conversion_is_validated() -> None:
 def test_attachment_requires_bijective_integer_atom_ids(
     atomic_numbers: list[int], atom_ids: list[Any]
 ) -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.atoms = tuple(
         FakeAtom(index, number, "O" if number == 8 else "H")
         for index, number in enumerate(atomic_numbers)
@@ -265,7 +265,7 @@ def test_attachment_requires_bijective_integer_atom_ids(
 
 @pytest.mark.usefixtures("fake_rdkit")
 def test_attachment_accepts_index_compatible_atom_ids() -> None:
-    target = FakeMol()
+    target: Any = FakeMol()
     target.atoms = (
         FakeAtom(0, 8, "O", formal_charge=-1),
         FakeAtom(1, 1, "H", formal_charge=1),
@@ -292,7 +292,7 @@ def test_missing_dependency_is_actionable(monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr(chargefw_rdkit, "import_module", missing)
     with pytest.raises(ImportError, match=r"pip install chargefw\[rdkit\]"):
-        chargefw_rdkit.from_mol(object())
+        chargefw_rdkit.from_mol(cast(Any, object()))
 
 
 def test_public_annotations_resolve_to_runtime_types(chem: Any) -> None:

@@ -13,11 +13,11 @@ from ..charges import ChargeAssignment
 from ..core import Molecule
 
 try:
-    from rdkit import Chem as _rdkit  # type: ignore[import-not-found]
+    from rdkit import Chem as _rdkit  # type: ignore[import-not-found, unused-ignore]
 except ModuleNotFoundError as error:
     if error.name not in ("rdkit", "rdkit.Chem"):
         raise
-    _rdkit = None
+    _rdkit = None  # type: ignore[assignment, unused-ignore]
 
 BondConversion: TypeAlias = Literal["none", "single"]
 
