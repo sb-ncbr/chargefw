@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Output
+
+- MOL2 and mmCIF files write charges rounded to four decimal places, and coordinates with the digits
+  they were read with instead of 17 significant digits. Result JSON keeps full precision.
+
 ## 3.0.0a2
 
 ### Building from source

@@ -192,6 +192,10 @@ prepared structure; these bonds are assigned by residue and atom names, independ
 ## Charge output
 
 ChargeFW result JSON retains native floating-point precision, as do native and Python result objects.
+MOL2 and mmCIF files write each coordinate as the shortest decimal number that reads back as the same
+value, so coordinates read from a file keep their digits, and charges rounded to four decimal places.
+The charges in such a file can therefore differ from the molecule's total charge by up to 0.00005 per
+atom; use result JSON when you need exact values.
 Writers validate assignment order, cardinality, targets, scope, and source references where the output
 representation provides them rather than silently reordering assignments. SDF remains input-only.
 
@@ -208,7 +212,7 @@ otherwise names are generated from the element and atom position. Atom types are
 types are numeric single/double/triple orders, and the generated substructure fields are `1 UNL` because
 ChargeFW does not infer Tripos atom types or chemical substructures. The writer declares the generated
 `UNL` substructure, but its element-only atom types are deliberately generic and may not suit consumers
-that require fully classified SYBYL types. Coordinates and charges use round-trip floating-point formatting.
+that require fully classified SYBYL types.
 Output rejects unsuccessful results, empty molecules, and missing or non-finite coordinates before writing.
 It does not preserve source MOL2 fields, typing, substructures, comments, IDs, or lexical format.
 
@@ -225,9 +229,9 @@ categories or inventing component topology. Known author and label atom/residue/
 separate for every conformer site; unavailable names fall back deterministically to generated atom names,
 `UNL`, chain `A`, and entity `1`. Output site IDs and model numbers are newly generated per block, and each
 charge row refers to the generated `_atom_site.id` for its site. Molecule-scoped charges cover
-every conformer and conformer-scoped charges never broadcast. Coordinates and charges use round-trip
-floating-point formatting. Output rejects missing or non-finite coordinates, empty records, unsuccessful
-results, and charges outside the dictionary's inclusive `[-5, 5]` range before serializing the document.
+every conformer and conformer-scoped charges never broadcast. Output rejects missing or non-finite
+coordinates, empty records, unsuccessful results, and charges outside the dictionary's inclusive
+`[-5, 5]` range before serializing the document.
 
 Python additionally provides a strict in-memory annotation API for the unchanged Gemmi document used for
 import. Its mutation and validation contract is documented with
