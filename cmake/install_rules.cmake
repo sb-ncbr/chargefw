@@ -64,6 +64,16 @@ install(
         PATTERN "*.md"
         PATTERN "*.py"
         PATTERN "conf.py" EXCLUDE
+        PATTERN "_ext" EXCLUDE
+        PATTERN "_generated" EXCLUDE
+        PATTERN "parameter-sets.md" EXCLUDE
+)
+# The documentation site generates the parameter-set tables; installations get a page without them.
+install(
+        FILES ${PROJECT_SOURCE_DIR}/cmake/installed-parameter-sets.md
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw/docs/reference
+        RENAME parameter-sets.md
+        COMPONENT documentation
 )
 install(
         FILES

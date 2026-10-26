@@ -79,3 +79,6 @@ old
 CMakeUserPresets.json
 .kilo
 tmp
+
+# Generated documentation pages
+docs/_generated/

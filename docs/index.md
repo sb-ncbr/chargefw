@@ -56,6 +56,7 @@ examples/index
 :caption: Reference
 
 reference/formats
+reference/parameter-sets
 reference/parameter-format
 ```
 
