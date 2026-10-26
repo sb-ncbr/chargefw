@@ -67,6 +67,7 @@ reference/parameter-format
 :caption: About
 
 about/versions
+about/chargefw2
 ```
 
 ChargeFW is developed at [sb-ncbr/chargefw](https://github.com/sb-ncbr/chargefw) and distributed
