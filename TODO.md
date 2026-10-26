@@ -11,6 +11,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   creates a new version of the same item. Complete the authors in `CITATION.cff` and add the paper
   reference once it exists.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
+- [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
+  READMEs and the documentation, show the Docker image as plain `sbncbr/chargefw`, and remove the image
+  tag update from `utils/release/01-prepare.sh` and RELEASING.md.
 - [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
   page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
   and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
