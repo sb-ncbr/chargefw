@@ -235,7 +235,7 @@ coordinates, empty records, unsuccessful results, and charges outside the dictio
 
 Python additionally provides a strict in-memory annotation API for the unchanged Gemmi document used for
 import. Its mutation and validation contract is documented with
-[`attach_charges()`](../interfaces/python.md#toolkit-integrations).
+[`attach_charges()`](../interfaces/python.md#gemmi).
 
 ### ChargeFW result JSON 1.0
 

@@ -24,7 +24,7 @@ print(charges.groupby("element")["charge"].describe())
 One method, parameter set, and execution mode apply to the whole file, so one inapplicable record makes
 the request inapplicable; the example does not silently choose a separate model per record. Its EEM
 invocation lets ChargeFW select a bundled parameter set applicable to every record. The
-[Python collection guide](../interfaces/python.md#reading-molecular-files) explains when to calculate a collection or
+[Python guide](../interfaces/python.md#one-model-for-all-molecules) explains when to calculate a collection or
 its records independently, and the [format reference](../reference/formats.md) defines import and result JSON
 behavior.
 

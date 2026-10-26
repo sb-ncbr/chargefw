@@ -2,7 +2,7 @@
 
 `charge_gemmi_document.py` attaches charges to the unchanged live Gemmi mmCIF
 document used for import. PDB input is first represented as a caller-owned Gemmi mmCIF document. See the
-[Gemmi integration contract](../interfaces/python.md#toolkit-integrations) for validation and mutation behavior.
+[Gemmi integration](../interfaces/python.md#gemmi) for validation and mutation behavior.
 
 ```bash
 pip install "chargefw[gemmi]"

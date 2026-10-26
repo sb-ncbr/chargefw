@@ -36,7 +36,7 @@ print(result.assignments[0].values)
 
 The charges sum to −1, the formal charge of acetate. `from_mol()` accepts single, double, and triple
 bonds, so `Chem.Kekulize()` first replaces any aromatic bonds with them. The RDKit integration needs
-`pip install --pre "chargefw[rdkit]"`; see [Python](../interfaces/python.md#toolkit-integrations) for
+`pip install --pre "chargefw[rdkit]"`; see [Python](../interfaces/python.md#rdkit) for
 the conversion options and for writing charges back to RDKit molecules.
 
 Files that already contain hydrogens and formal charges, such as SDF files from a docking program or a

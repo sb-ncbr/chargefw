@@ -1,223 +1,268 @@
-# Python package
+# Python
 
-The `chargefw` Python package provides owned molecule values, immutable NumPy arrays, bundled method and
-parameter catalogs, direct calculation, optional reusable assessment plans, calculation results, and
-Gemmi conversion over the native ChargeFW engine.
-
-The package is synchronous and in-process. Native molecule construction, assessment, and calculation
-release the GIL, and independent calculations can run concurrently. Calculations can report structured
-progress and support cooperative cancellation through a per-request observer.
-
-The [examples](../examples/index.md) show complete workflows, including toolkit integration.
-
-See [Installation](../getting-started/installation.md#python-package) for installing the package.
-
-## Quick start
+The `chargefw` package reads molecules, calculates charges, and returns them as NumPy arrays.
+[Installation](../getting-started/installation.md#python-package) describes how to install it, and the
+[examples](../examples/index.md) show complete scripts.
 
 ```python
 import chargefw
 
-molecules = chargefw.io.read("structure.sdf", format="sdf")
-result = chargefw.calculate(
-    molecules,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
+molecules = chargefw.io.read("molecules.sdf", format="sdf")
+result = chargefw.calculate(molecules, method="eem", parameter_set="EEM_Cheminf_b3lyp_npa")
 print(result.assignments[0].values)
 ```
 
-For reproducible scientific work, select both the method and its parameter set when the method uses one.
-Automatic selection is deterministic, but catalog priority is not a recommendation that one charge model
-or parameterization is scientifically preferable for a particular molecule.
+Calculations run in the calling thread, but release Python's global interpreter lock while they work,
+so several calculations can run at the same time in different threads.
 
-## Reading molecular files
+## Reading molecules
 
-Serialized molecular formats are read through `chargefw.io`. `parse()` accepts text, while `read()`
-accepts string or path-like filesystem paths:
+`chargefw.io.read()` reads a file and `chargefw.io.parse()` reads text. Both need the format:
+`"mol"`, `"sdf"`, `"mol2"`, `"molecule-json"`, `"pdb"`, or `"mmcif"`; the file extension is not used.
+`chargefw.io.INPUT_FORMATS` lists them. Both read the whole input and return a `MoleculeCollection`:
 
-```python
-import chargefw
-
-molecules = chargefw.io.read(
-    "structure.sdf",
-    format="sdf",
-)
-```
-
-`parse()` and `read()` require an explicit `format` selected from `"mol"`, `"sdf"`, `"mol2"`,
-`"molecule-json"`, `"pdb"`, and `"mmcif"`. `parse()` also accepts an optional `source_name`. Both return
-a `MoleculeCollection`, including formats that contain exactly one molecule. File extensions are not
-inspected, and the current Python API reads and materializes the complete collection eagerly. The
-supported values are available as `chargefw.io.INPUT_FORMATS`.
-
-The Python-facing collection distinctions are:
-
-| Input | Python collection behavior | Python-specific choices |
+| Input | Molecules in the collection | Options |
 | --- | --- | --- |
-| MOL | One molecule with one conformer | None |
-| SDF and MOL2 | One molecule per record, one conformer each | None |
-| Molecule JSON | One molecule per array entry | `conformers="first"` or `"all"` |
-| PDB | One molecule; compatible models become conformers | `selection`, `bonds`, `conformers` |
-| mmCIF | One molecule per coordinate-bearing block | `selection`, `bonds`, `conformers` |
+| MOL | One molecule with one conformer | |
+| SDF, MOL2 | One molecule per record, one conformer each | |
+| Molecule JSON | One molecule per entry | `conformers` |
+| PDB | One molecule; models that match the first become conformers | `selection`, `bonds`, `conformers` |
+| mmCIF | One molecule per data block with coordinates | `selection`, `bonds`, `conformers` |
 
-Exact parsing, normalization, diagnostics, and record semantics belong to the
-[molecular format reference](../reference/formats.md#format-overview).
-
-Inspect imported molecules through immutable arrays and source identities:
+For PDB and mmCIF, `selection` is `"all"` (default), `"polymers-and-ligands"`, or `"polymers"`;
+`bonds` is `"hybrid"` (default), `"templates"`, `"explicit"`, or `"none"`; `conformers` is `"all"`
+(default) or `"first"`. The [format reference](../reference/formats.md#pdb-and-mmcif-input) explains them,
+and [Preparing input](../guide/input.md) what a molecule needs before a calculation.
 
 ```python
+molecules = chargefw.io.read("structure.cif", format="mmcif", selection="polymers-and-ligands")
+
 for molecule in molecules:
-    print(
-        molecule.source,
-        molecule.name,
-        molecule.atom_count,
-        molecule.bond_count,
-        molecule.conformer_names,
-        int(molecule.formal_charges.sum()),
-    )
+    print(molecule.name, molecule.atom_count, molecule.bond_count,
+          molecule.conformer_names, int(molecule.formal_charges.sum()))
 ```
 
-`calculate()` accepts a `MoleculeCollection` or any iterable of `Molecule` values. One calculation plan
-applies to the complete collection. If a method or parameter set is inapplicable to one SDF record or
-mmCIF block, it is not executable for that collection. Automatic selection also chooses one method,
-parameter set, and execution mode that applies to every record.
+### Molecules from arrays
 
-For a collection, `assignments_by_molecule` groups the source-ordered assignments for each input molecule.
-Use it with the original collection for ordinary molecule-by-molecule iteration:
-
-```python
-molecules = chargefw.MoleculeCollection([first_molecule, second_molecule])
-result = chargefw.calculate(
-    molecules,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
-
-for molecule, assignments in zip(molecules, result.assignments_by_molecule, strict=True):
-    for assignment in assignments:
-        print(molecule.name, assignment.conformer_index, assignment.values)
-```
-
-Process records separately when independent per-record policy is intentional. Each call below performs
-its own automatic assessment, so records can select different methods, parameter sets, or execution
-modes:
-
-```python
-for molecule in molecules:
-    result = chargefw.calculate(molecule)
-    parameter_set = result.plan.parameter_set
-    print(
-        molecule.name,
-        result.plan.method.id,
-        parameter_set.id if parameter_set is not None else None,
-        result.plan.policy.mode,
-    )
-```
-
-This loop is not equivalent to `calculate(molecules)`: the latter requires one common plan and produces
-one result containing source-aligned assignments for the complete collection. Choose the collection
-boundary deliberately when using automatic selection.
-
-Retrieve one assignment directly by its zero-based source indices. For geometry-dependent methods,
-`conformer` is required even when the molecule has only one conformer; use `conformer=0` in that case.
-For geometry-independent methods, omit it: `result.assignment(molecule=0)` returns the molecule's
-single assignment.
-
-```python
-second_conformer_charges = result.assignment(molecule=0, conformer=1).values
-```
-
-## Constructing Molecule objects from arrays
-
-Use `Molecule` directly when molecular data is already available as arrays:
+Build a `Molecule` directly when you have the data as arrays:
 
 ```python
 molecule = chargefw.Molecule(
     atomic_numbers=[8, 1, 1],
     formal_charges=[0, 0, 0],
     bonds=[[0, 1, 1], [0, 2, 1]],
-    coordinates=[
-        [0.0, 0.0, 0.0],
-        [0.96, 0.0, 0.0],
-        [-0.24, 0.93, 0.0],
-    ],
+    coordinates=[[0.0, 0.0, 0.0], [0.96, 0.0, 0.0], [-0.24, 0.93, 0.0]],
     name="water",
 )
 ```
 
-`Molecule` accepts:
+| Argument | Value |
+| --- | --- |
+| `atomic_numbers` | Integers of shape `(N,)`, 1 to 100 |
+| `formal_charges` | Integers of shape `(N,)`; default all zero |
+| `bonds` | Rows `(first_atom, second_atom, order)` of shape `(B, 3)`, with order 1, 2, or 3 |
+| `coordinates` | Ångströms, shape `(N, 3)` for one conformer or `(C, N, 3)` for several |
+| `name`, `atom_names`, `conformer_names` | Optional names |
+| `atom_ids` | Optional IDs, strings or 64-bit integers; default the atom positions |
+| `source`, or `source_name`, `record_index`, `record_id` | Optional record of where the molecule came from |
 
-- `atomic_numbers`: an integer vector of shape `(N,)`;
-- `formal_charges`: an optional integer vector of shape `(N,)`, defaulting to zero;
-- `bonds`: optional integer rows `(first_atom, second_atom, order)` of shape `(B, 3)`;
-- `coordinates`: `(N, 3)` for one conformer or `(C, N, 3)` for multiple conformers;
-- optional molecule, atom, and conformer names;
-- a `SourceIdentity` or its `source_name`, `record_index`, and `record_id` fields; and
-- optional string or signed 64-bit integer `atom_ids` for round-trip mapping.
+ChargeFW copies the arrays and checks them: bonds of an atom to itself, repeated bonds, indices out of
+range, non-integer values, and shapes that do not fit are errors. The molecule's arrays are read-only,
+and `coordinates` always has the shape `(C, N, 3)`, with `C = 0` when there are none. Coordinates that
+are not finite are kept, but methods that need geometry then reject the molecule.
 
-Inputs are validated, normalized to C-contiguous `int64` or `float64` arrays, and copied. Public arrays
-are read-only, so later mutation or destruction of the caller's arrays cannot change the molecule.
-Coordinates are always exposed with shape `(C, N, 3)`; `None` and `(0, N, 3)` both mean no conformers.
-Coordinates are interpreted in ångströms; the Python API does not attach units or convert them.
+`chargefw.MoleculeCollection` holds several molecules, in order, with an optional name. The molecules
+and collections cannot be changed after they are created.
 
-Molecules returned by serialized readers expose an immutable `source_mapping`. Its `atoms` tuple maps
-calculation atom order to zero-based source positions and exact source ID tokens where the format provides
-them. Its `conformers` tuple retains each selected source conformer and its calculation-ordered source
-sites. Structural sites additionally expose model identity, selected alternate location, entity, insertion
-code, segment where available, and separate mmCIF author and label atom/residue/chain/sequence identities.
-The mapping also reports source format, record-local selection/conformer/bond policy, alternate-location
-policy, and whether source connectivity was absent, explicitly empty, or present. Imported `atom_ids` use
-exact source IDs when present and source positions otherwise. A newly constructed molecule, including one
-built from an imported molecule's arrays, has `source_mapping is None` and does not inherit verified
-correspondence. Structural imports expose their selected residue partition as immutable
-`source_mapping.components` entries (`SourceComponentInstance`), each with a canonical `component_id` and
-calculation-ordered `atom_indices`; see the [format reference](../reference/formats.md#pdb-and-mmcif-input) for its
-ordering and conformer contract.
+### Where atoms came from
 
-Atomic numbers 1–100 are accepted because they are represented by the bundled periodic table; individual
-methods and parameter sets may support a smaller subset. Only bond orders 1, 2, and 3 are accepted. Self
-bonds, duplicate bonds, invalid indices, non-integral integer input, unsupported atomic numbers, and
-mismatched shapes are rejected. Non-finite coordinates are retained, but methods that require geometry
-are inapplicable when coordinates are missing or non-finite.
+Molecules read from a file have a `source_mapping` that links them back to the file:
 
-`chargefw.periodic_table` is the immutable bundled table in atomic-number order. Index it by atomic
-number, including NumPy integers, or by exact element symbol to get an `Element` with `atomic_number`,
-`symbol`, `name`, `period`, and `group`. `group` is the IUPAC group 1–18, and `None` for lanthanides and
-actinides placed in the f-block:
+- `source_mapping.atoms`: for every atom, its position in the file and its ID where the format has
+  IDs;
+- `source_mapping.conformers`: for every conformer, its model or record and the file sites of its atoms,
+  with chain, residue, and atom labels, alternate location, and insertion code for PDB and mmCIF;
+- `source_mapping.components`: for PDB and mmCIF, the residues, each with its name and atom indices;
+- the format and the reading options that were used, and whether the file contained bonds.
+
+A molecule built from arrays has `source_mapping` set to `None`, even when the arrays came from another
+molecule. `molecule.atom_ids` holds the file's atom IDs, or the atom positions when the format has none.
+
+### Periodic table
+
+`chargefw.periodic_table` holds the elements by atomic number. Index it by number or by symbol to get an
+`Element` with `atomic_number`, `symbol`, `name`, `period`, and `group`; `group` is 1 to 18, or `None`
+for lanthanides and actinides:
 
 ```python
 symbols = [chargefw.periodic_table[number].symbol for number in molecule.atomic_numbers]
 print(chargefw.periodic_table["Se"].atomic_number, "Fm" in chargefw.periodic_table)
 ```
 
-`MoleculeCollection` is an immutable source-ordered sequence with an optional name. Omitted atom IDs
-default to source-order integers.
+## Calculating charges
+
+`chargefw.calculate()` takes a molecule, a collection, or any iterable of molecules, and the following
+keyword arguments:
+
+| Argument | Value |
+| --- | --- |
+| `method` | Method ID or `Method`; default `None`, chosen automatically |
+| `parameter_set` | Parameter-set ID or `ParameterSet`; requires `method` |
+| `options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
+| `options_by_method` | Options per method ID for automatic selection, such as `{"peoe": {"iters": 8}}` |
+| `parameter_matching` | `"strict"` (default) or `"permissive"`; see [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
+| `execution` | `"auto"` (default), `"full"`, `"cutoff"`, or `"cover"`; see [Large structures](../guide/large-structures.md) |
+| `radius` | Fragment radius in ångströms, at least `8.0`; required with `"cutoff"` and `"cover"`, optional with `"auto"` (default 12), not allowed with `"full"` |
+| `cutoff_threshold` | Size above which `"auto"` uses cutoff; default `20_000` atoms, `None` for no limit |
+| `cover_threshold` | Size above which `"auto"` uses cover; default `80_000` atoms, `None` for no limit |
+| `threads` | Maximum number of threads; by default, and with `0`, all available cores |
+| `fixed_ions` | Residue names of ions to keep as fixed charges; see [below](#fixed-ions) |
+| `observer` | Receives progress and can cancel; see [Progress and cancellation](#progress-and-cancellation) |
+
+`options` and `options_by_method` cannot be used together. Thresholds must satisfy
+`cutoff_threshold <= cover_threshold`. To remove both limits, pass `cutoff_threshold=None` and
+`cover_threshold=None`; `cutoff_threshold=None` alone is an error, `cover_threshold=None` alone keeps the
+cutoff limit.
+
+Name both the method and the parameter set when results must be reproducible. Automatic selection, as
+described in [Choosing a method](../guide/methods.md#choosing-a-method), is deterministic, but its order
+is not a recommendation for a particular molecule.
+
+### One model for all molecules
+
+A single `calculate()` call uses one method, parameter set, and execution mode for all molecules it is
+given. If they do not apply to one molecule of a collection, the calculation fails. Automatic selection
+likewise chooses a model that applies to every molecule. `result.assignments_by_molecule` groups the
+charges by input molecule:
+
+```python
+result = chargefw.calculate(molecules, method="eem", parameter_set="EEM_Cheminf_b3lyp_npa")
+
+for molecule, assignments in zip(molecules, result.assignments_by_molecule, strict=True):
+    for assignment in assignments:
+        print(molecule.name, assignment.conformer_index, assignment.values)
+```
+
+To let every molecule get its own model, calculate them one by one; each call then selects
+separately:
+
+```python
+for molecule in molecules:
+    result = chargefw.calculate(molecule)
+    print(molecule.name, result.plan.method.id, result.plan.policy.mode)
+```
+
+### Fixed ions
+
+`fixed_ions` takes residue names such as `["MG", "CA"]`, or `chargefw.COMMON_IONS` or
+`chargefw.ALL_IONS`. Each selected residue must be a single atom of the ion's element, without bonds;
+names that are not in the structure are ignored. [Fixed ions](../guide/fixed-ions.md) describes the
+model and the catalog.
+
+```python
+result = chargefw.calculate(molecules, method="sqeqp", parameter_set="SQEqp_Schindler2021_CCD_gen",
+                            fixed_ions=["MG"])
+```
+
+## Results
+
+`calculate()` returns a `CalculationResult`:
+
+| Attribute | Content |
+| --- | --- |
+| `assignments` | All sets of charges, as `ChargeAssignment` values |
+| `assignments_by_molecule` | The same, grouped by input molecule |
+| `plan` | The method, parameter set, options, execution mode and radius, and warnings that were used; a record, not a plan you can calculate again (use [`assess()`](#assessing-before-calculating) for that) |
+| `requested` | What was requested |
+| `molecules` | The input molecules |
+| `status` | `"success"`, or the reason for a failure |
+| `rejections`, `warnings` | Rejected methods and parameter sets with reasons, and warnings |
+| `failure_message` | Text of a failure, if any |
+| `timings` | Time spent selecting and calculating |
+
+A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` array in atom order, and
+`molecule_index`, `conformer_index` (`None` for methods without geometry), `source`, and `atom_ids`.
+`numpy.asarray(assignment)` also returns the charges. [Results](../guide/results.md) explains
+assignments, conformers, and atom order.
+
+`result.assignment(molecule=0, conformer=1)` returns one assignment. For methods that use geometry,
+`conformer` is required, also for molecules with one conformer; for the other methods, omit it.
+
+With fixed ions, `result.requested.fixed_ions` holds the names you passed and `result.plan.fixed_ions`
+the ions that were fixed, each with its molecule and atom index and its charge.
+
+### Errors
+
+Invalid arguments raise `TypeError` or `ValueError`. A calculation that fails raises a
+`chargefw.ChargeFWError`:
+
+- `NoExecutablePlanError`: no method and parameter set apply with the requested settings;
+- `NumericalFailureError`: the calculation failed, for example did not converge;
+- `CalculationCancelledError`: the calculation was cancelled.
+
+The exception's `result` holds the complete result, with the reasons; it can still be written as result
+JSON:
+
+```python
+try:
+    result = chargefw.calculate(molecules, method="qeq", parameter_set="QEq_original")
+except chargefw.ChargeFWError as error:
+    chargefw.io.write("failed-result.json", error.result, format="result-json")
+    raise
+```
+
+Indices of molecules, atoms, bonds, and conformers in the reasons count from zero.
+
+## Writing results
+
+`chargefw.io.write()` writes a result to a file and `chargefw.io.dumps()` returns it as text. The format
+is `"result-json"`, `"mol2"`, or `"mmcif"`; `chargefw.io.OUTPUT_FORMATS` lists them:
+
+```python
+chargefw.io.write("charged.cif", result, format="mmcif")
+chargefw.io.write("charged.mol2", result, format="mol2")
+```
+
+MOL2 and mmCIF can be written for input in any format. [Choosing an output
+format](../guide/results.md#choosing-an-output-format) compares the formats, and the
+[format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
+result the format cannot hold raises `ValueError`, and a file that cannot be written raises an `OSError`,
+such as `PermissionError`. A failed write can leave an incomplete file, but the result itself stays
+usable.
+
+Record and atom IDs are strings or 64-bit integers; NumPy integers are converted to Python integers.
+Result JSON keeps integer IDs as numbers. MOL2 and mmCIF write them as text where the format needs a name.
 
 ## Methods and parameter sets
 
-The package-level `chargefw.methods` and `chargefw.parameter_sets` values are immutable ordered mappings
-with lookup by stable ID. Methods are ordered by descending priority, then ID, which is the order of the
-[method table](../guide/methods.md#available-methods). Parameter sets are grouped by method ID and, within
-a method, ordered by descending priority, then ID, as are the sets of `method.parameter_sets`. Select by ID or pass a descriptor from these mappings to `assess()` or
-`calculate()`:
+`chargefw.methods` and `chargefw.parameter_sets` look up methods and parameter sets by ID. Methods are
+ordered by descending priority, then ID, as in the [method table](../guide/methods.md#available-methods);
+parameter sets are grouped by method ID and, within a method, ordered by descending priority, then ID.
+Pass the ID or the object to `calculate()`:
 
 ```python
 eem = chargefw.methods["eem"]
-
-for method_id, method in chargefw.methods.items():
-    print(method_id, method.full_name)
-
-print(eem.time_complexity, eem.memory_complexity)
-print(eem.requires_coordinates, eem.supports_cutoff, eem.supports_cover)
+print(eem.full_name, eem.time_complexity, eem.requires_coordinates, eem.supports_cover)
 
 for parameter_set in eem.parameter_sets.values():
     print(parameter_set.id, parameter_set.name)
 
 iterations = chargefw.methods["peoe"].options["iters"]
 print(iterations.default, iterations.minimum, iterations.maximum)
+```
 
+A `Method` has its name, publication, `notes`, `priority`, `requires_coordinates`,
+`time_complexity` and `memory_complexity`, `supports_cutoff`, `supports_cover`,
+`supports_fixed_point_sources`, `options`, and `parameter_sets`. A method that requires coordinates
+needs finite coordinates for every conformer and gives one assignment per conformer. These attributes
+describe the method in general; whether it applies to particular molecules shows only when you
+calculate or [assess](#assessing-before-calculating). `formal` and `dummy` are not charge models: they
+return the formal charges and zeros.
+
+A `ParameterSet` has its metadata and `atom_keys` and `bond_keys`, the atom and bond types it has values
+for, in the order they are matched:
+
+```python
 peptide = chargefw.parameter_sets["SQEqp_Schindler2021_PUB_pept"]
 for key in peptide.atom_keys:
     print(key.element, key.classifier, key.type)
@@ -225,161 +270,57 @@ for key in peptide.bond_keys:
     print([(atom.element, atom.type) for atom in key.atoms], key.classifier, key.type)
 ```
 
-Method descriptors expose names, publication metadata, human-readable `notes`, priority, coordinate
-requirements, Big-O time and memory complexity, reduced-mode capabilities, fixed point source support,
-options, and associated parameter sets. `supports_fixed_point_sources` reports whether the method can
-numerically account for fixed external point charges; it does not establish applicability for a particular
-molecule and parameter set. Notes describe important implementation scope or input behavior; assessment
-remains the authoritative applicability check for a specific request.
-`requires_coordinates=True` means every input molecule must have coordinates and every conformer must
-contain finite, non-coincident coordinates; the method then produces one assignment per conformer.
-Complexity uses `n` for atoms and `m` for bonds, as defined in the
-[Methods and parameter sets](../guide/methods.md). The `formal` method copies input formal
-charges and `dummy` returns zeros; neither is an empirical partial-charge model.
+Element `"*"` matches every element. The [parameter-set format](../reference/parameter-format.md)
+explains classifiers and types. Python offers the parameter sets installed with ChargeFW; it cannot load
+other parameter files.
 
-Parameter-set descriptors expose metadata and their entry keys, which show the atom and bond
-environments a set parameterizes separately. `atom_keys` is a tuple of
-`AtomParameterKey(element, classifier, type)` values; element `"*"` matches every element.
-`bond_keys` is a tuple of `BondParameterKey(atoms, classifier, type)` values, where `atoms` holds the two
-endpoint atom keys and the classifier and type describe the bond. Both tuples follow the file's entry
-order, which is the matching precedence. Python exposes only the installed bundled parameter catalog.
-Its package-level and method-level mappings are immutable and cannot be extended. The
-[parameter-set JSON reference](../reference/parameter-format.md) documents the bundled data and classifier behavior,
-including permissive matching. Selection order and method scope are defined in
-[Methods and parameter sets](../guide/methods.md).
+## Assessing before calculating
 
-## Calculation policy
-
-Direct `calculate()` accepts keyword-only policy arguments:
-
-| Argument | Values and defaults |
-| --- | --- |
-| `method` | Method ID, `Method`, or `None` |
-| `parameter_set` | Parameter-set ID or `ParameterSet`; requires `method` |
-| `options` | Option mapping for an explicitly selected method |
-| `options_by_method` | Method-ID to option-mapping overrides for automatic selection |
-| `parameter_matching` | `"strict"` (default) or `"permissive"` |
-| `execution` | `"auto"` (default), `"full"`, `"cutoff"`, or `"cover"` |
-| `radius` | Reduced radius in ångströms; explicit cutoff/cover require at least `8.0` |
-| `cutoff_threshold` | Automatic full-to-cutoff threshold; default `20_000`, `None` is unlimited |
-| `cover_threshold` | Automatic cutoff-to-cover threshold; default `80_000`, `None` is unlimited |
-| `threads` | Non-negative oneTBB thread limit; omitted or `0` delegates to oneTBB |
-| `fixed_ions` | Sequence of named imported monatomic ion components with no graph bonds; default `None` |
-
-Finite thresholds are non-negative integers with `cutoff_threshold <= cover_threshold`. To make both
-thresholds unlimited, pass `cutoff_threshold=None, cover_threshold=None`; setting only
-`cutoff_threshold=None` leaves the default finite cover threshold and raises `ValueError`. Setting only
-`cover_threshold=None` is valid and keeps the default cutoff threshold.
-
-The [Large structures](../guide/large-structures.md) defines the shared execution modes, automatic
-selection policy, conservation behavior, and approximation limits.
-
-Pass the same named ion selection to `assess()` or direct `calculate()` to apply fixed-ion handling. Each
-selected component must contain one atom of its catalog element and have no graph bonds. The request
-snapshots names to an immutable tuple; `None` and an empty sequence disable fixed-ion handling.
-The [Fixed ions](../guide/fixed-ions.md) describes how imported components are resolved,
-which methods support the model, and its active-charge contract.
-
-`chargefw.COMMON_IONS` and `chargefw.ALL_IONS` are immutable tuples of component names accepted by the
-same argument. `COMMON_IONS` selects the common-ion subset; `ALL_IONS` selects every monatomic ion in the
-[bundled catalog](../guide/fixed-ions.md). Both expand explicit caller intent, using bundled
-template charges; only matching components present in the input become fixed sources.
-
-```python
-assessment = chargefw.assess(
-    molecules,
-    method="sqeqp",
-    parameter_set="SQEqp_Schindler2021_CCD_gen",
-    execution="full",
-    fixed_ions=["MG"],
-)
-result = chargefw.calculate(molecules, assessment.default_plan)
-
-common = chargefw.calculate(molecules, fixed_ions=chargefw.COMMON_IONS)
-all_ions = chargefw.calculate(molecules, fixed_ions=chargefw.ALL_IONS)
-```
-
-Flat `options` require an explicit method. `options` and `options_by_method` cannot be combined. Automatic
-execution accepts an optional radius override. Explicit full execution rejects a radius; explicit cutoff
-and cover require one. Direct calculation performs assessment internally, executes the selected default
-plan, and returns its effective policy and warnings in the result.
-
-```python
-result = chargefw.calculate(
-    molecule,
-    method="eem",
-    parameter_set="EEM_Baek1991",
-    execution="auto",
-)
-print(result.plan.method.id, result.plan.policy.mode, result.warnings)
-```
-
-## Advanced assessment and plan reuse
-
-Calling `assess()` directly is optional. Use it to inspect applicability or policy warnings before
-calculation, compare runnable alternatives, or execute several plans without repeating molecule
-preparation and parameter classification. The
-[parameter-set comparison example](../examples/compare_parameter_sets.md) demonstrates this workflow with one
-assessment and several plans.
-
-`assess()` accepts the same selection and policy arguments as direct `calculate()`. Its `threads`
-argument configures default plan executions; passing `threads` to `calculate(..., plan, threads=...)`
-overrides that default for one execution.
+`chargefw.assess()` takes the same molecules and arguments as `calculate()`, without `observer`, and
+checks which methods and parameter sets apply, without calculating. Use it to see the reasons for
+rejections, compare the possible plans, or calculate several plans without preparing the molecules
+again; the [parameter-set comparison example](../examples/compare_parameter_sets.md) does that.
 
 ```python
 assessment = chargefw.assess(molecule, method="eem", execution="full")
 
 for plan in assessment.plans:
-    parameter_set = plan.parameter_set
-    print(
-        plan.method.id,
-        parameter_set.id if parameter_set is not None else None,
-        plan.policy.mode,
-        plan.warnings,
-    )
-```
+    print(plan.method.id, plan.parameter_set.id, plan.policy.mode, plan.warnings)
 
-An `Assessment` contains priority-ordered reusable `plans`, structured `rejections`, a `default_plan`,
-and assessment time in `seconds`. Each `Plan` retains the prepared native state and exposes its method,
-parameter set, complete validated options, concrete execution policy, and warnings.
-
-When no plan is executable, inspect issues without parsing human-readable exception text:
-
-```python
 if assessment.default_plan is None:
     for rejection in assessment.rejections:
         for issue in rejection.issues:
             print(rejection.method.id, issue.kind, issue.message)
 ```
 
-Issue molecule, atom, bond, and conformer indices are zero-based when present.
+An `Assessment` has the possible `plans` in selection order, the `rejections`, the `default_plan` that
+`calculate()` would use, and the time taken in `seconds`. A `Plan` has its method, parameter set, all
+option values, execution mode, and warnings. `plan.parameter_set` is `None` for methods without
+parameter sets.
 
-Execute an exact assessed plan without repeating preparation or parameter classification:
+Calculate a plan by passing it after the molecules; the molecules are not prepared again. A plan
+estimates its memory and number of operations before you run it:
 
 ```python
 plan = assessment.default_plan
 if plan is not None:
-    result = chargefw.calculate(molecule, plan, threads=1)
+    estimate = plan.estimate(threads=4)
+    print(estimate.memory_bytes / 2**30, estimate.operations)
+    result = chargefw.calculate(molecule, plan, threads=4)
 ```
 
-Estimate a plan's peak working memory and operation count before executing it:
+[Threads and estimates](../guide/large-structures.md#threads-and-estimates) explains the numbers.
+`threads=None` in `estimate()` uses the `threads` of the assessment, and `threads` in `calculate()`
+overrides it for one calculation.
 
-```python
-estimate = plan.estimate(threads=4)
-print(estimate.memory_bytes / 2**30, estimate.operations)
-```
-
-`threads=None` uses the assessment's `threads`. The returned `ResourceEstimate` is approximate; the
-[resource estimates](../guide/large-structures.md#threads-and-estimates) describes what it covers.
-
-Plans are bound to the exact molecule objects and collection name used during assessment. They cannot be
-applied to another record or a reconstructed equivalent molecule, and selection arguments cannot be
-supplied with a plan, including `fixed_ions`. A plan is reusable after its `Assessment`
-is released and can be used by independent concurrent calculations over those same objects.
+A plan works only with the molecules it was assessed with: the same molecule objects, in the same
+order, in a collection with the same name; copies or other molecules are rejected. Selection arguments,
+including `fixed_ions`, cannot be given together with a plan. A plan
+stays usable after the assessment is deleted, and several threads can calculate the same plan at once.
 
 ## Progress and cancellation
 
-Subclass `CalculationObserver` and pass it to `calculate()` with the keyword-only `observer` argument:
+Pass a subclass of `chargefw.CalculationObserver` as `observer` to receive progress and to cancel:
 
 ```python
 from threading import Event, Lock
@@ -402,211 +343,79 @@ class RecordingObserver(chargefw.CalculationObserver):
 
 
 observer = RecordingObserver()
-result = chargefw.calculate(
-    molecule,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-    observer=observer,
-)
+result = chargefw.calculate(molecule, method="qeq", parameter_set="QEq_original", observer=observer)
 ```
 
-Progress phases are `"computation_started"`, `"computation_finished"`, `"target_started"`,
-`"target_finished"`, and `"fragment_progress"`. A target is one molecule/conformer pair for a
-geometry-dependent method and one molecule for a geometry-independent method. Fragment events are
-throttled and are emitted only by cutoff and cover execution.
+Each `CalculationProgress` has a `phase`: `"computation_started"`, `"target_started"`,
+`"fragment_progress"`, `"target_finished"`, or `"computation_finished"`. A target is one conformer of a
+molecule for methods that use geometry, and one molecule for the others. Fragment progress comes only
+from cutoff and cover, at limited frequency. The event also has the execution mode, method ID, target
+and fragment counts, molecule and conformer index, and elapsed seconds; fields unrelated to the phase are
+zero or `None`.
 
-Each immutable `CalculationProgress` snapshot contains the phase, effective execution mode, method ID,
-target indices and count, fragment completion and count, molecule and optional conformer indices, and
-elapsed computation seconds. Fields unrelated to the current phase retain their default zero or `None`
-value.
+`on_progress()` can be called from several worker threads, in any order; it holds the global interpreter
+lock, but protect shared state with a lock as above. An exception in it is reported through
+`sys.unraisablehook` and does not stop the calculation. Selection before the calculation sends no
+progress.
 
-Callbacks may originate on oneTBB worker threads. The Python GIL is held during each callback, but
-observers that update compound state should still use synchronization and must not rely on callback
-arrival order during parallel execution. Callback exceptions are reported through Python's unraisable
-exception hook and do not alter calculation control flow.
+When `cancelled()` returns true, ChargeFW stops before the next molecule, conformer, or fragment and
+raises `CalculationCancelledError`; its result has status `"cancelled"` and no charges.
 
-Returning true from `cancelled()` requests termination at the next
-[cancellation check point](../guide/results.md). The call then raises
-`CalculationCancelledError`; its `result` has status `"cancelled"` and contains no partial charge
-assignments. Assessment itself is not observed.
+## RDKit
 
-## Results and failures
-
-`CalculationResult` exposes:
-
-- `status`;
-- the immutable input collection in `molecules`;
-- immutable `assignments`;
-- immutable `assignments_by_molecule`, aligned with the calculation input collection;
-- requested policy in `requested`;
-- executed method and settings in `plan`, an `ExecutedPlan | None`;
-- rejected alternatives and warnings;
-- optional `failure_message`; and
-- applicability and computation `timings`.
-
-`result.plan` records the method, parameter set, options, execution policy, and warnings for the executed
-plan. This `ExecutedPlan` is metadata, not a reusable `Plan`. To repeat an assessed calculation, retain a
-`Plan` from `assessment.plans` or `assessment.default_plan`, as shown in
-[Advanced assessment and plan reuse](#advanced-assessment-and-plan-reuse).
-For fixed-ion calculations, `result.requested.fixed_ions` retains the submitted names and
-`result.plan.fixed_ions` is a `FixedIons` record whose immutable `sources` tuple contains
-`FixedAtomCharge` values with original molecule/atom indices and assigned charges.
-
-Each `ChargeAssignment` contains a newly owned, read-only, C-contiguous `float64` vector together with its
-molecule index, optional conformer index, `SourceIdentity`, and atom IDs.
-`numpy.asarray(assignment)` returns the charge vector.
-
-Geometry-dependent methods return one assignment per conformer. Geometry-independent methods return one
-assignment per molecule without conformer identity.
-
-Invalid Python values and request arguments raise `TypeError` or `ValueError`. Failed calculations raise
-a typed `ChargeFWError` subclass:
-
-- `NoExecutablePlanError`;
-- `NumericalFailureError`;
-- `CalculationCancelledError`.
-
-Each exception retains the complete result as `exception.result`, including status, rejections, failure
-text, and timings.
-
-Failed and cancelled results can still be retained as machine-readable result JSON:
-
-```python
-try:
-    result = chargefw.calculate(
-        molecule,
-        method="qeq",
-        parameter_set="QEq_original",
-        execution="full",
-    )
-except chargefw.ChargeFWError as error:
-    chargefw.io.write("failed-result.json", error.result, format="result-json")
-    raise
-```
-
-## Output
-
-`chargefw.io.dumps()` serializes a `CalculationResult` to generated MOL2, generated mmCIF, or result JSON,
-while `chargefw.io.write()` writes it as a UTF-8 file at the requested path. Both require an explicit
-`format`: `"mol2"`, `"mmcif"`, or `"result-json"`. The supported values are also available as
-`chargefw.io.OUTPUT_FORMATS` for discovery and argument validation. A write failure can leave the destination
-incomplete.
-
-```python
-result = chargefw.calculate(
-    molecules,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
-chargefw.io.write("charged.cif", result, format="mmcif")
-chargefw.io.write("charged.mol2", result, format="mol2")
-```
-
-The language-independent [charge-output reference](../reference/formats.md#charge-output) defines generated MOL2 and
-mmCIF content, result JSON, coordinate requirements, precision, and mapping behavior. Python output does
-not depend on the source format. Invalid argument types raise `TypeError`; unsupported output formats
-and unmet format requirements raise `ValueError`. Filesystem write failures raise `OSError` subclasses,
-such as `FileNotFoundError` or `PermissionError`. Output errors leave the calculation result unchanged,
-so result JSON can still be serialized from the same object.
-
-Record and atom IDs are normalized to strings or signed 64-bit integers. NumPy integer scalars are accepted
-and converted to Python `int`; booleans, arbitrary hashable objects, and out-of-range integers are rejected.
-Result JSON preserves integer IDs as JSON numbers rather than stringifying them. Explicit `atom_ids` from a
-manually constructed molecule appear once in `input.atom_ids`. Import mapping is available through the
-Python molecule and is used by output adapters.
-Generated MOL2 and mmCIF use their decimal representation where a textual record or block name is
-required.
-
-## Toolkit integrations
-
-PDB and mmCIF parsing use ChargeFW's compiled Gemmi dependency and do not require the upstream Python
-package. Converting upstream `gemmi.Structure` and `gemmi.cif.Document` objects requires the optional
-Gemmi Python integration:
-
-```bash
-pip install "chargefw[gemmi]"
-```
-
-Importing `chargefw.io.gemmi` remains safe without that extra; calling its conversion functions raises an
-actionable `ImportError`. With the extra installed, use the object-conversion module explicitly:
-
-```python
-import chargefw.io.gemmi
-
-structure_molecules = chargefw.io.gemmi.from_structure(structure)
-document_molecules = chargefw.io.gemmi.from_document(document)
-fresh_document = chargefw.io.gemmi.to_document(result)
-```
-
-The Gemmi integration serializes upstream objects through mmCIF text and then uses ChargeFW's compiled
-reader. This keeps selection and bond behavior aligned with serialized input without sharing C++ objects
-between extension modules.
-
-`to_document(result)` returns a fresh `gemmi.cif.Document` through the same native writer used by
-`chargefw.io.dumps(..., format="mmcif")`. It never mutates or retains an input document, and source-only
-categories and original site IDs are not copied.
-
-`attach_charges(document, result)` is the Python-only in-memory annotation path. `document` must be the
-mmCIF document passed to `from_document()` for the molecules used by `result`. Before changing the live
-object, ChargeFW validates coordinate-block order, block names, source site positions, exact atom IDs,
-model IDs, elements, structural labels, coordinates, and formal charges against the result's owned import
-mapping. Occupancy and B factors may change. Any mismatch or output error leaves the document unchanged.
-Existing charge categories are rejected unless `overwrite=True`; append mode is not supported.
-Successful attachment replaces the document's blocks with annotated copies, so obtain block objects such
-as `document.sole_block()` again after the call. Subsequent document changes are the caller's
-responsibility.
-
-```python
-result = chargefw.calculate(
-    document_molecules,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
-charged_document = chargefw.io.gemmi.to_document(result)
-charged_document.write_file("charged.cif")
-
-# Alternatively, preserve unrelated categories in the unchanged live input document.
-chargefw.io.gemmi.attach_charges(document, result)
-document.write_file("charged-with-source-metadata.cif")
-```
-
-Structural input defaults are `selection="all"`, `bonds="hybrid"`, and `conformers="all"`. Bond choices are
-`"none"`, `"explicit"`, `"templates"`, and `"hybrid"`; selection choices are `"all"`,
-`"polymers-and-ligands"`, and `"polymers"`. Their language-independent import semantics are defined in
-the [PDB and mmCIF format reference](../reference/formats.md#pdb-and-mmcif-input).
-
-RDKit is an optional dependency installed with `pip install "chargefw[rdkit]"`. The base package remains
-RDKit-free. `chargefw.io.rdkit.from_mol()` copies an existing `rdkit.Chem.Mol` without sanitization,
-hydrogen changes, protonation, embedding, or optimization. Every hydrogen must be an explicit RDKit atom;
-call `Chem.AddHs()` first for molecules with implicit hydrogens, such as those from SMILES. By default,
-it accepts only explicit RDKit single, double, and triple bond types. Pass `bond_conversion="single"` to convert aromatic bonds and the
-RDKit dative bond family to native single bonds, matching the connectivity-only aromatic normalization
-used by ChargeFW's serialized format readers. The option does not convert query bonds or unsupported
-higher-order, fractional, ionic, hydrogen, three-center, zero-order, unspecified, or other bond types;
-these remain errors. `attach_charges()` writes one selected assignment to double-valued atom properties
-using integer-compatible atom IDs that map each target atom exactly once. It creates RDKit's serializable
-atom-property list when that facility is available. Its `conformer` argument is a zero-based ChargeFW
-conformer index, not an RDKit conformer ID, and the resulting atom property is molecule-wide rather than
-conformer-scoped.
+`pip install --pre "chargefw[rdkit]"` installs the RDKit integration in `chargefw.io.rdkit`.
 
 ```python
 from chargefw.io import rdkit as chargefw_rdkit
 
 molecule = chargefw_rdkit.from_mol(rdkit_molecule, bond_conversion="single")
-result = chargefw.calculate(
-    molecule,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
+result = chargefw.calculate(molecule, method="qeq", parameter_set="QEq_original")
 chargefw_rdkit.attach_charges(rdkit_molecule, result)
 ```
 
-The RDKit molecule in this example must already contain suitable coordinates. `attach_charges()` selects
-the input molecule with `molecule_index` (default `0`). Unlike `result.assignment()`, it automatically
-selects that molecule's sole assignment when `conformer` is omitted, including a single-conformer
-geometry-dependent result. When the selected molecule has multiple assignments, pass `conformer=`
-explicitly. Use separate molecule copies or property names if several charge vectors must be retained.
+`from_mol()` copies an RDKit molecule as it is: it does not sanitize, add or remove hydrogens, protonate,
+or generate coordinates. Every hydrogen must be an explicit atom; call `Chem.AddHs()` first for molecules
+from SMILES. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
+turns aromatic and dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds;
+other bond types, such as ionic, hydrogen, or zero-order bonds, remain errors.
+
+`attach_charges()` stores the charges of one assignment as a double property of each atom, named by
+`property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.
+Existing properties of that name are an error unless you pass `overwrite=True`. It matches atoms by their IDs, which must
+be integers that map every atom exactly once. `molecule_index` selects the input molecule (default `0`).
+When that molecule has a single assignment, it is used; otherwise pass `conformer`, the ChargeFW
+conformer index, not the RDKit conformer ID. The property belongs to the molecule, not to a conformer, so
+keep separate copies or property names to store several sets of charges.
+
+## Gemmi
+
+ChargeFW reads PDB and mmCIF files without the Gemmi Python package. To convert Gemmi objects, install
+the integration with `pip install --pre "chargefw[gemmi]"`. `chargefw.io.gemmi` can be imported
+without it; its functions then raise an `ImportError` that says what to install.
+
+```python
+import chargefw.io.gemmi
+
+molecules = chargefw.io.gemmi.from_document(document)  # or from_structure(structure)
+result = chargefw.calculate(molecules, method="qeq", parameter_set="QEq_original")
+
+charged = chargefw.io.gemmi.to_document(result)
+charged.write_file("charged.cif")
+
+# Or add the charges to the original document, keeping all its other data.
+chargefw.io.gemmi.attach_charges(document, result)
+document.write_file("charged-with-source-metadata.cif")
+```
+
+`from_structure()` and `from_document()` write the Gemmi object as mmCIF text and read it with
+ChargeFW's own reader, so the `selection`, `bonds`, and `conformers` options behave as for files.
+
+`to_document()` creates a new mmCIF document, the same as `chargefw.io.dumps(..., format="mmcif")`; it
+does not copy other data of the input.
+
+`attach_charges(document, result)` adds the charges to the document that was passed to
+`from_document()`. It first checks that the document still matches the calculated molecules: blocks,
+atom sites, IDs, models, elements, labels, coordinates, and formal charges. Occupancies and B factors may
+differ. If anything does not match, the document stays unchanged. Existing charge data is an error unless
+you pass `overwrite=True`. The function replaces the document's blocks, so get block objects such as
+`document.sole_block()` again afterwards.

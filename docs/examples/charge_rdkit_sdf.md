@@ -16,7 +16,7 @@ Because the converted records form one collection, ChargeFW selects a parameter 
 them, and a record the selected model cannot handle makes the calculation fail rather than switching
 models. Pass `--parameter-set` to choose the model explicitly. The example kekulizes aromatic rings so
 ChargeFW receives explicit single and double bonds; see the
-[RDKit integration contract](../interfaces/python.md#toolkit-integrations).
+[RDKit integration](../interfaces/python.md#rdkit).
 
 Download {download}`charge_rdkit_sdf.py`.
 

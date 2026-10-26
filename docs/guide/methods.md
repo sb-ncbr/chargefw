@@ -38,7 +38,7 @@ chargefw applicability molecule.sdf
 ```
 
 In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
-rejected candidate; see [Python](../interfaces/python.md#advanced-assessment-and-plan-reuse).
+rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
 
 A new ChargeFW release can add parameter sets and so change what automatic selection picks. Name the
 method and the parameter set whenever results must stay the same between releases.
