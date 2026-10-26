@@ -1,13 +1,15 @@
-# Parameter-set JSON
+# Parameter-set format
 
-ChargeFW's bundled parameter sets are JSON documents installed with the library. User-facing interfaces
-select parameter sets from this catalog, and native applications can load compatible JSON through the
-public parameter I/O API. This reference is for parameter authors and documents the file format and
-classifier semantics.
+ChargeFW's parameter sets are JSON files installed with ChargeFW; the
+[parameter-set reference](parameter-sets.md) lists them. This page describes the file format and how a
+parameter set matches atoms and bonds, for people who write or check parameter sets. The command line
+and Python use the installed sets; C++ applications can also load their own files with
+`parameters::load_parameter_set_json_file()` or `load_parameter_sets_json_directory()`.
 
-A parameter set declares values for one method. Method requirements determine which common, atom, and
-bond parameter names must be present. During assessment, ChargeFW verifies those names, then classifies
-every relevant atom and bond against the keys below.
+A parameter set holds the values for one method. The method determines which common, atom, and bond
+parameter names must be present. Before a calculation, ChargeFW checks the required names and matches
+the atoms and bonds that need parameters to entries in the set, as described below. Atoms kept as
+[fixed ions](../guide/fixed-ions.md) are not matched.
 
 ## Document structure
 

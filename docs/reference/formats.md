@@ -1,15 +1,12 @@
-# Molecular input and charge output formats
+# File formats
 
-This document describes the format behavior shared by ChargeFW's native adapters, command-line
-application, and language bindings. API names and command-line file-selection policy are documented in
-[Native C++ library](../interfaces/cpp.md), [Python package](../interfaces/python.md), and
-[Command-line interface](../interfaces/cli.md), respectively.
+This page describes what ChargeFW reads from each input format and what it writes, the same for the
+[command line](../interfaces/cli.md), [Python](../interfaces/python.md), and [C++](../interfaces/cpp.md).
 
-ChargeFW imports files into a toolkit-neutral molecule containing source-ordered atoms, bonds, formal
-charges, and zero or more Cartesian conformers. Readers apply only the format-specific transformations
-documented below; broader chemistry-preparation limits are defined in the
-[Preparing input](../guide/input.md). Atom and molecule order is retained in charge
-assignments and output mappings.
+A file is read into molecules made of atoms in file order, bonds, formal charges, and zero or more
+conformers with Cartesian coordinates. The readers change only what is described below for each
+format; [Preparing input](../guide/input.md) describes what a molecule needs before a calculation. The
+order of molecules and atoms is kept in the charges and in every output.
 
 ## Format overview
 
@@ -17,23 +14,22 @@ assignments and output mappings.
 | --- | --- | --- | --- |
 | MOL V2000/V3000 | Yes | No | One molecule, one conformer |
 | SDF V2000/V3000 | Yes | No | One molecule per record, one conformer each |
-| Tripos MOL2 | Yes | Yes, freshly generated | One molecule per `MOLECULE` record, one conformer each |
+| Tripos MOL2 | Yes | Yes, written new | One molecule per `MOLECULE` record, one conformer each |
 | ChargeFW molecule JSON 1.0 | Yes | No | `molecules` array, zero or more conformers each |
 | PDB | Yes, through Gemmi | No | One molecule, models become conformers |
-| mmCIF | Yes, through Gemmi | Yes, freshly generated | One molecule per coordinate-bearing block |
+| mmCIF | Yes, through Gemmi | Yes, written new | One molecule per coordinate-bearing block |
 | ChargeFW result JSON 1.0 | No | Yes | Not applicable |
 
 Input and output capabilities are independent. A result calculated from any supported molecular input can
 be written as result JSON or, when its data is representable, as generated MOL2 or generated mmCIF. ChargeFW
 does not write MOL, SDF, molecule JSON, or PDB.
 
-Readers report malformed or unsupported molecular data as errors. Native MOL, SDF, and MOL2 input accepts
-both LF and CRLF line endings. A successful imported record also carries its source name, zero-based record
-index, format-derived record ID, and non-fatal diagnostics. MOL, SDF, MOL2, and molecule JSON records own
-their calculation-atom source positions, explicit source atom IDs where available, per-conformer site
-mapping, import policy, and whether source connectivity was absent, explicitly empty, or present. Streaming
-SDF and MOL2 readers consume one record at a time; molecule JSON, PDB, and mmCIF parsing retains the complete
-source document in memory.
+Readers report malformed or unsupported data as errors. MOL, SDF, and MOL2 files may use LF or CRLF line
+endings. Every record read keeps its source name, zero-based record index, record ID from the file, and
+warnings, together with a mapping to the file: each atom's position and ID where the format has IDs, the
+file sites of each conformer, the reading options, and whether the file had no bond data, an empty bond
+list, or bonds. SDF and MOL2 files are read one record at a time; molecule JSON, PDB, and mmCIF files are
+read whole into memory.
 
 ## MOL and SDF input
 
@@ -48,8 +44,8 @@ The supported subsets import:
 - formal charges from V2000 `M  CHG` records or V3000 atom `CHG=` attributes.
 
 Query and wildcard atoms are rejected. Bond order 4 is imported as a single bond. V3000 coordinate bonds
-(order 9) and hydrogen bonds (order 10) are omitted because the core graph cannot represent them; one
-warning per omitted order is attached to the molecule record. Other trailing V3000 atom and bond
+(order 9) and hydrogen bonds (order 10) are left out, because ChargeFW's molecules have only single,
+double, and triple bonds; one warning per left-out order is attached to the record. Other trailing V3000 atom and bond
 attributes are accepted but not used.
 
 V2000 properties other than `M  CHG` are not interpreted. One warning per ignored three-character
@@ -77,8 +73,8 @@ MOL2 atom charges are partial charges, not formal charges. They are parsed for v
 all imported formal charges are zero. A record containing any nonzero input partial charge receives a
 `partial_charges_ignored` warning. Each record produces one conformer named `input`.
 
-MOL2 source atom ID tokens are retained exactly for mapping after their positive-integer uniqueness and
-bond-reference semantics have been validated.
+MOL2 atom IDs are kept exactly as written, after checking that they are unique positive integers and that
+the bonds refer to them.
 
 ## ChargeFW molecule JSON input 1.0
 
@@ -141,7 +137,7 @@ identities. PDB populates its known author hierarchy and leaves unavailable labe
 Each structural import also retains a component-instance partition from selected residue membership. The
 record-local `component_instance_id` is the entry's zero-based position in this table, not the component
 name and not a separate stored field. The component name prefers a nonempty mmCIF label residue name, then
-the author residue name, then Gemmi's residue name. Each atom-index list is sorted in calculation order;
+the author residue name, then Gemmi's residue name. Each atom-index list follows the atom order of the molecule;
 table order follows the first calculation atom. These are selected structural residues, including polymer
 residues, rather than graph-connected components. The partition is stable across retained conformers, and
 source hierarchy strings remain unchanged alongside it. Nonstructural imports do not infer component
@@ -179,33 +175,32 @@ Structural readers provide four explicit bond strategies:
   are used; PDB `CONECT` records only add bonds that templates do not define.
 
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
-unspecified/null, and malformed component bond orders are skipped because the core graph cannot represent
-them. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
+unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
+single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
 links; they are not a complete Chemical Component Dictionary. No distance-based bond perception is performed.
 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
 N-terminal `N-H1` and `N-H3` bonds; `PRO` instead adds `N-H2` and `N-H3`. Only supplied atoms are
 connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
-The extension preserves supplied atoms, names, order, and formal charges. Callers supply a consistently
-prepared structure; these bonds are assigned by residue and atom names, independently of chain position.
+These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
+names, independently of the position in the chain, so the structure must be prepared consistently.
 
 ## Charge output
 
-ChargeFW result JSON retains native floating-point precision, as do native and Python result objects.
+Result JSON keeps charges at full precision, as do the Python and C++ results.
 MOL2 and mmCIF files write each coordinate as the shortest decimal number that reads back as the same
 value, so coordinates read from a file keep their digits, and charges rounded to four decimal places.
 The charges in such a file can therefore differ from the molecule's total charge by up to 0.00005 per
 atom; use result JSON when you need exact values.
-Writers validate assignment order, cardinality, targets, scope, and source references where the output
-representation provides them rather than silently reordering assignments. SDF remains input-only.
+Writers check that the assignments match the molecules, in order, number, targets, and scope, and refuse
+to write rather than reorder them. SDF is only read.
 
 ### MOL2
 
 Generated MOL2 is intended primarily for small molecules. It writes one `SMALL`/`USER_CHARGES` record for
-each retained conformer, preserving native atom and bond order and joining the corresponding conformer
-assignment during construction. Molecule-scoped charges are repeated for each conformer; conformer-scoped
-charges are written only to their selected conformer. Record names use the caller or imported record ID,
-the molecule name, or a generated fallback, with a conformer suffix when needed.
+each conformer, in the atom and bond order of the molecule, with that conformer's charges. Molecule-scoped charges are repeated for each conformer; conformer-scoped
+charges are written only to their selected conformer. Record names use the record ID given or read, the
+molecule name, or a generated name, with a conformer suffix when needed.
 
 Atom and bond IDs are generated one-based values. Known atom names are retained when representable;
 otherwise names are generated from the element and atom position. Atom types are element symbols, bond
@@ -223,7 +218,7 @@ mmCIF charge output follows the SB NCBR partial atomic charges dictionary versio
 dictionary declaration in `_audit_conform`. Charge rows refer to `_atom_site.id`, preserving the mapping
 of structural selections and conformers.
 
-The result-owned mmCIF writer creates a fresh minimal block for every record occurrence. It
+The mmCIF writer creates a new, minimal data block for every record. It
 emits `_entry`, `_audit_conform`, `_atom_site`, and the charge dictionary categories without copying source
 categories or inventing component topology. Known author and label atom/residue/chain identities are kept
 separate for every conformer site; unavailable names fall back deterministically to generated atom names,
@@ -233,16 +228,13 @@ every conformer and conformer-scoped charges never broadcast. Output rejects mis
 coordinates, empty records, unsuccessful results, and charges outside the dictionary's inclusive
 `[-5, 5]` range before serializing the document.
 
-Python additionally provides a strict in-memory annotation API for the unchanged Gemmi document used for
-import. Its mutation and validation contract is documented with
-[`attach_charges()`](../interfaces/python.md#gemmi).
+In Python, [`attach_charges()`](../interfaces/python.md#gemmi) instead adds the charges to the original
+mmCIF document that was read, after checking that it still matches.
 
 ### ChargeFW result JSON 1.0
 
-Result JSON is the complete machine-readable calculation record. Its top level contains:
-
-The complete field definitions and descriptions are available in the
-[calculation result JSON Schema](../../schemas/result-1.0.schema.json).
+Result JSON is the complete machine-readable record of a calculation. The
+[result JSON Schema](../../schemas/result-1.0.schema.json) defines every field. Its top level contains:
 
 - `schema_version`, generator identity, overall status, and document diagnostics;
 - input-ordered `results`, each with source identity, record status, diagnostics, optional import mapping
@@ -252,24 +244,24 @@ The complete field definitions and descriptions are available in the
 
 Each assignment declares its `molecule` or `conformer` scope, charge unit `e`, and a `target` containing
 the zero-based molecule index and, for conformer-specific calculations, the zero-based conformer index.
-Its full-precision `charges` array follows calculation atom order and includes a full-precision
+Its `charges` array follows the atom order of the molecule, at full precision, together with the
 `total_charge`. Failed or cancelled records omit assignments. Diagnostics have stable severity, code, and
 message fields and may include zero-based molecule, atom, bond, or conformer indices and a one-based
 source line number.
 
 For imported molecules, `input.import` records the source format, connectivity summary, and record-local
-import policy. Charges follow calculation atom order. For structural inputs, generated mmCIF associates
+import policy. Charges follow the atom order of the molecule. For structural inputs, generated mmCIF associates
 each charge with its generated `_atom_site.id`; Python's `attach_charges()` can annotate an unchanged source
 mmCIF document using the retained source mapping. Failed and cancelled results keep import policy but omit
 assignments. Manually constructed molecules omit `input.import`.
 
-Caller-supplied record and atom IDs are strings or signed 64-bit integers. Result JSON preserves those
-types as JSON strings or numbers. Explicit atom IDs from a manually constructed molecule appear once as
-`input.atom_ids` in calculation order.
+Record and atom IDs you supply are strings or signed 64-bit integers, and result JSON keeps them as JSON
+strings or numbers. Atom IDs of a molecule built in code appear once, as `input.atom_ids`, in atom
+order.
 
 Requested provenance records method and parameter selection, classification mode, method options,
-execution request, resource thresholds, and thread limit. Import policy is record-local under
-`input.import.policy`, so mixed import histories require no invocation-wide fallback.
+execution request, size limits, and thread limit. The reading options are recorded per record, under
+`input.import.policy`.
 Effective provenance records the resolved method, parameter set, complete options, execution policy, and
 warnings. When supplied by the application, metrics include UTC start/end timestamps through result
 finalization, parsing, applicability and computation runtimes, and peak resident memory. Durations and
@@ -280,7 +272,7 @@ charge. A component ID may occur in multiple entries when its instances have dif
 entry has `component_id`, `charge`, and `instances`; each monatomic instance identifies
 its zero-based `molecule_index` in the original input collection and its zero-based `atom_index` in
 that molecule. Component IDs use the imported label residue ID, falling back to the author residue ID.
-When an explicit native fixed charge has no unambiguous imported component identity, its entry uses
+When a fixed charge given in C++ has no unambiguous residue name, its entry uses
 `component_id: null`; it is still included and grouped with other unidentified sources of the same charge.
 The optional `fixed_ions` array is an additive extension to result schema 1.0. Consumers
 validating result documents with fixed ions should use the updated 1.0 schema; an older strict
