@@ -10,7 +10,7 @@ Native development requires CMake 3.28 or newer, Ninja, and a C++23-capable GCC 
 The checked-in presets set `CHARGEFW_FETCH_DEPENDENCIES=ON`, so CMake downloads pinned,
 checksum-verified dependency sources. CI and the compatibility containers build against distribution
 packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
-The supported versions are listed in [docs/NATIVE.md](docs/interfaces/cpp.md#build-and-link).
+The supported versions are listed in [the C++ page](docs/interfaces/cpp.md#build-and-link).
 
 The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.11 or
 newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and
@@ -21,6 +21,28 @@ select another interpreter explicitly when needed:
 cmake --preset gcc-debug \
     -DCHARGEFW_PYTHON_EXECUTABLE=/path/to/python
 ```
+
+### Dependencies
+
+ChargeFW has three build paths, each with its own dependency rules:
+
+- **Native builds** (the library, command line, containers, and CI) use installed packages found with
+  `find_package` and download nothing unless `CHARGEFW_FETCH_DEPENDENCIES=ON`. Without downloads, the
+  installation contains only ChargeFW's own files; with them, it also contains the nlohmann/json and
+  Gemmi development packages and the oneTBB runtime.
+- **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
+  checksum-verified sources, as set in `pyproject.toml`, and install the fetched Gemmi and oneTBB
+  libraries next to the extension. `$ORIGIN` RPATHs with `--disable-new-dtags` make these copies win
+  over same-named system libraries; Gemmi's library name carries no version. This path never runs wheel
+  repair.
+- **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
+  [RELEASING.md](RELEASING.md).
+
+ChargeFW's public headers expose nlohmann/json and Gemmi types, so the installed CMake package requires
+the exact json and Gemmi versions the build used; `cmake/chargefwConfig.cmake.in` generates those
+requirements. oneTBB, Eigen, nanoflann, and CLI11 are private: consumers need only the oneTBB runtime
+library. Native binaries, the CLI image, and the wheels all contain code of these dependencies, so their
+license notices in [`licenses/`](licenses/) ship with each of them.
 
 ## Build and test
 
@@ -179,6 +201,12 @@ updates; compiler, sanitizer, and clang-tidy checks stay in local release valida
 `.github/workflows/release.yml` is dispatched manually to build and publish a release; see
 [RELEASING.md](RELEASING.md).
 
+The `main` ruleset requires `lint` and `gcc-debug`; repository admins can bypass it, for example to
+merge after local qualification when CI is unavailable. The workflows have no path filters on purpose:
+a required check whose workflow is skipped stays pending and blocks the pull request. If
+documentation-only changes ever make CI too slow, skip the build steps inside the required jobs instead,
+so they still report success.
+
 ## Installation and containers
 
 Use the [native source installation](docs/interfaces/cpp.md#build-and-link), enabling `CHARGEFW_BUILD_CLI` when
@@ -204,6 +232,38 @@ The Dockerfiles under `docker/` build and test ChargeFW on Ubuntu 26.04, Debian 
 these builds one at a time because they are resource intensive.
 
 Python distribution builds and publication are documented in [RELEASING.md](RELEASING.md).
+
+## Documentation
+
+The user documentation in [`docs/`](docs/) is built with Sphinx, MyST-Parser, and the Furo theme and
+published on Read the Docs at <https://chargefw.readthedocs.io/>. Follow the
+[writing rules](AGENTS.md#writing-user-documentation) when editing it. Build it locally with warnings as
+errors, as Read the Docs does; `-n` additionally checks every cross-reference:
+
+```bash
+python -m venv /tmp/docs-venv
+/tmp/docs-venv/bin/pip install -r docs/requirements.txt
+/tmp/docs-venv/bin/sphinx-build -W -n -b html docs /tmp/docs-html
+```
+
+`docs/_ext/parameter_sets.py` generates the parameter-set tables from `data/parameters` and the method
+headers into the ignored `docs/_generated/` directory before each build. Read the Docs never compiles
+ChargeFW, which keeps its builds within the 15-minute limit of the free plan.
+
+Read the Docs builds `latest` from `main` and a preview for every pull request. An automation rule
+activates every tag matching `^v\d+\.\d+\.\d+`, so each release, including pre-releases, gets its own
+documentation version. `stable` follows the newest final release; it stays inactive until 3.0.0. A
+version of an abandoned release is deactivated by hand.
+
+## Platforms
+
+Linux x86-64 is the required platform for the wheels, the C++ library, and the command line. Other
+platforms, such as Linux aarch64, macOS, or Windows, are welcome when they need no significant extra
+machinery, but they do not gate releases until their wheels are published; from then on, their CI build
+and tests do. Wheels and the native library are qualified separately. Known portability points are the
+library location through `dladdr` (`src/parameters/io/parameter_data_paths.cpp`) and the peak memory
+through `getrusage` (`apps/chargefw/output.cpp`), which assumes Linux's kilobytes for `ru_maxrss`; macOS
+reports bytes.
 
 ## Architecture
 

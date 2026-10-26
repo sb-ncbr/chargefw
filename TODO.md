@@ -6,10 +6,11 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-The documentation site (with the completion criteria in
-[CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)) and `CITATION.cff` with Figshare DOIs are also
-required for 3.0.0.
-
+- [ ] Publish the Figshare item that archives each GitHub Release, and add its DOI to `CITATION.cff`
+  and the README. Publishing the draft currently fails with HTTP 403. Check that the next release
+  creates a new version of the same item. Complete the authors in `CITATION.cff` and add the paper
+  reference once it exists.
+- [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
   page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
   and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
@@ -23,7 +24,11 @@ required for 3.0.0.
   macOS arm64 first) as their native and optional Python dependencies permit, without significant extra
   machinery.
 - [ ] Simplify Python source-build dependency staging and its loader handling once native external
-  dependencies are qualified (phase 2 in [CI.md](CI.md#6-system-dependencies)).
+  dependencies are qualified. The Python source build still downloads Gemmi and oneTBB and installs them
+  next to the extension with the loader handling described in
+  [DEVELOPMENT.md](DEVELOPMENT.md#dependencies). Decide, for example, between a static Gemmi and
+  dependencies staged for wheel repair, and remove the custom loader rules once the replacement passes
+  the source-build and wheel tests.
 
 ## Integrations
 
@@ -50,3 +55,13 @@ required for 3.0.0.
 - [ ] Establish method-specific validation and documented tolerances before making broad accuracy claims
   for cutoff or cover execution. Current whole-molecule-radius and representative-structure checks verify
   implementation behavior, not a general reduced-mode accuracy envelope.
+
+## Project infrastructure
+
+- [ ] Add a second maintainer to the Read the Docs project.
+- [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
+  installed on Read the Docs, without compiling ChargeFW there; the Python page remains the guide.
+- [ ] After 3.0.0, add README badges for CI, documentation, PyPI version, and DOI.
+- [ ] After 3.0.0, add `CONTRIBUTING.md`, linking to DEVELOPMENT.md and asking contributors to run the
+  `gcc-debug` tests and pre-commit locally.
+- [ ] After 3.0.0, enable Dependabot for GitHub Actions versions only.
