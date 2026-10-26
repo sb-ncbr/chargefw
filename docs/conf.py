@@ -11,6 +11,7 @@ author = "ChargeFW contributors"
 extensions = ["myst_parser", "parameter_sets"]
 source_suffix = {".md": "markdown"}
 myst_heading_anchors = 3
+myst_enable_extensions = ["dollarmath", "amsmath"]
 exclude_patterns = ["_build", "_generated"]
 
 html_theme = "furo"
