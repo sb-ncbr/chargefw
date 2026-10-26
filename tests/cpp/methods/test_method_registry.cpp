@@ -20,15 +20,19 @@ TEST_CASE("method registry stores, finds, and rejects invalid methods",
     auto methods_for_registry = std::vector<std::unique_ptr<methods::Method>>{};
     methods_for_registry.push_back(std::make_unique<chargefw::test::StubMethod>("zeta"));
     methods_for_registry.push_back(std::make_unique<chargefw::test::StubMethod>("alpha"));
+    methods_for_registry.push_back(
+        std::make_unique<chargefw::test::StubMethod>("beta", methods::MethodRequirements{}, 5));
 
     const methods::MethodRegistry registry{std::move(methods_for_registry)};
 
-    CHECK(registry.methods().size() == 2);
+    CHECK(registry.methods().size() == 3);
     CHECK(registry.find("alpha") != nullptr);
     CHECK(registry.find("zeta") != nullptr);
     CHECK(registry.find("missing") == nullptr);
-    CHECK(registry.methods()[0]->id() == "zeta");
+    // Selection order: higher priority first, then ID.
+    CHECK(registry.methods()[0]->id() == "beta");
     CHECK(registry.methods()[1]->id() == "alpha");
+    CHECK(registry.methods()[2]->id() == "zeta");
 
     const auto null_method = [] {
         auto invalid_methods = std::vector<std::unique_ptr<methods::Method>>{};

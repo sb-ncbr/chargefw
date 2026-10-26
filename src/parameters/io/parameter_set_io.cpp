@@ -487,6 +487,17 @@ auto append_parameter_sets_from_directory_if_present(std::vector<ParameterSet>& 
     }
 }
 
+// Group parameter sets by method, each method's sets in the order automatic selection tries them.
+auto sort_parameter_sets(std::vector<ParameterSet>& parameter_sets) -> void {
+    std::ranges::sort(parameter_sets, [](const ParameterSet& first, const ParameterSet& second) {
+        if (first.method_id() != second.method_id()) {
+            return first.method_id() < second.method_id();
+        }
+        return first.priority() != second.priority() ? first.priority() > second.priority()
+                                                     : first.id() < second.id();
+    });
+}
+
 } // namespace
 
 auto load_parameter_set_json(std::istream& input) -> ParameterSet {
@@ -515,6 +526,7 @@ auto load_parameter_sets_json_directory(const std::filesystem::path& directory)
         parameter_sets.push_back(std::move(parameter_set));
     }
 
+    sort_parameter_sets(parameter_sets);
     return parameter_sets;
 }
 
@@ -534,6 +546,7 @@ auto load_default_parameter_sets() -> std::vector<ParameterSet> {
         throw std::invalid_argument{"no bundled parameter sets were found in " + searched};
     }
 
+    sort_parameter_sets(parameter_sets);
     return parameter_sets;
 }
 

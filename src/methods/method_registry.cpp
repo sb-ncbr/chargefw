@@ -39,6 +39,14 @@ auto validate_methods(const std::vector<std::unique_ptr<Method>>& methods) -> vo
 MethodRegistry::MethodRegistry(std::vector<std::unique_ptr<Method>> methods)
     : methods_{std::move(methods)} {
     validate_methods(methods_);
+    // List methods by descending priority, then ID.
+    std::ranges::sort(
+        methods_, [](const std::unique_ptr<Method>& first, const std::unique_ptr<Method>& second) {
+            const auto first_priority = first->metadata().priority;
+            const auto second_priority = second->metadata().priority;
+            return first_priority != second_priority ? first_priority > second_priority
+                                                     : first->id() < second->id();
+        });
 }
 
 auto MethodRegistry::find(const std::string_view id) const noexcept -> const Method* {

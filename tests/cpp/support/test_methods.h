@@ -20,8 +20,13 @@ namespace chargefw::test {
 /// outlive the method, which string literals do.
 class StubMethod : public methods::Method {
   public:
-    explicit StubMethod(const std::string_view id, methods::MethodRequirements requirements = {})
-        : metadata_{.id = id, .name = id, .full_name = id, .publication = std::nullopt},
+    explicit StubMethod(const std::string_view id, methods::MethodRequirements requirements = {},
+                        const int priority = 0)
+        : metadata_{.id = id,
+                    .name = id,
+                    .full_name = id,
+                    .publication = std::nullopt,
+                    .priority = priority},
           requirements_{std::move(requirements)} {}
 
     [[nodiscard]] auto metadata() const noexcept -> const methods::MethodMetadata& override {

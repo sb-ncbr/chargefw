@@ -153,6 +153,23 @@ TEST_CASE("parameter set loads from a PEOE JSON file", "[parameters][io]") {
     CHECK(parameter_set.atom().parameter(0, "C") == -0.56);
 }
 
+TEST_CASE("parameter sets load grouped by method in selection order", "[parameters][io]") {
+    const auto parameter_sets =
+        parameters::load_parameter_sets_json_directory(CHARGEFW_TEST_PARAMETER_DIR);
+    for (std::size_t index = 1; index < parameter_sets.size(); ++index) {
+        const auto& previous = parameter_sets[index - 1];
+        const auto& current = parameter_sets[index];
+        CAPTURE(previous.id(), current.id());
+        CHECK(previous.method_id() <= current.method_id());
+        if (previous.method_id() == current.method_id()) {
+            CHECK(previous.priority() >= current.priority());
+            if (previous.priority() == current.priority()) {
+                CHECK(previous.id() < current.id());
+            }
+        }
+    }
+}
+
 TEST_CASE("bundled parameter sets identify registered methods and satisfy their requirements",
           "[parameters][io]") {
     const auto parameter_sets =
