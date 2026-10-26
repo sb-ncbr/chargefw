@@ -198,7 +198,9 @@ default to source-order integers.
 ## Methods and parameter sets
 
 The package-level `chargefw.methods` and `chargefw.parameter_sets` values are immutable ordered mappings
-with lookup by stable ID. Select by ID or pass a descriptor from these mappings to `assess()` or
+with lookup by stable ID. Methods are ordered by descending priority, then ID, which is the order of the
+[method table](../guide/methods.md#available-methods). Parameter sets are grouped by method ID and, within
+a method, ordered by descending priority, then ID, as are the sets of `method.parameter_sets`. Select by ID or pass a descriptor from these mappings to `assess()` or
 `calculate()`:
 
 ```python

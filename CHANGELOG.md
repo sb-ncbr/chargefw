@@ -7,6 +7,12 @@
 - MOL2 and mmCIF files write charges rounded to four decimal places, and coordinates with the digits
   they were read with instead of 17 significant digits. Result JSON keeps full precision.
 
+### Listings
+
+- `chargefw methods`, `chargefw.methods`, and the C++ method registry list methods by descending
+  priority, then ID. `chargefw parameters`, `chargefw.parameter_sets`, and the C++ parameter loaders list
+  parameter sets grouped by method, each method's sets by descending priority, then ID.
+
 ## 3.0.0a2
 
 ### Building from source

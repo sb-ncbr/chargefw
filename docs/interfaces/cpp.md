@@ -194,7 +194,9 @@ notes, and option schemas. Use `methods::complexity_notation()` to format declar
 complexity, and `Method::estimate()` for the approximate memory and work of one target of a given
 `TargetSize` with validated options. The notation, variables, and estimate accounting are defined in the
 [Methods and parameter sets](../guide/methods.md). Use
-`parameters::load_default_parameter_sets()` for the installed bundled catalog. Parameter-set IDs in one
+`parameters::load_default_parameter_sets()` for the installed bundled catalog. The registry lists methods
+by descending priority, then ID; the parameter loaders group sets by method ID and order each method's
+sets by descending priority, then ID. Parameter-set IDs in one
 assessment request must be unique. The [parameter-set JSON reference](../reference/parameter-format.md) documents the bundled
 data format and classifier semantics.
 
