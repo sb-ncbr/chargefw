@@ -1,61 +1,102 @@
 # Large structures
 
-**Full and reduced execution are distinct.** Full execution follows the implemented finite-molecule
-method. Cutoff and cover are explicit approximations and are recorded in result provenance.
+Most geometry-dependent methods solve a system of linear equations for the whole molecule. Their time
+grows with the cube of the number of atoms and their memory with its square, so a full calculation of a
+large protein complex can take hours or not fit into memory. For such structures, ChargeFW can calculate
+charges from overlapping fragments instead, with two approximations called cutoff and cover.
 
-The effective execution mode is always one of:
+## What ChargeFW does by default
 
-- `full`: calculate the complete molecular target;
-- `cutoff`: solve one radius fragment per active atom and retain its mapped center charge;
-- `cover`: solve radius fragments around active-atom-order pivots and retain charges in covered interiors.
+ChargeFW calculates the whole molecule, called full execution, unless the molecule is large and the
+method expensive. A method is expensive when its time grows with the cube of the atom or bond count, or
+its memory with the square; the **Time** column of the [method table](methods.md#available-methods)
+shows the time. For expensive methods, ChargeFW chooses:
 
-Automatic planning prefers full execution. For methods classified as expensive, the default resource
-policy moves to cutoff above 20,000 atoms and to cover above 80,000 atoms when those modes are supported.
-Automatic reduced execution uses a 12 Å radius. Explicit reduced execution requires a radius of at least
-8 Å. This lower bound was selected empirically because smaller fragments showed large RMS deviations from
-full calculations. Larger radii generally improve agreement with full execution by including more of the
-molecular environment, but increase calculation time. Explicit full execution may override a resource
-threshold and returns a warning rather than changing the requested mode.
+| Atoms in the molecule | Execution |
+| --- | --- |
+| up to 20,000 | full |
+| 20,001 to 80,000 | cutoff, with a 12 Å radius |
+| more than 80,000 | cover, with a 12 Å radius |
 
-For ordinary calculations, cutoff and cover are implemented for:
+Methods that are not expensive, such as PEOE, always run in full. Expensive methods without cutoff and
+cover, such as DelRe or SMP/QEq, are not chosen automatically for molecules above 20,000 atoms; request
+full execution to use them anyway. The result records the execution mode and radius that were used.
 
-```text
-abeem, eem, eqeq, eqeqc, qeq, sfkeem, sqe, sqeq0, sqeqp
+## Choosing the execution yourself
+
+Request a mode and, for cutoff and cover, a radius of at least 8 Å:
+
+```bash
+chargefw calculate --execution cover --radius 14 structure.cif output
 ```
 
-Before spatial cutting, reduced execution assigns every active atom a method-specific reference charge.
-Each fragment inherits the sum of its active atoms' references as its target charge. After fragment
-results have been assembled, a uniform correction restores the reference total separately in each group
-whose charge the full method preserves:
+```python
+result = chargefw.calculate(molecules, method="eem", execution="cover", radius=14.0)
+```
 
-| Methods | Source atom reference | Conserved group |
+Explicit full execution also runs above the size limits; the result then carries a warning. The limits
+themselves can be changed with `--cutoff-atom-threshold` and `--cover-atom-threshold` on the command line,
+or `cutoff_threshold` and `cover_threshold` in Python.
+
+Before a long calculation, `chargefw applicability` estimates the working memory and the number of
+operations of every possible plan. For crambin with hydrogens (642 atoms) and SQE+qp:
+
+```text
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=full memory=6.4MiB operations=1.9e+08
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cutoff memory=102.2MiB operations=1.2e+11
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cover memory=102.2MiB operations=1.1e+10
+```
+
+For a molecule this small, full execution is by far the cheapest. Cover needs about ten times fewer
+operations than cutoff, because it calculates far fewer fragments.
+
+## How cutoff and cover work
+
+Both approximations were introduced as EEM Cutoff and EEM Cover in AtomicChargeCalculator
+([Ionescu 2015](https://doi.org/10.1186/s13321-015-0099-x)). ChargeFW uses them for more methods, and
+its cover selects fragments and assigns charges differently, as described below.
+
+**Cutoff** builds one fragment for every atom: the atom and all atoms within the radius around it. It
+calculates the fragment and keeps the charge of the central atom only.
+
+**Cover** goes through the atoms in input order. Each atom that no fragment covers yet becomes the
+center of a new fragment and covers all atoms within 3 Å of it that are not covered yet. The fragment
+contains all atoms within the radius around the center, and the covered atoms keep the charges
+calculated for them in this fragment. In AtomicChargeCalculator, the fragment centers were instead
+chosen so that no two centers are bonded and every atom has a center within two bonds, and the charge of
+an atom was summed from every fragment that contained it.
+
+Before cutting the molecule, ChargeFW gives every atom a reference charge: its share of the molecule's
+charge, matching what the method keeps constant in a full calculation. Each fragment receives the sum of
+the reference charges of its atoms as its total charge. After all fragments are calculated, ChargeFW adds
+the same correction to every atom of a group, so that the group's total equals the sum of its reference
+charges:
+
+| Methods | Reference charge of an atom | Group whose total is kept |
 | --- | --- | --- |
-| ABEEM, EEM, EQeq, EQeq+C, QEq, SFKEEM | Prepared active formal-charge total divided by active atom count | Entire calculation target |
-| SQE | Zero | Each connected component in the pre-fragment active bond graph |
-| SQE+q0 | Atomic formal charge | Each connected component in the pre-fragment active bond graph |
-| SQE+qp | Parameterized charge, normalized once to the prepared active target's formal-charge total | Each connected component in the pre-fragment active bond graph |
+| EEM, QEq, ABEEM, SFKEEM, EQeq, EQeq+C | Total formal charge divided by the number of atoms | The whole molecule |
+| SQE | Zero | Each bonded part of the molecule |
+| SQE+q0 | Its formal charge | Each bonded part of the molecule |
+| SQE+qp | Its parameterized charge, shifted so that all of them add up to the total formal charge | Each bonded part of the molecule |
 
-The component labels always come from the pre-fragment active graph, not from pieces disconnected by an
-individual spatial cut. Components remain together in a fragment when they are spatially nearby, allowing their
-electrostatic interactions to alter atomic charges without changing the component reference totals.
-SQE+qp retains its global normalization convention, so a component's preserved reference total need not
-equal that component's formal charge.
+For SQE+qp, the total kept for a bonded part can therefore differ from the part's formal charge, as in a
+full SQE+qp calculation. The size of the correction depends on how well the fragments represent the
+molecule; it is not guaranteed to be small.
 
-Reduced calculations remain approximations. Cutting a bond removes transfers through the omitted region,
-and omitted atoms no longer contribute their interactions to a fragment. Restoring conserved totals does
-not reconstruct either effect, and the empirical radius guidance is not a general accuracy guarantee
-across methods and molecular systems.
+Both approximations leave out what lies beyond the radius: bonds cut at the edge of a fragment and atoms
+farther away. [Fixed ions](fixed-ions.md) are the exception: they never become fragment centers, every
+fragment includes all of them, also those beyond the radius, and their charges are not corrected. A larger radius brings the charges closer to a full calculation and makes the calculation
+slower. Below 8 Å, the charges differed too much from full calculations, which is why 8 Å is the
+smallest radius allowed. To judge the error for your system, calculate a smaller but similar structure
+both in full and with the approximation, and compare.
 
-## Threads and resource estimates
+## Threads and estimates
 
-A thread limit caps the parallelism oneTBB allows the process, which is the hardware concurrency unless
-the embedding application restricts it. Zero, or any larger limit, uses that full parallelism.
+`--threads` on the command line, or `threads` in Python, limits the number of threads. By default,
+ChargeFW uses all available processor cores. Full execution calculates several molecules in parallel;
+cutoff and cover calculate one molecule at a time and its fragments in parallel.
 
-A plan can estimate its peak working memory and total operation count before execution, for a thread
-limit. Full execution runs whole targets in parallel, so the memory estimate adds the workspaces of the
-largest targets that can run together. Reduced execution runs targets one at a time and their fragments
-in parallel: cutoff runs one fragment per active atom and cover one per pivot. Fragment sizes follow an
-atom density of 0.1 atoms/Å³, typical of packed biomolecular structures with hydrogens, and never exceed
-their target. Both modes add the retained output charges. The estimate describes calculation working
-memory on top of the prepared assessment, not total process memory, and is most representative for
-compact structures.
+The estimates count the working memory of the calculation itself, not the memory of the loaded
+structure, and the operations of the method; they compare plans and do not predict seconds. Fragment
+sizes are estimated for the atom density of packed proteins with hydrogens, about 0.1 atoms per Å³, so
+the estimates are most accurate for compact structures.

@@ -633,4 +633,4 @@ Before calculating, ChargeFW also estimates the working memory and the number of
 plan for your molecules. Dense linear algebra is counted in floating-point operations and other loops
 per atom, bond, or atom pair; iterative methods are counted at their maximum number of iterations.
 Use the estimates to compare plans, not to predict run time;
-[resource estimates](large-structures.md#threads-and-resource-estimates) describes what they include.
+[resource estimates](large-structures.md#threads-and-estimates) describes what they include.

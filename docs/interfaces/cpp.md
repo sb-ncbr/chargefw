@@ -186,7 +186,7 @@ Invalid source selections still throw `std::invalid_argument`.
 timing. A plan exposes its method, parameter set, validated method options, concrete `ExecutionPolicy`,
 and warnings. Plans are tied to the assessment that created them. `calculation::estimate(assessment,
 plan, max_threads)` returns the plan's approximate peak working memory and operation count as a
-`methods::ResourceEstimate`; the [resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes the
+`methods::ResourceEstimate`; the [resource estimates](../guide/large-structures.md#threads-and-estimates) describes the
 model.
 
 Use `methods::method_registry()` to inspect built-in method metadata, human-readable implementation

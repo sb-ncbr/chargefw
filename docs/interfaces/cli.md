@@ -162,7 +162,7 @@ chargefw applicability --method eem --threads 4 molecule.sdf
 ```
 
 Each runnable plan reports its estimated peak working memory and operation count for the thread limit;
-the [resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes the estimate.
+the [resource estimates](../guide/large-structures.md#threads-and-estimates) describes the estimate.
 
 List method IDs and full names, inspect one method, or list bundled parameter sets:
 

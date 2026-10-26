@@ -368,7 +368,7 @@ print(estimate.memory_bytes / 2**30, estimate.operations)
 ```
 
 `threads=None` uses the assessment's `threads`. The returned `ResourceEstimate` is approximate; the
-[resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes what it covers.
+[resource estimates](../guide/large-structures.md#threads-and-estimates) describes what it covers.
 
 Plans are bound to the exact molecule objects and collection name used during assessment. They cannot be
 applied to another record or a reconstructed equivalent molecule, and selection arguments cannot be
