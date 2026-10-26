@@ -1,7 +1,8 @@
 # Differences from ChargeFW2
 
-ChargeFW is the successor of [ChargeFW2](https://github.com/sb-ncbr/ChargeFW2), the program behind
-[Atomic Charge Calculator](https://acc.biodata.ceitec.cz/). It keeps the methods and parameter sets of
+ChargeFW is the successor of [ChargeFW2](https://github.com/sb-ncbr/ChargeFW2), the calculation core of
+[Atomic Charge Calculator III](https://acc.biodata.ceitec.cz/)
+([Raček et al., 2026](https://doi.org/10.1093/nar/gkag379)). It keeps the methods and parameter sets of
 ChargeFW2 and its version numbers continue from it, but it is a new implementation with a different
 command line and Python interface.
 

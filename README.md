@@ -1,63 +1,71 @@
 # ChargeFW
 
-ChargeFW is a C++23 framework for empirical partial atomic-charge calculation. It provides a
-toolkit-neutral native library, a command-line application, and Python bindings over the same
-assessment and calculation engine.
+ChargeFW calculates empirical partial atomic charges for small molecules and biomolecular structures,
+from Python, from the command line, or from C++.
 
-The current implementation includes bundled methods and parameter sets, deterministic applicability and
-execution planning, source-ordered result mapping, molecular-file adapters, and full or explicit reduced
-calculations.
+ChargeFW is the new implementation of ChargeFW2, the calculation core of
+[Atomic Charge Calculator III](https://acc.biodata.ceitec.cz/)
+([Raček et al., 2026](https://doi.org/10.1093/nar/gkag379)). It calculates charges with the 20 methods
+and the parameter sets of ChargeFW2, and adds an in-memory Python interface with RDKit and Gemmi
+integration, a C++ library, charges for every conformer, explanations of why a method does not apply,
+a record of every calculation, cutoff and cover for more methods, and fixed ions. Method implementations
+were checked against their publications. [Differences from
+ChargeFW2](https://chargefw.readthedocs.io/en/latest/about/chargefw2.html) describes what changed and how
+to move over.
 
-ChargeFW expects a molecular graph, formal charges, and any coordinates required by the selected
-method. It does not parse SMILES, add hydrogens, assign protonation states, perceive arbitrary bonds,
-or generate coordinates.
+## Installation
+
+```bash
+pip install --pre chargefw
+```
+
+ChargeFW 3 is currently a pre-release, so pip needs `--pre`. The command line is also available as the
+Docker image `sbncbr/chargefw`, and everything can be built from source; see
+[Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html).
 
 ## Quick start
 
-Build the [native library](docs/interfaces/cpp.md#build-and-link) with
-`CHARGEFW_BUILD_CLI=ON`, then calculate charges for an SDF file:
-
-```bash
-_install/bin/chargefw calculate molecule.sdf output
-```
-
-For Python installation and package status, see the [installation guide](docs/getting-started/installation.md).
+In Python:
 
 ```python
 import chargefw
 
 molecules = chargefw.io.read("molecule.sdf", format="sdf")
-result = chargefw.calculate(
-    molecules,
-    method="qeq",
-    parameter_set="QEq_original",
-    execution="full",
-)
+result = chargefw.calculate(molecules, method="eem", parameter_set="EEM_Cheminf_b3lyp_npa")
 print(result.assignments[0].values)
 ```
 
+On the command line, which the Python package does not install, with the Docker image:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a2 \
+    calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.sdf output
+```
+
+[First calculation](https://chargefw.readthedocs.io/en/latest/getting-started/first-calculation.html)
+walks through an example with its output.
+
 ## Documentation
 
-The documentation is published at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/). Its
-sources are in this repository:
+The documentation is at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/):
 
-- **[Python API](docs/interfaces/python.md)** - read molecules, calculate charges, and inspect methods and results.
-- **[Examples](docs/examples/index.md)** - run complete SDF, Gemmi, RDKit, and parameter-set
-  workflows.
-- **[Command-line interface](docs/interfaces/cli.md)** - calculate and inspect molecular files from the CLI.
-- **[Molecular formats](docs/reference/formats.md)** - check supported input, output, parsing, and mapping
-  semantics.
-- **[Parameter sets](docs/reference/parameter-format.md)** - understand parameter data and matching behavior.
-- **[Native C++ API](docs/interfaces/cpp.md)** - embed ChargeFW in a C++ application.
-- **[Methods and parameter sets](docs/guide/methods.md)** - see the available methods and how they
-  are selected.
+- [Preparing input](https://chargefw.readthedocs.io/en/latest/guide/input.html): what a molecule needs
+  before a calculation.
+- [Methods and parameter sets](https://chargefw.readthedocs.io/en/latest/guide/methods.html): the
+  available methods, their equations, and how to choose one.
+- [Python](https://chargefw.readthedocs.io/en/latest/interfaces/python.html),
+  [command line](https://chargefw.readthedocs.io/en/latest/interfaces/cli.html), and
+  [C++](https://chargefw.readthedocs.io/en/latest/interfaces/cpp.html).
+- [Examples](https://chargefw.readthedocs.io/en/latest/examples/index.html): complete scripts for files,
+  RDKit, Gemmi, and analysis.
 
 ## Development
 
-- **[Changelog](CHANGELOG.md)** - see changes in each release.
-- **[Development guide](DEVELOPMENT.md)** - configure, build, test, and validate the repository.
-- **[Release guide](RELEASING.md)** - build, verify, and publish Python distributions.
-- **[Unfinished work](TODO.md)** - see current project gaps.
-- **[Repository change policy](AGENTS.md)** - preserve architecture and choose proportionate validation.
+- [Changelog](CHANGELOG.md): changes in each release.
+- [Development guide](DEVELOPMENT.md): building, testing, and validating the repository.
+- [Release guide](RELEASING.md): publishing a release.
+- [Unfinished work](TODO.md): current gaps.
+- [Repository change policy](AGENTS.md): architecture and validation rules.
 
-ChargeFW is distributed under the MIT license.
+To cite ChargeFW, use the metadata in [CITATION.cff](CITATION.cff). ChargeFW is distributed under the
+MIT license.
