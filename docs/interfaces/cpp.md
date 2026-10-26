@@ -1,30 +1,17 @@
-# Native C++ library
+# C++ library
 
-ChargeFW exposes a C++23 shared library through the `chargefw::core` CMake target. The public API owns
-molecules, parameter sets, assessments, plans, results, and charge arrays; ordinary application code does
-not need to manage prepared-feature or classification lifetimes.
-
-## Namespaces
-
-The public namespaces group the API by responsibility:
-
-| Namespace | Responsibility |
-| --- | --- |
-| `chargefw::core` | Owned atoms, bonds, molecules, conformers, and periodic-table data |
-| `chargefw::features` | Prepared topology, geometry, and spatial fragments |
-| `chargefw::parameters` | Parameter data, loading, and atom/bond classification |
-| `chargefw::methods` | Method metadata, options, requirements, applicability, and algorithms |
-| `chargefw::calculation` | Assessment, deterministic planning, execution policy, progress, and calculation |
-| `chargefw::charges` | Source-indexed charge assignments and charge sets |
-| `chargefw::adapters` | Native and Gemmi-backed molecular input and output |
+ChargeFW is a C++23 shared library, used through the `chargefw::core` CMake target. An assessment keeps
+its own copies of the molecules and parameter sets, and results hold their own charges. The one lifetime
+to manage is that of an assessment: its plans refer to it, as described in
+[Assessment and calculation](#assessment-and-calculation).
 
 ## Build and link
 
 ChargeFW requires CMake 3.28 or newer, Ninja, a GCC or Clang toolchain with C++23 support, and installed
 development packages for nlohmann/json 3.11.3 or newer, Eigen 3.4 or 5, nanoflann 1.7 or newer,
-oneTBB 2022.1 or newer, Gemmi 0.7.4 or newer, and, for the command-line application, CLI11 2.4 or newer.
-To build without them, set `CHARGEFW_FETCH_DEPENDENCIES=ON`; ChargeFW then downloads pinned,
-checksum-verified sources of all of them.
+oneTBB 2022.1 or newer, Gemmi 0.7.4 or newer, and, for the command line, CLI11 2.4 or newer. To build
+without them, set `CHARGEFW_FETCH_DEPENDENCIES=ON`; ChargeFW then downloads pinned, checksum-verified
+sources of all of them.
 
 ```bash
 cmake -S . -B build/native-release -G Ninja \
@@ -38,26 +25,28 @@ cmake --build build/native-release --parallel
 cmake --install build/native-release --prefix "$PWD/_install" --strip
 ```
 
-Set `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON` only for an installation that will remain on the build
-machine. IPO does not make the installed binaries CPU-specific.
+Set `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON` only for an installation that stays on the build machine;
+interprocedural optimization alone does not make the binaries CPU-specific.
 
-Use the installed CMake package from another project:
+Use the installed package from another CMake project:
 
 ```cmake
 find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::core)
 ```
 
-The installed package requires the exact nlohmann/json and Gemmi versions that ChargeFW was built
-against, because their types appear in the public headers. With installed dependency packages,
-downstream CMake projects need those packages discoverable and the oneTBB runtime library available.
-With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the installation also includes the nlohmann/json and Gemmi
-development packages and the oneTBB runtime.
+The installed package requires the exact nlohmann/json and Gemmi versions ChargeFW was built against,
+because their types appear in the public headers. With installed dependency packages, your project needs
+those packages discoverable and the oneTBB runtime library available. With
+`CHARGEFW_FETCH_DEPENDENCIES=ON`, the installation also contains the nlohmann/json and Gemmi development
+packages and the oneTBB runtime.
 
-The installed prefix can be relocated as a unit. `load_default_parameter_sets()` resolves bundled JSON
-relative to the loaded ChargeFW library.
+The installation can be moved as a whole: `parameters::load_default_parameter_sets()` finds the bundled
+parameter files relative to the loaded library.
 
-## Basic calculation
+## Calculating charges
+
+Build a molecule, assess it, and calculate:
 
 ```cpp
 #include <chargefw/calculation/calculation.h>
@@ -107,108 +96,145 @@ int main() {
 }
 ```
 
-Passing an lvalue `AssessmentRequest` copies its molecule and parameter inputs. Passing an rvalue
-transfers them into the assessment. An `AssessmentResult` owns the prepared molecules, classifications,
-and plans needed for execution.
+`assess()` copies the molecules and parameter sets of an lvalue request and moves those of an rvalue
+request.
 
-## Molecule model
+## Reading files and writing results
 
-`chargefw::core::Molecule` owns:
+The readers return `adapters::ImportedMoleculeRecord` values, which keep each molecule together with
+where it came from. The writers take the records and the calculation together, as an
+`adapters::ChargeCalculationResult`:
 
-- a source-ordered vector of `Atom` values with atomic number, formal charge, and optional source name;
-- indexed single, double, or triple `Bond` values;
-- zero or more `Conformer` values, each containing one position per atom; and
-- an optional molecule name.
+```cpp
+#include <chargefw/adapters/charge_result.h>
+#include <chargefw/adapters/native/json_output.h>
+#include <chargefw/adapters/native/mol2_output.h>
+#include <chargefw/adapters/native/sdf_input.h>
+#include <chargefw/calculation/calculation.h>
+#include <chargefw/config.h>
+#include <chargefw/parameters/io/parameter_set_io.h>
 
-`MoleculeCollection` owns source-ordered molecules and an optional collection name. Molecules accept the
-atomic numbers 1–100 represented by the bundled periodic table; individual methods and parameter sets may
-support a smaller subset. Constructors validate atomic numbers, bond endpoints and duplicates, conformer
-cardinality. Non-finite coordinates are retained, but methods that require geometry are inapplicable when
-coordinates are missing or non-finite.
+#include <fstream>
+#include <iostream>
+#include <utility>
+#include <vector>
 
-Lower-level `methods::CalculationInput` accepts a trailing `std::span<const methods::FixedPointSource>`;
-each source contains a Cartesian `core::Position` and charge. The input borrows the span, so keep its
-elements alive for the input's use. These positional sources are distinct from the original-collection
-indices in `calculation::FixedIons`; direct method callers provide positions themselves, while
-the assessment facade validates indexed selectors and constructs sources for methods that support
-fixed point sources.
-`MethodRequirements::supports_fixed_point_sources` reports numerical support. Direct callers of
-`Method::calculate()` must satisfy the method's requirements, including this capability; methods that do
-not support fixed point sources require an empty span. The flag describes a caller precondition;
-it does not intercept virtual calls. The source coupling is defined by the selected method; the facade's
-effective provenance already records the method, parameter set, and method options.
+int main() {
+    using namespace chargefw;
 
-EEM, SQE, SQE+q0, and SQE+qp support fixed point sources in full, cutoff, and cover facade execution.
-Their facade `CalculationInput::target_charge()` is set to the prepared active formal-charge sum, and
-direct method results cover only active atoms; direct callers supply method inputs and handle any further
-assembly. Reduced fragments are built from active atoms and receive the complete fixed-source field,
-including sources outside the fragment radius. Conservation corrections apply to active charges; the
-facade restores fixed values once in original atom order. SQE requires neutral active connected
-components, SQE+q0 retains their prepared formal-charge seeds, and SQE+qp normalizes its fitted reference
-charges globally to the active target before bond-transfer equilibration.
-The [Fixed ions](../guide/fixed-ions.md) describes active-charge provenance.
-Direct callers must supply finite source values and finite geometry for the active molecule, and ensure
-that source positions do not coincide with active atom positions. The
-[point-source terms](../guide/fixed-ions.md#what-the-approximation-does) describes the point-source field term.
+    auto input = std::ifstream{"paracetamol.sdf"};
+    auto reader = adapters::native::sdf_input::SdfReader{input, "paracetamol.sdf"};
+    auto records = std::vector<adapters::ImportedMoleculeRecord>{};
+    auto molecules = std::vector<core::Molecule>{};
+    while (auto record = reader.next()) {
+        molecules.push_back(record->molecule);
+        records.push_back(std::move(*record));
+    }
 
-## Assessment
+    auto request = calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::move(molecules)},
+        .parameter_sets = parameters::load_default_parameter_sets(),
+        .method_id = "eem",
+        .parameter_set_id = "EEM_Cheminf_b3lyp_npa",
+    };
+    auto assessment = calculation::assess(std::move(request));
+    auto execution = calculation::calculate(assessment);
+    if (!execution.calculated()) {
+        std::cerr << execution.failure_message.value_or("calculation failed") << '\n';
+        return 1;
+    }
+
+    const auto requested = adapters::RequestedCalculationProvenance{
+        .method_id = "eem", .parameter_set_id = "EEM_Cheminf_b3lyp_npa"};
+    const auto result =
+        adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
+
+    auto mol2 = std::ofstream{"paracetamol.mol2"};
+    adapters::native::mol2_output::Mol2Writer{mol2}.write(result, CHARGEFW_VERSION_STRING);
+    auto json = std::ofstream{"paracetamol.json"};
+    adapters::native::json_output::JsonWriter{json}.write(result, CHARGEFW_VERSION_STRING);
+}
+```
+
+| Header | Class |
+| --- | --- |
+| `chargefw/adapters/native/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
+| `chargefw/adapters/native/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
+| `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options |
+| `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
+| `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document |
+| `chargefw/adapters/native/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
+
+The writers record ChargeFW and the version you pass as the program that wrote the file; pass
+`CHARGEFW_VERSION_STRING` from `<chargefw/config.h>`.
+
+`chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of a namespace, for applications.
+A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
+records stay valid after the reader is destroyed.
+
+`ImportedMoleculeRecord` holds the molecule, its source identity, import diagnostics, and optional
+`MoleculeImportMetadata`: the source atoms (`SourceAtomReference`), conformers
+(`SourceConformerReference`), structural labels, connectivity, and residues
+(`SourceComponentInstance`). The [format reference](../reference/formats.md) describes what each reader
+fills in. `PortableId` holds a record or atom ID that is absent, a string, or a 64-bit integer.
+
+`make_charge_calculation_result()` checks that the records match the calculation: their number and
+atoms, the assignments, and the method and parameter set. `RequestedCalculationProvenance` records what
+was requested, for the result JSON; its `execution_kind` defaults to `"auto"`, so set it when you request
+another execution mode.
+
+## Namespaces
+
+| Namespace | Contents |
+| --- | --- |
+| `chargefw::core` | Atoms, bonds, molecules, conformers, and the periodic table |
+| `chargefw::features` | Prepared topology, geometry, and spatial fragments |
+| `chargefw::parameters` | Parameter sets, loading, and atom and bond classification |
+| `chargefw::methods` | Method metadata, options, requirements, applicability, and algorithms |
+| `chargefw::calculation` | Assessment, plans, execution policy, progress, and calculation |
+| `chargefw::charges` | Charge assignments and charge sets |
+| `chargefw::adapters` | File readers and writers |
+
+## Molecules
+
+`core::Molecule` holds:
+
+- a vector of `Atom` values in source order, each with atomic number, formal charge, and optional name;
+- single, double, or triple `Bond` values between atom indices;
+- zero or more `Conformer` values, each with one position per atom in ångströms; and
+- an optional name.
+
+`core::MoleculeCollection` holds molecules in order, with an optional name. Atomic numbers 1 to 100 are
+accepted; methods and parameter sets may support fewer elements. The constructors check atomic numbers,
+bond indices and duplicates, and the number of positions per conformer, and throw
+`std::invalid_argument` on errors. Coordinates that are not finite are kept, but methods that need
+geometry then reject the molecule.
+
+## Assessment and calculation
 
 `calculation::AssessmentRequest` contains:
 
-- the owned `MoleculeCollection` and parameter sets;
-- an optional method ID and its parameter-set ID;
-- method-scoped `methods::MethodOptions` overrides;
-- strict or permissive parameter classification options;
-- an `ExecutionSelection`;
-- a `ResourcePolicy` containing automatic execution thresholds; and
-- an optional `FixedIons`, whose sources pair a fixed charge with zero-based molecule and
-  atom indices in the supplied collection.
+- the `MoleculeCollection` and the parameter sets;
+- an optional method ID and parameter-set ID;
+- options per method, as `methods::MethodOptions`;
+- strict or permissive parameter matching;
+- an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
+- a `ResourcePolicy` with the automatic size limits, where `std::nullopt` removes a limit; and
+- optional `FixedIons`, described [below](#fixed-ions).
 
-For ordinary calculations, leave `fixed_ions` absent or provide an empty `sources` vector.
-Native callers prescribe indexed charges directly, independently of the CLI/Python ion catalog.
-Nonempty sources must use distinct in-range molecule/atom indices, finite charges, atoms with no graph
-bonds, and leave at least one active atom in each affected molecule. Each affected molecule needs
-conformer coordinates that are finite throughout; source coordinates must not exactly coincide with an
-active atom in the same conformer. The active charge total is the sum of formal charges on the unselected
-atoms in the prepared molecule; selected atoms' imported formal charges do not alter that active total.
-The modeled molecular total is the active total plus the prescribed source charges.
-A valid nonempty selection filters methods
-by their fixed-ion capability and assesses execution modes. EEM, SQE, SQE+q0, and SQE+qp can produce
-full, cutoff, and cover plans. Automatic selection may choose an un-warned reduced plan when full carries
-a resource warning; explicit full selection may execute with its warning. Parameter classification and
-execution use the active molecules. Successful facade results restore fixed charges in original atom
-order and expose fixed atom indices and assigned charges through `ExecutionResult::effective`. The
-[Fixed ions](../guide/fixed-ions.md) describes this boundary.
-Invalid source selections still throw `std::invalid_argument`.
+Parameter-set IDs in one request must be unique. `calculation::assess()` returns an `AssessmentResult`
+with the `molecules()`, the possible `plans()` in selection order, the `rejections()` with reasons, the
+`default_plan()`, and the time taken. A plan has its method, parameter set, all option values, an
+`ExecutionPolicy` with the mode and radius, and warnings.
+[Choosing a method](../guide/methods.md#choosing-a-method) and
+[Large structures](../guide/large-structures.md) explain selection and execution.
 
-`calculation::assess()` returns an `AssessmentResult` with read-only access to its original owned source
-`molecules()`, priority-ordered `plans()`, structured `rejections()`, `default_plan()`, and applicability
-timing. A plan exposes its method, parameter set, validated method options, concrete `ExecutionPolicy`,
-and warnings. Plans are tied to the assessment that created them. `calculation::estimate(assessment,
-plan, max_threads)` returns the plan's approximate peak working memory and operation count as a
-`methods::ResourceEstimate`; the [resource estimates](../guide/large-structures.md#threads-and-estimates) describes the
-model.
-
-Use `methods::method_registry()` to inspect built-in method metadata, human-readable implementation
-notes, and option schemas. Use `methods::complexity_notation()` to format declared time and memory
-complexity, and `Method::estimate()` for the approximate memory and work of one target of a given
-`TargetSize` with validated options. The notation, variables, and estimate accounting are defined in the
-[Methods and parameter sets](../guide/methods.md). Use
-`parameters::load_default_parameter_sets()` for the installed bundled catalog. The registry lists methods
-by descending priority, then ID; the parameter loaders group sets by method ID and order each method's
-sets by descending priority, then ID. Parameter-set IDs in one
-assessment request must be unique. The [parameter-set JSON reference](../reference/parameter-format.md) documents the bundled
-data format and classifier semantics.
-
-## Execution policy
-
-`ExecutionSelectionKind` accepts automatic, full, cutoff, or cover selection. Effective plans always use
-the concrete `ExecutionMode` values full, cutoff, or cover. `std::nullopt` disables an automatic resource
-threshold. The [Large structures](../guide/large-structures.md) defines mode semantics, defaults,
-supported methods, conservation behavior, and approximation limits.
-
-Pass the thread limit to `calculate()` for each execution. A count of zero delegates scheduling to
-oneTBB, and the same prepared assessment may be executed repeatedly with different limits:
+`calculation::calculate(assessment)` runs the default plan, and `calculate(assessment, plan)` a chosen
+one, without preparing or checking the molecules again. A plan, and every copy of it, refers to data
+of the assessment that created it, so keep the assessment alive while you use its plans, and use them
+only with that assessment. An assessment can be moved into a new object, but not assigned. Both take a thread limit, where `0` uses all available cores, and an optional observer, described
+[below](#progress-and-cancellation). An assessment can be calculated repeatedly, also from several
+threads at once:
 
 ```cpp
 auto assessment = calculation::assess(std::move(request));
@@ -216,71 +242,71 @@ auto serial = calculation::calculate(assessment, 1);
 auto parallel = calculation::calculate(assessment, 4);
 ```
 
-Method implementations declare reduced-execution support through
-`ResourceRequirements::reduced_charge_policy` and `ReducedChargePolicy`. Each plan separately exposes its
-selected execution mode and radius through its concrete `ExecutionPolicy`.
+`calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
+plan's approximate peak working memory and number of operations; [Threads and
+estimates](../guide/large-structures.md#threads-and-estimates) explains them.
 
-## Results, errors, and mapping
+## Results and errors
 
-`calculation::ExecutionResult` reports an `ExecutionStatus`, optional `charges::ChargeSet`, rejections,
-effective calculation provenance, optional failure text, and applicability/computation timings.
+`calculation::ExecutionResult` has an `ExecutionStatus`, an optional `charges::ChargeSet`, the
+rejections, the model that was used in `effective`, an optional failure message, and the time spent on
+assessment and calculation. The status is `success`, `invalid_input_or_request`, `no_executable_plan`,
+`numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
 
-`adapters::ChargeCalculationResult` is the immutable application-facing boundary. It owns the ordered
-`ImportedMoleculeRecord` values used to build the calculation request, requested provenance, and the
-`ExecutionResult`. JSON and generated molecular writers can therefore consume the result without a
-separately supplied molecule collection, identity list, diagnostics list, or import context.
+A `ChargeSet` has the method ID, the optional parameter-set ID, and the assignments. Methods that use
+geometry give one assignment per conformer, the others one per molecule. Each `ChargeAssignment` has a
+molecule index, an optional conformer index, and the charges in atom order.
+[Results](../guide/results.md) explains assignments and atom order.
 
-Result construction validates import-mapping dimensions, successful assignment coverage, canonical
-molecule/conformer order, uniform scope, atom dimensions, target bounds, and agreement with effective
-method and parameter-set provenance. Optional `EffectiveCalculation::fixed_ions` owns the
-indexed sources in a `FixedIons` record. Result construction checks the
-source indices and charge values, including when a failed or cancelled result carries effective
-provenance.
-Failed and cancelled results must not contain charge assignments.
+Invalid arguments throw `std::invalid_argument`, also from `assess()`. A valid assessment reports
+methods that do not apply as rejections, and `default_plan()` is null when none applies; it has no
+status. The `calculate()` overloads that take an assessment report failures and cancellation through
+the `ExecutionStatus`; the lower-level `CalculationRequest` overload throws them as exceptions
+instead.
 
-The status is one of `success`, `invalid_input_or_request`, `no_executable_plan`, `numerical_failure`, or
-`cancelled`. Invalid native API inputs generally throw `std::invalid_argument`; the owned facade converts
-calculation failures and cooperative cancellation into result statuses. The lower-level
-`CalculationRequest` overload propagates calculation and cancellation exceptions.
+## Fixed ions
 
-A `ChargeSet` owns the method ID, optional parameter-set ID, and source-indexed assignments.
-Geometry-dependent methods return one assignment per molecule conformer. Geometry-independent methods
-return one assignment per molecule. Every `ChargeAssignment` carries a molecule index and an optional
-conformer index; its charge vector follows source atom order.
+`AssessmentRequest::fixed_ions` keeps chosen atoms as fixed point charges, as described in
+[Fixed ions](../guide/fixed-ions.md). Its `sources` pair a charge with a molecule index and an atom index
+in the collection. Unlike the command line and Python, C++ takes the charges directly, not ion names from
+the catalog. Leave it empty for ordinary calculations.
 
-## Reuse, progress, and concurrency
+Each source must refer to a different atom, have a finite charge, and refer to an atom without bonds.
+Every affected molecule needs at least one atom that is not a source, and at least one conformer, with
+finite coordinates throughout. No atom that is not a source may sit exactly at a source's position. Invalid sources throw `std::invalid_argument`. With
+sources, only methods that support fixed ions are assessed, and the formal charges of the source atoms do
+not count toward the charge of the calculated atoms. A successful result contains the fixed charges at
+their atoms, and `ExecutionResult::effective` records the sources.
 
-`calculate(assessment, plan)` executes a concrete plan without repeating preparation, classification, or
-applicability checks. Assessments and plans can be reused, and independent calculations can run
-concurrently.
+Code that calls a method directly, through `Method::calculate()`, passes fixed charges as a
+`std::span<const methods::FixedPointSource>` at the end of `methods::CalculationInput`; each source has a
+position and a charge. The input refers to the sources without copying them, so the source elements
+and their storage must stay valid for every call that uses the input; the span object itself need
+not. Such
+code must check `MethodRequirements::supports_fixed_point_sources` itself and pass an empty span to other
+methods, set the target charge to the charge of the calculated atoms, supply finite charges and
+coordinates with no source at an atom's position, and assemble the results; the method calculates only
+the atoms it is given.
 
-Derive from `calculation::CalculationObserver` to receive computation, target, and reduced-fragment
-progress or to request cooperative cancellation. The observer is non-owning and callbacks may run on
-oneTBB workers, so implementations must be thread-safe and must not throw. No partial charge set is
-returned on cancellation.
+## Methods and parameter sets
 
-## Molecular adapters
+`methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
+metadata, notes, requirements, and option schemas. `methods::complexity_notation()` formats the declared
+time and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
+one molecule of a given `TargetSize`. A method supports cutoff and cover when
+`ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`
+says how the fragments' charges are kept, as described in
+[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work).
 
-Public headers are provided under `chargefw/adapters`, with format-specific APIs in its `native` and
-`gemmi` namespaces. The `all.h` headers are convenience includes for applications.
+`parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
+`parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the sets by
+method ID and order each method's sets by descending priority, then ID. The
+[parameter-set format](../reference/parameter-format.md) describes the files.
 
-- `MolReader`, `SdfReader`, and `Mol2Reader` import native molecular formats.
-- `JsonReader` imports ChargeFW molecule JSON 1.0.
-- `PdbReader` and `MmcifReader` import Gemmi structures with explicit record, bond, and conformer policy.
-- `native::mol2_output::Mol2Writer` emits generated MOL2 from an owned calculation result.
-- `gemmi::mmcif_output::MmcifWriter` emits a fresh mmCIF document from an owned calculation result.
-- `JsonWriter` serializes `ChargeCalculationResult` directly with the fixed `ChargeFW` generator identity;
-  application-specific execution metrics are optional. `PortableId` retains absent, string, or signed
-  64-bit integer record IDs without implicit stringification.
+## Progress and cancellation
 
-`RequestedCalculationProvenance` defaults to `execution_kind = "auto"`, matching automatic execution
-selection. Set it explicitly when assembling a result for a different requested execution mode.
-
-Readers return `ImportedMoleculeRecord`, which keeps the molecule together with source identity, import
-diagnostics, and optional `MoleculeImportMetadata`. Its `SourceAtomReference`,
-`SourceConformerReference`, `SourceStructuralLabels`, and `SourceConnectivity` values own their source
-tokens and remain valid after reader destruction. The [molecular format reference](../reference/formats.md) documents
-the populated mappings, supported subsets, reader policy, and generated output independently of the C++
-types. `MoleculeImportMetadata::components` contains `SourceComponentInstance` values with a canonical
-component ID and calculation-atom membership. Reader cursors are movable but not copyable; a moved reader
-still requires its input stream to remain alive until reading is complete.
+Derive from `calculation::CalculationObserver` and pass it as the last argument of `calculate()` to
+receive progress for the computation, each molecule or conformer, and the fragments of cutoff and cover,
+or to cancel. The calculation does not take ownership of the observer. Callbacks may run on several
+worker threads at once, so they must be thread-safe and must not throw. A cancelled calculation returns
+no charges.
