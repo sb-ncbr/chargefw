@@ -15,13 +15,15 @@ pip install --pre chargefw
 ```
 
 The [installation page](getting-started/installation.md) also covers the Docker image and building
-from source.
+from source. [First calculation](getting-started/first-calculation.md) then takes you through one
+example on the command line and in Python.
 
 ```{toctree}
 :hidden:
 :caption: Getting started
 
 getting-started/installation
+getting-started/first-calculation
 ```
 
 ```{toctree}

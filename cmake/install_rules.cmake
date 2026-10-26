@@ -63,6 +63,7 @@ install(
         FILES_MATCHING
         PATTERN "*.md"
         PATTERN "*.py"
+        PATTERN "*.sdf"
         PATTERN "conf.py" EXCLUDE
         PATTERN "_ext" EXCLUDE
         PATTERN "_generated" EXCLUDE
