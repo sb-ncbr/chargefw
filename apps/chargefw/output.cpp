@@ -3,14 +3,12 @@
 #include <chargefw/config.h>
 
 #include <chrono>
-#include <ctime>
 #include <filesystem>
+#include <format>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <print>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <sys/resource.h>
 
@@ -86,16 +84,9 @@ void write_mol2(const std::filesystem::path& path,
 } // namespace
 
 auto utc_timestamp() -> std::string {
-    const auto now = std::chrono::system_clock::now();
-    const auto time = std::chrono::system_clock::to_time_t(now);
-    std::tm utc{};
-    gmtime_r(&time, &utc);
-    const auto milliseconds =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-    auto output = std::ostringstream{};
-    output << std::put_time(&utc, "%Y-%m-%dT%H:%M:%S") << '.' << std::setfill('0') << std::setw(3)
-           << milliseconds.count() << 'Z';
-    return output.str();
+    // system_clock is UTC; millisecond precision makes %T print three decimal places.
+    return std::format("{:%FT%T}Z", std::chrono::floor<std::chrono::milliseconds>(
+                                        std::chrono::system_clock::now()));
 }
 
 auto peak_resident_memory_mb() -> double {
