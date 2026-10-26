@@ -1,20 +1,24 @@
 # Calculate dipole moments
 
-`calculate_dipole_moments.py` reads every conformer of any supported input
-with coordinates, calculates charges with one model, and prints each conformer's net charge and
-point-charge dipole moment in debye. Charges from a geometry-independent method apply to every
-conformer, so only the geometry changes the dipole. The reusable `dipole_moment()` function takes source-
-ordered charges, coordinates, and atomic numbers.
+This script calculates charges for every conformer of a molecule with coordinates and prints each
+conformer's net charge and dipole moment of the point charges, in debye:
 
-```bash
-python calculate_dipole_moments.py ensemble.cif --format mmcif --method eem
+```console
+$ python calculate_dipole_moments.py paracetamol.sdf --format sdf --method eem
+Model: eem/EEM_Ionescu2013_mpa_gas
+molecule  conformer  net charge   |mu| (D)     mu_x      mu_y      mu_z
+       0          0      +0.000      5.796    -4.969    +2.548    +1.551
 ```
 
-Positions are measured from the center of nuclear charge. A neutral molecule's dipole does not depend on
-that origin, but a charged molecule's dipole does, so compare charged species only with the same origin.
-A point-charge dipole reflects the charge model: empirical models fitted to population-analysis charges
-can differ substantially from experimental or electrostatic-potential-derived dipoles, so compare models
-and conformers rather than treating one value as a measurement.
+With a method that does not use geometry, every conformer has the same charges, and only the geometry
+changes the dipole. The script's `dipole_moment()` function takes charges, coordinates, and atomic
+numbers, and can be used on its own.
+
+Positions are measured from the center of nuclear charge. The dipole of a neutral molecule does not
+depend on that origin, but the dipole of a charged molecule does, so compare charged molecules only with
+the same origin. The dipole reflects the charge model: models fitted to population-analysis charges can
+differ substantially from experimental dipoles or from charges fitted to the electrostatic potential.
+Compare models and conformers with each other rather than treating one value as a measurement.
 
 Download {download}`calculate_dipole_moments.py`.
 

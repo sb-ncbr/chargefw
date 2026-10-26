@@ -1,18 +1,21 @@
 # Calculate a molecular file
 
-`calculate_file.py` is the shortest complete file-to-charges workflow. It reads any
-supported molecular format, calculates one explicitly selected method, and prints one row per atom in
-source order with its molecule and conformer indices, atom index, atom ID, atom name, element, and
-charge. A `-` conformer identifies charges from a geometry-independent method. `--csv` writes the same
-rows to a CSV file instead, with full-precision charges and an empty conformer field for
-geometry-independent methods. `--result-json` also writes complete result JSON with requested and
-effective provenance.
+This script reads a molecular file in any supported format, calculates charges with the method you
+choose, and prints one row per atom. For [paracetamol.sdf](../getting-started/paracetamol.sdf):
 
-```bash
-python calculate_file.py molecules.sdf --format sdf --method eem --csv charges.csv
+```console
+$ python calculate_file.py paracetamol.sdf --format sdf --method eem
+molecule  conformer  atom_index  atom_id  atom_name  element      charge
+       0          0           0        0  C          C         -0.592069
+       0          0           1        1  C          C          0.662721
+       0          0           2        2  O          O         -0.719530
+...
 ```
 
-The CSV loads directly into analysis tools; for example, with pandas installed:
+A `-` in the conformer column marks charges from a method that does not use geometry. `--csv
+charges.csv` writes the same rows to a CSV file instead, with charges at full precision, and
+`--result-json` also writes the [result JSON](../guide/results.md). The CSV loads into analysis tools,
+for example pandas:
 
 ```python
 import pandas as pd
@@ -21,12 +24,10 @@ charges = pd.read_csv("charges.csv")
 print(charges.groupby("element")["charge"].describe())
 ```
 
-One method, parameter set, and execution mode apply to the whole file, so one inapplicable record makes
-the request inapplicable; the example does not silently choose a separate model per record. Its EEM
-invocation lets ChargeFW select a bundled parameter set applicable to every record. The
-[Python guide](../interfaces/python.md#one-model-for-all-molecules) explains when to calculate a collection or
-its records independently, and the [format reference](../reference/formats.md) defines import and result JSON
-behavior.
+All records of the file are calculated with one method, parameter set, and execution mode. If you name
+only the method, ChargeFW picks a parameter set that covers every record; if a record cannot be
+covered, the calculation fails. The [Python page](../interfaces/python.md#one-model-for-all-molecules)
+shows how to calculate records separately instead.
 
 Download {download}`calculate_file.py`.
 

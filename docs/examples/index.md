@@ -1,13 +1,21 @@
 # Examples
 
-These executable examples demonstrate complete Python workflows. Ordinary calculation examples call
-`chargefw.calculate()` directly. The parameter-set comparison example uses explicit assessment as an
-advanced workflow for inspecting and executing several prepared plans. The
-[Python package guide](../interfaces/python.md) contains shorter API snippets, while the
-[format reference](../reference/formats.md) defines shared molecular input and charge output behavior.
+Each example is a complete Python script that you can download and run. They use the
+[Python package](../interfaces/python.md) and show its typical uses:
+
+| Example | What you get |
+| --- | --- |
+| [Calculate a molecular file](calculate_file.md) | Charges of every atom of a file, printed or as CSV |
+| [Inspect imported molecules](inspect_molecules.md) | What ChargeFW reads from a file, and how parameter sets see its atoms |
+| [Charge a Gemmi document](charge_gemmi_document.md) | An mmCIF file with charges added; for mmCIF input, all its other data is kept |
+| [Calculate with a fixed ion](calculate_with_fixed_ions.md) | Charges of a structure with ions, and the charges around each ion |
+| [Analyze conformer-dependent charges](analyze_rdkit_conformer_charges.md) | Which atoms' charges change most between RDKit conformers |
+| [Calculate dipole moments](calculate_dipole_moments.md) | Dipole moments from the calculated charges |
+| [Write charges to RDKit molecules](charge_rdkit_sdf.md) | An SDF file with charges stored as RDKit atom properties |
+| [Compare bundled parameter sets](compare_parameter_sets.md) | How much the charges differ between the parameter sets of one method |
 
 ```{toctree}
-:maxdepth: 1
+:hidden:
 
 calculate_file
 inspect_molecules

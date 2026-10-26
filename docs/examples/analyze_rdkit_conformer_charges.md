@@ -1,17 +1,23 @@
 # Analyze conformer-dependent charges
 
-`analyze_rdkit_conformer_charges.py` generates an unoptimized,
-deterministic RDKit ETKDG ensemble, calculates EEM charges, and ranks atoms by charge standard deviation
-over the equally weighted generated conformers.
+This script generates conformers of a molecule with RDKit, calculates EEM charges for each, and lists
+the atoms whose charges vary most between the conformers:
 
-```bash
-pip install "chargefw[rdkit]"
-python analyze_rdkit_conformer_charges.py "CCO" --conformers 20
+```console
+$ pip install --pre "chargefw[rdkit]"
+$ python analyze_rdkit_conformer_charges.py "CCO" --conformers 20
+Method: eem/EEM_Ionescu2013_mpa_gas
+Conformers: 20 equally weighted, unoptimized ETKDGv3 structures
+Atom          mean         std         min         max
+H6         0.214645    0.018256    0.184584    0.245663
+H5         0.210247    0.014018    0.188909    0.237453
+...
 ```
 
-This is a sensitivity analysis over one generated coordinate set, not a thermodynamic ensemble or a
-claim that the ranked atoms are chemically significant hotspots. The useful analysis function also
-accepts an externally prepared RDKit conformer ensemble.
+The conformers are generated with a fixed random seed and are not optimized, so the result shows how
+sensitive the charges are to geometry within one set of conformers. It is not a thermodynamic average,
+and atoms with varying charges are not necessarily chemically important. The analysis function in the
+script also accepts conformers you prepared yourself.
 
 Download {download}`analyze_rdkit_conformer_charges.py`.
 
