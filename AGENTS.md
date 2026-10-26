@@ -27,10 +27,33 @@ Interface-specific documents should state only the syntax and behavior needed fo
 to the owning document when additional explanation is useful; do not repeat the same explanatory text
 across CLI, native, and Python documentation.
 
-Describe user-facing behavior through its positive contract: state what users can rely on and how to use
-it. Avoid documenting absent fields, unsupported cases, or missing capabilities as standalone negative
-contracts; document a limitation only when it is necessary to use the supported behavior safely, and frame
-it around the supported boundary or alternative.
+## Writing user documentation
+
+The pages under `docs/` are published on Read the Docs for people who use ChargeFW from Python, the
+command line, or C++. Most readers are scientists who want charges for their molecules, not ChargeFW
+developers. Write for them:
+
+- Start with what the reader wants to do and show how, with an example early on. Explain background
+  after the reader knows why it matters.
+- Leave out contributor material: building for development, tests, CI, releases, internal architecture,
+  and design rationale that does not change how ChargeFW is used. It belongs in `DEVELOPMENT.md`,
+  `RELEASING.md`, or this file.
+- Say what ChargeFW does and how to use it. Mention a limitation where the reader needs it to avoid a
+  wrong result or a failed run, together with what to do instead; do not list missing features.
+- Use plain words. Define a term the first time it appears and then use it consistently. Avoid internal
+  vocabulary such as "contract", "facade", "owned", or type names that the reader's interface does not
+  expose.
+- Give concrete values: atom counts, radii, units, versions, default settings.
+- Address the reader as "you" in instructions. Use short sentences and paragraphs; use a list only for
+  items that are really parallel, and a table for comparisons.
+- State each fact once, on the page that owns it, and link to it from elsewhere.
+- Keep examples runnable as shown, with their inputs and the output the reader should expect.
+
+Write as a careful person would, not as generated text. Avoid filler and promotional words such as
+"seamless", "robust", "powerful", "comprehensive", "leverage", "utilize", "simply", "just", "easily",
+and "cutting-edge"; openers such as "It is important to note", "Note that", or "In this section";
+headings repeated as the first sentence; closing summaries; rhetorical questions; lists of three used for
+rhythm; and emphasis that does not mark a real warning.
 
 ## Repository map
 
