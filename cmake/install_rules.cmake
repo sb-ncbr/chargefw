@@ -64,6 +64,7 @@ install(
         PATTERN "*.md"
         PATTERN "*.py"
         PATTERN "*.sdf"
+        PATTERN "*.cif"
         PATTERN "conf.py" EXCLUDE
         PATTERN "_ext" EXCLUDE
         PATTERN "_generated" EXCLUDE

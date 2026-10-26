@@ -416,7 +416,7 @@ B_1 & \kappa R_{1,2}^{-1} & \cdots & \kappa R_{1,N}^{-1} & 1 \\
 \begin{bmatrix} -A_1 \\ -A_2 \\ \vdots \\ -A_N \\ Q \end{bmatrix}
 $$
 
-EEM supports charged molecules and [fixed ions](fixed-ions.md#point-source-terms).
+EEM supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (abeem)=
 #### ABEEM
@@ -584,7 +584,7 @@ $$
 where $w$ is an atom parameter for the charge width.
 
 Every connected component must be formally neutral; use [SQE+q0](#sqeq0) for charged molecules. SQE
-supports [fixed ions](fixed-ions.md#point-source-terms).
+supports [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (sqeq0)=
 #### SQE+q0
@@ -602,7 +602,7 @@ $$
 where $\boldsymbol{\eta}$ is the vector of atomic hardnesses and $*$ is the element-wise product. Each
 connected component keeps the sum of its formal charges.
 
-SQE+q0 supports charged molecules and [fixed ions](fixed-ions.md#point-source-terms).
+SQE+q0 supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (sqeqp)=
 #### SQE+qp
@@ -620,7 +620,7 @@ where $\mathbf{1}^{\mathsf T}$ is a row vector of ones. The rest of the procedur
 whole molecule, so the parameterized charges of one connected component need not sum to its formal
 charge.
 
-SQE+qp supports charged molecules and [fixed ions](fixed-ions.md#point-source-terms).
+SQE+qp supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 ## Calculation cost
 

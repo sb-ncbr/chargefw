@@ -149,7 +149,7 @@ charges globally to the active target before bond-transfer equilibration.
 The [Fixed ions](../guide/fixed-ions.md) describes active-charge provenance.
 Direct callers must supply finite source values and finite geometry for the active molecule, and ensure
 that source positions do not coincide with active atom positions. The
-[point-source terms](../guide/fixed-ions.md#point-source-terms) describes the point-source field term.
+[point-source terms](../guide/fixed-ions.md#what-the-approximation-does) describes the point-source field term.
 
 ## Assessment
 
