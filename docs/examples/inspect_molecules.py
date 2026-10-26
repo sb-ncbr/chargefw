@@ -1,6 +1,6 @@
 """Inspect the normalized molecules imported by ChargeFW.
 
-Run with: python docs/recipes/inspect_molecules.py input.sdf --format sdf --classifier bonded
+Run with: python inspect_molecules.py input.sdf --format sdf --classifier bonded
 """
 
 import argparse

@@ -4,13 +4,15 @@
 
 Read this file before changing the repository. Then read only the relevant sections of:
 
-- [docs/PROJECT.md](docs/PROJECT.md): implemented architecture, philosophy, capabilities, and limits;
-- [docs/FORMATS.md](docs/FORMATS.md): language-independent molecular input and charge output behavior;
-- [docs/CLI.md](docs/CLI.md): implemented command-line behavior;
-- [docs/NATIVE.md](docs/NATIVE.md): implemented public C++ API and installation;
-- [docs/PYTHON.md](docs/PYTHON.md): implemented Python API and package behavior;
-- [docs/PARAMETERS.md](docs/PARAMETERS.md): parameter-set JSON and classifier behavior;
-- [docs/recipes/](docs/recipes/): executable end-user examples, not normative behavior;
+- [docs/guide/](docs/guide/): input requirements, methods and parameter sets, large structures, fixed
+  ions, and results, shared by all interfaces;
+- [docs/reference/formats.md](docs/reference/formats.md): language-independent molecular input and
+  charge output behavior;
+- [docs/reference/parameter-format.md](docs/reference/parameter-format.md): parameter-set JSON and
+  classifier behavior;
+- [docs/getting-started/](docs/getting-started/): installation;
+- [docs/interfaces/](docs/interfaces/): Python, command-line, and C++ behavior;
+- [docs/examples/](docs/examples/): executable end-user examples, not normative behavior;
 - [DEVELOPMENT.md](DEVELOPMENT.md): executable local build, test, analysis, and container workflows;
 - [RELEASING.md](RELEASING.md): Python distribution validation and publication procedure;
 - [TODO.md](TODO.md): unfinished product, integration, qualification, and infrastructure work; and
@@ -21,8 +23,9 @@ behavior, not development plans or milestone history. Unfinished work belongs in
 when complete rather than retaining checked history. `README.md` should remain a concise user entry
 point. `DEVELOPMENT.md` and `RELEASING.md` own executable contributor and maintainer procedures;
 `AGENTS.md` owns repository policy and should link to those procedures rather than duplicate them.
-Document cross-interface concepts, rationale, and limitations once in `docs/PROJECT.md`. Keep molecular
-serialization behavior in `docs/FORMATS.md` and parameter-file behavior in `docs/PARAMETERS.md`.
+Document cross-interface concepts and limitations once, on the `docs/guide/` page for the topic. Keep
+molecular serialization behavior in `docs/reference/formats.md` and parameter-file behavior in
+`docs/reference/parameter-format.md`. Architecture and design rationale belong in `DEVELOPMENT.md`.
 Interface-specific documents should state only the syntax and behavior needed for that interface and link
 to the owning document when additional explanation is useful; do not repeat the same explanatory text
 across CLI, native, and Python documentation.

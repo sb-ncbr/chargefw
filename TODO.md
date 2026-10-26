@@ -10,8 +10,6 @@ The documentation site (with the completion criteria in
 [CI.md](CI.md#2-documentation-sphinx-on-read-the-docs)) and `CITATION.cff` with Figshare DOIs are also
 required for 3.0.0.
 
-- [ ] Document the `sbncbr/chargefw` CLI image on Docker Hub as the container installation path.
-
 ## Distribution
 
 - [ ] Add and qualify wheels for other platforms, architectures, and Python versions (Linux aarch64 and

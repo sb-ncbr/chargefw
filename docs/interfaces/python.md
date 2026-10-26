@@ -8,33 +8,9 @@ The package is synchronous and in-process. Native molecule construction, assessm
 release the GIL, and independent calculations can run concurrently. Calculations can report structured
 progress and support cooperative cancellation through a per-request observer.
 
-The executable [Python recipes](recipes/README.md) demonstrate complete toolkit integration workflows.
+The [examples](../examples/index.md) show complete workflows, including toolkit integration.
 
-## Installation
-
-Python 3.11 or newer is required. NumPy 2.0 or newer is the only required runtime dependency. Install a
-published wheel with:
-
-```bash
-pip install chargefw
-```
-
-Published wheels currently target CPython 3.11 through 3.14 on Linux x86-64. Build and install a local
-wheel from the source tree with:
-
-```bash
-uv build --quiet --wheel
-uv pip install --link-mode=copy --reinstall dist/chargefw-*.whl
-```
-
-The wheel contains the private native extension, required shared libraries, bundled parameter JSON,
-Python modules, type declarations, and the `py.typed` marker. Parameter discovery uses package resources
-and does not depend on the current directory or an environment variable.
-
-For contributor CMake builds and the supported validation environments, use the
-[development guide](https://github.com/sb-ncbr/chargefw/blob/main/DEVELOPMENT.md). Maintainer
-distribution steps belong to the
-[release procedure](https://github.com/sb-ncbr/chargefw/blob/main/RELEASING.md).
+See [Installation](../getting-started/installation.md#python-package) for installing the package.
 
 ## Quick start
 
@@ -86,7 +62,7 @@ The Python-facing collection distinctions are:
 | mmCIF | One molecule per coordinate-bearing block | `selection`, `bonds`, `conformers` |
 
 Exact parsing, normalization, diagnostics, and record semantics belong to the
-[molecular format reference](FORMATS.md#format-overview).
+[molecular format reference](../reference/formats.md#format-overview).
 
 Inspect imported molecules through immutable arrays and source identities:
 
@@ -197,7 +173,7 @@ exact source IDs when present and source positions otherwise. A newly constructe
 built from an imported molecule's arrays, has `source_mapping is None` and does not inherit verified
 correspondence. Structural imports expose their selected residue partition as immutable
 `source_mapping.components` entries (`SourceComponentInstance`), each with a canonical `component_id` and
-calculation-ordered `atom_indices`; see the [format reference](FORMATS.md#pdb-and-mmcif-input) for its
+calculation-ordered `atom_indices`; see the [format reference](../reference/formats.md#pdb-and-mmcif-input) for its
 ordering and conformer contract.
 
 Atomic numbers 1–100 are accepted because they are represented by the bundled periodic table; individual
@@ -256,7 +232,7 @@ remains the authoritative applicability check for a specific request.
 `requires_coordinates=True` means every input molecule must have coordinates and every conformer must
 contain finite, non-coincident coordinates; the method then produces one assignment per conformer.
 Complexity uses `n` for atoms and `m` for bonds, as defined in the
-[project design](PROJECT.md#methods-and-parameters). The `formal` method copies input formal
+[Methods and parameter sets](../guide/methods.md). The `formal` method copies input formal
 charges and `dummy` returns zeros; neither is an empirical partial-charge model.
 
 Parameter-set descriptors expose metadata and their entry keys, which show the atom and bond
@@ -266,9 +242,9 @@ environments a set parameterizes separately. `atom_keys` is a tuple of
 endpoint atom keys and the classifier and type describe the bond. Both tuples follow the file's entry
 order, which is the matching precedence. Python exposes only the installed bundled parameter catalog.
 Its package-level and method-level mappings are immutable and cannot be extended. The
-[parameter-set JSON reference](PARAMETERS.md) documents the bundled data and classifier behavior,
+[parameter-set JSON reference](../reference/parameter-format.md) documents the bundled data and classifier behavior,
 including permissive matching. Selection order and method scope are defined in
-[Methods and parameters](PROJECT.md#methods-and-parameters).
+[Methods and parameter sets](../guide/methods.md).
 
 ## Calculation policy
 
@@ -293,18 +269,18 @@ thresholds unlimited, pass `cutoff_threshold=None, cover_threshold=None`; settin
 `cutoff_threshold=None` leaves the default finite cover threshold and raises `ValueError`. Setting only
 `cover_threshold=None` is valid and keeps the default cutoff threshold.
 
-The [project design](PROJECT.md#assessment-and-execution) defines the shared execution modes, automatic
+The [Large structures](../guide/large-structures.md) defines the shared execution modes, automatic
 selection policy, conservation behavior, and approximation limits.
 
 Pass the same named ion selection to `assess()` or direct `calculate()` to apply fixed-ion handling. Each
 selected component must contain one atom of its catalog element and have no graph bonds. The request
 snapshots names to an immutable tuple; `None` and an empty sequence disable fixed-ion handling.
-The [project design](PROJECT.md#assessment-and-execution) describes how imported components are resolved,
+The [Fixed ions](../guide/fixed-ions.md) describes how imported components are resolved,
 which methods support the model, and its active-charge contract.
 
 `chargefw.COMMON_IONS` and `chargefw.ALL_IONS` are immutable tuples of component names accepted by the
 same argument. `COMMON_IONS` selects the common-ion subset; `ALL_IONS` selects every monatomic ion in the
-[bundled catalog](PROJECT.md#assessment-and-execution). Both expand explicit caller intent, using bundled
+[bundled catalog](../guide/fixed-ions.md). Both expand explicit caller intent, using bundled
 template charges; only matching components present in the input become fixed sources.
 
 ```python
@@ -341,7 +317,7 @@ print(result.plan.method.id, result.plan.policy.mode, result.warnings)
 Calling `assess()` directly is optional. Use it to inspect applicability or policy warnings before
 calculation, compare runnable alternatives, or execute several plans without repeating molecule
 preparation and parameter classification. The
-[parameter-set comparison recipe](recipes/compare_parameter_sets.py) demonstrates this workflow with one
+[parameter-set comparison example](../examples/compare_parameter_sets.md) demonstrates this workflow with one
 assessment and several plans.
 
 `assess()` accepts the same selection and policy arguments as direct `calculate()`. Its `threads`
@@ -392,7 +368,7 @@ print(estimate.memory_bytes / 2**30, estimate.operations)
 ```
 
 `threads=None` uses the assessment's `threads`. The returned `ResourceEstimate` is approximate; the
-[project design](PROJECT.md#assessment-and-execution) describes what it covers.
+[resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes what it covers.
 
 Plans are bound to the exact molecule objects and collection name used during assessment. They cannot be
 applied to another record or a reconstructed equivalent molecule, and selection arguments cannot be
@@ -449,7 +425,7 @@ arrival order during parallel execution. Callback exceptions are reported throug
 exception hook and do not alter calculation control flow.
 
 Returning true from `cancelled()` requests termination at the next
-[cancellation check point](PROJECT.md#results-and-provenance). The call then raises
+[cancellation check point](../guide/results.md). The call then raises
 `CalculationCancelledError`; its `result` has status `"cancelled"` and contains no partial charge
 assignments. Assessment itself is not observed.
 
@@ -526,7 +502,7 @@ chargefw.io.write("charged.cif", result, format="mmcif")
 chargefw.io.write("charged.mol2", result, format="mol2")
 ```
 
-The language-independent [charge-output reference](FORMATS.md#charge-output) defines generated MOL2 and
+The language-independent [charge-output reference](../reference/formats.md#charge-output) defines generated MOL2 and
 mmCIF content, result JSON, coordinate requirements, precision, and mapping behavior. Python output does
 not depend on the source format. Invalid argument types raise `TypeError`; unsupported output formats
 and unmet format requirements raise `ValueError`. Filesystem write failures raise `OSError` subclasses,
@@ -598,7 +574,7 @@ document.write_file("charged-with-source-metadata.cif")
 Structural input defaults are `selection="all"`, `bonds="hybrid"`, and `conformers="all"`. Bond choices are
 `"none"`, `"explicit"`, `"templates"`, and `"hybrid"`; selection choices are `"all"`,
 `"polymers-and-ligands"`, and `"polymers"`. Their language-independent import semantics are defined in
-the [PDB and mmCIF format reference](FORMATS.md#pdb-and-mmcif-input).
+the [PDB and mmCIF format reference](../reference/formats.md#pdb-and-mmcif-input).
 
 RDKit is an optional dependency installed with `pip install "chargefw[rdkit]"`. The base package remains
 RDKit-free. `chargefw.io.rdkit.from_mol()` copies an existing `rdkit.Chem.Mol` without sanitization,

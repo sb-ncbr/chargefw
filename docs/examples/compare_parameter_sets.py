@@ -1,6 +1,6 @@
 """Assess and compare bundled parameter sets for one method and one molecular geometry.
 
-Run with: python docs/recipes/compare_parameter_sets.py molecule.sdf --format sdf --method eem
+Run with: python compare_parameter_sets.py molecule.sdf --format sdf --method eem
 """
 
 import argparse
@@ -21,7 +21,7 @@ def compare_parameter_sets(
 
     molecules = chargefw.io.read(input_path, format=input_format)
     if len(molecules) != 1 or molecules[0].conformer_count != 1:
-        raise ValueError("this recipe requires exactly one molecule with one conformer")
+        raise ValueError("this example requires exactly one molecule with one conformer")
 
     method = chargefw.methods[method_id]
     if not method.parameter_sets:

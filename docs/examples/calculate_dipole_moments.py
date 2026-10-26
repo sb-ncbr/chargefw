@@ -1,6 +1,6 @@
 """Calculate point-charge dipole moments of every molecule and conformer.
 
-Run with: python docs/recipes/calculate_dipole_moments.py molecules.sdf --format sdf --method eem
+Run with: python calculate_dipole_moments.py molecules.sdf --format sdf --method eem
 """
 
 import argparse

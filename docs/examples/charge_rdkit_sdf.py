@@ -1,6 +1,6 @@
 """Calculate charges for RDKit molecules and write them as SDF atom properties.
 
-Run with: python docs/recipes/charge_rdkit_sdf.py input.sdf charged.sdf --method eem
+Run with: python charge_rdkit_sdf.py input.sdf charged.sdf --method eem
 """
 
 import argparse

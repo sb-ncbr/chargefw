@@ -12,7 +12,7 @@ namespace chargefw::adapters::gemmi::pdb_input {
 // Reads a PDB structure through Gemmi. The first PDB MODEL defines atom topology and each model
 // becomes a conformer after validating the same atom sequence. Record selection, alternate-location
 // selection (the first location in source order), and bond strategies follow the PDB and mmCIF
-// input contract in docs/FORMATS.md.
+// input contract in docs/reference/formats.md.
 class PdbReader {
   public:
     explicit PdbReader(std::istream& input, std::string source = {},

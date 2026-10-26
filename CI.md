@@ -101,8 +101,8 @@ Plan:
   phase 2 wheel installation fit well within it, which is why the extension is never compiled there.
 - Phase 2 (after 3.0.0): Python API reference generated with `sphinx.ext.autodoc` by installing the
   published wheel on Read the Docs, instead of compiling the extension there. The hand-written
-  [docs/PYTHON.md](docs/PYTHON.md) remains the guide; generated pages are the reference.
-- The C++ API stays hand-documented in [docs/NATIVE.md](docs/NATIVE.md); no Doxygen.
+  [docs/interfaces/python.md](docs/interfaces/python.md) remains the guide; generated pages are the reference.
+- The C++ API stays hand-documented in [docs/interfaces/cpp.md](docs/interfaces/cpp.md); no Doxygen.
 
 The documentation deliverable for 3.0.0 is complete when:
 
@@ -317,7 +317,7 @@ follow its inspected contents.
   Fedora 44); one job covers the current pins with downloads forced.
 - `release.yml`: unchanged by phase 1.
 - Documentation: the dependency minimums and the installed-package requirements become user-facing
-  contracts in [docs/NATIVE.md](docs/NATIVE.md), and the build requirements in
+  contracts in [docs/interfaces/cpp.md](docs/interfaces/cpp.md), and the build requirements in
   [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### Decisions
@@ -349,7 +349,7 @@ implemented before `qualification.yml` and `release.yml` are written.
 - The name stays "ChargeFW" everywhere; the version continues ChargeFW2's lineage. `chargefw` exists on
   PyPI (0.1, 0.1.2–0.1.7) and TestPyPI (0.1.1–0.1.7). Releases before 3.0.0 are PEP 440 pre-releases
   (`3.0.0a1`, `3.0.0b1`, `3.0.0rc1`); the versioning policy is in
-  [docs/PROJECT.md](docs/PROJECT.md#versions).
+  [docs/about/versions.md](docs/about/versions.md).
 - Documentation is hosted on Read the Docs (Community plan, with its single unobtrusive ad), for
   versioned docs, PR previews, and no deployment workflow.
 - Releases are dispatched manually; the workflow creates the tag after TestPyPI verification, as in the

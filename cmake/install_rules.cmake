@@ -57,14 +57,13 @@ install(
         COMPONENT documentation
 )
 install(
-        FILES
-        ${PROJECT_SOURCE_DIR}/docs/NATIVE.md
-        ${PROJECT_SOURCE_DIR}/docs/CLI.md
-        ${PROJECT_SOURCE_DIR}/docs/FORMATS.md
-        ${PROJECT_SOURCE_DIR}/docs/PARAMETERS.md
-        ${PROJECT_SOURCE_DIR}/docs/PROJECT.md
+        DIRECTORY ${PROJECT_SOURCE_DIR}/docs/
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw/docs
         COMPONENT documentation
+        FILES_MATCHING
+        PATTERN "*.md"
+        PATTERN "*.py"
+        PATTERN "conf.py" EXCLUDE
 )
 install(
         FILES

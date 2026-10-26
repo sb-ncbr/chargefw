@@ -3,24 +3,8 @@
 The `chargefw` executable imports molecular records, assesses available methods and parameter sets, and
 writes source-mapped partial charges.
 
-## Installation
-
-Follow the [native source installation](NATIVE.md#build-and-link) with
-`CHARGEFW_BUILD_CLI=ON`. The installed executable discovers bundled parameter data relative to the
-installed library.
-
-```bash
-_install/bin/chargefw --help
-```
-
-The root `Dockerfile` builds the same CLI as a portable Ubuntu image without Python, tests, or
-host-specific processor instructions:
-
-```bash
-docker build --tag chargefw:local .
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work chargefw:local \
-    calculate molecule.sdf output
-```
+See [Installation](../getting-started/installation.md) for the Docker image and building from
+source.
 
 ## Commands
 
@@ -55,7 +39,7 @@ Input format is selected from the file extension.
 | `.pdb` | Gemmi-backed PDB reader |
 | `.cif`, `.mmcif` | Gemmi-backed mmCIF reader |
 
-The [molecular format reference](FORMATS.md) describes the supported subsets, imported molecular data,
+The [molecular format reference](../reference/formats.md) describes the supported subsets, imported molecular data,
 record mapping, warnings, and errors.
 
 `--conformers first|all` selects the first conformer/model or all conformers/models. The default is
@@ -67,7 +51,7 @@ PDB and mmCIF input additionally accepts:
 - `--structural-bonds none|explicit|templates|hybrid` (CLI default `hybrid`).
 
 Structural options are rejected for other input formats. Selection, bonding, and alternate-location
-semantics are defined in the [PDB and mmCIF format reference](FORMATS.md#pdb-and-mmcif-input).
+semantics are defined in the [PDB and mmCIF format reference](../reference/formats.md#pdb-and-mmcif-input).
 
 The CLI reads the imported collection before calculation and stops at the first malformed record.
 
@@ -80,7 +64,7 @@ only to `calculate`. For `applicability`, `--threads` sets the thread limit used
 | --- | --- |
 | `--method ID` | Restrict assessment to one method |
 | `--parameter-set ID` | Parameter set for `--method` (required) |
-| `--permissive-types` | Allow [permissive parameter classification](PARAMETERS.md#strict-and-permissive-matching) |
+| `--permissive-types` | Allow [permissive parameter classification](../reference/parameter-format.md#strict-and-permissive-matching) |
 | `--method-option METHOD.OPTION=VALUE` | Override a method option; repeatable |
 | `--fixed-ions ID` | Select an imported monatomic ion component with no graph bonds; repeatable |
 | `--execution auto|full|cutoff|cover` | Select execution policy; default `auto` |
@@ -101,15 +85,15 @@ chargefw applicability --fixed-ions MG --fixed-ions CA structure.cif
 ```
 
 Named ions use the shared catalog and imported-component identity contract described in
-[Assessment and execution](PROJECT.md#assessment-and-execution). Successful calculations retain resolved
+[Fixed ions](../guide/fixed-ions.md). Successful calculations retain resolved
 component IDs, source indices, and assigned charges in effective result provenance; see the
-[result JSON reference](FORMATS.md#chargefw-result-json-10).
+[result JSON reference](../reference/formats.md#chargefw-result-json-10).
 
 Explicit method, parameter-set, or execution choices do not fall back to alternatives if they are
 inapplicable. `applicability` reports the reasons without running a calculation.
 
 Automatic and explicit execution share the policy, supported-method, conservation, and approximation
-semantics documented in [Assessment and execution](PROJECT.md#assessment-and-execution). Explicit choices
+semantics documented in [Large structures](../guide/large-structures.md). Explicit choices
 do not silently fall back to another mode.
 
 ## Output
@@ -142,7 +126,7 @@ The requested files use the same basename:
 ```
 
 MOL2 and mmCIF are fresh generated representations for every supported input format and are not written
-unless requested. The [molecular format reference](FORMATS.md#charge-output) describes their intended use,
+unless requested. The [molecular format reference](../reference/formats.md#charge-output) describes their intended use,
 coordinate requirements, generated structures, charge fields, precision, and mapping checks.
 
 Once import and request construction succeed, normal calculation outcomes write `<basename>.json`. On
@@ -153,14 +137,14 @@ failure can leave that destination incomplete. Import, request-construction, pri
 filesystem failures are reported on standard error and can occur before a result document is published.
 
 During calculation, press `Ctrl+C` once to request cooperative cancellation. ChargeFW stops at its next
-[cancellation check point](PROJECT.md#results-and-provenance), writes `<basename>.json` with status
+[cancellation check point](../guide/results.md), writes `<basename>.json` with status
 `cancelled` and no charge assignments, and exits with status 5. This does not interrupt import, request
 construction, or output writing.
 
 ### JSON result
 
 ChargeFW writes result JSON schema `1.0`; this is distinct from molecule input JSON schema `1.0`. See the
-[result JSON format](FORMATS.md#chargefw-result-json-10) for its records, diagnostics, assignments,
+[result JSON format](../reference/formats.md#chargefw-result-json-10) for its records, diagnostics, assignments,
 provenance, metrics, and numeric precision.
 
 ## Inspection and discovery
@@ -178,7 +162,7 @@ chargefw applicability --method eem --threads 4 molecule.sdf
 ```
 
 Each runnable plan reports its estimated peak working memory and operation count for the thread limit;
-the [project design](PROJECT.md#assessment-and-execution) describes the estimate.
+the [resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes the estimate.
 
 List method IDs and full names, inspect one method, or list bundled parameter sets:
 
@@ -195,14 +179,14 @@ chargefw parameters SQEqp_Schindler2021_PUB_pept --keys
 priority, coordinate requirement, time and memory complexity, cutoff and cover support, fixed-point-source
 support for `--fixed-ions`, and option schema.
 Complexity uses Big-O notation with `n` for atoms and `m` for bonds, as defined in the
-[project design](PROJECT.md#methods-and-parameters).
+[Methods and parameter sets](../guide/methods.md).
 
 `chargefw parameters` lists parameter-set IDs and names. Use `--method METHOD` to filter the summary by
 the parameter set's declared method. Pass a parameter-set ID instead to report its method, name,
 publication, notes, priority, and the number and classifiers of its atom and bond keys; the positional ID
 and `--method` cannot be combined. Add `--keys` to a parameter-set ID to list every atom and bond key
 in matching order, as `classifier=type` after the element symbol; an empty type is shown as `""`.
-[Parameter-set JSON](PARAMETERS.md#classifiers) defines classifiers and matching precedence.
+[Parameter-set JSON](../reference/parameter-format.md#classifiers) defines classifiers and matching precedence.
 
 ## Exit statuses
 

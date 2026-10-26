@@ -4,6 +4,20 @@ ChargeFW exposes a C++23 shared library through the `chargefw::core` CMake targe
 molecules, parameter sets, assessments, plans, results, and charge arrays; ordinary application code does
 not need to manage prepared-feature or classification lifetimes.
 
+## Namespaces
+
+The public namespaces group the API by responsibility:
+
+| Namespace | Responsibility |
+| --- | --- |
+| `chargefw::core` | Owned atoms, bonds, molecules, conformers, and periodic-table data |
+| `chargefw::features` | Prepared topology, geometry, and spatial fragments |
+| `chargefw::parameters` | Parameter data, loading, and atom/bond classification |
+| `chargefw::methods` | Method metadata, options, requirements, applicability, and algorithms |
+| `chargefw::calculation` | Assessment, deterministic planning, execution policy, progress, and calculation |
+| `chargefw::charges` | Source-indexed charge assignments and charge sets |
+| `chargefw::adapters` | Native and Gemmi-backed molecular input and output |
+
 ## Build and link
 
 ChargeFW requires CMake 3.28 or newer, Ninja, a GCC or Clang toolchain with C++23 support, and installed
@@ -132,10 +146,10 @@ including sources outside the fragment radius. Conservation corrections apply to
 facade restores fixed values once in original atom order. SQE requires neutral active connected
 components, SQE+q0 retains their prepared formal-charge seeds, and SQE+qp normalizes its fitted reference
 charges globally to the active target before bond-transfer equilibration.
-The [project design](PROJECT.md#assessment-and-execution) describes active-charge provenance.
+The [Fixed ions](../guide/fixed-ions.md) describes active-charge provenance.
 Direct callers must supply finite source values and finite geometry for the active molecule, and ensure
 that source positions do not coincide with active atom positions. The
-[project design](PROJECT.md#methods-and-parameters) describes the point-source field term.
+[point-source terms](../guide/fixed-ions.md#point-source-terms) describes the point-source field term.
 
 ## Assessment
 
@@ -164,7 +178,7 @@ full, cutoff, and cover plans. Automatic selection may choose an un-warned reduc
 a resource warning; explicit full selection may execute with its warning. Parameter classification and
 execution use the active molecules. Successful facade results restore fixed charges in original atom
 order and expose fixed atom indices and assigned charges through `ExecutionResult::effective`. The
-[project design](PROJECT.md#assessment-and-execution) describes this boundary.
+[Fixed ions](../guide/fixed-ions.md) describes this boundary.
 Invalid source selections still throw `std::invalid_argument`.
 
 `calculation::assess()` returns an `AssessmentResult` with read-only access to its original owned source
@@ -172,23 +186,23 @@ Invalid source selections still throw `std::invalid_argument`.
 timing. A plan exposes its method, parameter set, validated method options, concrete `ExecutionPolicy`,
 and warnings. Plans are tied to the assessment that created them. `calculation::estimate(assessment,
 plan, max_threads)` returns the plan's approximate peak working memory and operation count as a
-`methods::ResourceEstimate`; the [project design](PROJECT.md#assessment-and-execution) describes the
+`methods::ResourceEstimate`; the [resource estimates](../guide/large-structures.md#threads-and-resource-estimates) describes the
 model.
 
 Use `methods::method_registry()` to inspect built-in method metadata, human-readable implementation
 notes, and option schemas. Use `methods::complexity_notation()` to format declared time and memory
 complexity, and `Method::estimate()` for the approximate memory and work of one target of a given
 `TargetSize` with validated options. The notation, variables, and estimate accounting are defined in the
-[project design](PROJECT.md#methods-and-parameters). Use
+[Methods and parameter sets](../guide/methods.md). Use
 `parameters::load_default_parameter_sets()` for the installed bundled catalog. Parameter-set IDs in one
-assessment request must be unique. The [parameter-set JSON reference](PARAMETERS.md) documents the bundled
+assessment request must be unique. The [parameter-set JSON reference](../reference/parameter-format.md) documents the bundled
 data format and classifier semantics.
 
 ## Execution policy
 
 `ExecutionSelectionKind` accepts automatic, full, cutoff, or cover selection. Effective plans always use
 the concrete `ExecutionMode` values full, cutoff, or cover. `std::nullopt` disables an automatic resource
-threshold. The [project design](PROJECT.md#assessment-and-execution) defines mode semantics, defaults,
+threshold. The [Large structures](../guide/large-structures.md) defines mode semantics, defaults,
 supported methods, conservation behavior, and approximation limits.
 
 Pass the thread limit to `calculate()` for each execution. A count of zero delegates scheduling to
@@ -263,7 +277,7 @@ selection. Set it explicitly when assembling a result for a different requested 
 Readers return `ImportedMoleculeRecord`, which keeps the molecule together with source identity, import
 diagnostics, and optional `MoleculeImportMetadata`. Its `SourceAtomReference`,
 `SourceConformerReference`, `SourceStructuralLabels`, and `SourceConnectivity` values own their source
-tokens and remain valid after reader destruction. The [molecular format reference](FORMATS.md) documents
+tokens and remain valid after reader destruction. The [molecular format reference](../reference/formats.md) documents
 the populated mappings, supported subsets, reader policy, and generated output independently of the C++
 types. `MoleculeImportMetadata::components` contains `SourceComponentInstance` values with a canonical
 component ID and calculation-atom membership. Reader cursors are movable but not copyable; a moved reader

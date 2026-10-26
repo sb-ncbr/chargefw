@@ -1,6 +1,6 @@
 """Read a molecular file, calculate charges, and print or write them per atom.
 
-Run with: python docs/recipes/calculate_file.py molecules.sdf --format sdf --method eem
+Run with: python calculate_file.py molecules.sdf --format sdf --method eem
 """
 
 import argparse

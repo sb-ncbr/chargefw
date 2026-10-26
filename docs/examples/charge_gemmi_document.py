@@ -1,6 +1,6 @@
 """Attach calculated charges to a Gemmi mmCIF document.
 
-Run with: python docs/recipes/charge_gemmi_document.py input.cif charged.cif --format mmcif
+Run with: python charge_gemmi_document.py input.cif charged.cif --format mmcif
 """
 
 import argparse

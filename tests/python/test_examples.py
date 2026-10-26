@@ -1,4 +1,4 @@
-"""Executable documentation recipe checks."""
+"""Executable documentation example checks."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import gemmi
 import pytest
 
 PROJECT_ROOT = Path(__file__).parents[2]
-RECIPES = PROJECT_ROOT / "docs" / "recipes"
+EXAMPLES = PROJECT_ROOT / "docs" / "examples"
 
 WATER_PDB = """\
 HETATM    1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O
@@ -38,22 +38,22 @@ M  END
 WATERS_SDF = f"{WATER_MOL}$$$$\n{WATER_MOL}$$$$\n"
 
 
-def run_recipe(name: str, *arguments: str | Path) -> subprocess.CompletedProcess[str]:
+def run_example(name: str, *arguments: str | Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(RECIPES / name), *map(str, arguments)],
+        [sys.executable, str(EXAMPLES / name), *map(str, arguments)],
         check=True,
         capture_output=True,
         text=True,
     )
 
 
-def test_calculate_file_recipe(tmp_path: Path) -> None:
+def test_calculate_file_example(tmp_path: Path) -> None:
     input_path = tmp_path / "waters.sdf"
     output_path = tmp_path / "result.json"
     csv_path = tmp_path / "charges.csv"
     input_path.write_text(WATERS_SDF, encoding="utf-8")
 
-    run_recipe(
+    run_example(
         "calculate_file.py",
         input_path,
         "--format",
@@ -77,39 +77,39 @@ def test_calculate_file_recipe(tmp_path: Path) -> None:
     assert all(row["conformer"] == "0" for row in rows)
 
 
-def test_dipole_moment_recipe(tmp_path: Path) -> None:
+def test_dipole_moment_example(tmp_path: Path) -> None:
     input_path = tmp_path / "waters.sdf"
     input_path.write_text(WATERS_SDF, encoding="utf-8")
 
-    run_recipe("calculate_dipole_moments.py", input_path, "--format", "sdf", "--method", "eem")
+    run_example("calculate_dipole_moments.py", input_path, "--format", "sdf", "--method", "eem")
 
 
-def test_inspect_molecules_recipe(tmp_path: Path) -> None:
+def test_inspect_molecules_example(tmp_path: Path) -> None:
     input_path = tmp_path / "water.sdf"
     input_path.write_text(f"{WATER_MOL}$$$$\n", encoding="utf-8")
 
-    run_recipe("inspect_molecules.py", input_path, "--format", "sdf", "--classifier", "hbo")
+    run_example("inspect_molecules.py", input_path, "--format", "sdf", "--classifier", "hbo")
 
 
-def test_gemmi_document_recipe_preserves_unchanged_mmcif(tmp_path: Path) -> None:
+def test_gemmi_document_example_preserves_unchanged_mmcif(tmp_path: Path) -> None:
     input_path = tmp_path / "water.cif"
     output_path = tmp_path / "charged.cif"
     document = gemmi.read_pdb_string(WATER_PDB).make_mmcif_document()
     document.sole_block().set_pair("_audit.creation_method", "recipe-test")
     document.write_file(str(input_path))
 
-    run_recipe("charge_gemmi_document.py", input_path, output_path, "--format", "mmcif")
+    run_example("charge_gemmi_document.py", input_path, output_path, "--format", "mmcif")
 
     block = gemmi.cif.read_file(str(output_path)).sole_block()
     assert block.find_value("_audit.creation_method") == "recipe-test"
     assert "_sb_ncbr_partial_atomic_charges." in block.get_mmcif_category_names()
 
 
-def test_fixed_ion_recipe(tmp_path: Path) -> None:
+def test_fixed_ion_example(tmp_path: Path) -> None:
     input_path = PROJECT_ROOT / "tests" / "fixtures" / "synthetic" / "cif" / "fixed_ions.cif"
     output_path = tmp_path / "charges.json"
 
-    run_recipe(
+    run_example(
         "calculate_with_fixed_ions.py",
         input_path,
         "--format",
@@ -127,13 +127,13 @@ def test_fixed_ion_recipe(tmp_path: Path) -> None:
     assert result["calculation_provenance"]["effective"]["fixed_ions"][0]["component_id"] == "MG"
 
 
-def test_rdkit_sdf_recipe(tmp_path: Path) -> None:
+def test_rdkit_sdf_example(tmp_path: Path) -> None:
     chemistry = pytest.importorskip("rdkit.Chem")
     input_path = tmp_path / "waters.sdf"
     output_path = tmp_path / "charged.sdf"
     input_path.write_text(WATERS_SDF, encoding="utf-8")
 
-    run_recipe("charge_rdkit_sdf.py", input_path, output_path, "--method", "eem")
+    run_example("charge_rdkit_sdf.py", input_path, output_path, "--method", "eem")
 
     molecules = list(chemistry.SDMolSupplier(str(output_path), removeHs=False))
     assert len(molecules) == 2
@@ -144,13 +144,13 @@ def test_rdkit_sdf_recipe(tmp_path: Path) -> None:
     )
 
 
-def test_rdkit_conformer_recipe() -> None:
+def test_rdkit_conformer_example() -> None:
     pytest.importorskip("rdkit")
-    run_recipe("analyze_rdkit_conformer_charges.py", "CCO", "--conformers", "3")
+    run_example("analyze_rdkit_conformer_charges.py", "CCO", "--conformers", "3")
 
 
-def test_compare_parameter_sets_recipe(tmp_path: Path) -> None:
+def test_compare_parameter_sets_example(tmp_path: Path) -> None:
     input_path = tmp_path / "water.sdf"
     input_path.write_text(f"{WATER_MOL}$$$$\n", encoding="utf-8")
 
-    run_recipe("compare_parameter_sets.py", input_path, "--format", "sdf", "--method", "qeq")
+    run_example("compare_parameter_sets.py", input_path, "--format", "sdf", "--method", "qeq")

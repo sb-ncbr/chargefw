@@ -1,7 +1,8 @@
 # ChargeFW development
 
-This is the practical guide to building and testing ChargeFW. Repository policy and architecture rules
-are in [AGENTS.md](AGENTS.md); public behavior is documented under [`docs/`](docs/).
+This is the practical guide to building and testing ChargeFW, with an [architecture](#architecture)
+overview at the end. Repository policy and architecture rules are in [AGENTS.md](AGENTS.md); public
+behavior is documented under [`docs/`](docs/).
 
 ## Requirements
 
@@ -9,7 +10,7 @@ Native development requires CMake 3.28 or newer, Ninja, and a C++23-capable GCC 
 The checked-in presets set `CHARGEFW_FETCH_DEPENDENCIES=ON`, so CMake downloads pinned,
 checksum-verified dependency sources. CI and the compatibility containers build against distribution
 packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
-The supported versions are listed in [docs/NATIVE.md](docs/NATIVE.md#build-and-link).
+The supported versions are listed in [docs/NATIVE.md](docs/interfaces/cpp.md#build-and-link).
 
 The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.11 or
 newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and
@@ -124,6 +125,17 @@ To select individual pytest cases, run pytest directly against the build-tree pa
 PYTHONPATH=build/gcc-debug/python python -m pytest tests/python/test_output.py -k failed_result
 ```
 
+Build and install a local wheel from the source tree with:
+
+```bash
+uv build --quiet --wheel
+uv pip install --link-mode=copy --reinstall dist/chargefw-*.whl
+```
+
+The wheel contains the private native extension, required shared libraries, bundled parameter JSON,
+Python modules, type declarations, and the `py.typed` marker. Parameter discovery uses package resources
+and does not depend on the current directory or an environment variable.
+
 Ruff is configured in `pyproject.toml`. Run it on modified Python files:
 
 ```bash
@@ -169,7 +181,7 @@ updates; compiler, sanitizer, and clang-tidy checks stay in local release valida
 
 ## Installation and containers
 
-Use the [native source installation](docs/NATIVE.md#build-and-link), enabling `CHARGEFW_BUILD_CLI` when
+Use the [native source installation](docs/interfaces/cpp.md#build-and-link), enabling `CHARGEFW_BUILD_CLI` when
 the executable is required. It needs the dependency packages listed there, or
 `CHARGEFW_FETCH_DEPENDENCIES=ON`, but not the Python and test dependencies used by the validation
 presets.
@@ -192,3 +204,54 @@ The Dockerfiles under `docker/` build and test ChargeFW on Ubuntu 26.04, Debian 
 these builds one at a time because they are resource intensive.
 
 Python distribution builds and publication are documented in [RELEASING.md](RELEASING.md).
+
+## Architecture
+
+ChargeFW is library-first. File readers and toolkit adapters translate external representations into an
+owned, toolkit-neutral molecule model; method applicability, parameter matching, execution selection,
+and calculation remain in the native library.
+
+**Algorithms are reusable and concurrent.** Prepared assessments and concrete plans own the state they
+need and can be executed repeatedly without global mutable calculation state.
+
+```text
+files, C++ values, or Python arrays
+                 |
+                 v
+       toolkit-neutral molecules
+       atoms + bonds + conformers
+                 |
+                 v
+       prepared topology/geometry
+                 |
+        +--------+--------+
+        |                 |
+        v                 v
+ bundled parameters   method registry
+        |                 |
+        +--------+--------+
+                 v
+       applicability assessment
+                 |
+                 v
+       concrete execution plans
+                 |
+                 v
+          full/cutoff/cover
+                 |
+                 v
+      source-ordered charge sets
+```
+
+Application-facing calculation functions compose the owned assessment facade rather than exposing the
+lower-level prepared-feature and classification interfaces. Callers need an explicit assessment only when
+they want to inspect or reuse its concrete plans.
+
+Imported records keep adapter metadata beside the normalized molecule rather than inside
+`core::Molecule`. The metadata owns only source correspondence, record-local import policy, diagnostics,
+and a small connectivity summary; it does not retain source documents, parser objects, normalized-value
+snapshots, or per-bond provenance.
+
+The application-facing charge result owns those ordered imported records together with the toolkit-neutral
+execution result. Output adapters consume that boundary directly, keeping source correspondence out of the
+scientific calculation engine without requiring parallel caller-supplied structures or contexts.

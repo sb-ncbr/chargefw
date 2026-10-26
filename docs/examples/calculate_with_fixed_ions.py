@@ -1,6 +1,6 @@
 """Calculate charges for a structure while treating selected ions as fixed sources.
 
-Run with: python docs/recipes/calculate_with_fixed_ions.py structure.cif --format mmcif --ion MG
+Run with: python calculate_with_fixed_ions.py structure.cif --format mmcif --ion MG
 """
 
 import argparse

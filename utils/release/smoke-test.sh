@@ -17,6 +17,6 @@ python3 -m venv "$environment"
 cd "$environment"
 "$environment/bin/python" -c \
     'import sys, chargefw; sys.exit(chargefw.__version__ != sys.argv[1])' "$version"
-"$environment/bin/python" "$repository/docs/recipes/calculate_file.py" \
+"$environment/bin/python" "$repository/docs/examples/calculate_file.py" \
     "$repository/tests/fixtures/synthetic/sdf/water.sdf" \
     --format sdf --method qeq --parameter-set QEq_original

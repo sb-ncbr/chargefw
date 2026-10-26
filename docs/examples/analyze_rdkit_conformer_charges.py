@@ -1,6 +1,6 @@
 """Analyze calculated charge variation across an RDKit conformer set.
 
-Run with: python docs/recipes/analyze_rdkit_conformer_charges.py "CCO" --conformers 20
+Run with: python analyze_rdkit_conformer_charges.py "CCO" --conformers 20
 """
 
 import argparse

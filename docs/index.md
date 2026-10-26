@@ -1,28 +1,69 @@
 # ChargeFW
 
-ChargeFW calculates empirical partial atomic charges. It provides a toolkit-neutral C++23 library,
-a command-line application, and Python bindings over the same calculation engine, with bundled
-methods and parameter sets, deterministic method selection, and source-ordered results.
+ChargeFW calculates empirical partial atomic charges for small molecules and biomolecular structures.
+It provides a Python package, a command-line tool, and a C++ library, all using the same calculation
+engine, methods, and bundled parameter sets.
 
-ChargeFW expects a molecular graph, formal charges, and any coordinates required by the selected
-method; it does not prepare structures. [Project design](PROJECT.md) describes the scientific scope.
+You give ChargeFW a molecule with its bonds, formal charges, and coordinates where the method needs
+them. It does not change your structure; [Preparing input](guide/input.md) explains what to check
+before a calculation.
 
 ## Installation
 
-- **Python:** `pip install chargefw` (Python 3.11 or newer); see [Python package](PYTHON.md).
-- **Command line and C++:** build from source as described in [Native C++ library](NATIVE.md).
+```bash
+pip install --pre chargefw
+```
+
+The [installation page](getting-started/installation.md) also covers the Docker image and building
+from source.
 
 ```{toctree}
-:maxdepth: 2
+:hidden:
+:caption: Getting started
+
+getting-started/installation
+```
+
+```{toctree}
+:hidden:
 :caption: User guide
 
-PYTHON
-recipes/README
-CLI
-FORMATS
-PARAMETERS
-NATIVE
-PROJECT
+guide/input
+guide/methods
+guide/large-structures
+guide/fixed-ions
+guide/results
+```
+
+```{toctree}
+:hidden:
+:caption: Interfaces
+
+interfaces/python
+interfaces/cli
+interfaces/cpp
+```
+
+```{toctree}
+:hidden:
+:caption: Examples
+
+examples/index
+```
+
+```{toctree}
+:hidden:
+:caption: Reference
+
+reference/formats
+reference/parameter-format
+```
+
+```{toctree}
+:hidden:
+:caption: About
+
+about/versions
 ```
 
 ChargeFW is developed at [sb-ncbr/chargefw](https://github.com/sb-ncbr/chargefw) and distributed

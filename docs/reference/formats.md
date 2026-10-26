@@ -2,13 +2,13 @@
 
 This document describes the format behavior shared by ChargeFW's native adapters, command-line
 application, and language bindings. API names and command-line file-selection policy are documented in
-[Native C++ library](NATIVE.md), [Python package](PYTHON.md), and
-[Command-line interface](CLI.md), respectively.
+[Native C++ library](../interfaces/cpp.md), [Python package](../interfaces/python.md), and
+[Command-line interface](../interfaces/cli.md), respectively.
 
 ChargeFW imports files into a toolkit-neutral molecule containing source-ordered atoms, bonds, formal
 charges, and zero or more Cartesian conformers. Readers apply only the format-specific transformations
 documented below; broader chemistry-preparation limits are defined in the
-[project design](PROJECT.md#molecular-data-scope). Atom and molecule order is retained in charge
+[Preparing input](../guide/input.md). Atom and molecule order is retained in charge
 assignments and output mappings.
 
 ## Format overview
@@ -83,7 +83,7 @@ bond-reference semantics have been validated.
 ## ChargeFW molecule JSON input 1.0
 
 Molecule input JSON is an explicit interchange format and is distinct from ChargeFW result JSON. A
-document follows the [molecule input JSON Schema](../schemas/molecule-input-1.0.schema.json) and has this
+document follows the [molecule input JSON Schema](../../schemas/molecule-input-1.0.schema.json) and has this
 shape:
 
 ```json
@@ -231,14 +231,14 @@ results, and charges outside the dictionary's inclusive `[-5, 5]` range before s
 
 Python additionally provides a strict in-memory annotation API for the unchanged Gemmi document used for
 import. Its mutation and validation contract is documented with
-[`attach_charges()`](PYTHON.md#toolkit-integrations).
+[`attach_charges()`](../interfaces/python.md#toolkit-integrations).
 
 ### ChargeFW result JSON 1.0
 
 Result JSON is the complete machine-readable calculation record. Its top level contains:
 
 The complete field definitions and descriptions are available in the
-[calculation result JSON Schema](../schemas/result-1.0.schema.json).
+[calculation result JSON Schema](../../schemas/result-1.0.schema.json).
 
 - `schema_version`, generator identity, overall status, and document diagnostics;
 - input-ordered `results`, each with source identity, record status, diagnostics, optional import mapping

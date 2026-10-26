@@ -84,14 +84,14 @@ chargefw.io.write("charges.json", result, format="result-json")
 
 The full documentation is at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/):
 
-- **[Python API](https://chargefw.readthedocs.io/en/latest/PYTHON.html)** - read molecules,
+- **[Python API](https://chargefw.readthedocs.io/en/latest/interfaces/python.html)** - read molecules,
   calculate charges, and inspect methods and results.
-- **[Python recipes](https://chargefw.readthedocs.io/en/latest/recipes/README.html)** - run complete
+- **[Examples](https://chargefw.readthedocs.io/en/latest/examples/index.html)** - run complete
   SDF, Gemmi, RDKit, and parameter-set workflows.
-- **[Molecular formats](https://chargefw.readthedocs.io/en/latest/FORMATS.html)** - check supported
+- **[Molecular formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html)** - check supported
   input, output, parsing, and mapping semantics.
-- **[Project design](https://chargefw.readthedocs.io/en/latest/PROJECT.html)** - understand the
-  architecture and scientific scope.
+- **[Methods and parameter sets](https://chargefw.readthedocs.io/en/latest/guide/methods.html)** - see
+  the available methods and how they are selected.
 - **[Source repository](https://github.com/sb-ncbr/chargefw)** - browse the source and report
   issues.
 

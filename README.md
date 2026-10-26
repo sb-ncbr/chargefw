@@ -14,14 +14,14 @@ or generate coordinates.
 
 ## Quick start
 
-Build the [native library](docs/NATIVE.md#build-and-link) with
+Build the [native library](docs/interfaces/cpp.md#build-and-link) with
 `CHARGEFW_BUILD_CLI=ON`, then calculate charges for an SDF file:
 
 ```bash
 _install/bin/chargefw calculate molecule.sdf output
 ```
 
-For Python installation and package status, see the [Python package guide](docs/PYTHON.md#installation).
+For Python installation and package status, see the [installation guide](docs/getting-started/installation.md).
 
 ```python
 import chargefw
@@ -41,15 +41,16 @@ print(result.assignments[0].values)
 The documentation is published at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/). Its
 sources are in this repository:
 
-- **[Python API](docs/PYTHON.md)** - read molecules, calculate charges, and inspect methods and results.
-- **[Python recipes](docs/recipes/README.md)** - run complete SDF, Gemmi, RDKit, and parameter-set
+- **[Python API](docs/interfaces/python.md)** - read molecules, calculate charges, and inspect methods and results.
+- **[Examples](docs/examples/index.md)** - run complete SDF, Gemmi, RDKit, and parameter-set
   workflows.
-- **[Command-line interface](docs/CLI.md)** - calculate and inspect molecular files from the CLI.
-- **[Molecular formats](docs/FORMATS.md)** - check supported input, output, parsing, and mapping
+- **[Command-line interface](docs/interfaces/cli.md)** - calculate and inspect molecular files from the CLI.
+- **[Molecular formats](docs/reference/formats.md)** - check supported input, output, parsing, and mapping
   semantics.
-- **[Parameter sets](docs/PARAMETERS.md)** - understand parameter data and matching behavior.
-- **[Native C++ API](docs/NATIVE.md)** - embed ChargeFW in a C++ application.
-- **[Project design](docs/PROJECT.md)** - understand the architecture and scientific scope.
+- **[Parameter sets](docs/reference/parameter-format.md)** - understand parameter data and matching behavior.
+- **[Native C++ API](docs/interfaces/cpp.md)** - embed ChargeFW in a C++ application.
+- **[Methods and parameter sets](docs/guide/methods.md)** - see the available methods and how they
+  are selected.
 
 ## Development
 

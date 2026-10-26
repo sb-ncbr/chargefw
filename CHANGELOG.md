@@ -6,7 +6,7 @@
 
 - Native builds use installed CLI11, nlohmann/json, Eigen, nanoflann, oneTBB, and Gemmi packages by
   default and report any that are missing at configure time. The supported versions are listed in
-  the [native library documentation](https://chargefw.readthedocs.io/en/latest/NATIVE.html#build-and-link);
+  the [native library documentation](https://chargefw.readthedocs.io/en/latest/interfaces/cpp.html#build-and-link);
   the minimums match Debian 13. Set
   `CHARGEFW_FETCH_DEPENDENCIES=ON` to download pinned sources instead, as the developer presets and
   the Python package build do. This option replaces `CHARGEFW_USE_SYSTEM_DEPENDENCIES`; builds that
