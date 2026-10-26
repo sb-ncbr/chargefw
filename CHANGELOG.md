@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Documentation
+
+- The [documentation](https://chargefw.readthedocs.io/en/latest/) is reorganized and rewritten for
+  users of the Python package, the command line, and the C++ library. Pages have new addresses, so
+  links to the old ones, such as `PYTHON.html`, `FORMATS.html`, or `recipes/`, no longer work.
+  [Differences from ChargeFW2](https://chargefw.readthedocs.io/en/latest/about/chargefw2.html)
+  describes what changed from ChargeFW2 and how to move over.
+
 ### Output
 
 - MOL2 and mmCIF files write charges rounded to four decimal places, and coordinates with the digits
