@@ -38,8 +38,13 @@ and [Preparing input](../guide/input.md) what a molecule needs before a calculat
 molecules = chargefw.io.read("structure.cif", format="mmcif", selection="polymers-and-ligands")
 
 for molecule in molecules:
-    print(molecule.name, molecule.atom_count, molecule.bond_count,
-          molecule.conformer_names, int(molecule.formal_charges.sum()))
+    print(
+        molecule.name,
+        molecule.atom_count,
+        molecule.bond_count,
+        molecule.conformer_names,
+        int(molecule.formal_charges.sum()),
+    )
 ```
 
 ### Molecules from arrays
@@ -160,8 +165,9 @@ names that are not in the structure are ignored. [Fixed ions](../guide/fixed-ion
 model and the catalog.
 
 ```python
-result = chargefw.calculate(molecules, method="sqeqp", parameter_set="SQEqp_Schindler2021_CCD_gen",
-                            fixed_ions=["MG"])
+result = chargefw.calculate(
+    molecules, method="sqeqp", parameter_set="SQEqp_Schindler2021_CCD_gen", fixed_ions=["MG"]
+)
 ```
 
 ## Results

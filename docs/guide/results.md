@@ -15,8 +15,12 @@ Each set of charges is an assignment. Here ethanol has three RDKit conformers:
 for method in ("eem", "peoe"):
     result = chargefw.calculate(molecule, method=method)
     for assignment in result.assignments:
-        print(method, assignment.molecule_index, assignment.conformer_index,
-              assignment.values[:3].round(3))
+        print(
+            method,
+            assignment.molecule_index,
+            assignment.conformer_index,
+            assignment.values[:3].round(3),
+        )
 ```
 
 ```text
