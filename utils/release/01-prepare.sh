@@ -28,5 +28,13 @@ sed -i -E \
     CMakeLists.txt
 
 [[ $(current_version) == "$NEW_VERSION" ]] || die "version update failed"
-printf 'Updated ChargeFW %s -> %s. Review and commit CMakeLists.txt, then run 02-validate.sh.\n' \
-    "$OLD_VERSION" "$NEW_VERSION"
+
+# The Docker examples name the image of the release they document.
+readonly IMAGE_FILES=(README.md docs/getting-started/installation.md)
+sed -i "s|sbncbr/chargefw:${OLD_VERSION//./\\.}\b|sbncbr/chargefw:${NEW_VERSION}|g" "${IMAGE_FILES[@]}"
+for file in "${IMAGE_FILES[@]}"; do
+    grep -q "sbncbr/chargefw:${NEW_VERSION}" "$file" || die "image tag update failed in $file"
+done
+
+printf 'Updated ChargeFW %s -> %s. Review and commit CMakeLists.txt and %s, then run %s.\n' \
+    "$OLD_VERSION" "$NEW_VERSION" "${IMAGE_FILES[*]}" 02-validate.sh

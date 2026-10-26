@@ -33,9 +33,10 @@ Start from an up-to-date `main` and a clean worktree:
 ./utils/release/01-prepare.sh 3.0.0a3
 ```
 
-The script updates both version parts in `CMakeLists.txt`. Rename the `## Unreleased` heading in
-`CHANGELOG.md` to `## 3.0.0a3`; the workflow requires that section and uses it as the GitHub Release
-notes, so its links must be absolute. Commit both files, for example as "Prepare release 3.0.0a3".
+The script updates both version parts in `CMakeLists.txt` and the Docker image tag in `README.md` and
+`docs/getting-started/installation.md`. Rename the `## Unreleased` heading in `CHANGELOG.md` to
+`## 3.0.0a3`; the workflow requires that section and uses it as the GitHub Release notes, so its links
+must be absolute. Commit these files, for example as "Prepare release 3.0.0a3".
 
 ## 2. Validate locally
 
