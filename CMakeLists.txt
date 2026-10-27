@@ -8,7 +8,7 @@ project(
 )
 
 # PEP 440 pre-release suffix (aN, bN, or rcN); empty for final releases.
-set(CHARGEFW_VERSION_SUFFIX "a3")
+set(CHARGEFW_VERSION_SUFFIX "a4")
 if(NOT CHARGEFW_VERSION_SUFFIX MATCHES "^((a|b|rc)(0|[1-9][0-9]*))?$")
   message(FATAL_ERROR "Invalid CHARGEFW_VERSION_SUFFIX: ${CHARGEFW_VERSION_SUFFIX}")
 endif()

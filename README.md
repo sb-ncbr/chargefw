@@ -45,7 +45,7 @@ chargefw calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.s
 or with the Docker image:
 
 ```bash
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a3 \
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a4 \
     calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.sdf output
 ```
 
