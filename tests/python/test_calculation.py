@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from time import perf_counter, sleep
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 from unittest.mock import patch
 
 import chargefw
@@ -13,7 +13,6 @@ import numpy as np
 import pytest
 from chargefw._chargefw import core as _native_core
 
-T = TypeVar("T")
 _GIL_OBSERVATION_DELAY_SECONDS = 0.001
 _GIL_TEST_ATOM_COUNT = 500_000
 
@@ -78,7 +77,7 @@ def assess_formal(molecules: Any) -> chargefw.Assessment:
     return chargefw.assess(molecules, method="formal", execution="full", threads=1)
 
 
-def run_while_python_thread_progresses(operation: Callable[[], T]) -> tuple[T, bool, float]:
+def run_while_python_thread_progresses[T](operation: Callable[[], T]) -> tuple[T, bool, float]:
     started = Event()
     begin = Event()
     observing = Event()

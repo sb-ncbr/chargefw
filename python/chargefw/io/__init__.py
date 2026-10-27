@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal
 
 from .._chargefw import adapters as _native_adapters
 from ..core import (
@@ -21,11 +21,11 @@ from ..core import (
 if TYPE_CHECKING:
     from ..calculation import CalculationResult
 
-InputFormat: TypeAlias = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
-OutputFormat: TypeAlias = Literal["mol2", "mmcif", "result-json"]
-RecordSelection: TypeAlias = Literal["all", "polymers-and-ligands", "polymers"]
-BondStrategy: TypeAlias = Literal["none", "explicit", "templates", "hybrid"]
-ConformerSelection: TypeAlias = Literal["first", "all"]
+type InputFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
+type OutputFormat = Literal["mol2", "mmcif", "result-json"]
+type RecordSelection = Literal["all", "polymers-and-ligands", "polymers"]
+type BondStrategy = Literal["none", "explicit", "templates", "hybrid"]
+type ConformerSelection = Literal["first", "all"]
 
 INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif")
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "result-json")
