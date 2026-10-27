@@ -69,6 +69,10 @@ result = "{numeric}{suffix}"
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
 
+[tool.mypy]
+# Check against the oldest supported Python, whichever interpreter runs mypy.
+python_version = "3.12"
+
 [[tool.mypy.overrides]]
 module = ["jsonschema"]
 follow_untyped_imports = true
