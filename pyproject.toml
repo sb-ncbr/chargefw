@@ -53,11 +53,33 @@ CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS = "OFF"
 CHARGEFW_FETCH_DEPENDENCIES = "ON"
 
 [tool.cibuildwheel]
-build = "cp31[2-4]-manylinux_x86_64"
+# One stable-ABI wheel per platform, tested with each listed CPython. Each runner builds only the
+# identifiers that match its own platform and architecture.
+build = [
+  "cp31[2-4]-manylinux_x86_64",
+  "cp31[2-4]-manylinux_aarch64",
+  "cp31[2-4]-macosx_arm64",
+  "cp31[2-4]-win_amd64",
+]
 config-settings = { "cmake.define.CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS" = "OFF" }
 test-requires = ["pytest", "jsonschema"]
 test-extras = "gemmi"
 test-command = "pytest {project}/tests/python -q"
+
+[tool.cibuildwheel.windows]
+before-build = "pip install delvewheel"
+# Gemmi, oneTBB, and Microsoft's C++ runtime are already installed beside the extension and the command
+# line (python/CMakeLists.txt); the repair checks for and bundles any remaining dependencies.
+repair-wheel-command = """\
+delvewheel repair --ignore-existing --analyze-existing --analyze-existing-exes \
+-w "{dest_dir}" "{wheel}"\
+"""
+
+# The code needs macOS 13.3, and wheel tags record only the major version (DEVELOPMENT.md).
+# cibuildwheel names arm64 wheels after _PYTHON_HOST_PLATFORM, not after the deployment target.
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_arm64"
+environment = { MACOSX_DEPLOYMENT_TARGET = "14.0", _PYTHON_HOST_PLATFORM = "macosx-14.0-arm64" }
 
 [[tool.dynamic-metadata]]
 provider = "scikit_build_core.metadata.regex"

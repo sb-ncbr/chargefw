@@ -9,6 +9,8 @@
   [Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html) shows how
   to create an environment with a newer Python.
 - `pip install chargefw` also installs the `chargefw` command line.
+- Wheels are also published for Linux aarch64, macOS 14 or newer on Apple silicon, and Windows
+  x86-64. On Windows, the command line accepts file names that the system code page cannot represent.
 
 ### Distribution
 

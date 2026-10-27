@@ -13,7 +13,7 @@ what changed and how to move over.
 ## Installation
 
 ChargeFW 3 is currently a pre-release, so pip needs `--pre`. It requires Python 3.12 or newer on Linux
-x86-64:
+(x86-64 or aarch64), macOS 14 or newer on Apple silicon, or 64-bit Windows:
 
 ```bash
 pip install --pre chargefw

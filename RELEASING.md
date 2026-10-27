@@ -7,14 +7,22 @@ then creates the GitHub Release and pushes the CLI image to Docker Hub.
 
 ## Current wheel matrix
 
-The release target is one Linux x86-64 wheel built against CPython's stable ABI (`cp312-abi3`), which
-serves CPython 3.12 and later. `cibuildwheel` builds it once in a manylinux container, repairs its native
-libraries, and installs it and runs the Python test suite with CPython 3.12, 3.13, and 3.14. The wheel
-carries `manylinux_2_27_x86_64` and `manylinux_2_28_x86_64` tags.
+The release publishes the sdist and one wheel per platform. Each wheel is built against CPython's
+stable ABI (`cp312-abi3`), so it serves CPython 3.12 and later.
 
-The wheel also installs on CPython 3.15, but it is not tested there, because the pinned optional Gemmi
-0.7.4 package does not currently provide a usable CPython 3.15 wheel. Other operating systems and
-architectures are not yet qualified.
+| Platform | Wheel platform tag |
+| --- | --- |
+| Linux x86-64 | `manylinux_2_27_x86_64.manylinux_2_28_x86_64` |
+| Linux aarch64 | `manylinux_2_27_aarch64.manylinux_2_28_aarch64` |
+| macOS 14 or newer, Apple silicon | `macosx_14_0_arm64` |
+| Windows x86-64 | `win_amd64` |
+
+`.github/workflows/wheels.yml`, which CI also runs, builds the sdist once and each wheel from it on a
+runner of that platform with `cibuildwheel`. It repairs the native libraries, and installs the wheel and
+runs the Python test suite with CPython 3.12, 3.13, and 3.14. The build settings are in `pyproject.toml`.
+
+The wheels also install on CPython 3.15, but they are not tested there, because the pinned optional Gemmi
+0.7.4 package does not currently provide a usable CPython 3.15 wheel.
 
 ## Versions
 

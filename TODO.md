@@ -20,17 +20,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 ## Distribution
 
 - [ ] Publish the Figshare item before the ChargeFW publication.
-- [ ] Publish the Linux aarch64, macOS arm64, and Windows x86-64 wheels. They build and pass the wheel
-  tests in `.github/workflows/platforms.yml`, which runs only on the `platforms` branch. Remaining:
-  - Share one reusable wheel workflow between `ci.yml` and `release.yml`, pinning cibuildwheel once, and
-    delete `platforms.yml`.
-  - Build and test the new platforms in CI on every pull request.
-  - Build, check, and publish one wheel per platform in the release workflow.
-  - Set the macOS deployment target so that the build itself tags the wheel `macosx_14_0`; delocate
-    currently corrects the tag during repair.
-  - Document the platforms on the installation page, in RELEASING.md's wheel matrix, and in
-    CHANGELOG.md, together with the Windows command-line fix for names outside the system code page.
-  - Optionally add macOS x86-64 wheels.
 - [ ] Simplify Python source-build dependency staging and its loader handling once native external
   dependencies are qualified. The Python source build still downloads Gemmi and oneTBB and installs them
   next to the extension with the loader handling described in

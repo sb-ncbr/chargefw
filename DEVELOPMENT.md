@@ -184,8 +184,10 @@ pre-commit run --all-files
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
 pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
-`gcc-debug` with GCC 14, Python 3.12, and RDKit 2024.9 using the CTest command above. Update the pinned
-clang-format and Ruff versions in the workflow together with the local tools.
+`gcc-debug` with GCC 14, Python 3.12, and RDKit 2024.9 using the CTest command above. It also calls
+`.github/workflows/wheels.yml`, which builds and tests the wheel for every published platform, so the
+release workflow's requirement of a successful CI run covers all of them. Update the pinned clang-format
+and Ruff versions in the workflow together with the local tools.
 
 The per-commit job uses the oldest supported toolchain on purpose: development usually happens with a
 newer compiler and Python, which accept code that the oldest supported versions reject, so CI catches
@@ -261,10 +263,11 @@ version of an abandoned release is deactivated by hand.
 
 The C++ library and its native installation, including the native command line, are supported on Linux.
 The Python package, which includes its own `chargefw` command line, is supported wherever wheels are
-published. Linux x86-64 is required for both. Other platforms, such as Linux aarch64, macOS, or Windows,
-are welcome as wheels when they need no significant extra machinery, but they do not gate releases until
-their wheels are published; from then on, their CI build and tests do. Wheels and the native library are
-qualified separately.
+published: Linux x86-64 and aarch64, macOS arm64, and Windows x86-64 (see RELEASING.md). CI builds and
+tests every published wheel, so each platform gates releases. Further platforms are welcome as wheels
+when they need no significant extra machinery, and gate releases once their wheels are published. Intel
+Macs are not planned: macOS 26 is their last release. Wheels and the native library are qualified
+separately.
 
 Wheel builds set `CHARGEFW_BUILD_LIBRARY=OFF` in `pyproject.toml`: the extension and the packaged command
 line link the library objects, so the shared library and its installation are not built. Native builds
