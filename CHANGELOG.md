@@ -9,11 +9,14 @@
   [Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html) shows how
   to create an environment with a newer Python.
 - `pip install chargefw` also installs the `chargefw` command line.
+- Wheels are also published for Linux aarch64, macOS 14 or newer on Apple silicon, and Windows
+  x86-64. On Windows, the command line accepts file names that the system code page cannot represent.
 
 ### Distribution
 
-- The wheel contains the ChargeFW library in its Python extension and no longer ships a separate
-  `libchargefw_core.so`.
+- The wheel contains the ChargeFW library and Gemmi in its Python extension and command line, and no
+  longer ships separate `libchargefw_core.so` and `libgemmi_cpp.so` libraries. It is about a quarter
+  smaller.
 
 ### Building from source
 

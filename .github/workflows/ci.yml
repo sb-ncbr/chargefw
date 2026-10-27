@@ -62,3 +62,8 @@ jobs:
       - run: cmake --build build/gcc-debug
       - run: ctest --test-dir build/gcc-debug --output-on-failure -E '^cpptest$'
       - run: ccache --show-stats
+
+  # The release publishes these wheels, and the release workflow requires a successful run of this
+  # workflow on its commit.
+  wheels:
+    uses: ./.github/workflows/wheels.yml

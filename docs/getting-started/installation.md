@@ -2,8 +2,8 @@
 
 ## Python package
 
-You need Python 3.12 or newer on Linux x86-64. ChargeFW 3 is currently a pre-release, so tell pip to
-accept it with `--pre`:
+You need Python 3.12 or newer on Linux (x86-64 or aarch64), macOS 14 or newer on Apple silicon, or
+64-bit Windows. ChargeFW 3 is currently a pre-release, so tell pip to accept it with `--pre`:
 
 ```bash
 pip install --pre chargefw

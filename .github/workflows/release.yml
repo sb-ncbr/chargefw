@@ -54,28 +54,40 @@ jobs:
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" \
               --jq .total_count)" -gt 0
 
-  # Builds the sdist once, builds every wheel from it, and verifies the set before anything is published.
-  build:
+  # Builds the sdist once and every wheel from it, as CI does.
+  wheels:
     needs: qualify
+    uses: ./.github/workflows/wheels.yml
+
+  # Collects the files and verifies the set before anything is published.
+  build:
+    needs: wheels
     runs-on: ubuntu-26.04
-    timeout-minutes: 120
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: python -m pip install build cibuildwheel==3.4.1 twine
-      - run: python -m build --sdist --outdir dist
-      - name: Check the source distribution version
-        run: test -f "dist/chargefw-$VERSION.tar.gz"
-      - run: python -m cibuildwheel --platform linux --output-dir dist "dist/chargefw-$VERSION.tar.gz"
+      - run: python -m pip install twine
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
       - name: Check the artifact set
         run: |
           shopt -s nullglob
           artifacts=(dist/*)
-          test "${#artifacts[@]}" -eq 2
-          # One stable-ABI wheel serves CPython 3.12 and later.
-          test -f "dist/chargefw-$VERSION-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+          test "${#artifacts[@]}" -eq 5
+          test -f "dist/chargefw-$VERSION.tar.gz"
+          # One stable-ABI wheel per platform serves CPython 3.12 and later. auditwheel chooses the
+          # manylinux versions from the glibc symbols the binaries use, so they are not fixed here.
+          for platform in 'manylinux_*_x86_64' 'manylinux_*_aarch64' macosx_14_0_arm64 win_amd64; do
+              # shellcheck disable=SC2206 # The platform pattern must expand.
+              wheels=(dist/chargefw-"$VERSION"-cp312-abi3-$platform.whl)
+              test "${#wheels[@]}" -eq 1
+              test -f "${wheels[0]}"
+          done
       - name: Check the third-party notices
         run: |
           for wheel in dist/*.whl; do
@@ -84,7 +96,9 @@ jobs:
           done
       - run: python -m twine check --strict dist/*
       - name: Install a wheel and run a calculation
-        run: utils/release/smoke-test.sh "$VERSION" dist/chargefw-"$VERSION"-cp312-abi3-*.whl
+        run: >-
+          utils/release/smoke-test.sh "$VERSION"
+          dist/chargefw-"$VERSION"-cp312-abi3-manylinux_*_x86_64.whl
       - name: Write the checksum manifest
         run: (cd dist && LC_ALL=C sha256sum ./* | LC_ALL=C sort) > SHA256SUMS
       - uses: actions/upload-artifact@v7
