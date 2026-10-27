@@ -79,7 +79,6 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _parameters.py
     _payloads.py
     _cli.py
-    _resources.py
     _types.py
     calculation.py
     charges.py

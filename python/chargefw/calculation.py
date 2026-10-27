@@ -28,7 +28,6 @@ from ._chargefw import parameters as _native_parameters
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
 from ._payloads import CalculationProgressPayload
-from ._resources import default_parameter_directory
 from ._types import (
     CalculationPhase,
     Execution,
@@ -141,9 +140,7 @@ def _default_parameter_catalog() -> _native_parameters._NativeParameterCatalog:
         with _bundled_parameter_catalog_lock:
             if _bundled_parameter_catalog is not None:
                 return _bundled_parameter_catalog
-            _bundled_parameter_catalog = _native_parameters._load_parameter_catalog(
-                str(default_parameter_directory())
-            )
+            _bundled_parameter_catalog = _native_parameters._load_bundled_parameter_catalog()
     return _bundled_parameter_catalog
 
 
