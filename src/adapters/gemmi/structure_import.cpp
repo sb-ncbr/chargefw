@@ -62,6 +62,7 @@ struct ModelAtoms {
     auto result = std::vector<std::size_t>(references.size());
     // Intentionally not std::ranges::iota, which Apple's libc++ lacks (see "Platforms" in
     // DEVELOPMENT.md).
+    // NOLINTNEXTLINE(modernize-use-ranges)
     std::iota(result.begin(), result.end(), std::size_t{0});
     std::ranges::sort(result, {}, [&](const auto index) { return references[index].position; });
     for (std::size_t index = 1; index < result.size(); ++index) {

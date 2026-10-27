@@ -165,9 +165,11 @@ auto make_fixed_charge_partition(const core::MoleculeCollection& molecules,
             // Intentionally not std::ranges::iota, which Apple's libc++ lacks (see "Platforms" in
             // DEVELOPMENT.md).
             target.active_atom_indices.resize(source_molecule.atom_count());
+            // NOLINTNEXTLINE(modernize-use-ranges)
             std::iota(target.active_atom_indices.begin(), target.active_atom_indices.end(),
                       std::size_t{0});
             target.active_bond_indices.resize(source_molecule.bond_count());
+            // NOLINTNEXTLINE(modernize-use-ranges)
             std::iota(target.active_bond_indices.begin(), target.active_bond_indices.end(),
                       std::size_t{0});
             active_molecules.push_back(source_molecule);
