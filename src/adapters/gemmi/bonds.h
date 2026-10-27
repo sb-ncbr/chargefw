@@ -8,7 +8,7 @@
 #include <gemmi/model.hpp>
 
 namespace gemmi::cif {
-class Block;
+struct Block;
 }
 
 #include <cstdint>
