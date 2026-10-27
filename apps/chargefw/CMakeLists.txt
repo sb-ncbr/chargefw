@@ -27,6 +27,12 @@ target_link_libraries(chargefw_cli_objects
 
 target_include_directories(chargefw_cli_objects PRIVATE "${PROJECT_SOURCE_DIR}/src")
 
+# Both executables run with UTF-8 as their Windows code page; MSVC embeds a manifest listed among an
+# executable's sources.
+if(MSVC)
+    target_sources(chargefw_cli_objects INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/utf8.manifest")
+endif()
+
 if(CHARGEFW_BUILD_CLI)
     add_executable(chargefw_cli)
 
