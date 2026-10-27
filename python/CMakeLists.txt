@@ -111,13 +111,13 @@ set_target_properties(chargefw_python PROPERTIES
     OUTPUT_NAME _chargefw
     LIBRARY_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
     RUNTIME_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
-    BUILD_RPATH "$ORIGIN/../.."
-    INSTALL_RPATH "$ORIGIN"
+    BUILD_RPATH "${CHARGEFW_RUNTIME_ORIGIN}/../.."
+    INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
     INSTALL_RPATH_USE_LINK_PATH ON
 )
 target_link_libraries(chargefw_python PRIVATE chargefw::core)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
-target_link_options(chargefw_python PRIVATE "LINKER:--disable-new-dtags")
+chargefw_prefer_runtime_path(chargefw_python)
 
 if(CHARGEFW_ENABLE_WARNINGS)
     chargefw_enable_warnings(chargefw_python)

@@ -16,12 +16,15 @@ if(CHARGEFW_ENABLE_WARNINGS)
     chargefw_enable_warnings(chargefw_cli)
     # The CLI deliberately uses partial designated initialization for public aggregate result types;
     # omitted fields retain their default member initializers.
-    target_compile_options(chargefw_cli PRIVATE -Wno-missing-field-initializers)
+    if(NOT MSVC)
+        target_compile_options(chargefw_cli PRIVATE -Wno-missing-field-initializers)
+    endif()
 endif()
 
 target_link_libraries(chargefw_cli
         PRIVATE
         chargefw::core
+        chargefw_platform
         CLI11::CLI11
 )
 

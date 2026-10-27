@@ -1,4 +1,5 @@
 #include "cli_support.h"
+#include "platform/peak_memory.h"
 
 #include <chargefw/config.h>
 
@@ -10,7 +11,6 @@
 #include <print>
 #include <set>
 #include <stdexcept>
-#include <sys/resource.h>
 
 namespace chargefw::cli {
 namespace {
@@ -90,11 +90,7 @@ auto utc_timestamp() -> std::string {
 }
 
 auto peak_resident_memory_mb() -> double {
-    rusage usage{};
-    if (getrusage(RUSAGE_SELF, &usage) != 0) {
-        return 0.0;
-    }
-    return static_cast<double>(usage.ru_maxrss) / 1024.0;
+    return static_cast<double>(platform::peak_resident_memory_bytes()) / (1024.0 * 1024.0);
 }
 
 auto make_requested_provenance(const calculation::AssessmentRequest& request,

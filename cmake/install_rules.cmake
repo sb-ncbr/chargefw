@@ -2,22 +2,18 @@
 # directories; libraries built within this project are found relative to the installation.
 set_target_properties(chargefw_core
         PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
+        INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
         INSTALL_RPATH_USE_LINK_PATH ON
 )
-
-# Prefer the installed dependency copies over same-named libraries from
-# LD_LIBRARY_PATH. This is important for fetched dependencies such as Gemmi,
-# whose unversioned SONAME can collide with another installation.
-target_link_options(chargefw_core PRIVATE "LINKER:--disable-new-dtags")
+chargefw_prefer_runtime_path(chargefw_core)
 
 if(TARGET chargefw_cli)
     set_target_properties(chargefw_cli
             PROPERTIES
-            INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}"
+            INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}/../${CMAKE_INSTALL_LIBDIR}"
             INSTALL_RPATH_USE_LINK_PATH ON
     )
-    target_link_options(chargefw_cli PRIVATE "LINKER:--disable-new-dtags")
+    chargefw_prefer_runtime_path(chargefw_cli)
 endif()
 
 install(

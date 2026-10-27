@@ -42,6 +42,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 include(cmake/dependencies.cmake)
 include(cmake/developer_tools.cmake)
 include(cmake/optimization.cmake)
+include(cmake/runtime_paths.cmake)
 include(cmake/warnings.cmake)
 include(cmake/sanitizers.cmake)
 
@@ -75,7 +76,7 @@ target_link_libraries(chargefw_core
     $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
     $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
     TBB::tbb
-    $<BUILD_LOCAL_INTERFACE:${CMAKE_DL_LIBS}>
+    $<BUILD_LOCAL_INTERFACE:chargefw_platform>
 )
 
 target_compile_definitions(chargefw_core
