@@ -10,6 +10,24 @@
   to create an environment with a newer Python.
 - `pip install chargefw` also installs the `chargefw` command line.
 
+### Distribution
+
+- The wheel contains the ChargeFW library in its Python extension and no longer ships a separate
+  `libchargefw_core.so`.
+
+### Building from source
+
+- The new CMake option `CHARGEFW_BUILD_LIBRARY`, on by default, builds and installs the shared C++
+  library. The library and its installation are supported on Linux; on Windows, CMake stops with an
+  explanation and points to the Python package instead.
+- ChargeFW compiles with Clang and libc++ 19 or newer, including Apple Clang from Xcode 16.4 and 26.1.
+
+### Python
+
+- The type aliases in `chargefw.core` and `chargefw.io`, such as `chargefw.io.InputFormat`, are defined
+  with the `type` statement. Type checkers treat them as before; at run time, `typing.get_args()` needs
+  the alias's `__value__`, for example `typing.get_args(chargefw.io.InputFormat.__value__)`.
+
 ## 3.0.0a3
 
 ### Documentation
