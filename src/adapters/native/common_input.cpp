@@ -2,6 +2,8 @@
 
 #include <chargefw/core/molecule.h>
 
+#include <gemmi/atof.hpp>
+
 #include <charconv>
 #include <stdexcept>
 #include <string>
@@ -51,19 +53,18 @@ auto parse_trimmed_int(const std::string_view value, const std::string_view fiel
 }
 
 auto parse_double(const std::string_view value, const std::string_view field) -> double {
-    auto token = trim(value);
-
-    if (token.starts_with('+')) {
-        token.remove_prefix(1);
-    }
+    const auto token = trim(value);
 
     if (token.empty()) {
         throw std::runtime_error{"invalid " + std::string{field}};
     }
 
+    // Intentionally not std::from_chars: Apple's libc++ provides it for floating-point values only
+    // from macOS 26 (see "Platforms" in DEVELOPMENT.md). Gemmi's locale-independent equivalent also
+    // accepts one leading '+'.
     double result = 0.0;
-    const auto [end, error] = std::from_chars(token.data(), token.data() + token.size(), result,
-                                              std::chars_format::general);
+    const auto [end, error] =
+        gemmi::fast_from_chars(token.data(), token.data() + token.size(), result);
 
     if (error != std::errc{} || end != token.data() + token.size()) {
         throw std::runtime_error{"invalid " + std::string{field}};

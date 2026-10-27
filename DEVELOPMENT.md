@@ -270,9 +270,13 @@ place that selects one; the rest of the code calls `chargefw::platform` without 
 Platform build settings are in `cmake/`: runtime search paths and the ELF-only `--disable-new-dtags` in
 `runtime_paths.cmake`, and compiler-specific warning flags in `warnings.cmake`.
 
-Clang builds against libc++ need libc++ 21 or newer for `std::ranges::iota` and floating-point
-`std::from_chars`. The libc++ in Xcode 26.1 is older, so builds using Xcode 26.1 need a separate LLVM
-toolchain.
+macOS builds use Xcode's compiler and Apple's libc++, whose runtime is part of macOS. Two C++ library
+features are therefore avoided, each with a comment where it would be used: `std::ranges::iota`, which
+the libc++ in Xcode 26.1 lacks, is written as `std::iota`, and floating-point `std::from_chars`, which
+Apple's libc++ provides only from macOS 26, is replaced by `gemmi::fast_from_chars`. The oldest
+supported macOS is then 13.3, the first with floating-point `std::format`. Restore `std::ranges::iota`
+once the Xcode used for the wheels provides it, and `std::from_chars` once the oldest supported macOS is
+26. New C++ library features need the same check against Apple's libc++.
 
 ## Architecture
 
