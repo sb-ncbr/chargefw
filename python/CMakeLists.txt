@@ -193,3 +193,12 @@ if(TARGET tbb)
         RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
     )
 endif()
+
+# A Windows system need not have Microsoft's C++ runtime, or a version as new as the compiler's. Install
+# the compiler's own runtime DLLs beside the extension and the command line, which both load DLLs from
+# their own directory.
+if(MSVC)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY})
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT python)
+    include(InstallRequiredSystemLibraries)
+endif()

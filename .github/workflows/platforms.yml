@@ -37,8 +37,9 @@ jobs:
       # Wheel tags record only the major macOS version, and the code needs 13.3 (DEVELOPMENT.md).
       CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=14.0
       CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
-      # Gemmi and oneTBB are already installed beside the extension and the command line; only their
-      # dependencies, and those of the command-line executable, need to be found and bundled.
+      # Gemmi, oneTBB, and Microsoft's C++ runtime are already installed beside the extension and the
+      # command line (python/CMakeLists.txt); the repair checks for and bundles any remaining
+      # dependencies.
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
         delvewheel repair --ignore-existing --analyze-existing --analyze-existing-exes
         -w "{dest_dir}" "{wheel}"
