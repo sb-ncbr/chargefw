@@ -1,4 +1,4 @@
-target_sources(chargefw_core
+target_sources(chargefw_core_objects
         PRIVATE
         atom_parameters.cpp
         bond_parameters.cpp

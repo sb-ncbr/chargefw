@@ -19,14 +19,19 @@ endif()
 install(
         TARGETS chargefw_core
         EXPORT chargefwTargets
-        FILE_SET HEADERS
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         ARCHIVE
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# The public headers are registered with the objects the library is built from.
+install(
+        TARGETS chargefw_core_objects
+        FILE_SET HEADERS
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 install(

@@ -111,11 +111,12 @@ set_target_properties(chargefw_python PROPERTIES
     OUTPUT_NAME _chargefw
     LIBRARY_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
     RUNTIME_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
-    BUILD_RPATH "${CHARGEFW_RUNTIME_ORIGIN}/../.."
     INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
     INSTALL_RPATH_USE_LINK_PATH ON
 )
-target_link_libraries(chargefw_python PRIVATE chargefw::core)
+# The extension contains the ChargeFW library itself, so a wheel needs no separate ChargeFW library and
+# Windows needs no exported symbols from one.
+target_link_libraries(chargefw_python PRIVATE chargefw_core_objects)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
 chargefw_prefer_runtime_path(chargefw_python)
 
@@ -131,8 +132,6 @@ if(CHARGEFW_ENABLE_UBSAN)
     chargefw_enable_sanitizer(chargefw_python undefined)
 endif()
 
-# A wheel needs the library beside the private extension. The ordinary native installation remains in
-# ${CMAKE_INSTALL_LIBDIR}; this additional copy exists only when Python support is requested.
 install(TARGETS chargefw_python
     LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
     RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
@@ -157,11 +156,8 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/parameters/"
         DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/_data/parameters
         COMPONENT python
         FILES_MATCHING PATTERN "*.json")
-install(TARGETS chargefw_core
-    LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-    RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-)
-
+# Fetched dependency libraries are installed beside the extension, which finds them through its
+# runtime search path.
 if(TARGET gemmi_cpp)
     install(TARGETS gemmi_cpp
         LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python

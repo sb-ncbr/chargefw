@@ -49,6 +49,53 @@ include(cmake/sanitizers.cmake)
 chargefw_setup_dependencies()
 chargefw_setup_developer_tools()
 
+# The library sources are compiled once. The installed shared library is built from these objects, and
+# the Python extension links them directly, so wheels contain no separate ChargeFW library.
+add_library(chargefw_core_objects OBJECT)
+set_target_properties(chargefw_core_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_compile_features(chargefw_core_objects
+  PUBLIC
+    cxx_std_23
+)
+
+target_include_directories(chargefw_core_objects
+  PRIVATE
+    src
+
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
+)
+
+target_link_libraries(chargefw_core_objects
+  PUBLIC
+    nlohmann_json::nlohmann_json
+    gemmi::gemmi_cpp
+  PRIVATE
+    $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
+    $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
+    TBB::tbb
+    $<BUILD_LOCAL_INTERFACE:chargefw_platform>
+)
+
+target_compile_definitions(chargefw_core_objects
+  PRIVATE
+    EIGEN_DONT_PARALLELIZE
+)
+
+chargefw_enable_optimizations(chargefw_core_objects)
+
+configure_file(
+  ${PROJECT_SOURCE_DIR}/include/chargefw/config.h.in
+  ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
+  @ONLY
+)
+
+if(CHARGEFW_ENABLE_WARNINGS)
+  chargefw_enable_warnings(chargefw_core_objects)
+endif()
+
 add_library(chargefw_core SHARED)
 add_library(chargefw::core ALIAS chargefw_core)
 set_target_properties(chargefw_core PROPERTIES EXPORT_NAME core)
@@ -59,9 +106,6 @@ target_compile_features(chargefw_core
 )
 
 target_include_directories(chargefw_core
-  PRIVATE
-    src
-
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
@@ -73,36 +117,20 @@ target_link_libraries(chargefw_core
     nlohmann_json::nlohmann_json
     gemmi::gemmi_cpp
   PRIVATE
-    $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
-    $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
-    TBB::tbb
-    $<BUILD_LOCAL_INTERFACE:chargefw_platform>
+    $<BUILD_LOCAL_INTERFACE:chargefw_core_objects>
 )
 
-target_compile_definitions(chargefw_core
-  PRIVATE
-    EIGEN_DONT_PARALLELIZE
-)
+# Sanitizer options are public: the objects need them to compile, and programs linking the library need
+# them to link.
+foreach(target IN ITEMS chargefw_core_objects chargefw_core)
+  if(CHARGEFW_ENABLE_ASAN)
+    chargefw_enable_sanitizer(${target} address)
+  endif()
 
-chargefw_enable_optimizations(chargefw_core)
-
-configure_file(
-  ${PROJECT_SOURCE_DIR}/include/chargefw/config.h.in
-  ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
-  @ONLY
-)
-
-if(CHARGEFW_ENABLE_WARNINGS)
-  chargefw_enable_warnings(chargefw_core)
-endif()
-
-if(CHARGEFW_ENABLE_ASAN)
-  chargefw_enable_sanitizer(chargefw_core address)
-endif()
-
-if(CHARGEFW_ENABLE_UBSAN)
-  chargefw_enable_sanitizer(chargefw_core undefined)
-endif()
+  if(CHARGEFW_ENABLE_UBSAN)
+    chargefw_enable_sanitizer(${target} undefined)
+  endif()
+endforeach()
 
 add_subdirectory(src)
 

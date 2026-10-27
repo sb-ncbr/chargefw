@@ -1,4 +1,4 @@
-target_sources(chargefw_core
+target_sources(chargefw_core_objects
         PRIVATE
         method_options.cpp
         method_registry.cpp
