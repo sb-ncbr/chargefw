@@ -7,6 +7,7 @@
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/features/spatial_fragment.h>
 
+#include <algorithm>
 #include <limits>
 #include <ranges>
 #include <stdexcept>

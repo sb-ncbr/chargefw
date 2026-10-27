@@ -1,6 +1,7 @@
 #include <chargefw/core/bond.h>
 
 #include <stdexcept>
+#include <string>
 
 namespace chargefw::core {
 namespace {

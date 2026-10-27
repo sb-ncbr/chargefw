@@ -9,6 +9,7 @@
 
 #include <snitch/snitch.hpp>
 
+#include <algorithm>
 #include <ranges>
 #include <stdexcept>
 #include <string>
