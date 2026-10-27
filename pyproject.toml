@@ -43,6 +43,7 @@ wheel.license-files = ["LICENSE", "licenses/**/*"]
 
 [tool.scikit-build.cmake.define]
 CMAKE_INTERPROCEDURAL_OPTIMIZATION = "ON"
+CHARGEFW_BUILD_LIBRARY = "OFF"
 CHARGEFW_BUILD_CLI = "OFF"
 CHARGEFW_BUILD_PYTHON = "ON"
 CHARGEFW_BUILD_TESTS = "OFF"

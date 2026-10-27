@@ -259,10 +259,17 @@ version of an abandoned release is deactivated by hand.
 
 ## Platforms
 
-Linux x86-64 is the required platform for the wheels, the C++ library, and the command line. Other
-platforms, such as Linux aarch64, macOS, or Windows, are welcome when they need no significant extra
-machinery, but they do not gate releases until their wheels are published; from then on, their CI build
-and tests do. Wheels and the native library are qualified separately.
+The C++ library and its native installation, including the native command line, are supported on Linux.
+The Python package, which includes its own `chargefw` command line, is supported wherever wheels are
+published. Linux x86-64 is required for both. Other platforms, such as Linux aarch64, macOS, or Windows,
+are welcome as wheels when they need no significant extra machinery, but they do not gate releases until
+their wheels are published; from then on, their CI build and tests do. Wheels and the native library are
+qualified separately.
+
+Wheel builds set `CHARGEFW_BUILD_LIBRARY=OFF` in `pyproject.toml`: the extension and the packaged command
+line link the library objects, so the shared library and its installation are not built. Native builds
+on macOS work for development but are not supported. CMake refuses them on Windows, because the library
+exports no symbols for a DLL.
 
 Operating-system calls live in `src/platform/`. Each platform directory (`linux/`, `macos/`, `windows/`)
 implements the headers there under the same file names, and `src/platform/CMakeLists.txt` is the only
