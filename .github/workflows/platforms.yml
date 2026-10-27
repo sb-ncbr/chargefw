@@ -25,13 +25,13 @@ jobs:
         include:
           - name: Linux aarch64
             runner: ubuntu-24.04-arm
-            build: cp31[1-4]-manylinux_aarch64
+            build: cp31[2-4]-manylinux_aarch64
           - name: Windows x86-64
             runner: windows-2025
-            build: cp31[1-4]-win_amd64
+            build: cp31[2-4]-win_amd64
           - name: macOS arm64
             runner: macos-15
-            build: cp31[1-4]-macosx_arm64
+            build: cp31[2-4]-macosx_arm64
     env:
       CIBW_BUILD: ${{ matrix.build }}
       # Wheel tags record only the major macOS version, and the code needs 13.3 (DEVELOPMENT.md).

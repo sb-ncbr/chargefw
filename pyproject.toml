@@ -7,7 +7,7 @@ name = "chargefw"
 dynamic = ["version"]
 description = "Empirical partial atomic charge calculation framework"
 readme = "python/README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = ["numpy>=2.0"]
 license = { text = "MIT" }
 authors = [{ name = "ChargeFW contributors" }]
@@ -39,6 +39,8 @@ build.verbose = false
 logging.level = "WARNING"
 install.components = ["python"]
 wheel.packages = ["python/chargefw"]
+# One wheel for CPython 3.12 and later, built against the stable ABI.
+wheel.py-api = "cp312"
 wheel.license-files = ["LICENSE", "licenses/**/*"]
 
 [tool.scikit-build.cmake.define]
@@ -51,7 +53,7 @@ CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS = "OFF"
 CHARGEFW_FETCH_DEPENDENCIES = "ON"
 
 [tool.cibuildwheel]
-build = "cp31[1-4]-manylinux_x86_64"
+build = "cp31[2-4]-manylinux_x86_64"
 config-settings = { "cmake.define.CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS" = "OFF" }
 test-requires = ["pytest", "jsonschema"]
 test-extras = "gemmi"

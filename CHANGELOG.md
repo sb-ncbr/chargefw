@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Installation
+
+- ChargeFW requires Python 3.12 or newer. One wheel serves all of them, including Python versions
+  released later. On Python 3.11, pip installs an older ChargeFW release instead;
+  [Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html) shows how
+  to create an environment with a newer Python.
+- `pip install chargefw` also installs the `chargefw` command line.
+
 ## 3.0.0a3
 
 ### Documentation

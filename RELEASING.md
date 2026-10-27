@@ -7,12 +7,14 @@ then creates the GitHub Release and pushes the CLI image to Docker Hub.
 
 ## Current wheel matrix
 
-The current release target is CPython 3.11 through 3.14 on Linux x86-64. `cibuildwheel` builds each wheel
-in a manylinux container, repairs its native libraries, installs it, and runs the Python test suite. The
-resulting wheels carry `manylinux_2_27_x86_64` and `manylinux_2_28_x86_64` tags.
+The release target is one Linux x86-64 wheel built against CPython's stable ABI (`cp312-abi3`), which
+serves CPython 3.12 and later. `cibuildwheel` builds it once in a manylinux container, repairs its native
+libraries, and installs it and runs the Python test suite with CPython 3.12, 3.13, and 3.14. The wheel
+carries `manylinux_2_27_x86_64` and `manylinux_2_28_x86_64` tags.
 
-CPython 3.15 is not included because the pinned optional Gemmi 0.7.4 package does not currently provide a
-usable CPython 3.15 wheel. Other operating systems and architectures are not yet qualified.
+The wheel also installs on CPython 3.15, but it is not tested there, because the pinned optional Gemmi
+0.7.4 package does not currently provide a usable CPython 3.15 wheel. Other operating systems and
+architectures are not yet qualified.
 
 ## Versions
 

@@ -1,7 +1,12 @@
 if(CHARGEFW_PYTHON_EXECUTABLE)
     set(Python_EXECUTABLE "${CHARGEFW_PYTHON_EXECUTABLE}")
 endif()
-find_package(Python 3.11 REQUIRED COMPONENTS Interpreter Development.Module)
+# The extension uses CPython's stable ABI, so one build serves 3.12 and later. Interpreters without it,
+# such as free-threaded builds, get a version-specific extension instead.
+find_package(Python 3.12 REQUIRED
+    COMPONENTS Interpreter Development.Module
+    OPTIONAL_COMPONENTS Development.SABIModule
+)
 set(CHARGEFW_RESOLVED_PYTHON_EXECUTABLE "${Python_EXECUTABLE}" PARENT_SCOPE)
 if(SKBUILD)
     set(CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY "chargefw")
@@ -99,7 +104,7 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
 endforeach()
 configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.typed" COPYONLY)
 
-nanobind_add_module(chargefw_python NB_STATIC NB_SUPPRESS_WARNINGS
+nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
     src/adapters.cpp
     src/calculation.cpp
     src/core.cpp

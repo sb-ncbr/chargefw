@@ -73,10 +73,9 @@ jobs:
         run: |
           shopt -s nullglob
           artifacts=(dist/*)
-          test "${#artifacts[@]}" -eq 5
-          for tag in 311 312 313 314; do
-              test -f "dist/chargefw-$VERSION-cp$tag-cp$tag-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
-          done
+          test "${#artifacts[@]}" -eq 2
+          # One stable-ABI wheel serves CPython 3.12 and later.
+          test -f "dist/chargefw-$VERSION-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
       - name: Check the third-party notices
         run: |
           for wheel in dist/*.whl; do
@@ -85,7 +84,7 @@ jobs:
           done
       - run: python -m twine check --strict dist/*
       - name: Install a wheel and run a calculation
-        run: utils/release/smoke-test.sh "$VERSION" dist/chargefw-"$VERSION"-cp314-cp314-*.whl
+        run: utils/release/smoke-test.sh "$VERSION" dist/chargefw-"$VERSION"-cp312-abi3-*.whl
       - name: Write the checksum manifest
         run: (cd dist && LC_ALL=C sha256sum ./* | LC_ALL=C sort) > SHA256SUMS
       - uses: actions/upload-artifact@v7

@@ -12,7 +12,7 @@ checksum-verified dependency sources. CI and the compatibility containers build 
 packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
 The supported versions are listed in [the C++ page](docs/interfaces/cpp.md#build-and-link).
 
-The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.11 or
+The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.12 or
 newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and
 mypy. RDKit is optional; its tests are skipped when it is absent. The presets use `/usr/bin/python3`;
 select another interpreter explicitly when needed:
@@ -184,7 +184,7 @@ pre-commit run --all-files
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
 pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
-`gcc-debug` with GCC 14, Python 3.11, and RDKit 2024.9 using the CTest command above. Update the pinned
+`gcc-debug` with GCC 14, Python 3.12, and RDKit 2024.9 using the CTest command above. Update the pinned
 clang-format and Ruff versions in the workflow together with the local tools.
 
 The per-commit job uses the oldest supported toolchain on purpose: development usually happens with a

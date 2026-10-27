@@ -2,15 +2,25 @@
 
 ## Python package
 
-You need Python 3.11 or newer on Linux x86-64. ChargeFW 3 is currently a pre-release, so tell pip to
+You need Python 3.12 or newer on Linux x86-64. ChargeFW 3 is currently a pre-release, so tell pip to
 accept it with `--pre`:
 
 ```bash
 pip install --pre chargefw
 ```
 
-Without `--pre`, pip installs 0.1.7, the last release of the previous series. Wheels are published for
-CPython 3.11 to 3.14, and pip installs NumPy 2.0 or newer with them.
+Without `--pre`, pip installs 0.1.7, the last release of the previous series. One wheel serves CPython
+3.12 and newer, and pip installs NumPy 2.0 or newer with it.
+
+On Python 3.11, pip reports no error but installs an older ChargeFW release. If your system Python is
+3.11, as on Debian 12, create an environment with a newer Python. [uv](https://docs.astral.sh/uv/)
+downloads one for you:
+
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install --pre chargefw
+```
 
 Reading and writing Gemmi structures, and converting RDKit molecules, need the optional extras:
 
