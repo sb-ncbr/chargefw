@@ -3,7 +3,7 @@
 import argparse
 import hashlib
 import json
-import sys
+import platform
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -69,14 +69,18 @@ def main():
         raise SystemExit(f"{args.index} does not yet list: {', '.join(missing)}")
     else:
         # The index hashes were compared with the manifest above; check the downloaded bytes too.
-        tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+        # One stable-ABI wheel per platform serves every supported CPython; take this machine's.
+        suffix = f"_{platform.machine()}.whl"
         wheels = [
             entry
             for name, entry in remote.items()
-            if name.endswith(".whl") and f"-{tag}-{tag}-" in name
+            if "-abi3-manylinux" in name and name.endswith(suffix)
         ]
         if len(wheels) != 1:
-            raise SystemExit(f"expected one {tag} wheel on {args.index}, found {len(wheels)}")
+            raise SystemExit(
+                f"expected one stable-ABI Linux {platform.machine()} wheel on {args.index}, "
+                f"found {len(wheels)}"
+            )
         content = fetch(wheels[0]["url"], timeout=120)
         if hashlib.sha256(content).hexdigest() != wheels[0]["digests"]["sha256"]:
             raise SystemExit("the downloaded wheel does not match its index SHA-256")
