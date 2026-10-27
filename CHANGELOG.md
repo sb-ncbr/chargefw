@@ -14,8 +14,9 @@
 
 ### Distribution
 
-- The wheel contains the ChargeFW library in its Python extension and no longer ships a separate
-  `libchargefw_core.so`.
+- The wheel contains the ChargeFW library and Gemmi in its Python extension and command line, and no
+  longer ships separate `libchargefw_core.so` and `libgemmi_cpp.so` libraries. It is about a quarter
+  smaller.
 
 ### Building from source
 

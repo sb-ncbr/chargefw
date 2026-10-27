@@ -31,11 +31,13 @@ ChargeFW has three build paths, each with its own dependency rules:
   installation contains only ChargeFW's own files; with them, it also contains the nlohmann/json and
   Gemmi development packages and the oneTBB runtime.
 - **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
-  checksum-verified sources, as set in `pyproject.toml`, and install the fetched Gemmi and oneTBB
-  libraries next to the extension, which finds them through relative runtime search paths (`$ORIGIN` on
-  Linux, `@loader_path` on macOS); Windows loads DLLs from the extension's directory. On Linux,
-  `--disable-new-dtags` makes these copies win over same-named libraries from `LD_LIBRARY_PATH`;
-  Gemmi's library name carries no version. This path never runs wheel repair.
+  checksum-verified sources, as set in `pyproject.toml`. They link Gemmi statically into the extension
+  and the packaged command line, because its library name carries no version and could meet another
+  copy in the same process. oneTBB stays a shared library, installed once next to them under its
+  interface version (`libtbb.so.12`); they find it through relative runtime search paths (`$ORIGIN` on
+  Linux, `@loader_path` on macOS), and Windows loads DLLs from the extension's directory. On Linux,
+  `--disable-new-dtags` makes this copy win over a same-named library from `LD_LIBRARY_PATH`. This path
+  never runs wheel repair.
 - **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
   [RELEASING.md](RELEASING.md).
 

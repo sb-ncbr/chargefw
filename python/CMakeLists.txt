@@ -183,18 +183,24 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/parameters/"
         DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}
         COMPONENT python
         FILES_MATCHING PATTERN "*.json")
-# Fetched dependency libraries are installed beside the extension, which finds them through its
-# runtime search path.
+# Fetched shared libraries are installed beside the extension, which finds them through its runtime
+# search path. Package builds link Gemmi statically (cmake/dependencies.cmake); builds that also produce
+# the native library share its Gemmi.
 if(TARGET gemmi_cpp)
-    install(TARGETS gemmi_cpp
-        LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-        RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-    )
+    get_target_property(CHARGEFW_GEMMI_TYPE gemmi_cpp TYPE)
+    if(CHARGEFW_GEMMI_TYPE STREQUAL "SHARED_LIBRARY")
+        install(TARGETS gemmi_cpp
+            LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
+            RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
+        )
+    endif()
 endif()
 
+# Package builds name oneTBB with a single file (cmake/dependencies.cmake); the development link is not
+# needed at run time.
 if(TARGET tbb)
     install(TARGETS tbb
-        LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
+        LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python NAMELINK_SKIP
         RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
     )
 endif()

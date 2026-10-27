@@ -20,12 +20,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 ## Distribution
 
 - [ ] Publish the Figshare item before the ChargeFW publication.
-- [ ] Simplify Python source-build dependency staging and its loader handling once native external
-  dependencies are qualified. The Python source build still downloads Gemmi and oneTBB and installs them
-  next to the extension with the loader handling described in
-  [DEVELOPMENT.md](DEVELOPMENT.md#dependencies). Decide, for example, between a static Gemmi and
-  dependencies staged for wheel repair, and remove the custom loader rules once the replacement passes
-  the source-build and wheel tests.
 
 ## Integrations
 

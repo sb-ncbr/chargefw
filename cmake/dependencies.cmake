@@ -90,6 +90,12 @@ function(chargefw_setup_dependencies)
                 URL_HASH SHA256=191288b52e1e6b17198000b64d77d194bb65e791be46ebc606e9b091781e2070
         )
         FetchContent_MakeAvailable(onetbb)
+        # A wheel stores each of a library's file names as a separate copy. Name the Python package's
+        # oneTBB after its interface version only, so a single file serves the extension.
+        if(NOT CHARGEFW_BUILD_LIBRARY)
+            get_target_property(tbb_soversion tbb SOVERSION)
+            set_target_properties(tbb PROPERTIES VERSION ${tbb_soversion})
+        endif()
     endif()
 
     if(NOT CHARGEFW_FETCH_DEPENDENCIES)
@@ -98,8 +104,11 @@ function(chargefw_setup_dependencies)
     else()
         set(CHARGEFW_GEMMI_VERSION 0.7.4 PARENT_SCOPE)
         set(BUILD_GEMMI_PROGRAM OFF)
-        set(BUILD_SHARED_LIBS ON)
-        set(INSTALL_DEV_FILES ON)
+        # Native installations ship Gemmi as a shared library, because Gemmi types appear in ChargeFW's
+        # public headers. The Python package links it into the extension and the command line, so it
+        # cannot meet another library of the same unversioned name in one process.
+        set(BUILD_SHARED_LIBS ${CHARGEFW_BUILD_LIBRARY})
+        set(INSTALL_DEV_FILES ${CHARGEFW_BUILD_LIBRARY})
         set(CHARGEFW_GEMMI_FETCHED ON PARENT_SCOPE)
         FetchContent_Declare(
                 gemmi
