@@ -7,7 +7,7 @@ name = "chargefw"
 dynamic = ["version"]
 description = "Empirical partial atomic charge calculation framework"
 readme = "python/README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = ["numpy>=2.0"]
 license = { text = "MIT" }
 authors = [{ name = "ChargeFW contributors" }]
@@ -29,6 +29,9 @@ Repository = "https://github.com/sb-ncbr/chargefw"
 gemmi = ["gemmi==0.7.4"]
 rdkit = ["rdkit>=2024.9"]
 
+[project.scripts]
+chargefw = "chargefw._cli:main"
+
 [tool.scikit-build]
 minimum-version = "build-system.requires"
 build-dir = "build/python/{wheel_tag}"
@@ -36,10 +39,13 @@ build.verbose = false
 logging.level = "WARNING"
 install.components = ["python"]
 wheel.packages = ["python/chargefw"]
+# One wheel for CPython 3.12 and later, built against the stable ABI.
+wheel.py-api = "cp312"
 wheel.license-files = ["LICENSE", "licenses/**/*"]
 
 [tool.scikit-build.cmake.define]
 CMAKE_INTERPROCEDURAL_OPTIMIZATION = "ON"
+CHARGEFW_BUILD_LIBRARY = "OFF"
 CHARGEFW_BUILD_CLI = "OFF"
 CHARGEFW_BUILD_PYTHON = "ON"
 CHARGEFW_BUILD_TESTS = "OFF"
@@ -47,7 +53,7 @@ CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS = "OFF"
 CHARGEFW_FETCH_DEPENDENCIES = "ON"
 
 [tool.cibuildwheel]
-build = "cp31[1-4]-manylinux_x86_64"
+build = "cp31[2-4]-manylinux_x86_64"
 config-settings = { "cmake.define.CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS" = "OFF" }
 test-requires = ["pytest", "jsonschema"]
 test-extras = "gemmi"
@@ -63,13 +69,17 @@ result = "{numeric}{suffix}"
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
 
+[tool.mypy]
+# Check against the oldest supported Python, whichever interpreter runs mypy.
+python_version = "3.12"
+
 [[tool.mypy.overrides]]
 module = ["jsonschema"]
 follow_untyped_imports = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["C4", "E4", "E7", "E9", "F", "I", "SIM", "UP"]

@@ -17,14 +17,19 @@ set(CHARGEFW_VERSION "${PROJECT_VERSION}${CHARGEFW_VERSION_SUFFIX}")
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+# The bundled parameter sets relative to the file that contains the library code: the shared library in
+# a native installation, or the extension and command line in the Python package.
 file(RELATIVE_PATH CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY
   "${CMAKE_INSTALL_FULL_LIBDIR}"
   "${CMAKE_INSTALL_FULL_DATADIR}/chargefw/parameters"
 )
+set(CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE "_data/parameters")
 
 option(CHARGEFW_ENABLE_CCACHE "Use ccache if available" ON)
 option(CHARGEFW_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
-option(CHARGEFW_BUILD_CLI "Build the chargefw command-line application" ${PROJECT_IS_TOP_LEVEL})
+option(CHARGEFW_BUILD_LIBRARY "Build and install the shared C++ library (supported on Linux)" ON)
+option(CHARGEFW_BUILD_CLI "Build the native chargefw command line, which links the shared library"
+       ${PROJECT_IS_TOP_LEVEL})
 option(CHARGEFW_BUILD_PYTHON "Build the ChargeFW Python extension" OFF)
 set(CHARGEFW_PYTHON_EXECUTABLE "" CACHE FILEPATH
     "Python interpreter for ChargeFW bindings (empty uses CMake discovery)")
@@ -36,38 +41,57 @@ option(CHARGEFW_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(CHARGEFW_ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
 option(CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS "Optimize for the build host CPU" ON)
 
+if(NOT CHARGEFW_BUILD_LIBRARY AND (CHARGEFW_BUILD_CLI OR CHARGEFW_BUILD_TESTS))
+  message(FATAL_ERROR
+    "The native command line and the tests link the shared C++ library; "
+    "enable CHARGEFW_BUILD_LIBRARY or disable CHARGEFW_BUILD_CLI and CHARGEFW_BUILD_TESTS.")
+endif()
+
+# The library exports no symbols for a Windows DLL. Windows gets the Python package, which contains its
+# own command line.
+if(WIN32 AND CHARGEFW_BUILD_LIBRARY)
+  message(FATAL_ERROR
+    "The C++ library is supported on Linux. On Windows, build the Python package with pip, "
+    "which includes the command line.")
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
+# The Visual Studio generator compiles the sources of one target sequentially unless /MP is set. It
+# applies to the fetched dependencies as well, which are added below.
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 include(cmake/dependencies.cmake)
 include(cmake/developer_tools.cmake)
 include(cmake/optimization.cmake)
+include(cmake/runtime_paths.cmake)
 include(cmake/warnings.cmake)
 include(cmake/sanitizers.cmake)
 
 chargefw_setup_dependencies()
 chargefw_setup_developer_tools()
 
-add_library(chargefw_core SHARED)
-add_library(chargefw::core ALIAS chargefw_core)
-set_target_properties(chargefw_core PROPERTIES EXPORT_NAME core)
+# The library sources are compiled once. The installed shared library is built from these objects, and
+# the Python extension links them directly, so wheels contain no separate ChargeFW library.
+add_library(chargefw_core_objects OBJECT)
+set_target_properties(chargefw_core_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-target_compile_features(chargefw_core
+target_compile_features(chargefw_core_objects
   PUBLIC
     cxx_std_23
 )
 
-target_include_directories(chargefw_core
+target_include_directories(chargefw_core_objects
   PRIVATE
     src
 
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_link_libraries(chargefw_core
+target_link_libraries(chargefw_core_objects
   PUBLIC
     nlohmann_json::nlohmann_json
     gemmi::gemmi_cpp
@@ -75,15 +99,15 @@ target_link_libraries(chargefw_core
     $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
     $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
     TBB::tbb
-    $<BUILD_LOCAL_INTERFACE:${CMAKE_DL_LIBS}>
+    $<BUILD_LOCAL_INTERFACE:chargefw_platform>
 )
 
-target_compile_definitions(chargefw_core
+target_compile_definitions(chargefw_core_objects
   PRIVATE
     EIGEN_DONT_PARALLELIZE
 )
 
-chargefw_enable_optimizations(chargefw_core)
+chargefw_enable_optimizations(chargefw_core_objects)
 
 configure_file(
   ${PROJECT_SOURCE_DIR}/include/chargefw/config.h.in
@@ -92,25 +116,61 @@ configure_file(
 )
 
 if(CHARGEFW_ENABLE_WARNINGS)
-  chargefw_enable_warnings(chargefw_core)
+  chargefw_enable_warnings(chargefw_core_objects)
 endif()
 
-if(CHARGEFW_ENABLE_ASAN)
-  chargefw_enable_sanitizer(chargefw_core address)
+# Sanitizer options are public: the objects need them to compile, and programs linking the library need
+# them to link.
+set(CHARGEFW_SANITIZED_TARGETS chargefw_core_objects)
+
+# Python package builds need only the objects, so they skip the shared library and its installation.
+if(CHARGEFW_BUILD_LIBRARY)
+  add_library(chargefw_core SHARED)
+  add_library(chargefw::core ALIAS chargefw_core)
+  set_target_properties(chargefw_core PROPERTIES EXPORT_NAME core)
+
+  target_compile_features(chargefw_core
+    PUBLIC
+      cxx_std_23
+  )
+
+  target_include_directories(chargefw_core
+    PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+
+  target_link_libraries(chargefw_core
+    PUBLIC
+      nlohmann_json::nlohmann_json
+      gemmi::gemmi_cpp
+    PRIVATE
+      $<BUILD_LOCAL_INTERFACE:chargefw_core_objects>
+  )
+
+  list(APPEND CHARGEFW_SANITIZED_TARGETS chargefw_core)
 endif()
 
-if(CHARGEFW_ENABLE_UBSAN)
-  chargefw_enable_sanitizer(chargefw_core undefined)
-endif()
+foreach(target IN LISTS CHARGEFW_SANITIZED_TARGETS)
+  if(CHARGEFW_ENABLE_ASAN)
+    chargefw_enable_sanitizer(${target} address)
+  endif()
+
+  if(CHARGEFW_ENABLE_UBSAN)
+    chargefw_enable_sanitizer(${target} undefined)
+  endif()
+endforeach()
 
 add_subdirectory(src)
 
-if(CHARGEFW_BUILD_PYTHON)
-  add_subdirectory(python)
+# The Python package contains its own copy of the command line, so its sources are needed for either.
+if(CHARGEFW_BUILD_CLI OR CHARGEFW_BUILD_PYTHON)
+  add_subdirectory(apps/chargefw)
 endif()
 
-if(CHARGEFW_BUILD_CLI)
-  add_subdirectory(apps/chargefw)
+if(CHARGEFW_BUILD_PYTHON)
+  add_subdirectory(python)
 endif()
 
 if(CHARGEFW_BUILD_TESTS)
@@ -119,4 +179,6 @@ if(CHARGEFW_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-include(cmake/install_rules.cmake)
+if(CHARGEFW_BUILD_LIBRARY)
+  include(cmake/install_rules.cmake)
+endif()

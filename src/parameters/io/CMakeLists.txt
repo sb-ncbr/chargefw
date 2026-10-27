@@ -1,4 +1,4 @@
-target_sources(chargefw_core
+target_sources(chargefw_core_objects
         PRIVATE
         parameter_set_io.cpp
         parameter_data_paths.cpp

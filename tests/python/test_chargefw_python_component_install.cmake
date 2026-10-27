@@ -23,7 +23,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env "PYTHONPATH=${CHARGEFW_INSTALL_PREFIX}/${CHARGEFW_PYTHON_SITEARCH}"
             "CHARGEFW_EXPECTED_VERSION=${CHARGEFW_EXPECTED_VERSION}"
             "${CHARGEFW_PYTHON_EXECUTABLE}" -m pytest -p no:cacheprovider -q
-            "${CHARGEFW_TEST_SOURCE_DIR}/test_import.py"
+            "${CHARGEFW_TEST_SOURCE_DIR}/test_import.py" "${CHARGEFW_TEST_SOURCE_DIR}/test_cli.py"
     RESULT_VARIABLE import_result
     OUTPUT_VARIABLE import_output
     ERROR_VARIABLE import_output

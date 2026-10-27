@@ -39,7 +39,7 @@ function(chargefw_add_snitch_test name)
                 "--checks=-bugprone-chained-comparison")
     endif()
 
-    target_link_options(${name} PRIVATE "LINKER:--disable-new-dtags")
+    chargefw_prefer_runtime_path(${name})
 
     target_compile_definitions(${name}
             PRIVATE

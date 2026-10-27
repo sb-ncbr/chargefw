@@ -12,7 +12,7 @@ checksum-verified dependency sources. CI and the compatibility containers build 
 packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
 The supported versions are listed in [the C++ page](docs/interfaces/cpp.md#build-and-link).
 
-The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.11 or
+The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.12 or
 newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and
 mypy. RDKit is optional; its tests are skipped when it is absent. The presets use `/usr/bin/python3`;
 select another interpreter explicitly when needed:
@@ -32,9 +32,10 @@ ChargeFW has three build paths, each with its own dependency rules:
   Gemmi development packages and the oneTBB runtime.
 - **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
   checksum-verified sources, as set in `pyproject.toml`, and install the fetched Gemmi and oneTBB
-  libraries next to the extension. `$ORIGIN` RPATHs with `--disable-new-dtags` make these copies win
-  over same-named system libraries; Gemmi's library name carries no version. This path never runs wheel
-  repair.
+  libraries next to the extension, which finds them through relative runtime search paths (`$ORIGIN` on
+  Linux, `@loader_path` on macOS); Windows loads DLLs from the extension's directory. On Linux,
+  `--disable-new-dtags` makes these copies win over same-named libraries from `LD_LIBRARY_PATH`;
+  Gemmi's library name carries no version. This path never runs wheel repair.
 - **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
   [RELEASING.md](RELEASING.md).
 
@@ -183,7 +184,7 @@ pre-commit run --all-files
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
 pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
-`gcc-debug` with GCC 14, Python 3.11, and RDKit 2024.9 using the CTest command above. Update the pinned
+`gcc-debug` with GCC 14, Python 3.12, and RDKit 2024.9 using the CTest command above. Update the pinned
 clang-format and Ruff versions in the workflow together with the local tools.
 
 The per-commit job uses the oldest supported toolchain on purpose: development usually happens with a
@@ -258,13 +259,32 @@ version of an abandoned release is deactivated by hand.
 
 ## Platforms
 
-Linux x86-64 is the required platform for the wheels, the C++ library, and the command line. Other
-platforms, such as Linux aarch64, macOS, or Windows, are welcome when they need no significant extra
-machinery, but they do not gate releases until their wheels are published; from then on, their CI build
-and tests do. Wheels and the native library are qualified separately. Known portability points are the
-library location through `dladdr` (`src/parameters/io/parameter_data_paths.cpp`) and the peak memory
-through `getrusage` (`apps/chargefw/output.cpp`), which assumes Linux's kilobytes for `ru_maxrss`; macOS
-reports bytes.
+The C++ library and its native installation, including the native command line, are supported on Linux.
+The Python package, which includes its own `chargefw` command line, is supported wherever wheels are
+published. Linux x86-64 is required for both. Other platforms, such as Linux aarch64, macOS, or Windows,
+are welcome as wheels when they need no significant extra machinery, but they do not gate releases until
+their wheels are published; from then on, their CI build and tests do. Wheels and the native library are
+qualified separately.
+
+Wheel builds set `CHARGEFW_BUILD_LIBRARY=OFF` in `pyproject.toml`: the extension and the packaged command
+line link the library objects, so the shared library and its installation are not built. Native builds
+on macOS work for development but are not supported. CMake refuses them on Windows, because the library
+exports no symbols for a DLL.
+
+Operating-system calls live in `src/platform/`. Each platform directory (`linux/`, `macos/`, `windows/`)
+implements the headers there under the same file names, and `src/platform/CMakeLists.txt` is the only
+place that selects one; the rest of the code calls `chargefw::platform` without platform conditionals.
+Platform build settings are in `cmake/`: runtime search paths and the ELF-only `--disable-new-dtags` in
+`runtime_paths.cmake`, and compiler-specific warning flags in `warnings.cmake`.
+
+macOS builds use Xcode's compiler and Apple's libc++, whose runtime is part of macOS. Two C++ library
+features are therefore avoided, each with a comment where it would be used: `std::ranges::iota`, which
+the libc++ in Xcode 26.1 lacks, is written as `std::iota`, and floating-point `std::from_chars`, which
+Apple's libc++ provides only from macOS 26, is replaced by `gemmi::fast_from_chars`. The code then needs
+macOS 13.3, the first with floating-point `std::format`; wheel tags record only the major version, so
+the macOS wheels target 14.0. Restore `std::ranges::iota` once the Xcode used for the wheels provides
+it, and `std::from_chars` once the oldest supported macOS is 26. New C++ library features need the same
+check against Apple's libc++.
 
 ## Architecture
 

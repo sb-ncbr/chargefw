@@ -11,7 +11,7 @@ environment=$(mktemp -d)
 trap 'rm -rf -- "$environment"' EXIT
 
 python3 -m venv "$environment"
-"$environment/bin/python" -m pip install --quiet 'numpy>=1.26'
+"$environment/bin/python" -m pip install --quiet 'numpy>=2.0'
 "$environment/bin/python" -m pip install --quiet --no-deps --no-index "$wheel"
 # Run outside the checkout so that only the installed package can be imported.
 cd "$environment"

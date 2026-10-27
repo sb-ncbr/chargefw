@@ -1,4 +1,4 @@
-target_sources(chargefw_core
+target_sources(chargefw_core_objects
         PRIVATE
         charge_result.cpp
         native/json_output.cpp

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from types import MappingProxyType
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol
 
 
 class _Identified(Protocol):
@@ -12,10 +12,7 @@ class _Identified(Protocol):
     def id(self) -> str: ...
 
 
-T = TypeVar("T", bound=_Identified)
-
-
-class _Catalog(Mapping[str, T], Generic[T]):
+class _Catalog[T: _Identified](Mapping[str, T]):
     """An immutable insertion-ordered mapping keyed by stable string ID."""
 
     __slots__ = ("_by_id", "_kind", "_values")

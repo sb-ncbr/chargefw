@@ -60,7 +60,9 @@ struct ModelAtoms {
 [[nodiscard]] auto source_order(const std::span<const SourceAtomReference> references)
     -> std::vector<std::size_t> {
     auto result = std::vector<std::size_t>(references.size());
-    std::ranges::iota(result, std::size_t{0});
+    // Intentionally not std::ranges::iota, which Apple's libc++ lacks (see "Platforms" in
+    // DEVELOPMENT.md).
+    std::iota(result.begin(), result.end(), std::size_t{0});
     std::ranges::sort(result, {}, [&](const auto index) { return references[index].position; });
     for (std::size_t index = 1; index < result.size(); ++index) {
         if (references[result[index - 1]].position == references[result[index]].position) {

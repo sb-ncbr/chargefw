@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from importlib import import_module
 from operator import index as as_index
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 import numpy as np
 
@@ -19,7 +19,7 @@ except ModuleNotFoundError as error:
         raise
     _rdkit = None  # type: ignore[assignment, unused-ignore]
 
-BondConversion: TypeAlias = Literal["none", "single"]
+type BondConversion = Literal["none", "single"]
 
 
 def _require_rdkit() -> Any:

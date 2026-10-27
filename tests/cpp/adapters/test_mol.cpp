@@ -102,8 +102,8 @@ TEST_CASE("native numeric parsing is complete and locale independent", "[adapter
         CHECK(position.z == 0.03125);
     }
 
-    {
-        std::istringstream input{v3000_with_coordinates("1.25suffix 0 0")};
+    for (const auto* const coordinates : {"1.25suffix 0 0", "++1.25 0 0"}) {
+        std::istringstream input{v3000_with_coordinates(coordinates)};
 
         CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
     }

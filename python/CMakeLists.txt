@@ -1,7 +1,12 @@
 if(CHARGEFW_PYTHON_EXECUTABLE)
     set(Python_EXECUTABLE "${CHARGEFW_PYTHON_EXECUTABLE}")
 endif()
-find_package(Python 3.11 REQUIRED COMPONENTS Interpreter Development.Module)
+# The extension uses CPython's stable ABI, so one build serves 3.12 and later. Interpreters without it,
+# such as free-threaded builds, get a version-specific extension instead.
+find_package(Python 3.12 REQUIRED
+    COMPONENTS Interpreter Development.Module
+    OPTIONAL_COMPONENTS Development.SABIModule
+)
 set(CHARGEFW_RESOLVED_PYTHON_EXECUTABLE "${Python_EXECUTABLE}" PARENT_SCOPE)
 if(SKBUILD)
     set(CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY "chargefw")
@@ -39,7 +44,7 @@ set(CHARGEFW_PYTHON_IO_DIRECTORY
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_IO_DIRECTORY}")
 set(CHARGEFW_PYTHON_STUB_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_chargefw")
 set(CHARGEFW_PYTHON_PARAMETER_DIRECTORY
-    "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_data/parameters")
+    "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}")
 file(REMOVE_RECURSE
     "${CHARGEFW_PYTHON_STUB_DIRECTORY}"
     "${CHARGEFW_PYTHON_PARAMETER_DIRECTORY}"
@@ -78,7 +83,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _methods.py
     _parameters.py
     _payloads.py
-    _resources.py
+    _cli.py
     _types.py
     calculation.py
     charges.py
@@ -99,7 +104,7 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
 endforeach()
 configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.typed" COPYONLY)
 
-nanobind_add_module(chargefw_python NB_STATIC NB_SUPPRESS_WARNINGS
+nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
     src/adapters.cpp
     src/calculation.cpp
     src/core.cpp
@@ -111,13 +116,36 @@ set_target_properties(chargefw_python PROPERTIES
     OUTPUT_NAME _chargefw
     LIBRARY_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
     RUNTIME_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
-    BUILD_RPATH "$ORIGIN/../.."
-    INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
     INSTALL_RPATH_USE_LINK_PATH ON
 )
-target_link_libraries(chargefw_python PRIVATE chargefw::core)
+# The extension contains the ChargeFW library itself, so a wheel needs no separate ChargeFW library and
+# Windows needs no exported symbols from one.
+target_link_libraries(chargefw_python PRIVATE chargefw_core_objects)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
-target_link_options(chargefw_python PRIVATE "LINKER:--disable-new-dtags")
+chargefw_prefer_runtime_path(chargefw_python)
+
+# The package's own command line, started by the chargefw command (_cli.py). It sits beside the
+# extension, so both find the bundled parameter sets and dependency libraries the same way.
+add_executable(chargefw_package_cli)
+set_target_properties(chargefw_package_cli PROPERTIES
+    OUTPUT_NAME _chargefw_cli
+    RUNTIME_OUTPUT_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}"
+    INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
+    INSTALL_RPATH_USE_LINK_PATH ON
+)
+target_link_libraries(chargefw_package_cli
+    PRIVATE
+    chargefw_cli_objects
+    chargefw_core_objects
+)
+chargefw_prefer_runtime_path(chargefw_package_cli)
+
+# Programs started from Python inherit the sanitizer runtime that the tests preload into the interpreter
+# (tests/python/CMakeLists.txt); Clang's default static runtime in an executable would conflict with it.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND (CHARGEFW_ENABLE_ASAN OR CHARGEFW_ENABLE_UBSAN))
+    target_link_options(chargefw_package_cli PRIVATE -shared-libsan)
+endif()
 
 if(CHARGEFW_ENABLE_WARNINGS)
     chargefw_enable_warnings(chargefw_python)
@@ -131,9 +159,7 @@ if(CHARGEFW_ENABLE_UBSAN)
     chargefw_enable_sanitizer(chargefw_python undefined)
 endif()
 
-# A wheel needs the library beside the private extension. The ordinary native installation remains in
-# ${CMAKE_INSTALL_LIBDIR}; this additional copy exists only when Python support is requested.
-install(TARGETS chargefw_python
+install(TARGETS chargefw_python chargefw_package_cli
     LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
     RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
 )
@@ -154,14 +180,11 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/python/chargefw/_chargefw"
         COMPONENT python
         FILES_MATCHING PATTERN "*.pyi")
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/parameters/"
-        DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/_data/parameters
+        DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}
         COMPONENT python
         FILES_MATCHING PATTERN "*.json")
-install(TARGETS chargefw_core
-    LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-    RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
-)
-
+# Fetched dependency libraries are installed beside the extension, which finds them through its
+# runtime search path.
 if(TARGET gemmi_cpp)
     install(TARGETS gemmi_cpp
         LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
@@ -174,4 +197,13 @@ if(TARGET tbb)
         LIBRARY DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
         RUNTIME DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY} COMPONENT python
     )
+endif()
+
+# A Windows system need not have Microsoft's C++ runtime, or a version as new as the compiler's. Install
+# the compiler's own runtime DLLs beside the extension and the command line, which both load DLLs from
+# their own directory.
+if(MSVC)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY})
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT python)
+    include(InstallRequiredSystemLibraries)
 endif()

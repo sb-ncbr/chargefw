@@ -1,5 +1,5 @@
 set(CHARGEFW_PYTHON_TESTS)
-foreach(name IN ITEMS import molecule calculation gemmi output rdkit examples)
+foreach(name IN ITEMS import molecule calculation gemmi output rdkit examples cli)
     add_test(
         NAME test_chargefw_python_${name}
         COMMAND "${CHARGEFW_RESOLVED_PYTHON_EXECUTABLE}" -m pytest -p no:cacheprovider -q

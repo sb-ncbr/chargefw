@@ -1,23 +1,23 @@
 """Shared private type aliases."""
 
-from typing import Literal, TypeAlias
+from typing import Literal
 
-MethodOptionValue: TypeAlias = bool | int | float | str
-PortableId: TypeAlias = str | int
-Execution: TypeAlias = Literal["auto", "full", "cutoff", "cover"]
-ParameterMatching: TypeAlias = Literal["strict", "permissive"]
-AtomClassifier: TypeAlias = Literal["plain", "hbo", "bonded"]
-BondClassifier: TypeAlias = Literal["plain", "bo"]
-ExecutionMode: TypeAlias = Literal["full", "cutoff", "cover"]
-CalculationPhase: TypeAlias = Literal[
+type MethodOptionValue = bool | int | float | str
+type PortableId = str | int
+type Execution = Literal["auto", "full", "cutoff", "cover"]
+type ParameterMatching = Literal["strict", "permissive"]
+type AtomClassifier = Literal["plain", "hbo", "bonded"]
+type BondClassifier = Literal["plain", "bo"]
+type ExecutionMode = Literal["full", "cutoff", "cover"]
+type CalculationPhase = Literal[
     "computation_started",
     "computation_finished",
     "target_started",
     "target_finished",
     "fragment_progress",
 ]
-ExecutionIssueKind: TypeAlias = Literal["resource_threshold_exceeded", "unsupported_execution_mode"]
-PrerequisiteIssueKind: TypeAlias = Literal[
+type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_execution_mode"]
+type PrerequisiteIssueKind = Literal[
     "invalid_options",
     "missing_feature",
     "invalid_geometry",
@@ -26,8 +26,8 @@ PrerequisiteIssueKind: TypeAlias = Literal[
     "parameter_classification_failed",
     "unsupported_fixed_ions",
 ]
-MethodOptionType: TypeAlias = Literal["boolean", "integer", "floating_point", "string"]
-ExecutionStatus: TypeAlias = Literal[
+type MethodOptionType = Literal["boolean", "integer", "floating_point", "string"]
+type ExecutionStatus = Literal[
     "success",
     "no_executable_plan",
     "numerical_failure",

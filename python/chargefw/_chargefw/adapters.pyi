@@ -1,4 +1,4 @@
-from typing import Literal, TypeAlias, TypedDict
+from typing import Literal, TypedDict
 
 from .calculation import _NativeExecutionResult
 
@@ -18,9 +18,9 @@ class StructuralLabelsPayload(TypedDict):
     alternate_location: str | None
     segment: str | None
 
-AtomReferencePayload: TypeAlias = tuple[int, str | None, StructuralLabelsPayload | None]
-ConformerReferencePayload: TypeAlias = tuple[int, str | None, list[AtomReferencePayload]]
-ComponentInstancePayload: TypeAlias = tuple[str, list[int]]
+type AtomReferencePayload = tuple[int, str | None, StructuralLabelsPayload | None]
+type ConformerReferencePayload = tuple[int, str | None, list[AtomReferencePayload]]
+type ComponentInstancePayload = tuple[str, list[int]]
 
 class ImportMetadataPayload(TypedDict):
     format: Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]

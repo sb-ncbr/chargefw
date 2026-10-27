@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from operator import index as as_index
-from typing import Any, Literal, TypeAlias, overload
+from typing import Any, Literal, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,7 +21,7 @@ from ._arrays import (
 from ._chargefw import core as _native_core
 from ._types import PortableId as _PortableId
 
-PortableId: TypeAlias = _PortableId
+type PortableId = _PortableId
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,8 +54,8 @@ class SourceIdentity:
         return self.source
 
 
-SourceFormat: TypeAlias = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
-SourceConnectivity: TypeAlias = Literal["absent", "explicitly-empty", "present"]
+type SourceFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
+type SourceConnectivity = Literal["absent", "explicitly-empty", "present"]
 
 
 @dataclass(frozen=True, slots=True)

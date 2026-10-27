@@ -1,4 +1,9 @@
 function(chargefw_enable_warnings target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /W4)
+    return()
+  endif()
+
   target_compile_options(${target}
     PRIVATE
       -Wall

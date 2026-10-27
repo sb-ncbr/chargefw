@@ -1,4 +1,4 @@
-target_sources(chargefw_core
+target_sources(chargefw_core_objects
         PRIVATE
         assessment.cpp
         calculation.cpp

@@ -5,14 +5,12 @@ from __future__ import annotations
 import numbers
 from collections.abc import Iterable, Sequence
 from operator import index as as_index
-from typing import Any, SupportsIndex, TypeVar
+from typing import Any, SupportsIndex
 
 import numpy as np
 from numpy.typing import NDArray
 
 from ._types import PortableId
-
-_ScalarT = TypeVar("_ScalarT", bound=np.generic)
 
 
 def as_integer_array(
@@ -135,6 +133,6 @@ def as_ids(value: Iterable[PortableId] | None, count: int, field: str) -> tuple[
     return tuple(as_portable_id(item, field) for item in result)
 
 
-def immutable_array(array: NDArray[_ScalarT]) -> NDArray[_ScalarT]:
+def immutable_array[ScalarT: np.generic](array: NDArray[ScalarT]) -> NDArray[ScalarT]:
     """Copy an array into C-contiguous storage that cannot be made writable."""
     return np.frombuffer(array.tobytes(), dtype=array.dtype).reshape(array.shape)
