@@ -80,13 +80,13 @@ jobs:
           artifacts=(dist/*)
           test "${#artifacts[@]}" -eq 5
           test -f "dist/chargefw-$VERSION.tar.gz"
-          # One stable-ABI wheel per platform serves CPython 3.12 and later.
-          for platform in \
-              manylinux_2_27_x86_64.manylinux_2_28_x86_64 \
-              manylinux_2_27_aarch64.manylinux_2_28_aarch64 \
-              macosx_14_0_arm64 \
-              win_amd64; do
-              test -f "dist/chargefw-$VERSION-cp312-abi3-$platform.whl"
+          # One stable-ABI wheel per platform serves CPython 3.12 and later. auditwheel chooses the
+          # manylinux versions from the glibc symbols the binaries use, so they are not fixed here.
+          for platform in 'manylinux_*_x86_64' 'manylinux_*_aarch64' macosx_14_0_arm64 win_amd64; do
+              # shellcheck disable=SC2206 # The platform pattern must expand.
+              wheels=(dist/chargefw-"$VERSION"-cp312-abi3-$platform.whl)
+              test "${#wheels[@]}" -eq 1
+              test -f "${wheels[0]}"
           done
       - name: Check the third-party notices
         run: |
@@ -98,7 +98,7 @@ jobs:
       - name: Install a wheel and run a calculation
         run: >-
           utils/release/smoke-test.sh "$VERSION"
-          "dist/chargefw-$VERSION-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+          dist/chargefw-"$VERSION"-cp312-abi3-manylinux_*_x86_64.whl
       - name: Write the checksum manifest
         run: (cd dist && LC_ALL=C sha256sum ./* | LC_ALL=C sort) > SHA256SUMS
       - uses: actions/upload-artifact@v7

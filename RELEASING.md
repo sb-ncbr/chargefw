@@ -13,13 +13,15 @@ stable ABI (`cp312-abi3`), so it serves CPython 3.12 and later.
 | Platform | Wheel platform tag |
 | --- | --- |
 | Linux x86-64 | `manylinux_2_27_x86_64.manylinux_2_28_x86_64` |
-| Linux aarch64 | `manylinux_2_27_aarch64.manylinux_2_28_aarch64` |
+| Linux aarch64 | `manylinux_2_26_aarch64.manylinux_2_28_aarch64` |
 | macOS 14 or newer, Apple silicon | `macosx_14_0_arm64` |
 | Windows x86-64 | `win_amd64` |
 
 `.github/workflows/wheels.yml`, which CI also runs, builds the sdist once and each wheel from it on a
 runner of that platform with `cibuildwheel`. It repairs the native libraries, and installs the wheel and
 runs the Python test suite with CPython 3.12, 3.13, and 3.14. The build settings are in `pyproject.toml`.
+auditwheel derives the manylinux versions from the glibc functions the binaries use, so they can change
+between releases; the release workflow checks for one wheel per platform, whatever its manylinux tag.
 
 The wheels also install on CPython 3.15, but they are not tested there, because the pinned optional Gemmi
 0.7.4 package does not currently provide a usable CPython 3.15 wheel.
