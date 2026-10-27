@@ -52,8 +52,8 @@ must be absolute. Commit these files, for example as "Prepare release 3.0.0a3".
 
 ## 2. Validate locally
 
-CI tests only `gcc-debug`. Run the complete GCC, Clang, release, sanitizer, and clang-tidy matrix and build
-the distributable CLI image on the version commit:
+CI tests `gcc-debug` and the wheels. Run the complete GCC, Clang, release, sanitizer, and clang-tidy
+matrix and build the distributable CLI image on the version commit:
 
 ```bash
 ./utils/release/02-validate.sh
@@ -79,7 +79,8 @@ or use **Actions → Release → Run workflow** on `main`. The jobs run in this 
 | Job | What it does |
 | --- | --- |
 | `qualify` | Checks that the run is on `main`, the version matches `CMakeLists.txt` and has a changelog section, the tag and both index versions are unused, and CI passed |
-| `build` | Builds the sdist and the wheels from it, checks the artifact set, notices, and metadata, runs a smoke calculation, and stores the artifacts with a `SHA256SUMS` manifest for 90 days |
+| `wheels` | Builds the sdist and one wheel per platform from it, and tests each wheel, as CI does |
+| `build` | Checks the artifact set, notices, and metadata, runs a smoke calculation, and stores the artifacts with a `SHA256SUMS` manifest for 90 days |
 | `testpypi` | Uploads to TestPyPI, compares the remote hashes, and runs the smoke calculation with the downloaded wheel |
 | `tag` | Checks PyPI for conflicting files, then pushes the annotated tag `vVERSION` |
 | `pypi` | Waits for approval, then uploads the same files to PyPI and verifies them as for TestPyPI |
