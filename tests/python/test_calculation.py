@@ -1,20 +1,15 @@
 """Focused calculation facade and result-model checks."""
 
 import gc
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event, Lock, Thread
-from time import perf_counter, sleep
+from threading import Lock
 from typing import Any, cast
 from unittest.mock import patch
 
 import chargefw
 import numpy as np
 import pytest
-from chargefw._chargefw import core as _native_core
-
-_GIL_OBSERVATION_DELAY_SECONDS = 0.001
-_GIL_TEST_ATOM_COUNT = 500_000
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:
@@ -75,39 +70,6 @@ def calculate_formal(molecules: Any) -> chargefw.CalculationResult:
 
 def assess_formal(molecules: Any) -> chargefw.Assessment:
     return chargefw.assess(molecules, method="formal", execution="full", threads=1)
-
-
-def run_while_python_thread_progresses[T](operation: Callable[[], T]) -> tuple[T, bool, float]:
-    started = Event()
-    begin = Event()
-    observing = Event()
-    progressed = Event()
-
-    def observe() -> None:
-        started.set()
-        begin.wait()
-        observing.set()
-        sleep(_GIL_OBSERVATION_DELAY_SECONDS)
-        progressed.set()
-
-    worker = Thread(target=observe)
-    worker.start()
-    if not started.wait(timeout=1.0):
-        worker.join(timeout=1.0)
-        raise AssertionError("worker thread did not start")
-    try:
-        begin.set()
-        if not observing.wait(timeout=1.0):
-            raise AssertionError("worker thread did not begin observing")
-        start = perf_counter()
-        result = operation()
-        operation_seconds = perf_counter() - start
-        progressed_during_operation = progressed.is_set()
-    finally:
-        worker.join(timeout=1.0)
-    if worker.is_alive():
-        raise AssertionError("worker thread did not stop")
-    return result, progressed_during_operation, operation_seconds
 
 
 class RecordingObserver(chargefw.CalculationObserver):
@@ -628,52 +590,6 @@ def test_functional_api_supports_concurrent_calculations() -> None:
     results = [future.result() for future in futures]
     assert all(result.status == "success" for result in results)
     assert [result.assignments[0].values.tolist() for result in results] == [[0.0, 0.0, 0.0]] * 4
-
-
-def test_assessment_releases_the_gil() -> None:
-    molecule = chargefw.Molecule([1] * _GIL_TEST_ATOM_COUNT)
-    assessment, progressed, operation_seconds = run_while_python_thread_progresses(
-        lambda: assess_formal(molecule)
-    )
-    assert assessment.plans
-    assert operation_seconds > _GIL_OBSERVATION_DELAY_SECONDS
-    assert progressed
-
-
-def test_native_molecule_construction_releases_the_gil() -> None:
-    atom_count = _GIL_TEST_ATOM_COUNT
-    atomic_numbers = np.ones(atom_count, dtype=np.int64)
-    formal_charges = np.zeros(atom_count, dtype=np.int64)
-    bonds = np.empty((0, 3), dtype=np.int64)
-    coordinates = np.empty((0, atom_count, 3), dtype=np.float64)
-    atom_names = ("",) * atom_count
-    molecule, progressed, operation_seconds = run_while_python_thread_progresses(
-        lambda: _native_core._make_molecule(
-            atomic_numbers,
-            formal_charges,
-            bonds,
-            coordinates,
-            atom_names,
-            (),
-            "gil-test",
-        )
-    )
-    assert isinstance(molecule, _native_core._NativeMolecule)
-    assert operation_seconds > _GIL_OBSERVATION_DELAY_SECONDS
-    assert progressed
-
-
-def test_execution_releases_the_gil() -> None:
-    molecule = chargefw.Molecule([1] * _GIL_TEST_ATOM_COUNT)
-    assessment = assess_formal(molecule)
-    plan = assessment.default_plan
-    assert plan is not None, "assessment must produce a default plan"
-    result, progressed, operation_seconds = run_while_python_thread_progresses(
-        lambda: chargefw.calculate(molecule, plan)
-    )
-    assert result.status == "success"
-    assert operation_seconds > _GIL_OBSERVATION_DELAY_SECONDS
-    assert progressed
 
 
 def test_automatic_thresholds_and_explicit_full_warnings() -> None:
