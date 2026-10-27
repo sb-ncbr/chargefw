@@ -63,6 +63,7 @@ rhythm; and emphasis that does not mark a real warning.
 ```text
 include/chargefw/   Public C++ API
 src/                Native library implementation, organized by public domain
+src/platform/       Operating-system calls, one implementation directory per platform
 apps/chargefw/      Command-line application
 python/chargefw/    Public Python package and private extension stubs
 python/src/         Nanobind extension implementation

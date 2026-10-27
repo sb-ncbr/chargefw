@@ -32,9 +32,10 @@ ChargeFW has three build paths, each with its own dependency rules:
   Gemmi development packages and the oneTBB runtime.
 - **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
   checksum-verified sources, as set in `pyproject.toml`, and install the fetched Gemmi and oneTBB
-  libraries next to the extension. `$ORIGIN` RPATHs with `--disable-new-dtags` make these copies win
-  over same-named system libraries; Gemmi's library name carries no version. This path never runs wheel
-  repair.
+  libraries next to the extension, which finds them through relative runtime search paths (`$ORIGIN` on
+  Linux, `@loader_path` on macOS); Windows loads DLLs from the extension's directory. On Linux,
+  `--disable-new-dtags` makes these copies win over same-named libraries from `LD_LIBRARY_PATH`;
+  Gemmi's library name carries no version. This path never runs wheel repair.
 - **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
   [RELEASING.md](RELEASING.md).
 
@@ -261,10 +262,17 @@ version of an abandoned release is deactivated by hand.
 Linux x86-64 is the required platform for the wheels, the C++ library, and the command line. Other
 platforms, such as Linux aarch64, macOS, or Windows, are welcome when they need no significant extra
 machinery, but they do not gate releases until their wheels are published; from then on, their CI build
-and tests do. Wheels and the native library are qualified separately. Known portability points are the
-library location through `dladdr` (`src/parameters/io/parameter_data_paths.cpp`) and the peak memory
-through `getrusage` (`apps/chargefw/output.cpp`), which assumes Linux's kilobytes for `ru_maxrss`; macOS
-reports bytes.
+and tests do. Wheels and the native library are qualified separately.
+
+Operating-system calls live in `src/platform/`. Each platform directory (`unix/`, `windows/`) implements
+the headers there under the same file names, and `src/platform/CMakeLists.txt` is the only place that
+selects one; the rest of the code calls `chargefw::platform` without platform conditionals. Platform
+build settings are in `cmake/`: runtime search paths and the ELF-only `--disable-new-dtags` in
+`runtime_paths.cmake`, and compiler-specific warning flags in `warnings.cmake`.
+
+Clang builds against libc++ need libc++ 21 or newer for `std::ranges::iota` and floating-point
+`std::from_chars`. The libc++ in Xcode 26.1 is older, so builds using Xcode 26.1 need a separate LLVM
+toolchain.
 
 ## Architecture
 
