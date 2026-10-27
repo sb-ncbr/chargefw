@@ -273,10 +273,11 @@ Platform build settings are in `cmake/`: runtime search paths and the ELF-only `
 macOS builds use Xcode's compiler and Apple's libc++, whose runtime is part of macOS. Two C++ library
 features are therefore avoided, each with a comment where it would be used: `std::ranges::iota`, which
 the libc++ in Xcode 26.1 lacks, is written as `std::iota`, and floating-point `std::from_chars`, which
-Apple's libc++ provides only from macOS 26, is replaced by `gemmi::fast_from_chars`. The oldest
-supported macOS is then 13.3, the first with floating-point `std::format`. Restore `std::ranges::iota`
-once the Xcode used for the wheels provides it, and `std::from_chars` once the oldest supported macOS is
-26. New C++ library features need the same check against Apple's libc++.
+Apple's libc++ provides only from macOS 26, is replaced by `gemmi::fast_from_chars`. The code then needs
+macOS 13.3, the first with floating-point `std::format`; wheel tags record only the major version, so
+the macOS wheels target 14.0. Restore `std::ranges::iota` once the Xcode used for the wheels provides
+it, and `std::from_chars` once the oldest supported macOS is 26. New C++ library features need the same
+check against Apple's libc++.
 
 ## Architecture
 
