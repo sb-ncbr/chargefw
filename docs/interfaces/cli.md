@@ -1,7 +1,8 @@
 # Command line
 
 The `chargefw` command calculates charges for molecular files and writes the results to a directory.
-[Installation](../getting-started/installation.md) describes the Docker image and building from source.
+The Python package installs it; [Installation](../getting-started/installation.md) also describes the
+Docker image and building from source.
 
 | Command | What it does |
 | --- | --- |

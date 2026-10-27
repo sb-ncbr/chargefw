@@ -19,8 +19,9 @@ to move over.
 pip install --pre chargefw
 ```
 
-ChargeFW 3 is currently a pre-release, so pip needs `--pre`. The command line is also available as the
-Docker image `sbncbr/chargefw`, and everything can be built from source; see
+ChargeFW 3 is currently a pre-release, so pip needs `--pre`. pip installs the Python package and the
+`chargefw` command line. The command line is also available as the Docker image `sbncbr/chargefw`, and
+everything can be built from source; see
 [Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html).
 
 ## Quick start
@@ -35,7 +36,13 @@ result = chargefw.calculate(molecules, method="eem", parameter_set="EEM_Cheminf_
 print(result.assignments[0].values)
 ```
 
-On the command line, which the Python package does not install, with the Docker image:
+On the command line:
+
+```bash
+chargefw calculate --method eem --parameter-set EEM_Cheminf_b3lyp_npa molecule.sdf output
+```
+
+or with the Docker image:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work sbncbr/chargefw:3.0.0a3 \

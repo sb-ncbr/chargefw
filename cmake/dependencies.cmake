@@ -4,7 +4,7 @@ function(chargefw_setup_dependencies)
     set(CHARGEFW_TBB_FETCHED OFF PARENT_SCOPE)
     set(CHARGEFW_GEMMI_FETCHED OFF PARENT_SCOPE)
 
-    if(CHARGEFW_BUILD_CLI)
+    if(CHARGEFW_BUILD_CLI OR CHARGEFW_BUILD_PYTHON)
         if(NOT CHARGEFW_FETCH_DEPENDENCIES)
             find_package(CLI11 2.4 CONFIG REQUIRED)
         else()

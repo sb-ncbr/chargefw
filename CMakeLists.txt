@@ -17,10 +17,13 @@ set(CHARGEFW_VERSION "${PROJECT_VERSION}${CHARGEFW_VERSION_SUFFIX}")
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+# The bundled parameter sets relative to the file that contains the library code: the shared library in
+# a native installation, or the extension and command line in the Python package.
 file(RELATIVE_PATH CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY
   "${CMAKE_INSTALL_FULL_LIBDIR}"
   "${CMAKE_INSTALL_FULL_DATADIR}/chargefw/parameters"
 )
+set(CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE "_data/parameters")
 
 option(CHARGEFW_ENABLE_CCACHE "Use ccache if available" ON)
 option(CHARGEFW_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
@@ -134,12 +137,13 @@ endforeach()
 
 add_subdirectory(src)
 
-if(CHARGEFW_BUILD_PYTHON)
-  add_subdirectory(python)
+# The Python package contains its own copy of the command line, so its sources are needed for either.
+if(CHARGEFW_BUILD_CLI OR CHARGEFW_BUILD_PYTHON)
+  add_subdirectory(apps/chargefw)
 endif()
 
-if(CHARGEFW_BUILD_CLI)
-  add_subdirectory(apps/chargefw)
+if(CHARGEFW_BUILD_PYTHON)
+  add_subdirectory(python)
 endif()
 
 if(CHARGEFW_BUILD_TESTS)

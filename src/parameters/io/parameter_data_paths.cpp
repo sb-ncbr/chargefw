@@ -16,7 +16,9 @@ auto bundled_parameter_directory() -> std::filesystem::path {
 }
 
 auto default_parameter_directories() -> std::vector<std::filesystem::path> {
-    return {bundled_parameter_directory()};
+    // The Python package keeps its parameter sets beside the extension and the command line.
+    return {bundled_parameter_directory(), platform::loaded_library_path().parent_path() /
+                                               CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE};
 }
 
 } // namespace chargefw::parameters

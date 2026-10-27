@@ -19,10 +19,11 @@ pip install --pre "chargefw[gemmi]"
 pip install --pre "chargefw[rdkit]"
 ```
 
-Check the installation:
+pip also installs the `chargefw` command line. Check both:
 
 ```bash
 python -c "import chargefw; print(chargefw.__version__)"
+chargefw --help
 ```
 
 ## Command line in Docker
@@ -40,7 +41,7 @@ release has its own tag; from 3.0.0 on, `latest` points to the newest final rele
 
 ## From source
 
-To use the C++ library, or the command line without Docker, build and install ChargeFW as described in
+To use the C++ library, build and install ChargeFW as described in
 [Build and link](../interfaces/cpp.md#build-and-link). Set `CHARGEFW_BUILD_CLI=ON` to build the command
 line as well. The installed `chargefw` finds its parameter sets relative to the installed library, so it
 works from any directory:
