@@ -10,13 +10,8 @@ auto peak_resident_memory_bytes() -> std::uint64_t {
         return 0;
     }
 
-    // POSIX leaves the unit of ru_maxrss unspecified: Linux reports kilobytes, macOS bytes.
-#if defined(__APPLE__)
-    constexpr std::uint64_t unit = 1;
-#else
-    constexpr std::uint64_t unit = 1024;
-#endif
-    return static_cast<std::uint64_t>(usage.ru_maxrss) * unit;
+    // macOS reports ru_maxrss in bytes.
+    return static_cast<std::uint64_t>(usage.ru_maxrss);
 }
 
 } // namespace chargefw::platform

@@ -264,10 +264,10 @@ platforms, such as Linux aarch64, macOS, or Windows, are welcome when they need 
 machinery, but they do not gate releases until their wheels are published; from then on, their CI build
 and tests do. Wheels and the native library are qualified separately.
 
-Operating-system calls live in `src/platform/`. Each platform directory (`unix/`, `windows/`) implements
-the headers there under the same file names, and `src/platform/CMakeLists.txt` is the only place that
-selects one; the rest of the code calls `chargefw::platform` without platform conditionals. Platform
-build settings are in `cmake/`: runtime search paths and the ELF-only `--disable-new-dtags` in
+Operating-system calls live in `src/platform/`. Each platform directory (`linux/`, `macos/`, `windows/`)
+implements the headers there under the same file names, and `src/platform/CMakeLists.txt` is the only
+place that selects one; the rest of the code calls `chargefw::platform` without platform conditionals.
+Platform build settings are in `cmake/`: runtime search paths and the ELF-only `--disable-new-dtags` in
 `runtime_paths.cmake`, and compiler-specific warning flags in `warnings.cmake`.
 
 Clang builds against libc++ need libc++ 21 or newer for `std::ranges::iota` and floating-point
