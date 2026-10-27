@@ -56,6 +56,23 @@ jobs:
       - name: Show the wheel contents
         shell: bash
         run: python -m zipfile -l wheelhouse/*.whl
+      # The runner has the C++ runtime installed system-wide, so the tests pass without the bundled
+      # copy. The command-line executable finds only DLLs in its own directory, not in chargefw.libs.
+      - name: Check the bundled C++ runtime
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -I - wheelhouse/*.whl <<'EOF'
+          import sys
+          import zipfile
+
+          names = set(zipfile.ZipFile(sys.argv[1]).namelist())
+          runtime = {"msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"}
+          missing = sorted(name for name in runtime if f"chargefw/{name}" not in names)
+          elsewhere = sorted(name for name in names if name.startswith("chargefw.libs/"))
+          if missing or elsewhere:
+              sys.exit(f"missing beside the executable: {missing}; outside the package: {elsewhere}")
+          EOF
       - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.build }}

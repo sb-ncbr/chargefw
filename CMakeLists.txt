@@ -42,6 +42,10 @@ option(CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS "Optimize for the build host CPU" ON
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
+# The Visual Studio generator compiles the sources of one target sequentially unless /MP is set. It
+# applies to the fetched dependencies as well, which are added below.
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
+
 include(cmake/dependencies.cmake)
 include(cmake/developer_tools.cmake)
 include(cmake/optimization.cmake)
