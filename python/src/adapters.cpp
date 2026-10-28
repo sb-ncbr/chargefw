@@ -16,6 +16,7 @@
 #include <chargefw/adapters/native/mol2_input.h>
 #include <chargefw/adapters/native/mol2_output.h>
 #include <chargefw/adapters/native/mol_input.h>
+#include <chargefw/adapters/native/pqr_output.h>
 #include <chargefw/adapters/native/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/config.h>
@@ -275,6 +276,8 @@ auto dumps(const NativeExecutionResult& native_result, const std::string& format
         adapters::native::mol2_output::Mol2Writer{output}.write(result, CHARGEFW_VERSION_STRING);
     } else if (format == "mmcif") {
         adapters::gemmi::mmcif_output::MmcifWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+    } else if (format == "pqr") {
+        adapters::native::pqr_output::PqrWriter{output}.write(result, CHARGEFW_VERSION_STRING);
     } else {
         throw std::invalid_argument{"unsupported calculation output format: " + format};
     }

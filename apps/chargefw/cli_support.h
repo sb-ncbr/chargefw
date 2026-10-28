@@ -47,6 +47,7 @@ struct SelectionArguments {
 struct OutputArguments {
     bool mol2 = false;
     bool mmcif = false;
+    bool pqr = false;
 };
 
 struct CalculationRun {

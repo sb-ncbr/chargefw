@@ -148,6 +148,7 @@ auto run(std::span<char*> arguments) -> int {
     calculate->add_flag("--progress", progress, "Show calculation progress on standard error");
     calculate->add_flag("--output-mol2", calculate_output.mol2, "Write generated MOL2 output");
     calculate->add_flag("--output-mmcif", calculate_output.mmcif, "Write generated mmCIF output");
+    calculate->add_flag("--output-pqr", calculate_output.pqr, "Write generated PQR output");
     chargefw::cli::add_input_options(*inspect, inspect_input);
     chargefw::cli::add_input_options(*applicability, applicability_input);
     chargefw::cli::add_selection_options(*applicability, applicability_selection);

@@ -7,6 +7,7 @@ target_sources(chargefw_core_objects
         native/mol_input.cpp
         native/mol2_input.cpp
         native/mol2_output.cpp
+        native/pqr_output.cpp
         native/sdf_input.cpp
         input_options.cpp
         fixed_ions.cpp
@@ -36,5 +37,6 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/adapters/native/mol_input.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/adapters/native/mol2_input.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/adapters/native/mol2_output.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/adapters/native/pqr_output.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/adapters/native/sdf_input.h
 )
