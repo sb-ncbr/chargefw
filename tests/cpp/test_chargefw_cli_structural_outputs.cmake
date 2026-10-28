@@ -7,11 +7,11 @@ function(run_structural_input extension contents input_stem expected_selection e
     file(WRITE "${input_path}" "${contents}")
     file(REMOVE_RECURSE "${output_directory}")
 
-    run_cli("${input_stem}" 0 calculate --output-mol2 --output-mmcif ${ARGN}
+    run_cli("${input_stem}" 0 calculate --output-mol2 --output-mmcif --output-pqr ${ARGN}
             "${input_path}" "${output_directory}")
 
     expect_files_exist("${input_stem}" "${output_prefix}.json" "${output_prefix}.cif"
-                       "${output_prefix}.mol2")
+                       "${output_prefix}.mol2" "${output_prefix}.pqr")
     file(READ "${output_prefix}.json" json_output)
     expect_json("${input_stem}" "${json_output}" success results 0 status)
     expect_json("${input_stem}" "${json_output}" "${expected_selection}"

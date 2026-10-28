@@ -222,14 +222,14 @@ Indices of molecules, atoms, bonds, and conformers in the reasons count from zer
 ## Writing results
 
 `chargefw.io.write()` writes a result to a file and `chargefw.io.dumps()` returns it as text. The format
-is `"result-json"`, `"mol2"`, or `"mmcif"`; `chargefw.io.OUTPUT_FORMATS` lists them:
+is `"result-json"`, `"mol2"`, `"mmcif"`, or `"pqr"`; `chargefw.io.OUTPUT_FORMATS` lists them:
 
 ```python
 chargefw.io.write("charged.cif", result, format="mmcif")
 chargefw.io.write("charged.mol2", result, format="mol2")
 ```
 
-MOL2 and mmCIF can be written for input in any format. [Choosing an output
+MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or mmCIF. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares the formats, and the
 [format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
 result the format cannot hold raises `ValueError`, and a file that cannot be written raises an `OSError`,

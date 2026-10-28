@@ -75,6 +75,21 @@ def test_formats_use_native_writers() -> None:
     assert result.molecules[0] is molecule
 
 
+def test_pqr_requires_structural_input() -> None:
+    structure = chargefw.io.parse(
+        "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O  \n"
+        "ATOM      2  H1  HOH A   1       0.957   0.000   0.000  1.00 20.00           H  \n"
+        "ATOM      3  H2  HOH A   1      -0.239   0.927   0.000  1.00 20.00           H  \n"
+        "END\n",
+        format="pdb",
+    )
+    pqr = chargefw.io.dumps(chargefw.calculate(structure, method="formal"), format="pqr")
+    assert "ATOM      2  H1  HOH A    1" in pqr
+
+    with pytest.raises(ValueError, match="PDB or mmCIF"):
+        chargefw.io.dumps(chargefw.calculate(water(), method="formal"), format="pqr")
+
+
 def test_write_uses_explicit_format(tmp_path: Path) -> None:
     result = chargefw.calculate(water(), method="formal")
     path = tmp_path / "charges.data"

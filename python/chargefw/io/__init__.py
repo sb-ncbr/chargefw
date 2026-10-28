@@ -22,13 +22,13 @@ if TYPE_CHECKING:
     from ..calculation import CalculationResult
 
 type InputFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
-type OutputFormat = Literal["mol2", "mmcif", "result-json"]
+type OutputFormat = Literal["mol2", "mmcif", "pqr", "result-json"]
 type RecordSelection = Literal["all", "polymers-and-ligands", "polymers"]
 type BondStrategy = Literal["none", "explicit", "templates", "hybrid"]
 type ConformerSelection = Literal["first", "all"]
 
 INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif")
-OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "result-json")
+OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "pqr", "result-json")
 _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
 _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
 

@@ -18,6 +18,10 @@ chargefw_add_snitch_test(test_mol2_output
         test_mol2_output.cpp
 )
 
+chargefw_add_snitch_test(test_pqr_output
+        test_pqr_output.cpp
+)
+
 chargefw_add_snitch_test(test_pdb
         test_pdb.cpp
 )

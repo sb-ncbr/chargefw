@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Output
+
+- ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,
+  `format="pqr"` in Python, and `PqrWriter` in C++. PQR is available for one structure read from PDB or
+  mmCIF, with one conformer; each atom gets its element's van der Waals radius. ChargeFW refuses
+  structures that APBS would misread, such as chain IDs other than a single letter.
+  [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#pqr) lists the rules.
+
 ## 3.0.0a4
 
 ### Installation

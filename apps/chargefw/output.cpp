@@ -81,6 +81,12 @@ void write_mol2(const std::filesystem::path& path,
     });
 }
 
+void write_pqr(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) {
+        adapters::native::pqr_output::PqrWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+    });
+}
+
 } // namespace
 
 auto utc_timestamp() -> std::string {
@@ -173,6 +179,11 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
             const auto mmcif_path = std::filesystem::path{prefix.string() + ".cif"};
             write_mmcif(mmcif_path, owned_result);
             std::println("Wrote {}", mmcif_path.string());
+        }
+        if (output_arguments.pqr) {
+            const auto pqr_path = std::filesystem::path{prefix.string() + ".pqr"};
+            write_pqr(pqr_path, owned_result);
+            std::println("Wrote {}", pqr_path.string());
         }
     } catch (const std::exception& error) {
         std::println(std::cerr, "Export error: {}", error.what());

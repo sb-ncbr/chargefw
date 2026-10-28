@@ -46,12 +46,14 @@ request, ChargeFW also writes the molecules with their charges:
 ```bash
 chargefw calculate --output-mol2 molecule.sdf output    # output/molecule.chargefw.mol2
 chargefw calculate --output-mmcif structure.cif output  # output/structure.chargefw.cif
+chargefw calculate --output-pqr structure.cif output    # output/structure.chargefw.pqr
 ```
 
-MOL2 and mmCIF can be written for input in any format. [Choosing an output
+MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or
+mmCIF. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares them.
 
-ChargeFW writes the result JSON first. If writing MOL2 or mmCIF then fails, the JSON stays, still with
+ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still with
 status `success`, and the command exits with status 6.
 
 ### Progress and cancelling
@@ -101,6 +103,7 @@ options in detail. A malformed record in the input stops the command before any 
 | --- | --- |
 | `--output-mol2` | Also write MOL2 |
 | `--output-mmcif` | Also write mmCIF |
+| `--output-pqr` | Also write PQR |
 | `--progress` | Show the progress of the calculation |
 
 `applicability` accepts the input, model, and execution options of `calculate`; `inspect` accepts the
@@ -161,4 +164,4 @@ sets with their publications.
 | `3` | No executable plan for the molecules and the requested settings |
 | `4` | The calculation failed numerically, for example did not converge |
 | `5` | The calculation was cancelled |
-| `6` | Writing MOL2 or mmCIF failed after the result JSON was written |
+| `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |

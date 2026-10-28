@@ -18,11 +18,13 @@ order of molecules and atoms is kept in the charges and in every output.
 | ChargeFW molecule JSON 1.0 | Yes | No | `molecules` array, zero or more conformers each |
 | PDB | Yes, through Gemmi | No | One molecule, models become conformers |
 | mmCIF | Yes, through Gemmi | Yes, written new | One molecule per coordinate-bearing block |
+| PQR | No | Yes, for PDB and mmCIF input | Not applicable |
 | ChargeFW result JSON 1.0 | No | Yes | Not applicable |
 
 Input and output capabilities are independent. A result calculated from any supported molecular input can
-be written as result JSON or, when its data is representable, as generated MOL2 or generated mmCIF. ChargeFW
-does not write MOL, SDF, molecule JSON, or PDB.
+be written as result JSON or, when its data is representable, as generated MOL2 or generated mmCIF. A
+structure read from PDB or mmCIF can also be written as PQR. ChargeFW does not write MOL, SDF, molecule
+JSON, or PDB.
 
 Readers report malformed or unsupported data as errors. MOL, SDF, and MOL2 files may use LF or CRLF line
 endings. Every record read keeps its source name, zero-based record index, record ID from the file, and
@@ -230,6 +232,41 @@ coordinates, empty records, unsuccessful results, and charges outside the dictio
 
 In Python, [`attach_charges()`](../interfaces/python.md#gemmi) instead adds the charges to the original
 mmCIF document that was read, after checking that it still matches.
+
+### PQR
+
+PQR is the input of Poisson–Boltzmann solvers such as APBS. Each atom line has the PDB atom name,
+residue name, chain, residue number, and insertion code, the coordinates in ångströms with three
+decimals, the charge with four decimals, and a radius. Fields are separated by at least one space, so
+programs that split lines on whitespace, as APBS does, read every line correctly; the columns therefore
+differ slightly from PDB:
+
+```text
+ATOM      1  N   GLY A   12A   11.104    6.134   -6.504 -0.2500 1.5500
+```
+
+The labels are the author labels of the file, or the `label_*` values of mmCIF where author labels are
+missing. Atom serial numbers count from 1. Two `REMARK` lines record the method and
+parameter set and the radii.
+
+The radius is the van der Waals radius of the atom's element, for example 1.20 Å for H, 1.70 Å for C,
+1.55 Å for N, 1.52 Å for O, and 1.80 Å for S. These are not the force-field radii that PDB2PQR assigns
+by atom type. ChargeFW refuses to write PQR when an element has no van der Waals radius in its periodic
+table, such as Mo, W, Ru, or the lanthanides.
+
+PQR holds one structure with one set of coordinates. ChargeFW writes it only for a result with one
+molecule read from PDB or mmCIF, with one conformer. APBS ignores `MODEL` records and would treat all
+models as one system, so for a file with several models, read only the first: `--conformers first` on the
+command line, `conformers="first"` in Python.
+
+APBS reads each line as words separated by whitespace. ChargeFW refuses to write labels that it would
+misread:
+
+- a chain ID that is not a single letter or other non-numeric character, such as `1`, `AA`, or `A1`;
+- an atom name, residue name, or chain ID that contains whitespace, a control character, `#`, or `%`;
+- an insertion code that is not a single letter.
+
+ChargeFW checks every atom before writing, so a refused structure leaves no PQR output.
 
 ### ChargeFW result JSON 1.0
 

@@ -162,6 +162,7 @@ int main() {
 | `chargefw/adapters/native/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
 | `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options |
 | `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
+| `chargefw/adapters/native/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
 | `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document |
 | `chargefw/adapters/native/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
 
