@@ -17,6 +17,15 @@
   `parameter_matching="strict"`. Before, such arguments were silently ignored and the plan's own
   settings were used.
 
+### C++
+
+- Assessment refuses a custom method whose requirements list common parameters but no atom or bond
+  parameters, with `std::invalid_argument`; declare such constants as method options. Common
+  parameters belong in a parameter set only when they are fitted together with atom or bond
+  parameters. Such a method used to pass assessment and then fail during execution.
+  `MethodRequirements::requires_parameter_classification()` states which methods need atom or bond
+  parameters.
+
 ### Output
 
 - ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,

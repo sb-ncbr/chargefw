@@ -79,6 +79,11 @@ struct MethodRequirements {
         return !bond_parameters.empty();
     }
 
+    // Atom and bond parameters are matched to each molecule; common parameters need no matching.
+    [[nodiscard]] auto requires_parameter_classification() const noexcept -> bool {
+        return requires_atom_parameters() || requires_bond_parameters();
+    }
+
     [[nodiscard]] auto requires_parameters() const noexcept -> bool {
         return requires_common_parameters() || requires_atom_parameters() ||
                requires_bond_parameters();

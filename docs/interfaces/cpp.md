@@ -309,7 +309,9 @@ time and memory complexity, and `Method::estimate()` returns the approximate mem
 one molecule of a given `TargetSize`. A method supports cutoff and cover when
 `ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`
 says how the fragments' charges are kept, as described in
-[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work).
+[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work). A method that
+declares common parameters must also declare atom or bond parameters; make standalone constants method
+options instead, or assessment refuses the method.
 
 `parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the sets by
