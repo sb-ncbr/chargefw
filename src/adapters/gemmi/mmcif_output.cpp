@@ -76,7 +76,6 @@ constexpr auto dictionary_location =
 
 struct BlockMapping {
     std::vector<std::vector<std::string>> atom_site_ids;
-    std::vector<std::string> model_ids;
 };
 
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
@@ -217,13 +216,11 @@ struct OutputAssignments {
     const auto& metadata = *record.import_metadata;
     auto result = BlockMapping{};
     result.atom_site_ids.reserve(metadata.conformers.size());
-    result.model_ids.reserve(metadata.conformers.size());
     auto mapped_ids = std::unordered_set<std::string>{};
     for (std::size_t conformer_index = 0; conformer_index < metadata.conformers.size();
          ++conformer_index) {
         const auto& conformer = metadata.conformers[conformer_index];
         const auto model_id = conformer.id.value_or("1");
-        result.model_ids.push_back(model_id);
         auto& ids = result.atom_site_ids.emplace_back();
         ids.reserve(conformer.sites.size());
         for (std::size_t atom_index = 0; atom_index < conformer.sites.size(); ++atom_index) {
