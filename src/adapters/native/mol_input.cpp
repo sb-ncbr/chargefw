@@ -38,8 +38,9 @@ constexpr std::string_view v30_prefix{"M  V30 "};
         throw std::runtime_error{"unsupported query atom '" + std::string{normalized} + "'"};
     }
 
+    // Molfiles have no atom names; the symbol is the element, not a name.
     const auto& element = core::periodic_table().element(normalized);
-    return core::Atom{element.atomic_number, formal_charge, std::string{normalized}};
+    return core::Atom{element.atomic_number, formal_charge};
 }
 
 struct ParsedMolecule {

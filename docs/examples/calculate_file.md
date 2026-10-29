@@ -6,9 +6,9 @@ choose, and prints one row per atom. For [paracetamol.sdf](../getting-started/pa
 ```console
 $ python calculate_file.py paracetamol.sdf --format sdf --method eem
 molecule  conformer  atom_index  atom_id  atom_name  element      charge
-       0          0           0        0  C          C         -0.592069
-       0          0           1        1  C          C          0.662721
-       0          0           2        2  O          O         -0.719530
+       0          0           0        0  -          C         -0.592069
+       0          0           1        1  -          C          0.662721
+       0          0           2        2  -          O         -0.719530
 ...
 ```
 

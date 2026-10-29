@@ -33,8 +33,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
   mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal
   output omits, such as `_entity` and `_atom_type`.
-- [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
-  number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
 
 ## Scientific qualification
 

@@ -338,7 +338,7 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
 
     // A connection to an atom of a symmetry-related copy is not a bond of this molecule.
     const auto read_connection = [](const std::string_view second_symmetry) {
-        std::istringstream input{atom_site_header("symmetry") + R"cif(
+        std::istringstream connection_input{atom_site_header("symmetry") + R"cif(
 HETATM 1 S S1 . LIG A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 LIG A S1 1
 HETATM 2 S S2 . LIG B 1 ? 15.0 0.0 0.0 1.0 20.0 0 1 LIG B S2 1
 #
@@ -356,10 +356,11 @@ _struct_conn.ptnr2_label_seq_id
 _struct_conn.ptnr2_label_atom_id
 _struct_conn.ptnr2_symmetry
 disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
-                                 std::string{second_symmetry} + "\n#\n"};
+                                            std::string{second_symmetry} + "\n#\n"};
         auto record =
-            mmcif::MmcifReader{
-                input, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
+            mmcif::MmcifReader{connection_input,
+                               {},
+                               {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
                 .next();
         REQUIRE(record.has_value());
         return std::move(*record);

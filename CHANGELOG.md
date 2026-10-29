@@ -26,6 +26,10 @@
 
 ### Input
 
+- MOL and SDF atoms no longer get their element symbol as a name, since molfiles have no atom names;
+  `atom_names` in Python are empty for them. MOL2 and mmCIF output name these atoms from the element
+  and atom position (`O1`, `O2`, `N4`), where they used to show bare symbols (`O`, `O`) or numbered
+  repeats (`O`, `O2`).
 - `chargefw.io.gemmi.from_structure()` uses template bonds by default and refuses `bonds="explicit"`
   and `"hybrid"`. Converting a `gemmi.Structure` loses the file's ligand bond orders, connection bond
   orders, and PDB `CONECT` records, so those bonds were lost or became single without a warning. With

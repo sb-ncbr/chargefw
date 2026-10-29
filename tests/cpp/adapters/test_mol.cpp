@@ -231,6 +231,8 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
         CHECK(record.molecule.conformer_count() == 1);
         CHECK(record.molecule.atom(0).formal_charge() == 1);
         CHECK(record.molecule.atom(1).formal_charge() == -1);
+        // Molfiles have no atom names; the element symbol is not one.
+        CHECK(record.molecule.atom(0).name().empty());
         CHECK(record.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
         CHECK(record.identity.record_id == "charged-v2000");
         CHECK_FALSE(reader.next().has_value());
@@ -243,6 +245,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
         CHECK(result.molecule.atom_count() == 2);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
         CHECK(result.molecule.atom(1).formal_charge() == -1);
+        CHECK(result.molecule.atom(0).name().empty());
         CHECK(result.molecule.bond(0).first_atom_index() == 0);
         CHECK(result.molecule.bond(0).second_atom_index() == 1);
         CHECK(result.diagnostics.empty());
