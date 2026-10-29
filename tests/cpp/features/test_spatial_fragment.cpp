@@ -11,6 +11,7 @@
 #include <limits>
 #include <ranges>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -18,6 +19,17 @@
 
 namespace core = chargefw::core;
 namespace features = chargefw::features;
+
+// The builder borrows its source molecule and geometry, so temporaries are refused.
+static_assert(
+    std::is_constructible_v<features::SpatialFragmentBuilder, const features::PreparedMolecule&,
+                            const features::ConformerFeatures&>);
+static_assert(
+    !std::is_constructible_v<features::SpatialFragmentBuilder, features::PreparedMolecule&&,
+                             const features::ConformerFeatures&>);
+static_assert(
+    !std::is_constructible_v<features::SpatialFragmentBuilder, const features::PreparedMolecule&,
+                             features::ConformerFeatures&&>);
 
 namespace {
 
