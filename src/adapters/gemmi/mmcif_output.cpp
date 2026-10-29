@@ -16,10 +16,12 @@
 #include <cstddef>
 #include <format>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <ranges>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -285,6 +287,301 @@ struct OutputAssignments {
                                                    : nullptr;
 }
 
+struct OutputSiteLabels {
+    std::string label_atom;
+    std::string author_atom;
+    std::string label_residue;
+    std::string author_residue;
+    std::string label_chain;
+    std::string author_chain;
+    std::string label_sequence;
+    std::string author_sequence;
+    std::string entity;
+    std::string alternate_location;
+    std::string insertion_code;
+};
+
+[[nodiscard]] auto output_site_labels(const ImportedMoleculeRecord& record,
+                                      const std::vector<std::string>& generated_atom_ids,
+                                      const std::size_t conformer_index,
+                                      const std::size_t atom_index) -> OutputSiteLabels {
+    const auto* labels = structural_labels(record, conformer_index, atom_index);
+    const auto& fallback_atom = generated_atom_ids[atom_index];
+    if (labels == nullptr) {
+        return {.label_atom = fallback_atom,
+                .author_atom = fallback_atom,
+                .label_residue = "UNL",
+                .author_residue = "UNL",
+                .label_chain = "A",
+                .author_chain = "A",
+                .label_sequence = ".",
+                .author_sequence = "1",
+                .entity = "1",
+                .alternate_location = ".",
+                .insertion_code = "."};
+    }
+    const auto known_or = [](const std::optional<std::string>& value,
+                             const std::string_view fallback) {
+        return std::string{known_label(value).value_or(fallback)};
+    };
+    return {.label_atom = label_or(labels->label.atom, labels->author.atom, fallback_atom),
+            .author_atom = label_or(labels->author.atom, labels->label.atom, fallback_atom),
+            .label_residue = label_or(labels->label.residue, labels->author.residue, "UNL"),
+            .author_residue = label_or(labels->author.residue, labels->label.residue, "UNL"),
+            .label_chain = label_or(labels->label.chain, labels->author.chain, "A"),
+            .author_chain = label_or(labels->author.chain, labels->label.chain, "A"),
+            .label_sequence = known_or(labels->label.sequence, "."),
+            .author_sequence = known_or(labels->author.sequence, "."),
+            .entity = known_or(labels->entity, "1"),
+            .alternate_location = known_or(labels->alternate_location, "."),
+            .insertion_code = known_or(labels->insertion_code, ".")};
+}
+
+// The bond order codes of _chem_comp_bond.value_order and _struct_conn.pdbx_value_order.
+[[nodiscard]] auto mmcif_bond_order(const core::BondOrder order) -> std::string_view {
+    switch (order) {
+    case core::BondOrder::SINGLE:
+        return "sing";
+    case core::BondOrder::DOUBLE:
+        return "doub";
+    case core::BondOrder::TRIPLE:
+        return "trip";
+    }
+    throw std::logic_error{"unknown bond order"};
+}
+
+// The residue instance of each atom. Structural imports record the selected residues; any other
+// record is one residue.
+[[nodiscard]] auto residue_instances(const ImportedMoleculeRecord& record)
+    -> std::vector<std::size_t> {
+    const auto atom_count = record.molecule.atom_count();
+    if (!record.import_metadata.has_value() || record.import_metadata->components.empty()) {
+        return std::vector<std::size_t>(atom_count, 0);
+    }
+    constexpr auto missing = std::numeric_limits<std::size_t>::max();
+    auto result = std::vector<std::size_t>(atom_count, missing);
+    const auto& components = record.import_metadata->components;
+    for (std::size_t component_index = 0; component_index < components.size(); ++component_index) {
+        for (const auto atom_index : components[component_index].atom_indices) {
+            if (atom_index >= atom_count || result[atom_index] != missing) {
+                throw std::invalid_argument{
+                    "mmCIF bond output requires each atom in exactly one residue"};
+            }
+            result[atom_index] = component_index;
+        }
+    }
+    if (std::ranges::contains(result, missing)) {
+        throw std::invalid_argument{"mmCIF bond output requires each atom in exactly one residue"};
+    }
+    return result;
+}
+
+// The residue as users know it from PDB files: name, author chain, and author number.
+[[nodiscard]] auto residue_description(const OutputSiteLabels& labels) -> std::string {
+    return std::format("residue {} {} {}{}", labels.label_residue, labels.author_chain,
+                       labels.author_sequence,
+                       labels.insertion_code == "." ? "" : labels.insertion_code);
+}
+
+// Two atom names in sorted order, so that a bond has one key whichever atom comes first.
+using AtomNamePair = std::pair<std::string, std::string>;
+
+[[nodiscard]] auto bond_key(std::string first, std::string second) -> AtomNamePair {
+    if (second < first) {
+        std::swap(first, second);
+    }
+    return {std::move(first), std::move(second)};
+}
+
+struct ResidueBonds {
+    std::string component;
+    std::string description;
+    std::set<std::string> atom_names;
+    std::set<AtomNamePair> bonds;
+};
+
+struct ComponentBond {
+    std::string component;
+    std::string first_atom;
+    std::string second_atom;
+    core::BondOrder order;
+};
+
+struct RecordBonds {
+    std::vector<std::string> components;
+    std::vector<ComponentBond> component_bonds;
+    std::vector<const core::Bond*> connections;
+};
+
+// Splits the bonds into component bonds, written per residue name, and connections between
+// residues. A component bond applies to every residue with that name, so all such residues must
+// have the same bonds between the atoms they share.
+[[nodiscard]] auto record_bonds(const core::Molecule& molecule,
+                                const std::vector<OutputSiteLabels>& labels,
+                                const std::vector<std::size_t>& residue_of) -> RecordBonds {
+    auto result = RecordBonds{};
+    auto residues = std::vector<ResidueBonds>(std::ranges::max(residue_of) + 1);
+    for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
+        const auto& site = labels[atom_index];
+        auto& residue = residues[residue_of[atom_index]];
+        if (residue.atom_names.empty()) {
+            residue.component = site.label_residue;
+            residue.description = residue_description(site);
+        }
+        if (!residue.atom_names.insert(site.label_atom).second) {
+            throw std::invalid_argument{std::format(
+                "mmCIF bond output requires unique atom names, but {} has atom '{}' more than once",
+                residue.description, site.label_atom)};
+        }
+        if (!std::ranges::contains(result.components, site.label_residue)) {
+            result.components.push_back(site.label_residue);
+        }
+    }
+
+    auto definitions = std::map<std::string, std::map<AtomNamePair, core::BondOrder>>{};
+    for (const auto& bond : molecule.bonds()) {
+        const auto residue_index = residue_of[bond.first_atom_index()];
+        if (residue_index != residue_of[bond.second_atom_index()]) {
+            result.connections.push_back(std::addressof(bond));
+            continue;
+        }
+        auto& residue = residues[residue_index];
+        const auto& first = labels[bond.first_atom_index()].label_atom;
+        const auto& second = labels[bond.second_atom_index()].label_atom;
+        const auto key = bond_key(first, second);
+        residue.bonds.insert(key);
+        const auto [definition, inserted] =
+            definitions[residue.component].try_emplace(key, bond.order());
+        if (inserted) {
+            result.component_bonds.push_back({.component = residue.component,
+                                              .first_atom = first,
+                                              .second_atom = second,
+                                              .order = bond.order()});
+        } else if (definition->second != bond.order()) {
+            throw std::invalid_argument{std::format(
+                "mmCIF bond output cannot write bond {}-{} of {}: another {} residue has a "
+                "different bond order",
+                first, second, residue.description, residue.component)};
+        }
+    }
+
+    // A residue without a bond that its component defines would gain that bond in readers.
+    for (const auto& residue : residues) {
+        for (const auto& [key, order] : definitions[residue.component]) {
+            if (residue.atom_names.contains(key.first) && residue.atom_names.contains(key.second) &&
+                !residue.bonds.contains(key)) {
+                throw std::invalid_argument{std::format(
+                    "mmCIF bond output cannot write bond {}-{} of {}: {} has both atoms but no "
+                    "bond between them",
+                    key.first, key.second, residue.component, residue.description)};
+            }
+        }
+    }
+    return result;
+}
+
+auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds) -> void {
+    block.init_loop("_chem_comp.", {"id"});
+    auto components = block.find("_chem_comp.", {"id"});
+    for (const auto& component : bonds.components) {
+        components.append_row({quote(component)});
+    }
+    if (bonds.component_bonds.empty()) {
+        return;
+    }
+    const auto columns = std::vector<std::string>{"comp_id", "atom_id_1", "atom_id_2",
+                                                  "value_order", "pdbx_ordinal"};
+    block.init_loop("_chem_comp_bond.", columns);
+    auto rows = block.find("_chem_comp_bond.", columns);
+    auto ordinal = std::size_t{1};
+    for (const auto& bond : bonds.component_bonds) {
+        rows.append_row({quote(bond.component), quote(bond.first_atom), quote(bond.second_atom),
+                         std::string{mmcif_bond_order(bond.order)}, std::to_string(ordinal++)});
+    }
+}
+
+// Appends the _struct_conn partner columns of one atom, in the order of connection_columns().
+auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLabels& site)
+    -> void {
+    // Readers find a partner by author chain and number, or by label chain and number.
+    if (site.author_sequence == "." && site.label_sequence == ".") {
+        throw std::invalid_argument{"mmCIF bond output cannot write a bond to " +
+                                    residue_description(site) + ": it has no residue number"};
+    }
+    // Readers such as Gemmi name atoms by their author names but look up partners by the label
+    // names, so a partner whose names differ would not be found.
+    if (site.label_atom != site.author_atom || site.label_residue != site.author_residue) {
+        throw std::invalid_argument{std::format(
+            "mmCIF bond output cannot write a bond to atom {} of {}: its author and label atom or "
+            "residue names differ",
+            site.label_atom, residue_description(site))};
+    }
+    const auto optional = [](const std::string& value) {
+        return value == "." ? std::string{"."} : quote(value);
+    };
+    row.insert(row.end(),
+               {quote(site.label_chain), quote(site.label_residue), optional(site.label_sequence),
+                quote(site.label_atom), optional(site.insertion_code), quote(site.author_chain),
+                optional(site.author_sequence), "1_555"});
+}
+
+[[nodiscard]] auto connection_columns() -> std::vector<std::string> {
+    auto columns = std::vector<std::string>{"id", "conn_type_id"};
+    for (const auto* partner : {"1", "2"}) {
+        const auto ptnr = std::string{"ptnr"} + partner;
+        const auto pdbx_ptnr = std::string{"pdbx_ptnr"} + partner;
+        columns.insert(columns.end(),
+                       {ptnr + "_label_asym_id", ptnr + "_label_comp_id", ptnr + "_label_seq_id",
+                        ptnr + "_label_atom_id", pdbx_ptnr + "_PDB_ins_code",
+                        ptnr + "_auth_asym_id", ptnr + "_auth_seq_id", ptnr + "_symmetry"});
+    }
+    columns.emplace_back("pdbx_value_order");
+    return columns;
+}
+
+auto append_connections(::gemmi::cif::Block& block, const core::Molecule& molecule,
+                        const std::vector<OutputSiteLabels>& labels,
+                        const std::vector<const core::Bond*>& connections) -> void {
+    if (connections.empty()) {
+        return;
+    }
+    const auto columns = connection_columns();
+    block.init_loop("_struct_conn.", columns);
+    auto rows = block.find("_struct_conn.", columns);
+    auto next_covalent_id = std::size_t{1};
+    auto next_disulfide_id = std::size_t{1};
+    for (const auto* bond : connections) {
+        constexpr auto sulfur = 16;
+        const auto disulfide = molecule.atom(bond->first_atom_index()).atomic_number() == sulfur &&
+                               molecule.atom(bond->second_atom_index()).atomic_number() == sulfur;
+        const auto type = std::string{disulfide ? "disulf" : "covale"};
+        auto row = std::vector<std::string>{
+            type + std::to_string(disulfide ? next_disulfide_id++ : next_covalent_id++), type};
+        append_connection_partner(row, labels[bond->first_atom_index()]);
+        append_connection_partner(row, labels[bond->second_atom_index()]);
+        row.emplace_back(mmcif_bond_order(bond->order()));
+        rows.append_row(row);
+    }
+}
+
+// mmCIF describes bonds within a residue in _chem_comp_bond, by residue and atom name, and bonds
+// between residues in _struct_conn. Bonds are topology and use the first conformer's labels.
+auto append_bonds(::gemmi::cif::Block& block, const ImportedMoleculeRecord& record,
+                  const std::vector<std::string>& generated_atom_ids) -> void {
+    const auto& molecule = record.molecule;
+    if (molecule.bond_count() == 0) {
+        return;
+    }
+    auto labels = std::vector<OutputSiteLabels>{};
+    labels.reserve(molecule.atom_count());
+    for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
+        labels.push_back(output_site_labels(record, generated_atom_ids, 0, atom_index));
+    }
+    const auto bonds = record_bonds(molecule, labels, residue_instances(record));
+    append_component_bonds(block, bonds);
+    append_connections(block, molecule, labels, bonds.connections);
+}
+
 auto validate_result_output(const ChargeCalculationResult& result) -> void {
     if (!result.execution().calculated() || !result.execution().charges.has_value()) {
         throw std::invalid_argument{"mmCIF output requires a successful calculation"};
@@ -374,81 +671,35 @@ auto write_result_block(::gemmi::cif::Block& block, const ImportedMoleculeRecord
         for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
             const auto& atom = molecule.atom(atom_index);
             const auto& position = molecule.conformer(conformer_index)[atom_index];
-            const auto* labels = structural_labels(record, conformer_index, atom_index);
-            const auto& fallback_atom = generated_atom_ids[atom_index];
-            const auto label_atom =
-                labels == nullptr
-                    ? fallback_atom
-                    : label_or(labels->label.atom, labels->author.atom, fallback_atom);
-            const auto author_atom =
-                labels == nullptr
-                    ? fallback_atom
-                    : label_or(labels->author.atom, labels->label.atom, fallback_atom);
-            const auto label_residue =
-                labels == nullptr ? std::string{"UNL"}
-                                  : label_or(labels->label.residue, labels->author.residue, "UNL");
-            const auto author_residue =
-                labels == nullptr ? std::string{"UNL"}
-                                  : label_or(labels->author.residue, labels->label.residue, "UNL");
-            const auto label_chain = labels == nullptr
-                                         ? std::string{"A"}
-                                         : label_or(labels->label.chain, labels->author.chain, "A");
-            const auto author_chain =
-                labels == nullptr ? std::string{"A"}
-                                  : label_or(labels->author.chain, labels->label.chain, "A");
-            const auto label_sequence =
-                labels == nullptr || !known_label(labels->label.sequence).has_value()
-                    ? std::string{"."}
-                    : std::string{*known_label(labels->label.sequence)};
-            const auto author_sequence =
-                labels == nullptr
-                    ? std::string{"1"}
-                    : known_label(labels->author.sequence)
-                          .transform([](const auto value) { return std::string{value}; })
-                          .value_or(".");
-            const auto entity =
-                labels == nullptr
-                    ? std::string{"1"}
-                    : known_label(labels->entity)
-                          .transform([](const auto value) { return std::string{value}; })
-                          .value_or("1");
-            const auto alternate_location =
-                labels == nullptr
-                    ? std::string{"."}
-                    : known_label(labels->alternate_location)
-                          .transform([](const auto value) { return std::string{value}; })
-                          .value_or(".");
-            const auto insertion_code =
-                labels == nullptr
-                    ? std::string{"."}
-                    : known_label(labels->insertion_code)
-                          .transform([](const auto value) { return std::string{value}; })
-                          .value_or(".");
+            const auto labels =
+                output_site_labels(record, generated_atom_ids, conformer_index, atom_index);
             const auto site_id = std::to_string(next_site_id++);
-            atom_sites.append_row({site_id,
-                                   std::string{core::element_symbol(atom.atomic_number())},
-                                   quote(label_atom),
-                                   alternate_location == "." ? "." : quote(alternate_location),
-                                   quote(label_residue),
-                                   quote(label_chain),
-                                   quote(entity),
-                                   label_sequence == "." ? "." : quote(label_sequence),
-                                   insertion_code == "." ? "." : quote(insertion_code),
-                                   std::format("{}", position.x),
-                                   std::format("{}", position.y),
-                                   std::format("{}", position.z),
-                                   "?",
-                                   "?",
-                                   std::to_string(atom.formal_charge()),
-                                   author_sequence == "." ? "." : quote(author_sequence),
-                                   quote(author_residue),
-                                   quote(author_chain),
-                                   quote(author_atom),
-                                   model_id});
+            atom_sites.append_row(
+                {site_id,
+                 std::string{core::element_symbol(atom.atomic_number())},
+                 quote(labels.label_atom),
+                 labels.alternate_location == "." ? "." : quote(labels.alternate_location),
+                 quote(labels.label_residue),
+                 quote(labels.label_chain),
+                 quote(labels.entity),
+                 labels.label_sequence == "." ? "." : quote(labels.label_sequence),
+                 labels.insertion_code == "." ? "." : quote(labels.insertion_code),
+                 std::format("{}", position.x),
+                 std::format("{}", position.y),
+                 std::format("{}", position.z),
+                 "?",
+                 "?",
+                 std::to_string(atom.formal_charge()),
+                 labels.author_sequence == "." ? "." : quote(labels.author_sequence),
+                 quote(labels.author_residue),
+                 quote(labels.author_chain),
+                 quote(labels.author_atom),
+                 model_id});
             charge_rows.append_row(
                 {type_id, site_id, std::format("{:.4f}", assignment->charges[atom_index])});
         }
     }
+    append_bonds(block, record, generated_atom_ids);
 }
 
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
