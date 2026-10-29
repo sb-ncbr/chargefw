@@ -123,7 +123,9 @@ PDB and mmCIF are parsed through Gemmi. PDB produces one molecule record. Each m
 `_atom_site.id` produces one molecule record; blocks without coordinate data are skipped. The source block
 name is retained as the mmCIF record ID. Atom-site IDs must be present and unique, but may be arbitrary
 strings or integers; values such as `Csite`, `001`, and integers wider than 64 bits are retained exactly.
-Parsing does not change the source document or exposed mapping.
+Parsing does not change the source document or exposed mapping. Partial charges in a block, such as those
+of an earlier ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges`, are not used; the record
+receives a `partial_charges_ignored` warning.
 
 The first selected model defines elements, formal charges, names, topology, and source mapping. Selected
 atoms are restored to source row order even when Gemmi groups noncontiguous rows by hierarchy; later models

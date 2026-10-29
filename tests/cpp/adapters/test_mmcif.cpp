@@ -239,6 +239,12 @@ HETATM 6 O O . HOH A 3 ? 2.1 0.0 0.0 1.0 20.0 0 3 HOH A O 2
                              R"cif(
 ATOM 1 O O . HOH B 1 ? 3.0 0.0 0.0 1.0 20.0 0 1 HOH B O 1
 #
+loop_
+_sb_ncbr_partial_atomic_charges.type_id
+_sb_ncbr_partial_atomic_charges.atom_id
+_sb_ncbr_partial_atomic_charges.charge
+1 1 -0.8
+#
 )cif"};
 
     auto reader = mmcif::MmcifReader{input, "structure.cif"};
@@ -251,12 +257,16 @@ ATOM 1 O O . HOH B 1 ? 3.0 0.0 0.0 1.0 20.0 0 1 HOH B O 1
     CHECK(first->molecule.bond_count() == 0);
     CHECK(first->molecule.conformer_count() == 2);
     CHECK(first->molecule.conformer(1)[0].x == 0.1);
+    CHECK(first->diagnostics.empty());
 
     const auto second = reader.next();
     REQUIRE(second.has_value());
     CHECK(second->identity.record_index == 1);
     CHECK(second->identity.record_id == "second");
     CHECK(second->molecule.atom_count() == 1);
+    // Charges in the file are not calculation input.
+    REQUIRE(second->diagnostics.size() == 1);
+    CHECK(second->diagnostics.front().code == "partial_charges_ignored");
     CHECK_FALSE(reader.next().has_value());
 
     std::istringstream deferred_error_input{atom_site_header("valid") + R"cif(

@@ -26,6 +26,8 @@
 
 ### Input
 
+- An mmCIF block that contains partial charges, for example from an earlier calculation, gives its
+  record a `partial_charges_ignored` warning, as MOL2 input does; the charges are not used.
 - mmCIF bonds between residues keep their order from `_struct_conn.pdbx_value_order`; they were all
   read as single bonds before. A connection without an order is still a single bond.
 

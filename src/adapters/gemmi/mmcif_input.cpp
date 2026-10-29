@@ -162,6 +162,13 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
             options_.selection, options_.bond_strategy, options_.conformers,
             std::move(explicit_bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
+        if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.")) {
+            record.diagnostics.push_back(MoleculeRecordDiagnostic{
+                .code = "partial_charges_ignored",
+                .message = "mmCIF partial charges were ignored; they are not formal charges and "
+                           "were not used for calculation.",
+                .line = std::nullopt});
+        }
         return record;
     }
 
