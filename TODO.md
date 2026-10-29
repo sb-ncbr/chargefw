@@ -23,21 +23,25 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Integrations
 
-- [ ] Compare the Python API with the capabilities actually used by the ACC III backend and add only the
-  missing explicit capabilities needed for migration. Document intentionally unsupported legacy
-  behavior before replacing the existing backend.
+- [ ] ACC III migration: ChargeFW provides the reading options, method and parameter catalogs,
+  applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
+  `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
 ## Format correctness
 
-- [ ] Preserve the exact optional mmCIF model token during strict attachment, distinguishing an absent
-  column, `.`, `?`, and an explicit value.
-- [ ] Define and enforce how structural import handles Gemmi connections whose endpoints are in different
-  symmetry images; the core graph cannot represent a symmetry-image endpoint.
-- [ ] Make mmCIF charge annotation update stale or duplicate `_audit_conform` dictionary entries
-  deterministically.
-- [ ] Add optional dictionary-backed validation of generated mmCIF to focused or release validation.
-- [ ] Define and test explicit-connectivity behavior for `chargefw.io.gemmi.from_structure()`, accounting
-  for connectivity that Gemmi does not retain when converting a `Structure` through mmCIF.
+- [ ] Decide how structural import handles `_struct_conn` partners in different symmetry images
+  (`ptnr*_symmetry`): skip them with a record diagnostic, or refuse the record. They are now read as
+  bonds to atoms of the asymmetric unit.
+- [ ] Decide explicit and hybrid bonds for `chargefw.io.gemmi.from_structure()`: Gemmi does not keep
+  `_chem_comp_bond` or connection bond orders when writing a `Structure` as mmCIF, so ligand bond orders
+  are lost. Options: refuse these strategies and default to `templates`, or document the loss.
+- [ ] Validate generated mmCIF, including the bond categories, against the PDBx and charges dictionaries
+  once; check in particular `_chem_comp.type`, which is not written. Decide whether to automate the
+  check.
+- [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
+  number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
+- [ ] After 3.0.0, compare the optional mmCIF model token exactly during strict attachment,
+  distinguishing an absent column, `.`, `?`, and an explicit value.
 
 ## Scientific qualification
 
