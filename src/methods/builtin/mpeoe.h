@@ -12,7 +12,7 @@ class MPEOEMethod final : public Method {
         static constexpr MethodMetadata metadata{
             .id = "mpeoe",
             .name = "MPEOE",
-            .full_name = "Modified Partial Equalization of Atomic Electronegativity",
+            .full_name = "Modified Partial Equalization of Orbital Electronegativity",
             .publication = "10.1021/j100374a066",
             .notes =
                 "With the default zero-charge initialization, every connected component must be "

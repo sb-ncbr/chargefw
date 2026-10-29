@@ -135,7 +135,7 @@ choose. With `--fixed-ions` or execution options, it shows their effect without 
 $ chargefw methods peoe
 id: peoe
 name: PEOE
-full name: Partial Equalization of Atomic Electronegativity
+full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default zero-charge initialization, every connected component must be formally neutral. initial_charges=formal is a ChargeFW extension that preserves supplied formal charges.
 priority: 120
