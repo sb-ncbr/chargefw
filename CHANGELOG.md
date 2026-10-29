@@ -7,6 +7,8 @@
 - A MOL2, mmCIF, PQR, or result JSON file that cannot be written no longer replaces an existing file of
   the same name. Before, a refused export, such as MOL2 for a molecule without coordinates, left the
   earlier file empty.
+- A method option given as NaN or infinity, such as `--method-option denr.step=nan`, is refused as
+  invalid input, exit status 2; it used to pass validation and fail later during the calculation.
 
 ### Output
 

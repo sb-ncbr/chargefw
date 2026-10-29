@@ -1,6 +1,7 @@
 #include <chargefw/methods/method_options.h>
 
 #include <array>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -104,6 +105,16 @@ TEST_CASE("method options reject missing, wrong type, and out-of-bounds values",
         methods::validate_method_options(schema, invalid);
     };
     CHECK_THROWS_AS(below_minimum(), std::invalid_argument);
+
+    // nonfinite values, including infinity above a lone lower bound
+    for (const auto value :
+         {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(),
+          -std::numeric_limits<double>::infinity()}) {
+        CAPTURE(value);
+        auto invalid = methods::make_default_options(schema);
+        invalid.set("radius", value);
+        CHECK_THROWS_AS(methods::validate_method_options(schema, invalid), std::invalid_argument);
+    }
 
     // inclusive maximum accepts the bound and rejects values above it
     auto at_maximum = methods::make_default_options(schema);
