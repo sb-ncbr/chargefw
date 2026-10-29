@@ -267,15 +267,32 @@ auto parse(std::string contents, std::string source, const std::string& format,
     return as_python(payloads);
 }
 
-auto dumps(const NativeExecutionResult& native_result, const std::string& format) -> std::string {
-    const auto& result = native_result.result();
+[[nodiscard]] auto result_pointers(const std::vector<NativeExecutionResult*>& native_results)
+    -> std::vector<const adapters::ChargeCalculationResult*> {
+    auto results = std::vector<const adapters::ChargeCalculationResult*>{};
+    results.reserve(native_results.size());
+    for (const auto* native_result : native_results) {
+        results.push_back(std::addressof(native_result->result()));
+    }
+    return results;
+}
+
+auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std::string& format)
+    -> std::string {
     auto output = std::ostringstream{};
+    if (format == "mmcif") {
+        const auto results = result_pointers(native_results);
+        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(results, CHARGEFW_VERSION_STRING);
+        return output.str();
+    }
+    if (native_results.size() != 1) {
+        throw std::invalid_argument{"output format " + format + " holds one calculation result"};
+    }
+    const auto& result = native_results.front()->result();
     if (format == "result-json") {
         adapters::native::json_output::JsonWriter{output}.write(result, CHARGEFW_VERSION_STRING);
     } else if (format == "mol2") {
         adapters::native::mol2_output::Mol2Writer{output}.write(result, CHARGEFW_VERSION_STRING);
-    } else if (format == "mmcif") {
-        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(result, CHARGEFW_VERSION_STRING);
     } else if (format == "pqr") {
         adapters::native::pqr_output::PqrWriter{output}.write(result, CHARGEFW_VERSION_STRING);
     } else {
@@ -284,13 +301,14 @@ auto dumps(const NativeExecutionResult& native_result, const std::string& format
     return output.str();
 }
 
-auto attach_mmcif(std::string contents, const NativeExecutionResult& native_result,
+auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*>& native_results,
                   const bool overwrite) -> std::string {
     auto output = std::ostringstream{};
     const auto document =
         ::gemmi::cif::read_memory(contents.data(), contents.size(), "<Gemmi document>");
-    adapters::gemmi::mmcif_output::write_attached(output, native_result.result(), document,
-                                                  overwrite, CHARGEFW_VERSION_STRING);
+    const auto results = result_pointers(native_results);
+    adapters::gemmi::mmcif_output::write_attached(output, results, document, overwrite,
+                                                  CHARGEFW_VERSION_STRING);
     return output.str();
 }
 
@@ -301,9 +319,9 @@ void bind_adapters(nb::module_& module) {
         nb::class_<NativeInputMetadata>(module, "_NativeInputMetadata");
     module.def("_parse", &parse, nb::arg("contents"), nb::arg("source"), nb::arg("format"),
                nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"));
-    module.def("_dumps", &dumps, nb::arg("result"), nb::arg("format"),
+    module.def("_dumps", &dumps, nb::arg("results"), nb::arg("format"),
                nb::call_guard<nb::gil_scoped_release>());
-    module.def("_attach_mmcif", &attach_mmcif, nb::arg("contents"), nb::arg("result"),
+    module.def("_attach_mmcif", &attach_mmcif, nb::arg("contents"), nb::arg("results"),
                nb::arg("overwrite"), nb::call_guard<nb::gil_scoped_release>());
 }
 

@@ -163,8 +163,19 @@ int main() {
 | `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options |
 | `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
 | `chargefw/adapters/native/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
-| `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document |
+| `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
 | `chargefw/adapters/native/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
+
+`MmcifWriter` also writes several charge sets for the same records into one file. Pass pointers to
+results calculated from equal records, for example from copies of `records` above:
+
+```cpp
+auto cif = std::ofstream{"paracetamol.cif"};
+adapters::gemmi::mmcif_output::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result},
+                                                      CHARGEFW_VERSION_STRING);
+```
+
+The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
 The writers record ChargeFW and the version you pass as the program that wrote the file; pass
 `CHARGEFW_VERSION_STRING` from `<chargefw/config.h>`.

@@ -229,6 +229,17 @@ chargefw.io.write("charged.cif", result, format="mmcif")
 chargefw.io.write("charged.mol2", result, format="mol2")
 ```
 
+An mmCIF file can hold the charges of several methods for the same molecules. Pass the results as a
+list; each becomes a separate charge set:
+
+```python
+sqeqp = chargefw.calculate(molecules, method="sqeqp")
+eem = chargefw.calculate(molecules, method="eem")
+chargefw.io.write("charged.cif", [sqeqp, eem], format="mmcif")
+```
+
+The other formats hold one result. The [mmCIF reference](../reference/formats.md#mmcif) lists the rules.
+
 MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or mmCIF. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares the formats, and the
 [format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
@@ -420,7 +431,8 @@ ChargeFW's own reader, so the `selection`, `bonds`, and `conformers` options beh
 does not copy other data of the input.
 
 `attach_charges(document, result)` adds the charges to the document that was passed to
-`from_document()`. It first checks that the document still matches the calculated molecules: blocks,
+`from_document()`. Both functions also take a list of results for the same molecules, one charge set
+each. It first checks that the document still matches the calculated molecules: blocks,
 atom sites, IDs, models, elements, labels, coordinates, and formal charges. Occupancies and B factors may
 differ. If anything does not match, the document stays unchanged. Existing charge data is an error unless
 you pass `overwrite=True`. The function replaces the document's blocks, so get block objects such as

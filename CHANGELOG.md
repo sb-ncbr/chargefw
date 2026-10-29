@@ -15,6 +15,11 @@
   to write a structure whose bonds the residue definitions cannot express, for example two residues of
   the same name with different bonds.
   [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#mmcif) lists the rules.
+- An mmCIF file can hold several charge sets for the same molecules: pass a list of results to
+  `chargefw.io.dumps()`, `chargefw.io.write()`, `chargefw.io.gemmi.to_document()`, or
+  `chargefw.io.gemmi.attach_charges()`. Two sets with the same method and parameter set are refused.
+- A charge set calculated per conformer now has one ID in mmCIF output, covering all conformers. Before,
+  each conformer got its own ID, so viewers listed the same method once per conformer.
 
 ### Input
 

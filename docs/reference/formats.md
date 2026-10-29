@@ -223,6 +223,15 @@ mmCIF charge output follows the SB NCBR partial atomic charges dictionary versio
 dictionary declaration in `_audit_conform`. Charge rows refer to `_atom_site.id`, preserving the mapping
 of structural selections and conformers.
 
+Each charge set has one metadata row, with ID `1` for the first set, and its charges cover every
+conformer under that ID. In Python, one file can hold several charge sets: pass a list of results to
+`chargefw.io.dumps()`, `chargefw.io.write()`, or the Gemmi functions, and the sets get IDs `1`, `2`, and
+so on. Calculate all sets from the same molecules, for example one collection read once. ChargeFW
+compares the input records exactly, including names, source, and import data; molecules read or built
+separately are accepted only when all of these match, not merely when they are chemically identical.
+Two sets with the same method and parameter set are refused, because the file does not record method
+options or the execution mode that could tell them apart.
+
 The mmCIF writer creates a new, minimal data block for every record. It
 emits `_entry`, `_audit_conform`, `_atom_site`, the bond categories described below, and the charge
 dictionary categories without copying source categories. Known author and label atom/residue/chain

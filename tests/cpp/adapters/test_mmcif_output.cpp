@@ -12,8 +12,11 @@
 #include <snitch/snitch.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <limits>
+#include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -182,11 +185,12 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
     REQUIRE(values.length() == 4);
     auto metadata =
         block.find("_sb_ncbr_partial_atomic_charges_meta.", {"software_name", "software_version"});
-    REQUIRE(metadata.length() == 2);
+    // One charge set covers both conformers under one id.
+    REQUIRE(metadata.length() == 1);
     CHECK(::gemmi::cif::as_string(metadata[0][0]) == "ChargeFW");
     CHECK(::gemmi::cif::as_string(metadata[0][1]) == "test");
     CHECK(::gemmi::cif::as_string(values[0][0]) == "1");
-    CHECK(::gemmi::cif::as_string(values[2][0]) == "2");
+    CHECK(::gemmi::cif::as_string(values[2][0]) == "1");
     CHECK(::gemmi::cif::as_string(values[2][1]) == "3");
     CHECK(::gemmi::cif::as_string(values[0][2]) == "0.1235");
 
@@ -288,6 +292,51 @@ TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot expre
         auto output = std::ostringstream{};
         CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(result), std::invalid_argument);
         CHECK(output.str().empty());
+    }
+}
+
+TEST_CASE("mmCIF holds one charge set per result for the same molecules", "[adapters][mmcif]") {
+    const auto charge_set = [](std::string method, std::optional<std::string> parameter_set,
+                               const double charge) {
+        return charges::ChargeSet{std::move(method),
+                                  {{.target = {.molecule_index = 0},
+                                    .charges = charges::AtomicCharges{{charge, -charge}}}},
+                                  std::move(parameter_set)};
+    };
+    const auto qeq = calculation_result({generated_record()}, charge_set("qeq", "QEq", 0.25));
+    const auto eem = calculation_result({generated_record()}, charge_set("eem", "EEM", 0.5));
+    auto output = std::ostringstream{};
+    mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}, "test");
+    auto document = ::gemmi::cif::read_string(output.str());
+    auto& block = document.blocks.front();
+    auto metadata =
+        block.find("_sb_ncbr_partial_atomic_charges_meta.", {"id", "method", "parameter_set"});
+    REQUIRE(metadata.length() == 2);
+    CHECK(::gemmi::cif::as_string(metadata[1][0]) == "2");
+    CHECK(::gemmi::cif::as_string(metadata[1][1]) == "eem");
+    CHECK(::gemmi::cif::as_string(metadata[1][2]) == "EEM");
+    // Two atoms in two conformers for each set, each set with its own charges.
+    auto charges_by_site = std::map<std::pair<std::string, std::string>, std::string>{};
+    for (const auto row :
+         block.find("_sb_ncbr_partial_atomic_charges.", {"type_id", "atom_id", "charge"})) {
+        charges_by_site[{::gemmi::cif::as_string(row[0]), ::gemmi::cif::as_string(row[1])}] =
+            ::gemmi::cif::as_string(row[2]);
+    }
+    CHECK(charges_by_site.size() == 8);
+    CHECK(charges_by_site[{"1", "3"}] == "0.2500");
+    CHECK(charges_by_site[{"2", "3"}] == "0.5000");
+    CHECK(charges_by_site[{"2", "4"}] == "-0.5000");
+
+    const auto other_molecule =
+        calculation_result({generated_record("other")}, charge_set("eem", "EEM", 0.5));
+    const auto same_set = calculation_result({generated_record()}, charge_set("qeq", "QEq", 0.5));
+    using Results = std::array<const adapters::ChargeCalculationResult*, 2>;
+    for (const auto& rejected :
+         {Results{&qeq, &other_molecule}, Results{&qeq, &same_set}, Results{&qeq, nullptr}}) {
+        auto rejected_output = std::ostringstream{};
+        CHECK_THROWS_AS(mmcif_output::MmcifWriter{rejected_output}.write(rejected),
+                        std::invalid_argument);
+        CHECK(rejected_output.str().empty());
     }
 }
 

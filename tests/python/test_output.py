@@ -90,6 +90,33 @@ def test_pqr_requires_structural_input() -> None:
         chargefw.io.dumps(chargefw.calculate(water(), method="formal"), format="pqr")
 
 
+def test_mmcif_holds_one_charge_set_per_result() -> None:
+    molecule = water(conformers=2)
+    formal = chargefw.calculate(molecule, method="formal")
+    qeq = chargefw.calculate(molecule, method="qeq")
+    block = gemmi.cif.read_string(chargefw.io.dumps([formal, qeq], format="mmcif")).sole_block()
+    methods = block.find("_sb_ncbr_partial_atomic_charges_meta.", ["id", "method"])
+    assert [(gemmi.cif.as_string(row[0]), gemmi.cif.as_string(row[1])) for row in methods] == [
+        ("1", "formal"),
+        ("2", "qeq"),
+    ]
+    # Each set covers both conformers under its single id.
+    type_ids = [
+        gemmi.cif.as_string(row[0])
+        for row in block.find("_sb_ncbr_partial_atomic_charges.", ["type_id"])
+    ]
+    assert type_ids == ["1"] * 6 + ["2"] * 6
+
+    with pytest.raises(ValueError, match="one calculation result"):
+        chargefw.io.dumps([formal, qeq], format="mol2")
+    for rejected in (
+        [formal, chargefw.calculate(water(), method="qeq")],
+        [formal, chargefw.calculate(molecule, method="formal")],
+    ):
+        with pytest.raises(ValueError):
+            chargefw.io.dumps(rejected, format="mmcif")
+
+
 def test_write_uses_explicit_format(tmp_path: Path) -> None:
     result = chargefw.calculate(water(), method="formal")
     path = tmp_path / "charges.data"
