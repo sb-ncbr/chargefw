@@ -13,7 +13,7 @@ CLASSIFIERS = ("plain", "hbo", "bonded")
 
 
 def atom_types(molecule: chargefw.Molecule, classifier: str) -> list[tuple[str, str]]:
-    """Return the element and classifier type of every atom, following PARAMETERS.md."""
+    """Return the element and classifier type of every atom, following the parameter-set format."""
 
     symbols = [chargefw.periodic_table[number].symbol for number in molecule.atomic_numbers]
     neighbors: list[list[str]] = [[] for _ in symbols]
