@@ -27,24 +27,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
-## Format correctness
-
-- [ ] Decide whether to check generated mmCIF against the PDBx and charges dictionaries regularly, as a
-  release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
-  mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal
-  output omits, such as `_entity` and `_atom_type`.
-- [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
-  number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
-- [ ] After 3.0.0, compare the optional mmCIF model token exactly during strict attachment,
-  distinguishing an absent column, `.`, `?`, and an explicit value.
-
-## Scientific qualification
-
-- [ ] Decide how to handle 2D coordinates. A 2D molfile or SD record, read by ChargeFW or converted from
-  an RDKit conformer with `Is3D() == False`, becomes 3D coordinates with z = 0, and automatic selection
-  then uses a geometry-dependent method on the flat drawing without a warning. Options: reject 2D
-  coordinates for methods that use geometry, warn, or import the molecule without coordinates.
-
 ## Project infrastructure
 
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel

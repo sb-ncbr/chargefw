@@ -223,6 +223,15 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
         cast(Any, result.requested).fixed_ions = ("CA",)
     with pytest.raises(TypeError):
         chargefw.calculate(molecules, plan, fixed_ions=[])
+    # Selection arguments are refused with a plan even when they repeat the default value.
+    for argument in (
+        {"parameter_matching": "strict"},
+        {"execution": "auto"},
+        {"cutoff_threshold": 20_000},
+        {"cover_threshold": 80_000},
+    ):
+        with pytest.raises(TypeError, match="assessed plan"):
+            chargefw.calculate(molecules, plan, **cast(Any, argument))
 
 
 def test_fixed_ions_validation_empty_and_method_support() -> None:

@@ -121,6 +121,15 @@ class SourceMapping:
     components: tuple[SourceComponentInstance, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class ImportDiagnostic:
+    """A warning that a file reader attached to an imported molecule."""
+
+    code: str
+    message: str
+    line: int | None = None
+
+
 class Molecule:
     """Immutable, owned toolkit-neutral molecular data."""
 
@@ -254,13 +263,13 @@ class Molecule:
     def atomic_numbers(self) -> NDArray[np.int64]:
         """Read-only int64 array of shape (atom_count,) in molecule atom order."""
 
-        return self._atomic_numbers
+        return self._atomic_numbers.view()
 
     @property
     def formal_charges(self) -> NDArray[np.int64]:
         """Read-only int64 array of formal charges, shape (atom_count,)."""
 
-        return self._formal_charges
+        return self._formal_charges.view()
 
     @property
     def bonds(self) -> NDArray[np.int64]:
@@ -270,7 +279,7 @@ class Molecule:
         and bond orders 1, 2, or 3.
         """
 
-        return self._bonds
+        return self._bonds.view()
 
     @property
     def coordinates(self) -> NDArray[np.float64]:
@@ -279,7 +288,7 @@ class Molecule:
         The first dimension is zero when no conformers are present.
         """
 
-        return self._coordinates
+        return self._coordinates.view()
 
     @property
     def name(self) -> str:
@@ -300,6 +309,12 @@ class Molecule:
     @property
     def source_name(self) -> str:
         return self._source.source
+
+    @property
+    def import_diagnostics(self) -> tuple[ImportDiagnostic, ...]:
+        """Warnings from reading this molecule's file; empty for molecules built in Python."""
+
+        return ()
 
     @property
     def source_mapping(self) -> SourceMapping | None:

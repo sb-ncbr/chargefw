@@ -1,0 +1,111 @@
+data_sb_ncbr_charges.dic
+    _dictionary.title            mmcif_charges.dic
+    _dictionary.version          1.1
+    _dictionary.ddl_conformance  2.1
+
+save_sb_ncbr_partial_atomic_charges_meta
+    _category.description       'Partial atomic charge-set identity and compact provenance'
+    _category.id                sb_ncbr_partial_atomic_charges_meta
+    _category.mandatory_code    no
+    _category_key.name          '_sb_ncbr_partial_atomic_charges_meta.id'
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.id
+    _item_description.description   'Unique ID of a charge set'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.id'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            yes
+    _item_type.code                 code
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.type
+    _item_description.description   'Type of the charge calculation method'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.type'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            yes
+    _item_type.code                 code
+   #
+   loop_
+   _item_enumeration.value
+   _item_enumeration.detail
+     QM         'Quantum mechanical method'
+     empirical  'Empirical method'
+     other      'Other charge calculation method'
+   #
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.method
+    _item_description.description   'Identifier of the charge calculation method, excluding its parameter set'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.method'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            yes
+    _item_type.code                 text
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.parameter_set
+    _item_description.description   'Identifier of the parameter set used by the method; use . when inapplicable'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.parameter_set'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            no
+    _item_type.code                 text
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.software_name
+    _item_description.description   'Name of the software that produced this charge set'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.software_name'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            yes
+    _item_type.code                 text
+save_
+
+save__sb_ncbr_partial_atomic_charges_meta.software_version
+    _item_description.description   'Version of the software that produced this charge set'
+    _item.name                      '_sb_ncbr_partial_atomic_charges_meta.software_version'
+    _item.category_id               sb_ncbr_partial_atomic_charges_meta
+    _item.mandatory_code            yes
+    _item_type.code                 text
+save_
+
+save_sb_ncbr_partial_atomic_charges
+    _category.description 'Partial atomic charges for each atom of the structure'
+    _category.id                           sb_ncbr_partial_atomic_charges
+    _category.mandatory_code               no
+
+    loop_
+    _category_key.name
+    '_sb_ncbr_partial_atomic_charges.type_id'
+    '_sb_ncbr_partial_atomic_charges.atom_id'
+    #
+save_
+
+save__sb_ncbr_partial_atomic_charges.type_id
+    _item_description.description   'ID of the charge set'
+    _item.name                      '_sb_ncbr_partial_atomic_charges.type_id'
+    _item.category_id               sb_ncbr_partial_atomic_charges
+    _item.mandatory_code            yes
+    _item_type.code                 code
+    _item_linked.parent_name        '_sb_ncbr_partial_atomic_charges_meta.id'
+    _item_linked.child_name         '_sb_ncbr_partial_atomic_charges.type_id'
+save_
+
+save__sb_ncbr_partial_atomic_charges.atom_id
+    _item_description.description   'ID of an atom'
+    _item.name                      '_sb_ncbr_partial_atomic_charges.atom_id'
+    _item.category_id               sb_ncbr_partial_atomic_charges
+    _item.mandatory_code            yes
+    _item_type.code                 int
+    _item_linked.parent_name        '_atom_site.id'
+    _item_linked.child_name         '_sb_ncbr_partial_atomic_charges.atom_id'
+save_
+
+save__sb_ncbr_partial_atomic_charges.charge
+    _item_description.description   'The value of partial atomic charge'
+    _item.name                      '_sb_ncbr_partial_atomic_charges.charge'
+    _item.category_id               sb_ncbr_partial_atomic_charges
+    _item.mandatory_code            yes
+    _item_type.code                 float
+    _item_units.code                e
+
+    _item_range.minimum   -5.0
+    _item_range.maximum    5.0
+save_

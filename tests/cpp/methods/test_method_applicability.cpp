@@ -235,6 +235,25 @@ TEST_CASE("applicability pairs methods with compatible parameter sets",
     CHECK(result.rejected[0].issues[0].message.contains("water-only-parameters"));
 }
 
+TEST_CASE("applicability refuses methods that declare only common parameters",
+          "[methods][method-applicability]") {
+    const auto collection = make_collection();
+    const features::PreparedMoleculeCollection prepared_collection{collection};
+    const auto request = [&](const methods::Method& method) {
+        const auto candidates = std::vector<const methods::Method*>{&method};
+        return methods::find_applicable_methods(
+            {.molecules = prepared_collection, .methods = candidates, .parameter_sets = {}});
+    };
+
+    // Common parameters fitted together with atom parameters belong in a parameter set.
+    const chargefw::test::StubMethod with_atoms{
+        "common-and-atom-test", {.common_parameters = {"k"}, .atom_parameters = {"value"}}};
+    CHECK_NOTHROW(request(with_atoms));
+    // Constants on their own are settings, so the method must declare them as options.
+    const chargefw::test::StubMethod common_only{"common-only-test", {.common_parameters = {"k"}}};
+    CHECK_THROWS_AS(request(common_only), std::invalid_argument);
+}
+
 TEST_CASE("applicability honors permissive parameter classification",
           "[methods][method-applicability]") {
     const chargefw::test::StubMethod atom_parameter_method{"atom-parameter-test",

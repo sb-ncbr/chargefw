@@ -39,10 +39,14 @@ class SpatialFragment {
     friend class SpatialFragmentBuilder;
 };
 
-// Owns one KD-tree for a source conformer and builds its spatial fragments.
+// Owns one KD-tree for a source conformer and builds its spatial fragments. It borrows the source
+// molecule and geometry, which must outlive the builder.
 class SpatialFragmentBuilder {
   public:
     SpatialFragmentBuilder(const PreparedMolecule& source, const ConformerFeatures& geometry);
+    SpatialFragmentBuilder(const PreparedMolecule&&, const ConformerFeatures&) = delete;
+    SpatialFragmentBuilder(const PreparedMolecule&, const ConformerFeatures&&) = delete;
+    SpatialFragmentBuilder(const PreparedMolecule&&, const ConformerFeatures&&) = delete;
     ~SpatialFragmentBuilder();
 
     SpatialFragmentBuilder(const SpatialFragmentBuilder&) = delete;

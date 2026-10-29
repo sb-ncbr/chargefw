@@ -77,9 +77,9 @@ void print_parameter_sets(const std::string& parameter_set_id, const std::string
 
 [[nodiscard]] auto
 write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                          const std::vector<adapters::ImportedMoleculeRecord>& records,
+                          std::vector<adapters::ImportedMoleculeRecord> records,
                           const adapters::RequestedCalculationProvenance& requested,
-                          const calculation::ExecutionResult& result,
+                          calculation::ExecutionResult result,
                           const OutputArguments& output_arguments, CalculationRun& run) -> int;
 
 } // namespace chargefw::cli

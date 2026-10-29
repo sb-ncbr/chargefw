@@ -47,6 +47,16 @@ for molecule in molecules:
     )
 ```
 
+A reader that ignores part of a record says so in `molecule.import_diagnostics`, a tuple of
+`chargefw.ImportDiagnostic` with a `code`, a `message`, and the file `line` when known. For example,
+partial charges in a MOL2 or mmCIF file give `partial_charges_ignored`, and bonds to symmetry-related
+copies in a crystal structure give `symmetry_connections_ignored`. Molecules created in Python have none.
+
+```python
+for diagnostic in molecules[0].import_diagnostics:
+    print(diagnostic.code, diagnostic.message)
+```
+
 ### Molecules from arrays
 
 Build a `Molecule` directly when you have the data as arrays:
@@ -392,7 +402,10 @@ chargefw_rdkit.attach_charges(rdkit_molecule, result)
 
 `from_mol()` copies an RDKit molecule as it is: it does not sanitize, add or remove hydrogens, protonate,
 or generate coordinates. Every hydrogen must be an explicit atom; call `Chem.AddHs()` first for molecules
-from SMILES. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
+from SMILES. A 2D conformer, such as one from `Compute2DCoords()`, is an error, because a drawing is not
+a geometry: embed 3D coordinates, remove the conformers for methods that need no geometry, or mark a real
+flat geometry with `conformer.Set3D(True)`. RDKit also marks a conformer 2D when it reads a flat molecule
+from a molfile that declares no dimension. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
 turns aromatic and dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds;
 other bond types, such as ionic, hydrogen, or zero-order bonds, remain errors.
 
@@ -444,8 +457,9 @@ does not copy other data of the input.
 
 `attach_charges(document, result)` adds the charges to the document that was passed to
 `from_document()`. Both functions also take a list of results for the same molecules, one charge set
-each. It first checks that the document still matches the calculated molecules: blocks,
-atom sites, IDs, models, elements, labels, coordinates, and formal charges. Occupancies and B factors may
-differ. If anything does not match, the document stays unchanged. Existing charge data is an error unless
-you pass `overwrite=True`. The function replaces the document's blocks, so get block objects such as
-`document.sole_block()` again afterwards.
+each. Do not change the document between `from_document()` and `attach_charges()`: the charges are
+matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
+document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
+longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
+Existing charge data is an error unless you pass `overwrite=True`. The function replaces the document's
+blocks, so get block objects such as `document.sole_block()` again afterwards.

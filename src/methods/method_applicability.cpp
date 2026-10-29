@@ -55,16 +55,11 @@ auto add_rejected(ApplicabilityResult& result, const std::size_t method_index,
     return {issues.begin(), issues.end()};
 }
 
-[[nodiscard]] auto has_parameter_classification(const MethodRequirements& requirements) noexcept
-    -> bool {
-    return requirements.requires_atom_parameters() || requirements.requires_bond_parameters();
-}
-
 [[nodiscard]] auto
 valid_classification_count(const MethodRequirements& requirements,
                            const features::PreparedMoleculeCollection& molecules,
                            const CollectionParameterPrerequisiteResult& result) noexcept -> bool {
-    if (!has_parameter_classification(requirements)) {
+    if (!requirements.requires_parameter_classification()) {
         return result.classifications.empty();
     }
 
@@ -185,6 +180,15 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
 
         if (method == nullptr) {
             throw std::invalid_argument{"applicability check received a null method"};
+        }
+        // Common parameters belong in a parameter set because they are fitted together with atom
+        // or bond parameters; constants on their own are settings.
+        if (const auto requirements = method->requirements();
+            requirements.requires_common_parameters() &&
+            !requirements.requires_parameter_classification()) {
+            throw std::invalid_argument{"method '" + std::string{method->id()} +
+                                        "' declares only common parameters; declare them as "
+                                        "method options instead"};
         }
 
         MethodOptions method_options;

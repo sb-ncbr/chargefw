@@ -275,6 +275,26 @@ class _OmittedPlan:
 _OMITTED_PLAN = _OmittedPlan()
 
 
+class _Default:
+    """A default argument value that records that the caller did not pass the argument."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: object) -> None:
+        self.value = value
+
+    def __repr__(self) -> str:
+        return repr(self.value)
+
+
+def _passed[T](value: T) -> bool:
+    return not isinstance(value, _Default)
+
+
+def _value[T](value: T) -> T:
+    return cast(T, value.value) if isinstance(value, _Default) else value
+
+
 def calculate(
     molecules: Molecule | MoleculeCollection | Iterable[Molecule],
     plan: Plan = cast(Plan, _OMITTED_PLAN),
@@ -283,11 +303,11 @@ def calculate(
     parameter_set: str | ParameterSet | None = None,
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
-    parameter_matching: ParameterMatching = "strict",
-    execution: Execution = "auto",
+    parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
+    execution: Execution = cast(Execution, _Default("auto")),
     radius: float | None = None,
-    cutoff_threshold: int | None = 20_000,
-    cover_threshold: int | None = 80_000,
+    cutoff_threshold: int | None = cast(int, _Default(20_000)),
+    cover_threshold: int | None = cast(int, _Default(80_000)),
     threads: int | None = None,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,
@@ -307,11 +327,11 @@ def calculate(
             parameter_set=parameter_set,
             options=options,
             options_by_method=options_by_method,
-            parameter_matching=parameter_matching,
-            execution=execution,
+            parameter_matching=_value(parameter_matching),
+            execution=_value(execution),
             radius=radius,
-            cutoff_threshold=cutoff_threshold,
-            cover_threshold=cover_threshold,
+            cutoff_threshold=_value(cutoff_threshold),
+            cover_threshold=_value(cover_threshold),
             threads=0 if threads is None else threads,
             fixed_ions=fixed_ions,
         )
@@ -336,11 +356,11 @@ def calculate(
             parameter_set is not None,
             options is not None,
             options_by_method is not None,
-            parameter_matching != "strict",
-            execution != "auto",
+            _passed(parameter_matching),
+            _passed(execution),
             radius is not None,
-            cutoff_threshold != 20_000,
-            cover_threshold != 80_000,
+            _passed(cutoff_threshold),
+            _passed(cover_threshold),
             fixed_ions is not None,
         )
     ):

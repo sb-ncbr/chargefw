@@ -45,6 +45,7 @@ class MoleculePayload(TypedDict):
     record_index: int
     record_id: str | int | None
     import_metadata: ImportMetadataPayload | None
+    diagnostics: list[tuple[str, str, int | None]]
     native_input_metadata: _NativeInputMetadata
 
 def _parse(

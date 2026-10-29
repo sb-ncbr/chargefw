@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <print>
+#include <random>
 #include <set>
 #include <stdexcept>
 
@@ -50,13 +51,28 @@ void finalize_output(std::ofstream& output, const std::filesystem::path& path) {
     }
 }
 
+// Writes beside the destination and replaces it only once writing has succeeded, so a refused or
+// failed write leaves an existing file unchanged.
 template <typename Writer> void write_output(const std::filesystem::path& path, Writer writer) {
-    auto output = std::ofstream{path};
+    // A random name, created exclusively: an existing file or symbolic link is never opened.
+    auto random = std::random_device{};
+    auto temporary = path;
+    temporary += std::format(".{:08x}{:08x}.tmp", random(), random());
+    auto output = std::ofstream{temporary, std::ios::out | std::ios::noreplace};
     if (!output) {
         throw std::runtime_error{"Unable to open output file: " + path.string()};
     }
-    writer(output);
-    finalize_output(output, path);
+    try {
+        writer(output);
+        finalize_output(output, path);
+        std::filesystem::rename(temporary, path);
+    } catch (...) {
+        // Close first: an open file cannot be removed on Windows.
+        output.close();
+        auto ignored = std::error_code{};
+        std::filesystem::remove(temporary, ignored);
+        throw;
+    }
 }
 
 void write_json(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result,
@@ -118,12 +134,14 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
 }
 
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                               const std::vector<adapters::ImportedMoleculeRecord>& records,
+                               std::vector<adapters::ImportedMoleculeRecord> records,
                                const adapters::RequestedCalculationProvenance& requested,
-                               const calculation::ExecutionResult& result,
+                               calculation::ExecutionResult result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
-    const auto owned_result = adapters::make_charge_calculation_result(records, requested, result);
+    const auto owned_result =
+        adapters::make_charge_calculation_result(std::move(records), requested, std::move(result));
+    const auto& execution = owned_result.execution();
     run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
     const auto directory = std::filesystem::path{output_directory};
     std::error_code directory_error;
@@ -137,13 +155,13 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
-    if (!result.calculated()) {
+    if (!execution.calculated()) {
         run.metrics.ended_at = utc_timestamp();
         run.metrics.runtime_seconds =
             std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
         write_json(prefix.string() + ".json", owned_result, run.metrics);
         report_diagnostics(owned_result);
-        switch (result.status) {
+        switch (execution.status) {
         case calculation::ExecutionStatus::invalid_input_or_request:
             return 2;
         case calculation::ExecutionStatus::no_executable_plan:
@@ -157,7 +175,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         }
     }
 
-    if (!result.charges.has_value()) {
+    if (!execution.charges.has_value()) {
         throw std::runtime_error{"calculation result is missing charges"};
     }
     run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();

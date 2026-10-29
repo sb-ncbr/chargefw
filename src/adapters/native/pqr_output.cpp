@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstddef>
 #include <format>
@@ -68,6 +69,21 @@ auto require_chain(const std::string_view chain, const std::size_t atom_index) -
                                     "' of " + atom_description(atom_index) +
                                     ": PQR readers such as APBS require a single non-numeric "
                                     "character"};
+    }
+}
+
+// PDB files with more than 9,999 residues in a chain write hybrid-36 numbers such as A000, which
+// PQR readers would take for a chain ID followed by a number.
+auto require_residue_number(const std::string& sequence, const std::size_t atom_index) -> void {
+    auto value = 0L;
+    const auto* end = sequence.data() + sequence.size();
+    const auto [parsed, error] = std::from_chars(sequence.data(), end, value);
+    if (error != std::errc{} || parsed != end) {
+        throw std::invalid_argument{
+            "PQR output cannot write residue number '" + sequence + "' of " +
+            atom_description(atom_index) +
+            ": it is not an integer; read the structure from mmCIF, which numbers residues in "
+            "decimal"};
     }
 }
 
@@ -157,6 +173,7 @@ auto append_atom_line(std::string& text, const ImportedMoleculeRecord& record,
     require_word(name, "atom name", atom_index);
     require_word(residue, "residue name", atom_index);
     require_chain(chain, atom_index);
+    require_residue_number(sequence, atom_index);
     require_insertion_code(insertion_code, atom_index);
 
     // PDB starts names of one-letter elements in column 14 unless they fill four columns.

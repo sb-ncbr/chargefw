@@ -60,6 +60,12 @@ namespace {
 }
 
 auto validate_bounds(const MethodOptionSpec& option, const MethodOptionValue& value) -> void {
+    // NaN fails every comparison and infinity passes a lone lower bound, so check finiteness first.
+    if (const auto* number = std::get_if<double>(&value);
+        number != nullptr && !std::isfinite(*number)) {
+        throw std::invalid_argument{"method option '" + std::string{option.id} +
+                                    "' must be a finite number"};
+    }
     if (!option.minimum.has_value() && !option.maximum.has_value()) {
         return;
     }

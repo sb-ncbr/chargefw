@@ -366,6 +366,24 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
     CHECK(::gemmi::cif::as_string(charge_rows[0][0]) == "1");
     CHECK(::gemmi::cif::as_string(charge_rows[2][0]) == "3");
     CHECK(::gemmi::cif::as_string(charge_rows[0][1]) == ::gemmi::cif::as_string(charge_rows[2][1]));
+
+    // A suffix is skipped when a record already has that name.
+    auto records = std::vector<adapters::ImportedMoleculeRecord>{};
+    auto assignments = std::vector<charges::ChargeAssignment>{};
+    for (const auto* name : {"same", "same_2", "same", "same"}) {
+        assignments.push_back({.target = {.molecule_index = records.size()},
+                               .charges = charges::AtomicCharges{{0.0, 0.0}}});
+        records.push_back(generated_record(name));
+    }
+    auto named_output = std::ostringstream{};
+    mmcif_output::MmcifWriter{named_output}.write(calculation_result(
+        std::move(records), charges::ChargeSet{"formal", std::move(assignments)}));
+    auto named = ::gemmi::cif::read_string(named_output.str());
+    auto names = std::vector<std::string>{};
+    for (const auto& block : named.blocks) {
+        names.push_back(block.name);
+    }
+    CHECK(names == std::vector<std::string>{"same", "same_2", "same_3", "same_4"});
 }
 
 TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range charges",

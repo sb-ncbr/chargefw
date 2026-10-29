@@ -61,6 +61,9 @@ auto DelReMethod::calculate(const CalculationInput& input) const -> charges::Ato
         const auto second_atomic_number = molecule.atom(bond.second_atom_index()).atomic_number();
         // gammaA and gammaB follow parameter-key order, while molecular bonds are undirected.
         // Match both endpoints because atomic number zero is a wildcard in parameter keys.
+        // Elements alone cannot orient a bond between two atoms of the same element whose keys
+        // differ only by atom type. DelRe is kept for its published parameters, which use
+        // wildcard types and equal gammas for such bonds, so the orientation does not matter.
         const auto first_is_parameter_a = (key.first_atom.atomic_number == 0 ||
                                            key.first_atom.atomic_number == first_atomic_number) &&
                                           (key.second_atom.atomic_number == 0 ||

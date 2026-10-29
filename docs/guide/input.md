@@ -14,6 +14,12 @@ MOL2 files have no field for formal charges, so ChargeFW reads every atom of a M
 Use SDF, mmCIF, or molecule JSON for charged molecules. The
 [format reference](../reference/formats.md) describes exactly what each reader imports.
 
+Many SDF files are 2D drawings, for example the default download from PubChem. A drawing's x and y
+coordinates are not a geometry, so ChargeFW reads an SDF or MOL record that declares itself 2D without
+coordinates and warns with `coordinates_2d_ignored`. Methods that need no geometry still apply to it;
+for the others, download or generate 3D coordinates. A flat 3D molecule, such as water with all z = 0,
+is not affected.
+
 ## Small molecules
 
 Use RDKit, or another cheminformatics toolkit, to build the molecule. Write the SMILES or structure in the

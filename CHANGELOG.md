@@ -2,8 +2,41 @@
 
 ## Unreleased
 
+### Command line
+
+- A MOL2, mmCIF, PQR, or result JSON file that cannot be written no longer replaces an existing file of
+  the same name. Before, a refused export, such as MOL2 for a molecule without coordinates, left the
+  earlier file empty.
+- A method option given as NaN or infinity, such as `--method-option denr.step=nan`, is refused as
+  invalid input, exit status 2; it used to pass validation and fail later during the calculation.
+
+### Python
+
+- `chargefw.io.rdkit.from_mol()` refuses an RDKit molecule with a 2D conformer. Embed 3D coordinates,
+  remove the conformers, or mark a real flat geometry with `Set3D(True)`.
+- `molecule.import_diagnostics` lists the warnings a reader attached to an imported molecule, such as
+  `partial_charges_ignored`, as `chargefw.ImportDiagnostic` values with a code, a message, and a line.
+  Before, they were only in the result JSON.
+- `chargefw.calculate()` with an assessed plan refuses `parameter_matching`, `execution`,
+  `cutoff_threshold`, and `cover_threshold` also when they are passed with their default value, such as
+  `parameter_matching="strict"`. Before, such arguments were silently ignored and the plan's own
+  settings were used.
+
+### C++
+
+- Assessment refuses a custom method whose requirements list common parameters but no atom or bond
+  parameters, with `std::invalid_argument`; declare such constants as method options. Common
+  parameters belong in a parameter set only when they are fitted together with atom or bond
+  parameters. Such a method used to pass assessment and then fail during execution.
+  `MethodRequirements::requires_parameter_classification()` states which methods need atom or bond
+  parameters.
+
 ### Output
 
+- Writing mmCIF for many molecules with the same name, such as an SDF library whose records share a
+  title, no longer slows down with the cube of their number: 4,000 such molecules took about 100
+  seconds and now take half a second. Result JSON and MOL2 output of large collections is also
+  faster.
 - ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,
   `format="pqr"` in Python, and `PqrWriter` in C++. PQR is available for one structure read from PDB or
   mmCIF, with one conformer; each atom gets its element's van der Waals radius. ChargeFW refuses
@@ -26,6 +59,13 @@
 
 ### Input
 
+- An SDF or MOL record that declares a 2D drawing, such as a PubChem 2D download, is read without
+  coordinates and gets a `coordinates_2d_ignored` warning. Methods that need 3D geometry no longer
+  calculate charges from the flat drawing; the others still apply.
+- MOL and SDF atoms no longer get their element symbol as a name, since molfiles have no atom names;
+  `atom_names` in Python are empty for them. MOL2 and mmCIF output name these atoms from the element
+  and atom position (`O1`, `O2`, `N4`), where they used to show bare symbols (`O`, `O`) or numbered
+  repeats (`O`, `O2`).
 - `chargefw.io.gemmi.from_structure()` uses template bonds by default and refuses `bonds="explicit"`
   and `"hybrid"`. Converting a `gemmi.Structure` loses the file's ligand bond orders, connection bond
   orders, and PDB `CONECT` records, so those bonds were lost or became single without a warning. With

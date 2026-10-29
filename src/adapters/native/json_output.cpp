@@ -1,5 +1,7 @@
 #include <chargefw/adapters/native/json_output.h>
 
+#include "adapters/record_assignments.h"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -197,7 +199,7 @@ constexpr auto metric_scale = 1000.0;
 
 [[nodiscard]] auto record_json(const ImportedMoleculeRecord& record,
                                const calculation::ExecutionResult& execution,
-                               const std::size_t molecule_index,
+                               const std::span<const charges::ChargeAssignment> record_charges,
                                const std::vector<ResultDiagnostic>& diagnostics) -> Json {
     Json input{{"source", record.identity.source}, {"record_index", record.identity.record_index}};
     if (!record.identity.record_id.empty()) {
@@ -217,10 +219,7 @@ constexpr auto metric_scale = 1000.0;
     }
 
     Json assignments = Json::array();
-    for (const auto& assignment : execution.charges->assignments()) {
-        if (assignment.target.molecule_index != molecule_index) {
-            continue;
-        }
+    for (const auto& assignment : record_charges) {
         auto total_charge = 0.0;
         for (const auto value : assignment.charges.values()) {
             total_charge += value;
@@ -330,7 +329,8 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
     Json records = Json::array();
     const auto inputs = result.inputs();
     for (std::size_t index = 0; index < inputs.size(); ++index) {
-        records.push_back(record_json(inputs[index], result.execution(), index,
+        records.push_back(record_json(inputs[index], result.execution(),
+                                      record_assignments(result, index),
                                       charge_record_diagnostics(result, index)));
     }
 

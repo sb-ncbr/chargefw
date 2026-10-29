@@ -235,9 +235,9 @@ auto run(std::span<char*> arguments) -> int {
     }();
     run.metrics.applicability_seconds = result.metrics.applicability_seconds;
     run.metrics.computation_seconds = result.metrics.computation_seconds;
-    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path, records,
-                                                    requested_provenance, result, calculate_output,
-                                                    run);
+    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path,
+                                                    std::move(records), requested_provenance,
+                                                    std::move(result), calculate_output, run);
 }
 
 } // namespace

@@ -190,10 +190,11 @@ records stay valid after the reader is destroyed.
 (`SourceComponentInstance`). The [format reference](../reference/formats.md) describes what each reader
 fills in. `PortableId` holds a record or atom ID that is absent, a string, or a 64-bit integer.
 
-`make_charge_calculation_result()` checks that the records match the calculation: their number and
-atoms, the assignments, and the method and parameter set. `RequestedCalculationProvenance` records what
-was requested, for the result JSON; its `execution_kind` defaults to `"auto"`, so set it when you request
-another execution mode.
+`make_charge_calculation_result()` checks that the records fit the calculation: their number, their atom
+and conformer counts, the assignments, and the method and parameter set. It cannot check that they are
+the records you calculated, so pass the same records whose molecules you calculated.
+`RequestedCalculationProvenance` records what was requested, for the result JSON; its `execution_kind`
+defaults to `"auto"`, so set it when you request another execution mode.
 
 ## Namespaces
 
@@ -308,7 +309,9 @@ time and memory complexity, and `Method::estimate()` returns the approximate mem
 one molecule of a given `TargetSize`. A method supports cutoff and cover when
 `ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`
 says how the fragments' charges are kept, as described in
-[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work).
+[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work). A method that
+declares common parameters must also declare atom or bond parameters; make standalone constants method
+options instead, or assessment refuses the method.
 
 `parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the sets by

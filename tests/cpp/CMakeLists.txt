@@ -90,7 +90,7 @@ if(CHARGEFW_BUILD_CLI)
             NAME test_chargefw_cli_outputs
             COMMAND ${CMAKE_COMMAND}
                     -DCHARGEFW_CLI=${chargefw_cli}
-                    -DCHARGEFW_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/sdf/water.sdf
+                    -DCHARGEFW_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/sdf/water_3d.sdf
                     -DCHARGEFW_MOL2_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/mol2/aromatic.mol2
                     -DCHARGEFW_MIXED_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/sdf/mixed_v2000_v3000.sdf
                     -DCHARGEFW_MALFORMED_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/sdf/malformed_then_water.sdf

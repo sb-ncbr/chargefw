@@ -98,7 +98,9 @@ def test_molecule_owns_normalized_input() -> None:
     assert len(molecule) == 4
 
     readonly = molecule.atomic_numbers
-    assert readonly is molecule.atomic_numbers
+    # Each access returns a fresh view, so changing its metadata leaves the molecule unchanged.
+    readonly.shape = (2, 2)
+    assert molecule.atomic_numbers.shape == (4,)
     with pytest.raises(ValueError):
         readonly[0] = 2
     with pytest.raises(ValueError):
