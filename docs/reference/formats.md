@@ -48,6 +48,10 @@ The supported subsets import:
 Molfiles have no atom names, so imported atoms have none. MOL2 and mmCIF output give them names from
 the element and atom position, such as `C1`, `C2`, and `O3`.
 
+A record whose header declares a 2D drawing, with `2D` in columns 21-22 of its second line, is imported
+without coordinates and receives a `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a
+record that does not declare 2D are kept.
+
 Query and wildcard atoms are rejected. Bond order 4 is imported as a single bond. V3000 coordinate bonds
 (order 9) and hydrogen bonds (order 10) are left out, because ChargeFW's molecules have only single,
 double, and triple bonds; one warning per left-out order is attached to the record. Other trailing V3000 atom and bond

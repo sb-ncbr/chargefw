@@ -9,7 +9,7 @@ import pytest
 from chargefw.io import rdkit as chargefw_rdkit
 
 MOL_TEXT = """water
-  ChargeFW
+  ChargeFW          3D
 
   3  2  0  0  0  0  0  0  0  0  1 V2000
     0.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
@@ -31,6 +31,9 @@ class FakePoint:
 class FakeConformer:
     def GetId(self) -> int:
         return 0
+
+    def Is3D(self) -> bool:
+        return True
 
     def GetAtomPosition(self, index: int) -> FakePoint:
         return (FakePoint(0.0, 0.0, 0.0), FakePoint(0.96, 0.0, 0.0))[index]
@@ -332,6 +335,26 @@ def test_real_rdkit_conversion_requires_explicit_hydrogens(chem: Any) -> None:
         with pytest.raises(ValueError, match="Chem.AddHs"):
             chargefw_rdkit.from_mol(molecule)
     assert chargefw_rdkit.from_mol(chem.AddHs(chem.MolFromSmiles("CCO"))).atom_count == 9
+
+
+def test_real_rdkit_conversion_refuses_2d_conformers(chem: Any) -> None:
+    all_chem = pytest.importorskip("rdkit.Chem.AllChem")
+    water = chem.AddHs(chem.MolFromSmiles("O"))
+    all_chem.Compute2DCoords(water)
+    with pytest.raises(ValueError, match="2D conformer"):
+        chargefw_rdkit.from_mol(water)
+
+    # A real flat geometry can be marked as 3D.
+    flat = chem.Mol(water)
+    flat.GetConformer().Set3D(True)
+    assert chargefw_rdkit.from_mol(flat).conformer_count == 1
+
+    # Without conformers, methods that need no geometry still apply.
+    without_conformers = chem.Mol(water)
+    without_conformers.RemoveAllConformers()
+    assert chargefw_rdkit.from_mol(without_conformers).conformer_count == 0
+    assert all_chem.EmbedMolecule(water, randomSeed=1) == 0
+    assert chargefw_rdkit.from_mol(water).conformer_count == 1
 
 
 def test_real_rdkit_aromatic_and_dative_bond_conversion(chem: Any) -> None:

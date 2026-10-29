@@ -90,6 +90,15 @@ def from_mol(
         bonds.append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order))
 
     conformers = tuple(molecule.GetConformers())
+    # RDKit marks a conformer 2D when it was drawn, read from a file declared 2D, or read flat from
+    # a file that declares no dimension.
+    if any(not conformer.Is3D() for conformer in conformers):
+        raise ValueError(
+            "RDKit molecule has a 2D conformer, which is a drawing, not a geometry; embed 3D "
+            "coordinates with AllChem.EmbedMolecule(), remove the conformers with "
+            "RemoveAllConformers() for methods that need no geometry, or, if the coordinates are "
+            "a real flat geometry, mark the conformer with Set3D(True)"
+        )
     coordinates = (
         [
             [

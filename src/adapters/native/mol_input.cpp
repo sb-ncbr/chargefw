@@ -325,14 +325,34 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     return result;
 }
 
-[[nodiscard]] auto make_record(ParsedMolecule parsed, MoleculeRecordIdentity identity)
-    -> ImportedMoleculeRecord {
-    auto sites = parsed.atom_references;
+// The header's program line declares a 2D drawing with "2D" in columns 21-22, for example
+// "  -OEChem-10272610592D". A flat 3D molecule with z = 0 does not declare it.
+[[nodiscard]] auto declares_2d(const std::string_view program_line) -> bool {
+    constexpr std::size_t offset = 20;
+    return program_line.size() >= offset + 2 && program_line.substr(offset, 2) == "2D";
+}
+
+// A 2D drawing has no geometry, so its record is imported without coordinates; methods that need
+// geometry then refuse it, and the others still apply.
+[[nodiscard]] auto make_record(ParsedMolecule parsed, MoleculeRecordIdentity identity,
+                               const bool drawing) -> ImportedMoleculeRecord {
+    auto conformers = std::vector<core::Conformer>{};
+    auto conformer_references = std::vector<SourceConformerReference>{};
+    if (drawing) {
+        parsed.diagnostics.push_back(MoleculeRecordDiagnostic{
+            .code = "coordinates_2d_ignored",
+            .message = "the record is a 2D drawing; its coordinates were not used, so methods "
+                       "that need 3D geometry do not apply",
+            .line = 2});
+    } else {
+        conformers.emplace_back(std::move(parsed.positions), "input");
+        conformer_references.push_back(SourceConformerReference{
+            .position = 0, .id = std::nullopt, .sites = parsed.atom_references});
+    }
     auto metadata = MoleculeImportMetadata{
         .format = MolecularSourceFormat::mol,
         .atoms = std::move(parsed.atom_references),
-        .conformers = {SourceConformerReference{
-            .position = 0, .id = std::nullopt, .sites = std::move(sites)}},
+        .conformers = std::move(conformer_references),
         .record_selection = std::nullopt,
         .alternate_location_selection = std::nullopt,
         .conformer_selection = "all",
@@ -341,9 +361,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         .components = {},
     };
     return common::make_record(std::move(parsed.atoms), std::move(parsed.bonds),
-                               {core::Conformer{std::move(parsed.positions), "input"}},
-                               std::move(identity), {}, std::move(parsed.diagnostics),
-                               std::move(metadata));
+                               std::move(conformers), std::move(identity), {},
+                               std::move(parsed.diagnostics), std::move(metadata));
 }
 
 } // namespace
@@ -352,7 +371,7 @@ auto parse_mol(std::istream& input, MoleculeRecordIdentity identity) -> Imported
     std::size_t line = 0;
 
     const auto name = common::read_line(input, line, "MOL");
-    static_cast<void>(common::read_line(input, line, "MOL"));
+    const auto drawing = declares_2d(common::read_line(input, line, "MOL"));
     static_cast<void>(common::read_line(input, line, "MOL"));
     const auto counts = common::read_line(input, line, "MOL");
 
@@ -370,7 +389,7 @@ auto parse_mol(std::istream& input, MoleculeRecordIdentity identity) -> Imported
         throw std::runtime_error{"unsupported MOL version"};
     }
 
-    return make_record(std::move(parsed), std::move(identity));
+    return make_record(std::move(parsed), std::move(identity), drawing);
 }
 
 MolReader::MolReader(std::istream& input, std::string source)

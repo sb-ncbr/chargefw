@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chargefw/adapters/native/mol2_input.h>
 #include <chargefw/adapters/native/mol_input.h>
 #include <chargefw/adapters/native/sdf_input.h>
@@ -6,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <istream>
+#include <iterator>
 #include <locale>
 #include <optional>
 #include <snitch/snitch.hpp>
@@ -380,6 +382,59 @@ TEST_CASE("native SDF input preserves V2000, V3000, and multi-record streams",
         CHECK(first->molecule.atom_count() == 1);
         CHECK(second->molecule.atom_count() == 1);
         CHECK_FALSE(reader.next().has_value());
+    }
+}
+
+TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
+          "[adapters][native]") {
+    const auto read = [](const std::string_view name) {
+        std::ifstream input{fixture("synthetic/sdf/" + std::string{name})};
+        auto reader = sdf::SdfReader{input, std::string{name}};
+        auto record = reader.next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+
+    // The same water, once as a PubChem 2D drawing and once with 3D coordinates.
+    const auto drawing = read("water.sdf");
+    CHECK(drawing.molecule.atom_count() == 3);
+    CHECK(drawing.molecule.conformer_count() == 0);
+    REQUIRE(drawing.import_metadata.has_value());
+    CHECK(drawing.import_metadata->conformers.empty());
+    REQUIRE(drawing.diagnostics.size() == 1);
+    CHECK(drawing.diagnostics.front().code == "coordinates_2d_ignored");
+
+    const auto geometry = read("water_3d.sdf");
+    CHECK(geometry.molecule.conformer_count() == 1);
+    CHECK(geometry.diagnostics.empty());
+
+    // Only the header declaration counts: V3000 records too, and flat records without it are kept.
+    auto v3000_stream = std::ifstream{fixture("synthetic/mol/v3000/charged_atoms.mol")};
+    const auto v3000 = std::string{std::istreambuf_iterator<char>{v3000_stream}, {}};
+    auto v3000_drawing = v3000;
+    v3000_drawing.replace(v3000_drawing.find("  ChargeFW\n"), 11, "  ChargeFW          2D\n");
+    struct Case {
+        std::string_view description;
+        std::string text;
+        std::size_t conformers;
+    };
+    for (const auto& [description, text, conformers] : std::vector<Case>{
+             {"V3000 without a declaration", v3000, 1},
+             {"V3000 declared 2D", v3000_drawing, 0},
+             {"flat V2000 without a declaration",
+              "water\n  ChargeFW\n\n  3  2  0  0  0  0  0  0  0  0999 V2000\n"
+              "    0.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n"
+              "    0.9570    0.0000    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0\n"
+              "   -0.2400    0.9270    0.0000 H   0  0  0  0  0  0  0  0  0  0  0  0\n"
+              "  1  2  1  0\n  1  3  1  0\nM  END\n",
+              1}}) {
+        CAPTURE(description);
+        auto input = std::istringstream{text};
+        const auto record = mol::parse_mol(input, {.source = "input.mol"});
+        CHECK(record.molecule.conformer_count() == conformers);
+        CHECK(std::ranges::count(record.diagnostics, std::string{"coordinates_2d_ignored"},
+                                 &chargefw::adapters::MoleculeRecordDiagnostic::code) ==
+              (conformers == 0 ? 1 : 0));
     }
 }
 

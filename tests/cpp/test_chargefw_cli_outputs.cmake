@@ -1,13 +1,13 @@
 include("${CMAKE_CURRENT_LIST_DIR}/support/test_cli.cmake")
 
 fresh_output_directory(json_failure_directory json_failure)
-file(MAKE_DIRECTORY "${json_failure_directory}/water.chargefw.json")
+file(MAKE_DIRECTORY "${json_failure_directory}/water_3d.chargefw.json")
 run_cli(json_output_failure 2 calculate --method eem "${CHARGEFW_INPUT}"
         "${json_failure_directory}")
 file(REMOVE_RECURSE "${json_failure_directory}")
 
 fresh_output_directory(export_failure_directory export_failure)
-set(export_failure_prefix "${export_failure_directory}/water.chargefw")
+set(export_failure_prefix "${export_failure_directory}/water_3d.chargefw")
 file(MAKE_DIRECTORY "${export_failure_prefix}.mol2")
 run_cli(molecular_export_failure 6 calculate --method eem --output-mol2 "${CHARGEFW_INPUT}"
         "${export_failure_directory}")
@@ -27,7 +27,7 @@ foreach(mode IN ITEMS full cutoff cover)
     endif()
 
     run_cli("${mode}" 0 calculate ${execution_arguments} "${CHARGEFW_INPUT}" "${mode_directory}")
-    file(READ "${mode_directory}/water.chargefw.json" mode_json)
+    file(READ "${mode_directory}/water_3d.chargefw.json" mode_json)
     expect_json("${mode}" "${mode_json}" success results 0 status)
     expect_json("${mode}" "${mode_json}" "${mode}"
                 calculation_provenance effective execution mode)
@@ -37,7 +37,7 @@ endforeach()
 function(expect_invalid_policy label)
     fresh_output_directory(policy_directory "invalid_${label}")
     run_cli("${label}" 2 calculate ${ARGN} "${CHARGEFW_INPUT}" "${policy_directory}")
-    expect_files_absent("${label}" "${policy_directory}/water.chargefw.json")
+    expect_files_absent("${label}" "${policy_directory}/water_3d.chargefw.json")
     file(REMOVE_RECURSE "${policy_directory}")
 endfunction()
 
@@ -133,7 +133,7 @@ file(REMOVE "${range_input}")
 file(REMOVE_RECURSE "${range_directory}")
 
 fresh_output_directory(no_plan_directory no_plan)
-set(no_plan_prefix "${no_plan_directory}/water.chargefw")
+set(no_plan_prefix "${no_plan_directory}/water_3d.chargefw")
 run_cli(no_plan 3 calculate --method smpqeq "${CHARGEFW_INPUT}" "${no_plan_directory}")
 expect_files_exist(no_plan "${no_plan_prefix}.json")
 expect_files_absent(no_plan "${no_plan_prefix}.mol2" "${no_plan_prefix}.cif")
@@ -156,7 +156,7 @@ expect_json(import_warning "${import_warning_json}" partial_charges_ignored
 file(REMOVE_RECURSE "${import_warning_directory}")
 
 fresh_output_directory(invalid_directory invalid)
-set(invalid_json_path "${invalid_directory}/water.chargefw.json")
+set(invalid_json_path "${invalid_directory}/water_3d.chargefw.json")
 run_cli(invalid_request 2 calculate --cutoff-atom-threshold unlimited --cover-atom-threshold 1
         "${CHARGEFW_INPUT}" "${invalid_directory}")
 expect_files_exist(invalid_request "${invalid_json_path}")
@@ -166,7 +166,7 @@ expect_json(invalid_request "${invalid_json}" invalid_input_or_request diagnosti
 file(REMOVE_RECURSE "${invalid_directory}")
 
 fresh_output_directory(default_directory outputs)
-set(default_prefix "${default_directory}/water.chargefw")
+set(default_prefix "${default_directory}/water_3d.chargefw")
 run_cli(default_output 0 calculate "${CHARGEFW_INPUT}" "${default_directory}")
 expect_files_exist(default_output "${default_prefix}.json")
 expect_files_absent(default_output "${default_prefix}.mol2" "${default_prefix}.cif")
@@ -192,7 +192,7 @@ endif()
 file(REMOVE_RECURSE "${default_directory}")
 
 fresh_output_directory(explicit_directory explicit_outputs)
-set(explicit_prefix "${explicit_directory}/water.chargefw")
+set(explicit_prefix "${explicit_directory}/water_3d.chargefw")
 run_cli(explicit_outputs 0 calculate --output-mol2 --output-mmcif "${CHARGEFW_INPUT}"
         "${explicit_directory}")
 expect_files_exist(explicit_outputs "${explicit_prefix}.json" "${explicit_prefix}.mol2"

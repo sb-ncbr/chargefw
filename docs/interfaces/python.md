@@ -402,7 +402,10 @@ chargefw_rdkit.attach_charges(rdkit_molecule, result)
 
 `from_mol()` copies an RDKit molecule as it is: it does not sanitize, add or remove hydrogens, protonate,
 or generate coordinates. Every hydrogen must be an explicit atom; call `Chem.AddHs()` first for molecules
-from SMILES. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
+from SMILES. A 2D conformer, such as one from `Compute2DCoords()`, is an error, because a drawing is not
+a geometry: embed 3D coordinates, remove the conformers for methods that need no geometry, or mark a real
+flat geometry with `conformer.Set3D(True)`. RDKit also marks a conformer 2D when it reads a flat molecule
+from a molfile that declares no dimension. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
 turns aromatic and dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds;
 other bond types, such as ionic, hydrogen, or zero-order bonds, remain errors.
 

@@ -23,7 +23,7 @@ END
 """
 
 WATER_MOL = """water
-  ChargeFW
+  ChargeFW          3D
 
   3  2  0  0  0  0  0  0  0  0  1 V2000
     0.0000    0.0000    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0

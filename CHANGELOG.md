@@ -12,6 +12,8 @@
 
 ### Python
 
+- `chargefw.io.rdkit.from_mol()` refuses an RDKit molecule with a 2D conformer. Embed 3D coordinates,
+  remove the conformers, or mark a real flat geometry with `Set3D(True)`.
 - `molecule.import_diagnostics` lists the warnings a reader attached to an imported molecule, such as
   `partial_charges_ignored`, as `chargefw.ImportDiagnostic` values with a code, a message, and a line.
   Before, they were only in the result JSON.
@@ -57,6 +59,9 @@
 
 ### Input
 
+- An SDF or MOL record that declares a 2D drawing, such as a PubChem 2D download, is read without
+  coordinates and gets a `coordinates_2d_ignored` warning. Methods that need 3D geometry no longer
+  calculate charges from the flat drawing; the others still apply.
 - MOL and SDF atoms no longer get their element symbol as a name, since molfiles have no atom names;
   `atom_names` in Python are empty for them. MOL2 and mmCIF output name these atoms from the element
   and atom position (`O1`, `O2`, `N4`), where they used to show bare symbols (`O`, `O`) or numbered

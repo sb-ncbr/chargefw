@@ -27,13 +27,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
-## Scientific qualification
-
-- [ ] Decide how to handle 2D coordinates. A 2D molfile or SD record, read by ChargeFW or converted from
-  an RDKit conformer with `Is3D() == False`, becomes 3D coordinates with z = 0, and automatic selection
-  then uses a geometry-dependent method on the flat drawing without a warning. Options: reject 2D
-  coordinates for methods that use geometry, warn, or import the molecule without coordinates.
-
 ## Project infrastructure
 
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
