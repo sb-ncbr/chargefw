@@ -61,6 +61,9 @@ class ChargeCalculationResult {
     [[nodiscard]] auto execution() const noexcept -> const calculation::ExecutionResult&;
 
   private:
+    // Results come only from make_charge_calculation_result(), which validates them.
+    ChargeCalculationResult() = default;
+
     friend auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
                                                RequestedCalculationProvenance requested,
                                                calculation::ExecutionResult execution)
