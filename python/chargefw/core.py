@@ -254,13 +254,13 @@ class Molecule:
     def atomic_numbers(self) -> NDArray[np.int64]:
         """Read-only int64 array of shape (atom_count,) in molecule atom order."""
 
-        return self._atomic_numbers
+        return self._atomic_numbers.view()
 
     @property
     def formal_charges(self) -> NDArray[np.int64]:
         """Read-only int64 array of formal charges, shape (atom_count,)."""
 
-        return self._formal_charges
+        return self._formal_charges.view()
 
     @property
     def bonds(self) -> NDArray[np.int64]:
@@ -270,7 +270,7 @@ class Molecule:
         and bond orders 1, 2, or 3.
         """
 
-        return self._bonds
+        return self._bonds.view()
 
     @property
     def coordinates(self) -> NDArray[np.float64]:
@@ -279,7 +279,7 @@ class Molecule:
         The first dimension is zero when no conformers are present.
         """
 
-        return self._coordinates
+        return self._coordinates.view()
 
     @property
     def name(self) -> str:
