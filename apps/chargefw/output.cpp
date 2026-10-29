@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <print>
+#include <random>
 #include <set>
 #include <stdexcept>
 
@@ -50,13 +51,28 @@ void finalize_output(std::ofstream& output, const std::filesystem::path& path) {
     }
 }
 
+// Writes beside the destination and replaces it only once writing has succeeded, so a refused or
+// failed write leaves an existing file unchanged.
 template <typename Writer> void write_output(const std::filesystem::path& path, Writer writer) {
-    auto output = std::ofstream{path};
+    // A random name, created exclusively: an existing file or symbolic link is never opened.
+    auto random = std::random_device{};
+    auto temporary = path;
+    temporary += std::format(".{:08x}{:08x}.tmp", random(), random());
+    auto output = std::ofstream{temporary, std::ios::out | std::ios::noreplace};
     if (!output) {
         throw std::runtime_error{"Unable to open output file: " + path.string()};
     }
-    writer(output);
-    finalize_output(output, path);
+    try {
+        writer(output);
+        finalize_output(output, path);
+        std::filesystem::rename(temporary, path);
+    } catch (...) {
+        // Close first: an open file cannot be removed on Windows.
+        output.close();
+        auto ignored = std::error_code{};
+        std::filesystem::remove(temporary, ignored);
+        throw;
+    }
 }
 
 void write_json(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result,

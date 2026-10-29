@@ -53,8 +53,9 @@ MOL2 and mmCIF can be written for input in any format, PQR only for a structure 
 mmCIF. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares them.
 
-ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still with
-status `success`, and the command exits with status 6.
+ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still
+with status `success`, and the command exits with status 6. A file that could not be written is not
+created, and an existing file of that name from an earlier run stays as it was.
 
 ### Progress and cancelling
 

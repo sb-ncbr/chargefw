@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Command line
+
+- A MOL2, mmCIF, PQR, or result JSON file that cannot be written no longer replaces an existing file of
+  the same name. Before, a refused export, such as MOL2 for a molecule without coordinates, left the
+  earlier file empty.
+
 ### Output
 
 - ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,
