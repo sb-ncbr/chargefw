@@ -306,6 +306,8 @@ misread:
 
 - a chain ID that is not a single letter or other non-numeric character, such as `1`, `AA`, or `A1`;
 - an atom name, residue name, or chain ID that contains whitespace, a control character, `#`, or `%`;
+- a residue number that is not an integer, such as the hybrid-36 number `A000` that PDB files use for
+  residue 10000 and above (read the structure from mmCIF instead); or
 - an insertion code that is not a single letter.
 
 ChargeFW checks every atom before writing, so a refused structure leaves no PQR output.

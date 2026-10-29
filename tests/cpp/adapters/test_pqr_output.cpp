@@ -137,6 +137,17 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[a
     }
 
     {
+        // Hybrid-36 residue number 10000 from a PDB file with more than 9,999 residues.
+        const auto hybrid36 = calculation_result(
+            {read_pdb("HETATM    1  O   HOH AA000       0.000   0.000   0.000  1.00  0.00"
+                      "           O\nEND\n")},
+            formal(1));
+        auto output = std::ostringstream{};
+        CHECK_THROWS_AS(pqr_output::PqrWriter{output}.write(hybrid36), std::invalid_argument);
+        CHECK(output.str().empty());
+    }
+
+    {
         const auto no_radius = calculation_result(
             {read_pdb("HETATM    1  O   HOH A   1       3.000   0.000   0.000  1.00  0.00"
                       "           O\n"
