@@ -27,13 +27,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
-## Format correctness
-
-- [ ] Decide whether to check generated mmCIF against the PDBx and charges dictionaries regularly, as a
-  release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
-  mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal
-  output omits, such as `_entity` and `_atom_type`.
-
 ## Scientific qualification
 
 - [ ] Decide how to handle 2D coordinates. A 2D molfile or SD record, read by ChargeFW or converted from

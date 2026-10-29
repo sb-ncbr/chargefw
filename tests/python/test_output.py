@@ -13,6 +13,9 @@ import pytest
 
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 AROMATIC_MOL2 = Path(__file__).parents[1] / "fixtures" / "synthetic" / "mol2" / "aromatic.mol2"
+CHARGES_DICTIONARY = (
+    Path(__file__).parents[1] / "fixtures" / "dictionaries" / "mmcif_charges_v11.dic"
+)
 TOPOLOGY_JSON = """{
   "schema_version": "1.0",
   "molecules": [{
@@ -115,6 +118,32 @@ def test_mmcif_holds_one_charge_set_per_result() -> None:
     ):
         with pytest.raises(ValueError):
             chargefw.io.dumps(rejected, format="mmcif")
+
+
+def test_mmcif_charges_follow_the_charges_dictionary() -> None:
+    ddl = gemmi.cif.Ddl(logger=lambda _message: None, print_unknown_tags=False)
+    ddl.read_ddl(gemmi.cif.read(str(CHARGES_DICTIONARY)))
+
+    def problems(document: gemmi.cif.Document) -> list[str]:
+        # Some violations, such as duplicated keys, are only logged. "Bad DDL2" lines report the
+        # PDBx types that the charges dictionary uses without defining.
+        messages: list[str] = []
+        ddl.set_logger(messages.append)
+        valid = ddl.validate_cif(document)
+        found = [message for message in messages if not message.startswith("Bad DDL2")]
+        return found if valid or found else ["invalid"]
+
+    molecule = water(conformers=2)
+    results = [chargefw.calculate(molecule, method=method) for method in ("formal", "qeq")]
+    document = gemmi.cif.read_string(chargefw.io.dumps(results, format="mmcif"))
+    assert problems(document) == []
+
+    # A repeated charge row breaks the (type_id, atom_id) key, so the check is not vacuous.
+    charges = document.sole_block().find(
+        "_sb_ncbr_partial_atomic_charges.", ["type_id", "atom_id", "charge"]
+    )
+    charges.append_row(["1", "1", "0.0"])
+    assert any("duplicated key" in message for message in problems(document))
 
 
 def test_write_uses_explicit_format(tmp_path: Path) -> None:

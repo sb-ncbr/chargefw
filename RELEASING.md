@@ -63,6 +63,23 @@ It requires `cmake`, `ctest`, `pre-commit`, the development dependencies from
 [DEVELOPMENT.md](DEVELOPMENT.md), and Podman or Docker; set `CHARGEFW_CONTAINER_ENGINE=docker` to choose
 Docker when both are installed. The sanitizer builds run sequentially with one build job.
 
+The tests check generated charge categories against the charges dictionary. Also check generated mmCIF
+against the current PDBx dictionary, with an installed `chargefw` and the Gemmi command-line program:
+
+```bash
+dir=$(mktemp -d)
+curl -sSfL -o "$dir/mmcif_pdbx_v50.dic" https://mmcif.wwpdb.org/dictionaries/ascii/mmcif_pdbx_v50.dic
+chargefw calculate --method formal --output-mmcif tests/fixtures/corpus/sdf/audit/representative.sdf "$dir/sdf"
+chargefw calculate --method formal --output-mmcif tests/fixtures/corpus/cif/1ek9.cif "$dir/cif"
+gemmi validate -d "$dir/mmcif_pdbx_v50.dic" -d tests/fixtures/dictionaries/mmcif_charges_v11.dic \
+  "$dir"/sdf/*.cif "$dir"/cif/*.cif
+```
+
+It should exit with status 0. Notes that `mmcif_charges_v11.dic` does not match `mmcif_charges.dic` are
+expected: the charges dictionary is declared under its file name, as the charges-schema project
+prescribes. Parent-category checks (`-p`) are not expected to pass, because the output omits categories
+such as `_entity` and `_atom_type`.
+
 ## 3. Push and wait for CI
 
 Push the version commit to `main` and wait until `ci.yml` succeeds on it. The release workflow refuses
