@@ -63,7 +63,7 @@ Things to know when you move over:
 - **Bonds of ligands:** residue templates cover common amino acids, nucleotides, and water. Ligands in
   PDB files need `CONECT` records; mmCIF files downloaded from the PDB contain the bonds of their
   ligands.
-- **Output** is result JSON, MOL2, or mmCIF. For a table of charges, use the
+- **Output** is result JSON, MOL2, mmCIF, or PQR. For a table of charges, use the
   [CSV example](../examples/calculate_file.md).
 - **Parameter files of your own** can be loaded from C++; the command line and Python use the installed
   parameter sets.

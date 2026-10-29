@@ -90,9 +90,11 @@ eem molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom
 | Result JSON | Scripts and analysis: full-precision charges and the complete record of the calculation |
 | MOL2 | Small molecules in molecular viewers and docking programs |
 | mmCIF | Proteins and other structures: charges stay linked to chains, residues, and atoms |
-| PQR | Electrostatics of proteins read from PDB or mmCIF, for example with APBS |
+| PQR | Electrostatics of proteins read from PDB or mmCIF, for example with APBS; one model only |
 | Python objects | Further calculation: charges as NumPy arrays, attached to RDKit molecules or Gemmi documents |
 
-MOL2, mmCIF, and PQR files contain charges rounded to four decimal places. The command line writes them
-with `--output-mol2`, `--output-mmcif`, and `--output-pqr`; in Python, use `chargefw.io.write()`. The
+MOL2, mmCIF, and PQR files contain charges rounded to four decimal places, and need coordinates. The
+command line writes them with `--output-mol2`, `--output-mmcif`, and `--output-pqr`; in Python, use
+`chargefw.io.write()`. PQR holds one model, so read a file with several models with
+`--conformers first` on the command line, or `conformers="first"` in Python. The
 [format reference](../reference/formats.md#charge-output) describes each format.

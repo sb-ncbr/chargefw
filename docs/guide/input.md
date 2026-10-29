@@ -14,9 +14,10 @@ MOL2 files have no field for formal charges, so ChargeFW reads every atom of a M
 Use SDF, mmCIF, or molecule JSON for charged molecules. The
 [format reference](../reference/formats.md) describes exactly what each reader imports.
 
-Many SDF files are 2D drawings, for example the default download from PubChem. A drawing's x and y
-coordinates are not a geometry, so ChargeFW reads an SDF or MOL record that declares itself 2D without
-coordinates and warns with `coordinates_2d_ignored`. Methods that need no geometry still apply to it;
+Many SDF files, for example the default download from PubChem, contain a 2D layout: coordinates that
+only place the atoms for drawing the structural formula on a page. Their bond lengths and angles are
+not those of the molecule, so ChargeFW reads an SDF or MOL record marked 2D without coordinates and
+warns with `coordinates_2d_ignored`. Methods that need no geometry still apply to it;
 for the others, download or generate 3D coordinates. A flat 3D molecule, such as water with all z = 0,
 is not affected.
 
@@ -61,8 +62,12 @@ so check the file before the calculation, as described [below](#check-the-molecu
 
 ChargeFW then takes bonds from its residue templates for common amino acids, nucleotides, and water,
 together with the bonds recorded in the file. For other residues, the file must contain their bonds:
-mmCIF `_chem_comp_bond` rows or PDB `CONECT` records. The
-[format reference](../reference/formats.md#connectivity) describes the bond options.
+mmCIF `_chem_comp_bond` rows or PDB `CONECT` records.
+
+Three options control how a PDB or mmCIF file is read: `--structural-bonds` (`bonds` in Python) sets
+where bonds come from, `--structural-selection` (`selection`) leaves out water or ligands, and
+`--conformers` (`conformers`) reads all models or only the first. The
+[format reference](../reference/formats.md#pdb-and-mmcif-input) describes them.
 
 ## Check the molecule before calculating
 

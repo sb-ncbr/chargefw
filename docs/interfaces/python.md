@@ -107,7 +107,7 @@ molecule. `molecule.atom_ids` holds the file's atom IDs, or the atom positions w
 
 `chargefw.periodic_table` holds the elements by atomic number. Index it by number or by symbol to get an
 `Element` with `atomic_number`, `symbol`, `name`, `period`, and `group`; `group` is 1 to 18, or `None`
-for lanthanides and actinides:
+for the lanthanides after La and the actinides after Ac (La and Ac are in group 3):
 
 ```python
 symbols = [chargefw.periodic_table[number].symbol for number in molecule.atomic_numbers]
@@ -400,14 +400,15 @@ result = chargefw.calculate(molecule, method="qeq", parameter_set="QEq_original"
 chargefw_rdkit.attach_charges(rdkit_molecule, result)
 ```
 
-`from_mol()` copies an RDKit molecule as it is: it does not sanitize, add or remove hydrogens, protonate,
-or generate coordinates. Every hydrogen must be an explicit atom; call `Chem.AddHs()` first for molecules
-from SMILES. A 2D conformer, such as one from `Compute2DCoords()`, is an error, because a drawing is not
-a geometry: embed 3D coordinates, remove the conformers for methods that need no geometry, or mark a real
-flat geometry with `conformer.Set3D(True)`. RDKit also marks a conformer 2D when it reads a flat molecule
-from a molfile that declares no dimension. By default, only single, double, and triple bonds are accepted. `bond_conversion="single"`
-turns aromatic and dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds;
-other bond types, such as ionic, hydrogen, or zero-order bonds, remain errors.
+`from_mol()` copies an RDKit molecule as it is: it does not sanitize, add or remove hydrogens,
+protonate, or generate coordinates. Every hydrogen must be an explicit atom; call `Chem.AddHs()`
+first for molecules from SMILES. A 2D conformer, such as one from `Compute2DCoords()`, is an error,
+because a 2D layout is not a geometry: embed 3D coordinates, remove the conformers for methods that
+need no geometry, or mark a real flat geometry with `conformer.Set3D(True)`. RDKit also marks a
+conformer 2D when it reads a flat molecule from a molfile that declares no dimension. By default,
+only single, double, and triple bonds are accepted. `bond_conversion="single"` turns aromatic and
+dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds; other bond types,
+such as ionic, hydrogen, or zero-order bonds, remain errors.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.

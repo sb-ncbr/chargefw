@@ -29,6 +29,9 @@ pip install --pre "chargefw[gemmi]"
 pip install --pre "chargefw[rdkit]"
 ```
 
+The `gemmi` extra installs exactly Gemmi 0.7.4 and replaces any other Gemmi version in the
+environment.
+
 pip also installs the `chargefw` command line. Check both:
 
 ```bash
@@ -51,7 +54,8 @@ release has its own tag; from 3.0.0 on, `latest` points to the newest final rele
 
 ## From source
 
-To use the C++ library, build and install ChargeFW as described in
+The C++ library and the source build of the command line are supported on Linux. To use the library,
+build and install ChargeFW as described in
 [Build and link](../interfaces/cpp.md#build-and-link). Set `CHARGEFW_BUILD_CLI=ON` to build the command
 line as well. The installed `chargefw` finds its parameter sets relative to the installed library, so it
 works from any directory:

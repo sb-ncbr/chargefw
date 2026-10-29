@@ -49,8 +49,9 @@ chargefw calculate --output-mmcif structure.cif output  # output/structure.charg
 chargefw calculate --output-pqr structure.cif output    # output/structure.chargefw.pqr
 ```
 
-MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or
-mmCIF. [Choosing an output
+MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates. PQR
+is written only for a structure read from PDB or mmCIF, with one model; read a file with several
+models using `--conformers first`. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares them.
 
 ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still
@@ -76,7 +77,8 @@ input and writing the results do not check for cancellation.
 | `--structural-bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
-options in detail. A malformed record in the input stops the command before any calculation.
+options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.
+A malformed record in the input stops the command before any calculation.
 
 ### Choosing the model
 
