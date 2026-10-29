@@ -47,6 +47,16 @@ for molecule in molecules:
     )
 ```
 
+A reader that ignores part of a record says so in `molecule.import_diagnostics`, a tuple of
+`chargefw.ImportDiagnostic` with a `code`, a `message`, and the file `line` when known. For example,
+partial charges in a MOL2 or mmCIF file give `partial_charges_ignored`, and bonds to symmetry-related
+copies in a crystal structure give `symmetry_connections_ignored`. Molecules created in Python have none.
+
+```python
+for diagnostic in molecules[0].import_diagnostics:
+    print(diagnostic.code, diagnostic.message)
+```
+
 ### Molecules from arrays
 
 Build a `Molecule` directly when you have the data as arrays:

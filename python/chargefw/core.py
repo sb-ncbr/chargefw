@@ -121,6 +121,15 @@ class SourceMapping:
     components: tuple[SourceComponentInstance, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class ImportDiagnostic:
+    """A warning that a file reader attached to an imported molecule."""
+
+    code: str
+    message: str
+    line: int | None = None
+
+
 class Molecule:
     """Immutable, owned toolkit-neutral molecular data."""
 
@@ -300,6 +309,12 @@ class Molecule:
     @property
     def source_name(self) -> str:
         return self._source.source
+
+    @property
+    def import_diagnostics(self) -> tuple[ImportDiagnostic, ...]:
+        """Warnings from reading this molecule's file; empty for molecules built in Python."""
+
+        return ()
 
     @property
     def source_mapping(self) -> SourceMapping | None:

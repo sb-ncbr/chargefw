@@ -12,6 +12,9 @@
 
 ### Python
 
+- `molecule.import_diagnostics` lists the warnings a reader attached to an imported molecule, such as
+  `partial_charges_ignored`, as `chargefw.ImportDiagnostic` values with a code, a message, and a line.
+  Before, they were only in the result JSON.
 - `chargefw.calculate()` with an assessed plan refuses `parameter_matching`, `execution`,
   `cutoff_threshold`, and `cover_threshold` also when they are passed with their default value, such as
   `parameter_matching="strict"`. Before, such arguments were silently ignored and the plan's own
