@@ -123,7 +123,9 @@ PDB and mmCIF are parsed through Gemmi. PDB produces one molecule record. Each m
 `_atom_site.id` produces one molecule record; blocks without coordinate data are skipped. The source block
 name is retained as the mmCIF record ID. Atom-site IDs must be present and unique, but may be arbitrary
 strings or integers; values such as `Csite`, `001`, and integers wider than 64 bits are retained exactly.
-Parsing does not change the source document or exposed mapping.
+Parsing does not change the source document or exposed mapping. Partial charges in a block, such as those
+of an earlier ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges`, are not used; the record
+receives a `partial_charges_ignored` warning.
 
 The first selected model defines elements, formal charges, names, topology, and source mapping. Selected
 atoms are restored to source row order even when Gemmi groups noncontiguous rows by hierarchy; later models
@@ -178,6 +180,13 @@ Structural readers provide four explicit bond strategies:
 
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
+
+Crystal structure files can describe bonds to symmetry-related copies of the listed atoms: a connection
+whose partners have different symmetry codes (`_struct_conn.ptnr1_symmetry` and `ptnr2_symmetry` in
+mmCIF, the symmetry columns of `LINK` and `SSBOND` in PDB). ChargeFW does not build those copies, so
+`explicit` and `hybrid` leave such connections out; the calculation covers only the atoms in the file.
+When both partner atoms are among the selected atoms, which would otherwise have been bonded wrongly,
+the record receives a `symmetry_connections_ignored` warning.
 
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
@@ -243,9 +252,9 @@ rejects missing or non-finite coordinates, empty records, unsuccessful results, 
 dictionary's inclusive `[-5, 5]` range before serializing the document.
 
 The bonds used in the calculation are written with their orders (`sing`, `doub`, or `trip`), which
-viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named by residue
-and atom name, with the residue names listed in `_chem_comp`. Bonds between residues, such as peptide
-links, go to `_struct_conn`: a bond between two sulfur atoms as `disulf`, any other bond as `covale`.
+viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named
+by residue and atom name. Bonds between residues, such as peptide links, go to `_struct_conn`: a bond
+between two sulfur atoms as `disulf`, any other bond as `covale`.
 A record from SDF, MOL2, molecule JSON, or Python arrays is one residue, `UNL`, so all its bonds are in
 `_chem_comp_bond`. A molecule without bonds gets no bond categories.
 

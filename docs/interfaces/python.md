@@ -426,6 +426,18 @@ document.write_file("charged-with-source-metadata.cif")
 
 `from_structure()` and `from_document()` write the Gemmi object as mmCIF text and read it with
 ChargeFW's own reader, so the `selection`, `bonds`, and `conformers` options behave as for files.
+`from_structure()` accepts only `bonds="templates"` (the default) or `"none"`. Converting a
+`gemmi.Structure` loses the bonds defined in the file: ligand bond orders, the orders of `_struct_conn`
+connections, and PDB `CONECT` records. With template bonds, links that only the file records, such as
+disulfides and covalently bound ligands, are therefore not bonded. For bonds from the file, read mmCIF
+through its document and PDB with ChargeFW's own reader:
+
+```python
+document = gemmi.cif.read("structure.cif")
+molecules = chargefw.io.gemmi.from_document(document)  # bonds="hybrid" by default
+
+molecules = chargefw.io.read("structure.pdb", format="pdb", bonds="hybrid")
+```
 
 `to_document()` creates a new mmCIF document, the same as `chargefw.io.dumps(..., format="mmcif")`; it
 does not copy other data of the input.

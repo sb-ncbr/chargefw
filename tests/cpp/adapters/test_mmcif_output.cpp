@@ -164,6 +164,8 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
     CHECK(::gemmi::cif::as_string(component_bonds[0][2]) == "LABEL_O");
     CHECK(::gemmi::cif::as_string(component_bonds[0][3]) == "doub");
     CHECK_FALSE(block.has_mmcif_category("_struct_conn."));
+    // _chem_comp would need component types that ChargeFW does not know, so it is omitted.
+    CHECK_FALSE(block.has_mmcif_category("_chem_comp."));
 
     auto sites = block.find("_atom_site.", {"id", "label_atom_id", "label_comp_id", "label_asym_id",
                                             "auth_atom_id", "auth_comp_id", "auth_asym_id",

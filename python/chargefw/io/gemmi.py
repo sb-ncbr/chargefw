@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from importlib import import_module
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from .._chargefw import adapters as _native_adapters
 from ..calculation import CalculationResult
@@ -38,19 +38,37 @@ def _require_gemmi() -> Any:
         ) from error
 
 
+# This conversion supports template-derived bonds or no bonds; it cannot faithfully preserve
+# file-defined connectivity. A gemmi.Structure keeps neither the file's _chem_comp_bond rows nor the
+# bond orders of its connections, and writing it as mmCIF drops its PDB CONECT records.
+type StructureBondStrategy = Literal["none", "templates"]
+
+
 def from_structure(
     structure: _gemmi.Structure,
     *,
     source_name: str = "",
     selection: RecordSelection = "all",
-    bonds: BondStrategy = "hybrid",
+    bonds: StructureBondStrategy = "templates",
     conformers: ConformerSelection = "all",
 ) -> MoleculeCollection:
-    """Convert a ``gemmi.Structure`` to a one-molecule collection."""
+    """Convert a ``gemmi.Structure`` to a one-molecule collection.
+
+    Bonds come from residue templates. For bonds defined in the file, read mmCIF with
+    ``from_document()`` and PDB with ``chargefw.io.read()``.
+    """
 
     gemmi = _require_gemmi()
     if not isinstance(structure, gemmi.Structure):
         raise TypeError("structure must be a gemmi.Structure")
+    if bonds not in ("none", "templates"):
+        raise ValueError(
+            f"from_structure() does not support bonds={bonds!r}: converting a gemmi.Structure "
+            "loses the bonds and bond orders defined in the file. For mmCIF, keep the document "
+            "(gemmi.cif.read(path), or gemmi.read_structure(path, save_doc=document)) and use "
+            "chargefw.io.gemmi.from_document(document); for PDB, use "
+            f"chargefw.io.read(path, format='pdb', bonds={bonds!r})"
+        )
     return parse(
         structure.make_mmcif_document().as_string(),
         format="mmcif",

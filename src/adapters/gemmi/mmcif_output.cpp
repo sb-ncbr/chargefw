@@ -76,7 +76,6 @@ constexpr auto dictionary_location =
 
 struct BlockMapping {
     std::vector<std::vector<std::string>> atom_site_ids;
-    std::vector<std::string> model_ids;
 };
 
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
@@ -217,13 +216,11 @@ struct OutputAssignments {
     const auto& metadata = *record.import_metadata;
     auto result = BlockMapping{};
     result.atom_site_ids.reserve(metadata.conformers.size());
-    result.model_ids.reserve(metadata.conformers.size());
     auto mapped_ids = std::unordered_set<std::string>{};
     for (std::size_t conformer_index = 0; conformer_index < metadata.conformers.size();
          ++conformer_index) {
         const auto& conformer = metadata.conformers[conformer_index];
         const auto model_id = conformer.id.value_or("1");
-        result.model_ids.push_back(model_id);
         auto& ids = result.atom_site_ids.emplace_back();
         ids.reserve(conformer.sites.size());
         for (std::size_t atom_index = 0; atom_index < conformer.sites.size(); ++atom_index) {
@@ -408,7 +405,6 @@ struct ComponentBond {
 };
 
 struct RecordBonds {
-    std::vector<std::string> components;
     std::vector<ComponentBond> component_bonds;
     std::vector<const core::Bond*> connections;
 };
@@ -432,9 +428,6 @@ struct RecordBonds {
             throw std::invalid_argument{std::format(
                 "mmCIF bond output requires unique atom names, but {} has atom '{}' more than once",
                 residue.description, site.label_atom)};
-        }
-        if (!std::ranges::contains(result.components, site.label_residue)) {
-            result.components.push_back(site.label_residue);
         }
     }
 
@@ -480,12 +473,9 @@ struct RecordBonds {
     return result;
 }
 
+// No _chem_comp rows are written: _chem_comp requires each component's type, which ChargeFW does
+// not know. Omitting the category lets readers that support residue-name fallback use it.
 auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds) -> void {
-    block.init_loop("_chem_comp.", {"id"});
-    auto components = block.find("_chem_comp.", {"id"});
-    for (const auto& component : bonds.components) {
-        components.append_row({quote(component)});
-    }
     if (bonds.component_bonds.empty()) {
         return;
     }
@@ -745,15 +735,18 @@ auto write_result_block(::gemmi::cif::Block& block, const ResultSpan results,
     append_bonds(block, record, generated_atom_ids);
 }
 
+// Declares the charges dictionary once. Declarations of other charges dictionary versions, such as
+// mmcif_charges_v10.dic in older files, no longer describe the charges and are removed; other
+// dictionaries stay.
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
     auto table =
         block.find_or_add("_audit_conform.", {"dict_name", "dict_version", "dict_location"});
-    for (auto row : table) {
-        if (::gemmi::cif::as_string(row[0]) == dictionary_name) {
-            return;
+    table.ensure_loop();
+    for (auto index = static_cast<int>(table.length()); index-- > 0;) {
+        if (::gemmi::cif::as_string(table[index][0]).starts_with("mmcif_charges_")) {
+            table.remove_row(index);
         }
     }
-    table.ensure_loop();
     table.append_row({dictionary_name, dictionary_version, dictionary_location});
 }
 

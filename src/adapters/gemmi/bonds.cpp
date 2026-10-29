@@ -94,14 +94,20 @@ class BondAccumulator {
 // Connection bond orders by _struct_conn.id; a connection without one is a single bond.
 using ConnectionOrders = std::unordered_map<std::string, core::BondOrder>;
 
-void add_structure_connections(BondAccumulator& bonds, const ::gemmi::Structure& structure,
-                               const selection::SelectedModel& selected,
-                               const ConnectionOrders& orders = {}) {
+// Adds covalent and disulfide connections between selected atoms and returns how many were skipped
+// because their partners are in different symmetry images. The second partner of such a connection
+// is an atom of a symmetry-related copy, which the molecule does not contain; its counterpart in
+// the file is a different atom.
+[[nodiscard]] auto add_structure_connections(BondAccumulator& bonds,
+                                             const ::gemmi::Structure& structure,
+                                             const selection::SelectedModel& selected,
+                                             const ConnectionOrders& orders = {}) -> std::size_t {
     if (structure.models.empty()) {
-        return;
+        return 0;
     }
 
     const auto& model = structure.models.front();
+    auto skipped = std::size_t{0};
     for (const auto& connection : structure.connections) {
         if (connection.type != ::gemmi::Connection::Covale &&
             connection.type != ::gemmi::Connection::Disulf) {
@@ -110,12 +116,17 @@ void add_structure_connections(BondAccumulator& bonds, const ::gemmi::Structure&
 
         const auto first = selected_atom_index(model, selected, connection.partner1);
         const auto second = selected_atom_index(model, selected, connection.partner2);
-        if (first.has_value() && second.has_value()) {
-            const auto order = orders.find(connection.name);
-            bonds.add(*first, *second,
-                      order == orders.end() ? core::BondOrder::SINGLE : order->second);
+        if (!first.has_value() || !second.has_value()) {
+            continue;
         }
+        if (connection.asu == ::gemmi::Asu::Different) {
+            ++skipped;
+            continue;
+        }
+        const auto order = orders.find(connection.name);
+        bonds.add(*first, *second, order == orders.end() ? core::BondOrder::SINGLE : order->second);
     }
+    return skipped;
 }
 
 void add_sequential_bonds(BondAccumulator& bonds,
@@ -232,13 +243,13 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
 } // namespace
 
 auto explicit_pdb(const ::gemmi::Structure& structure, const selection::SelectedModel& model)
-    -> std::vector<core::Bond> {
+    -> ExplicitBonds {
     if (structure.models.empty()) {
         return {};
     }
 
     BondAccumulator result;
-    add_structure_connections(result, structure, model);
+    const auto skipped = add_structure_connections(result, structure, model);
 
     for (const auto& [serial, partners] : structure.conect_map) {
         const auto first = model.atom_index_by_serial(serial);
@@ -254,11 +265,11 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
         }
     }
 
-    return result.take();
+    return {.bonds = result.take(), .skipped_symmetry_connections = skipped};
 }
 
 auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
-                    const selection::SelectedModel& model) -> std::vector<core::Bond> {
+                    const selection::SelectedModel& model) -> ExplicitBonds {
     if (structure.models.empty()) {
         return {};
     }
@@ -304,9 +315,19 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
             connection_orders.emplace(row.str(0), *order);
         }
     }
-    add_structure_connections(result, structure, model, connection_orders);
+    const auto skipped = add_structure_connections(result, structure, model, connection_orders);
 
-    return result.take();
+    return {.bonds = result.take(), .skipped_symmetry_connections = skipped};
+}
+
+auto symmetry_connections_diagnostic(const std::size_t count) -> MoleculeRecordDiagnostic {
+    return MoleculeRecordDiagnostic{
+        .code = "symmetry_connections_ignored",
+        .message = std::to_string(count) +
+                   (count == 1 ? " bond to an atom of a symmetry-related copy was"
+                               : " bonds to atoms of symmetry-related copies were") +
+                   " ignored; only the atoms in the file are calculated.",
+        .line = std::nullopt};
 }
 
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,

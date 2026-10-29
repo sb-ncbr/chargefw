@@ -282,20 +282,28 @@ END
 }
 
 TEST_CASE("PDB explicit connections retain address wildcard behavior", "[adapters][pdb]") {
-    const auto read_bond_count = [](const std::string_view link) {
-        const auto record =
-            read_first(std::string{link} + R"pdb(
+    const auto read_link = [](const std::string_view link) {
+        auto record = read_first(std::string{link} + R"pdb(
 ATOM      1  C  AALA A   1       0.000   0.000   0.000  1.00 20.00           C
 HETATM    2  C1 ALIG A   5       1.000   0.000   0.000  1.00 20.00           C
 END
 )pdb",
-                       {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds});
+                                 {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds});
         CHECK(record.molecule.atom_count() == 2);
-        return record.molecule.bond_count();
+        return record;
     };
 
-    CHECK(read_bond_count("LINK         C   ALA A   1                 C1  LIG A   5") == 1);
-    CHECK(read_bond_count("LINK         C       A   1                 C1  LIG A   5") == 1);
+    CHECK(read_link("LINK         C   ALA A   1                 C1  LIG A   5")
+              .molecule.bond_count() == 1);
+    CHECK(read_link("LINK         C       A   1                 C1  LIG A   5")
+              .molecule.bond_count() == 1);
+
+    // A link to the ligand of a symmetry-related copy is not a bond of this molecule.
+    const auto symmetry =
+        read_link("LINK         C   ALA A   1                 C1  LIG A   5     1555   2555");
+    CHECK(symmetry.molecule.bond_count() == 0);
+    REQUIRE(symmetry.diagnostics.size() == 1);
+    CHECK(symmetry.diagnostics.front().code == "symmetry_connections_ignored");
 }
 
 TEST_CASE("PDB source mapping follows Gemmi record handling", "[adapters][pdb]") {

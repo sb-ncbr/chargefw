@@ -23,21 +23,20 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Integrations
 
-- [ ] Compare the Python API with the capabilities actually used by the ACC III backend and add only the
-  missing explicit capabilities needed for migration. Document intentionally unsupported legacy
-  behavior before replacing the existing backend.
+- [ ] ACC III migration: ChargeFW provides the reading options, method and parameter catalogs,
+  applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
+  `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
 ## Format correctness
 
-- [ ] Preserve the exact optional mmCIF model token during strict attachment, distinguishing an absent
-  column, `.`, `?`, and an explicit value.
-- [ ] Define and enforce how structural import handles Gemmi connections whose endpoints are in different
-  symmetry images; the core graph cannot represent a symmetry-image endpoint.
-- [ ] Make mmCIF charge annotation update stale or duplicate `_audit_conform` dictionary entries
-  deterministically.
-- [ ] Add optional dictionary-backed validation of generated mmCIF to focused or release validation.
-- [ ] Define and test explicit-connectivity behavior for `chargefw.io.gemmi.from_structure()`, accounting
-  for connectivity that Gemmi does not retain when converting a `Structure` through mmCIF.
+- [ ] Decide whether to check generated mmCIF against the PDBx and charges dictionaries regularly, as a
+  release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
+  mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal
+  output omits, such as `_entity` and `_atom_type`.
+- [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
+  number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
+- [ ] After 3.0.0, compare the optional mmCIF model token exactly during strict attachment,
+  distinguishing an absent column, `.`, `?`, and an explicit value.
 
 ## Scientific qualification
 

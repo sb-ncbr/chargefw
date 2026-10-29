@@ -149,7 +149,7 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
         for (std::size_t index = 0; index < selected_models.size(); ++index) {
             selected_models[index].normalize_component_names(source_models[index].conformer.sites);
         }
-        auto explicit_bonds = std::vector<core::Bond>{};
+        auto explicit_bonds = bonds::ExplicitBonds{};
         if (options_.bond_strategy == BondStrategy::explicit_bonds ||
             options_.bond_strategy == BondStrategy::hybrid) {
             explicit_bonds = bonds::explicit_mmcif(structure, block, selected_models.front());
@@ -160,8 +160,19 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
             MoleculeRecordIdentity{
                 .source = source_, .record_index = current_record_index, .record_id = block.name},
             options_.selection, options_.bond_strategy, options_.conformers,
-            std::move(explicit_bonds), structure.name.empty() ? block.name : structure.name,
+            std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
+        if (explicit_bonds.skipped_symmetry_connections > 0) {
+            record.diagnostics.push_back(bonds::symmetry_connections_diagnostic(
+                explicit_bonds.skipped_symmetry_connections));
+        }
+        if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.")) {
+            record.diagnostics.push_back(MoleculeRecordDiagnostic{
+                .code = "partial_charges_ignored",
+                .message = "mmCIF partial charges were ignored; they are not formal charges and "
+                           "were not used for calculation.",
+                .line = std::nullopt});
+        }
         return record;
     }
 
