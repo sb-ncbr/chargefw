@@ -16,6 +16,11 @@
   the same name with different bonds.
   [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#mmcif) lists the rules.
 
+### Input
+
+- mmCIF bonds between residues keep their order from `_struct_conn.pdbx_value_order`; they were all
+  read as single bonds before. A connection without an order is still a single bond.
+
 ## 3.0.0a4
 
 ### Installation

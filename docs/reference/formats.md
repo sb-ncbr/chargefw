@@ -171,10 +171,13 @@ Structural readers provide four explicit bond strategies:
 
 - `none` imports no bonds;
 - `explicit` imports PDB `CONECT` and covalent/disulfide connections as single bonds, or mmCIF
-  component bonds with their orders and covalent/disulfide connections;
+  component bonds and covalent/disulfide `_struct_conn` connections with their orders;
 - `templates` applies ChargeFW's built-in residue templates and peptide/nucleotide polymer links; and
-- `hybrid` combines template and explicit bonds. Where both define a bond, mmCIF component bond orders
-  are used; PDB `CONECT` records only add bonds that templates do not define.
+- `hybrid` combines template and explicit bonds. Where both define a bond, mmCIF bond orders are used;
+  PDB `CONECT` records only add bonds that templates do not define.
+
+An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
+double and triple bonds, and any other value, or a missing one, gives a single bond.
 
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
