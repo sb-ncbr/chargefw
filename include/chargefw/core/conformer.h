@@ -24,6 +24,8 @@ class Conformer {
     [[nodiscard]] auto operator[](std::size_t index) const noexcept -> const Position&;
     [[nodiscard]] auto at(std::size_t index) const -> const Position&;
 
+    [[nodiscard]] auto operator==(const Conformer&) const -> bool = default;
+
   private:
     std::vector<Position> positions_;
     std::string name_;

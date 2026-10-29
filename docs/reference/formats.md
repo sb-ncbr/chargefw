@@ -171,10 +171,13 @@ Structural readers provide four explicit bond strategies:
 
 - `none` imports no bonds;
 - `explicit` imports PDB `CONECT` and covalent/disulfide connections as single bonds, or mmCIF
-  component bonds with their orders and covalent/disulfide connections;
+  component bonds and covalent/disulfide `_struct_conn` connections with their orders;
 - `templates` applies ChargeFW's built-in residue templates and peptide/nucleotide polymer links; and
-- `hybrid` combines template and explicit bonds. Where both define a bond, mmCIF component bond orders
-  are used; PDB `CONECT` records only add bonds that templates do not define.
+- `hybrid` combines template and explicit bonds. Where both define a bond, mmCIF bond orders are used;
+  PDB `CONECT` records only add bonds that templates do not define.
+
+An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
+double and triple bonds, and any other value, or a missing one, gives a single bond.
 
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
@@ -220,15 +223,42 @@ mmCIF charge output follows the SB NCBR partial atomic charges dictionary versio
 dictionary declaration in `_audit_conform`. Charge rows refer to `_atom_site.id`, preserving the mapping
 of structural selections and conformers.
 
+Each charge set has one metadata row, with ID `1` for the first set, and its charges cover every
+conformer under that ID. In Python, one file can hold several charge sets: pass a list of results to
+`chargefw.io.dumps()`, `chargefw.io.write()`, or the Gemmi functions, and the sets get IDs `1`, `2`, and
+so on. Calculate all sets from the same molecules, for example one collection read once. ChargeFW
+compares the input records exactly, including names, source, and import data; molecules read or built
+separately are accepted only when all of these match, not merely when they are chemically identical.
+Two sets with the same method and parameter set are refused, because the file does not record method
+options or the execution mode that could tell them apart.
+
 The mmCIF writer creates a new, minimal data block for every record. It
-emits `_entry`, `_audit_conform`, `_atom_site`, and the charge dictionary categories without copying source
-categories or inventing component topology. Known author and label atom/residue/chain identities are kept
-separate for every conformer site; unavailable names fall back deterministically to generated atom names,
-`UNL`, chain `A`, and entity `1`. Output site IDs and model numbers are newly generated per block, and each
-charge row refers to the generated `_atom_site.id` for its site. Molecule-scoped charges cover
-every conformer and conformer-scoped charges never broadcast. Output rejects missing or non-finite
-coordinates, empty records, unsuccessful results, and charges outside the dictionary's inclusive
-`[-5, 5]` range before serializing the document.
+emits `_entry`, `_audit_conform`, `_atom_site`, the bond categories described below, and the charge
+dictionary categories without copying source categories. Known author and label atom/residue/chain
+identities are kept separate for every conformer site; unavailable names fall back deterministically to
+generated atom names, `UNL`, chain `A`, and entity `1`. Output site IDs and model numbers are newly
+generated per block, and each charge row refers to the generated `_atom_site.id` for its site.
+Molecule-scoped charges cover every conformer and conformer-scoped charges never broadcast. Output
+rejects missing or non-finite coordinates, empty records, unsuccessful results, and charges outside the
+dictionary's inclusive `[-5, 5]` range before serializing the document.
+
+The bonds used in the calculation are written with their orders (`sing`, `doub`, or `trip`), which
+viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named by residue
+and atom name, with the residue names listed in `_chem_comp`. Bonds between residues, such as peptide
+links, go to `_struct_conn`: a bond between two sulfur atoms as `disulf`, any other bond as `covale`.
+A record from SDF, MOL2, molecule JSON, or Python arrays is one residue, `UNL`, so all its bonds are in
+`_chem_comp_bond`. A molecule without bonds gets no bond categories.
+
+A `_chem_comp_bond` row applies to every residue with that name, so ChargeFW refuses to write a record
+when its bonds cannot be stated that way:
+
+- an atom name occurs twice in one residue;
+- two residues with the same name have the same bond with different orders; or
+- one residue has a bond that another residue with the same name and the same two atom names lacks.
+
+A bond between residues is also refused when a partner residue has neither an author nor a label
+residue number, or when a partner atom has different author and label atom or residue names; mmCIF
+readers such as Gemmi would not find that atom. Nothing is written when ChargeFW refuses a record.
 
 In Python, [`attach_charges()`](../interfaces/python.md#gemmi) instead adds the charges to the original
 mmCIF document that was read, after checking that it still matches.

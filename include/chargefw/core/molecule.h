@@ -32,6 +32,8 @@ class Molecule {
 
     [[nodiscard]] auto has_coordinates() const noexcept -> bool;
 
+    [[nodiscard]] auto operator==(const Molecule&) const -> bool = default;
+
   private:
     std::vector<Atom> atoms_;
     std::vector<Bond> bonds_;

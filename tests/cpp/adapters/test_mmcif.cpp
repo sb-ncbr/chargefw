@@ -307,7 +307,9 @@ _struct_conn.ptnr2_label_asym_id
 _struct_conn.ptnr2_label_comp_id
 _struct_conn.ptnr2_label_seq_id
 _struct_conn.ptnr2_label_atom_id
-link1 covale A LIG 1 O1 B LIG 1 C2
+_struct_conn.pdbx_value_order
+link1 covale A LIG 1 O1 B LIG 1 C2 doub
+link2 covale A LIG 1 C1 B LIG 1 O2 ?
 #
 )cif";
     const auto read_strategy = [&](const gemmi_adapter::BondStrategy strategy) {
@@ -316,10 +318,13 @@ link1 covale A LIG 1 O1 B LIG 1 C2
 
     CHECK(read_strategy(gemmi_adapter::BondStrategy::none).bond_count() == 0);
     const auto explicit_molecule = read_strategy(gemmi_adapter::BondStrategy::explicit_bonds);
-    CHECK(explicit_molecule.bond_count() == 3);
+    REQUIRE(explicit_molecule.bond_count() == 4);
     CHECK(explicit_molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
     CHECK(explicit_molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
-    CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 3);
+    // Connections between residues take their pdbx_value_order, single when it is missing.
+    CHECK(explicit_molecule.bond(2).order() == chargefw::core::BondOrder::DOUBLE);
+    CHECK(explicit_molecule.bond(3).order() == chargefw::core::BondOrder::SINGLE);
+    CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 4);
 
     const auto duplicate_input = [](const std::string_view component_bond) {
         return atom_site_header("duplicate") + R"cif(

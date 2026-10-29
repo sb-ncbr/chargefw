@@ -91,8 +91,12 @@ class BondAccumulator {
     return std::nullopt;
 }
 
+// Connection bond orders by _struct_conn.id; a connection without one is a single bond.
+using ConnectionOrders = std::unordered_map<std::string, core::BondOrder>;
+
 void add_structure_connections(BondAccumulator& bonds, const ::gemmi::Structure& structure,
-                               const selection::SelectedModel& selected) {
+                               const selection::SelectedModel& selected,
+                               const ConnectionOrders& orders = {}) {
     if (structure.models.empty()) {
         return;
     }
@@ -107,7 +111,9 @@ void add_structure_connections(BondAccumulator& bonds, const ::gemmi::Structure&
         const auto first = selected_atom_index(model, selected, connection.partner1);
         const auto second = selected_atom_index(model, selected, connection.partner2);
         if (first.has_value() && second.has_value()) {
-            bonds.add(*first, *second, core::BondOrder::SINGLE);
+            const auto order = orders.find(connection.name);
+            bonds.add(*first, *second,
+                      order == orders.end() ? core::BondOrder::SINGLE : order->second);
         }
     }
 }
@@ -288,7 +294,17 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
         }
     }
 
-    add_structure_connections(result, structure, model);
+    // Gemmi keeps each connection's _struct_conn.id but not its bond order.
+    auto connection_orders = ConnectionOrders{};
+    for (const auto row : block.find("_struct_conn.", {"id", "?pdbx_value_order"})) {
+        if (!row.has2(1)) {
+            continue;
+        }
+        if (const auto order = bond_order(row.str(1))) {
+            connection_orders.emplace(row.str(0), *order);
+        }
+    }
+    add_structure_connections(result, structure, model, connection_orders);
 
     return result.take();
 }

@@ -12,6 +12,8 @@ class Atom {
     [[nodiscard]] auto formal_charge() const noexcept -> int;
     [[nodiscard]] auto name() const noexcept -> std::string_view;
 
+    [[nodiscard]] auto operator==(const Atom&) const -> bool = default;
+
   private:
     int atomic_number_;
     int formal_charge_;

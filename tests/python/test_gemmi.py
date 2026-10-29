@@ -1,6 +1,7 @@
 """Molecular format input and Gemmi conversion checks."""
 
 import json
+from collections.abc import Sequence
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from typing import Any, cast, get_type_hints
@@ -12,6 +13,7 @@ import pytest
 from chargefw import calculate
 from chargefw import io as chargefw_io
 
+RESULTS = chargefw.CalculationResult | Sequence[chargefw.CalculationResult]
 PDB_TEXT = """HEADER    TEST PDB
 TITLE     TWO MODELS
 MODEL        1
@@ -286,13 +288,13 @@ def test_public_annotations_resolve_to_runtime_types() -> None:
         ),
         (
             adapter.to_document,
-            {"result": chargefw.CalculationResult, "return": gemmi.cif.Document},
+            {"result": RESULTS, "return": gemmi.cif.Document},
         ),
         (
             adapter.attach_charges,
             {
                 "document": gemmi.cif.Document,
-                "result": chargefw.CalculationResult,
+                "result": RESULTS,
                 "return": type(None),
             },
         ),
@@ -300,7 +302,7 @@ def test_public_annotations_resolve_to_runtime_types() -> None:
     for function, expected in cases:
         hints = get_type_hints(function)
         for name, expected_type in expected.items():
-            assert hints[name] is expected_type
+            assert hints[name] == expected_type
 
 
 def test_object_conversion_reports_missing_optional_dependency(
@@ -498,7 +500,34 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
     )
     assert [
         (gemmi.cif.as_string(row[0]), gemmi.cif.as_string(row[1])) for row in first_charge_rows
-    ] == [("1", "1"), ("1", "2"), ("2", "3"), ("2", "4")]
+    ] == [("1", "1"), ("1", "2"), ("1", "3"), ("1", "4")]
+
+    sets_document = gemmi.cif.read_string(MMCIF_TEXT)
+    sets_molecules = chargefw.io.gemmi.from_document(sets_document)
+    chargefw.io.gemmi.attach_charges(
+        sets_document,
+        [calculate(sets_molecules, method="formal"), calculate(sets_molecules, method="qeq")],
+    )
+    methods = sets_document[0].find("_sb_ncbr_partial_atomic_charges_meta.", ["id", "method"])
+    assert [(gemmi.cif.as_string(row[0]), gemmi.cif.as_string(row[1])) for row in methods] == [
+        ("1", "formal"),
+        ("2", "qeq"),
+    ]
+    assert len(sets_document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])) == 8
+
+    # A rejected second result leaves the document as it was.
+    unchanged_document = gemmi.cif.read_string(MMCIF_TEXT)
+    unchanged_molecules = chargefw.io.gemmi.from_document(unchanged_document)
+    before_rejected_sets = unchanged_document.as_string()
+    with pytest.raises(ValueError):
+        chargefw.io.gemmi.attach_charges(
+            unchanged_document,
+            [
+                calculate(unchanged_molecules, method="formal"),
+                calculate(unchanged_molecules, method="formal"),
+            ],
+        )
+    assert unchanged_document.as_string() == before_rejected_sets
 
     altloc_document = gemmi.cif.read_string(MMCIF_TEXT.replace(" C CA . ALA", " C CA B ALA"))
     altloc_result = calculate(chargefw.io.gemmi.from_document(altloc_document), method="formal")

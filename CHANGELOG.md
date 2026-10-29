@@ -9,6 +9,22 @@
   mmCIF, with one conformer; each atom gets its element's van der Waals radius. ChargeFW refuses
   structures that APBS would misread, such as chain IDs other than a single letter.
   [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#pqr) lists the rules.
+- mmCIF output contains the bonds used in the calculation, with their orders, so viewers that read
+  mmCIF bond data can show double and triple bonds. Bonds within a residue are in `_chem_comp_bond`;
+  bonds between residues, such as peptide links and disulfides, are in `_struct_conn`. ChargeFW refuses
+  to write a structure whose bonds the residue definitions cannot express, for example two residues of
+  the same name with different bonds.
+  [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#mmcif) lists the rules.
+- An mmCIF file can hold several charge sets for the same molecules: pass a list of results to
+  `chargefw.io.dumps()`, `chargefw.io.write()`, `chargefw.io.gemmi.to_document()`, or
+  `chargefw.io.gemmi.attach_charges()`. Two sets with the same method and parameter set are refused.
+- A charge set calculated per conformer now has one ID in mmCIF output, covering all conformers. Before,
+  each conformer got its own ID, so viewers listed the same method once per conformer.
+
+### Input
+
+- mmCIF bonds between residues keep their order from `_struct_conn.pdbx_value_order`; they were all
+  read as single bonds before. A connection without an order is still a single bond.
 
 ## 3.0.0a4
 

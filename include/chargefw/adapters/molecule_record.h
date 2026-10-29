@@ -144,6 +144,8 @@ struct MoleculeImportMetadata {
     std::optional<std::string> bond_strategy;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
     std::vector<SourceComponentInstance> components;
+
+    [[nodiscard]] auto operator==(const MoleculeImportMetadata&) const -> bool = default;
 };
 
 // Identifies one source record without imposing a file-format or toolkit dependency.
@@ -151,12 +153,16 @@ struct MoleculeRecordIdentity {
     std::string source;
     std::size_t record_index = 0;
     PortableId record_id;
+
+    [[nodiscard]] auto operator==(const MoleculeRecordIdentity&) const -> bool = default;
 };
 
 struct MoleculeRecordDiagnostic {
     std::string code;
     std::string message;
     std::optional<std::size_t> line;
+
+    [[nodiscard]] auto operator==(const MoleculeRecordDiagnostic&) const -> bool = default;
 };
 
 // A successful import result. Molecule ownership and source identity travel together so output
@@ -169,6 +175,8 @@ struct ImportedMoleculeRecord {
     std::optional<std::vector<PortableId>> caller_atom_ids;
     std::vector<MoleculeRecordDiagnostic> diagnostics;
     std::optional<MoleculeImportMetadata> import_metadata;
+
+    [[nodiscard]] auto operator==(const ImportedMoleculeRecord&) const -> bool = default;
 };
 
 } // namespace chargefw::adapters

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -19,6 +20,7 @@ from ..core import (
 )
 
 if TYPE_CHECKING:
+    from .._chargefw.calculation import _NativeExecutionResult
     from ..calculation import CalculationResult
 
 type InputFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
@@ -183,31 +185,47 @@ def read(
     )
 
 
+def _native_results(
+    result: CalculationResult | Sequence[CalculationResult],
+) -> list[_NativeExecutionResult]:
+    from ..calculation import CalculationResult
+
+    results = [result] if isinstance(result, CalculationResult) else result
+    if isinstance(results, (str, bytes)) or not isinstance(results, Sequence):
+        raise TypeError("result must be a CalculationResult or a sequence of them")
+    if not all(isinstance(value, CalculationResult) for value in results):
+        raise TypeError("result must be a CalculationResult or a sequence of them")
+    return [value._native for value in results]
+
+
 def dumps(
-    result: CalculationResult,
+    result: CalculationResult | Sequence[CalculationResult],
     *,
     format: OutputFormat,
 ) -> str:
-    """Serialize a calculation result through a native output writer."""
+    """Serialize a calculation result through a native output writer.
 
-    from ..calculation import CalculationResult
+    mmCIF also accepts several results for the same molecules, one charge set each.
+    """
 
-    if not isinstance(result, CalculationResult):
-        raise TypeError("result must be a CalculationResult")
+    results = _native_results(result)
     if not isinstance(format, str):
         raise TypeError("format must be a string")
     if format not in OUTPUT_FORMATS:
         raise ValueError(f"unsupported calculation output format: {format}")
-    return _native_adapters._dumps(result._native, format)
+    return _native_adapters._dumps(results, format)
 
 
 def write(
     path: str | PathLike[str],
-    result: CalculationResult,
+    result: CalculationResult | Sequence[CalculationResult],
     *,
     format: OutputFormat,
 ) -> None:
-    """Serialize a calculation result as UTF-8 text."""
+    """Serialize a calculation result as UTF-8 text.
+
+    mmCIF also accepts several results for the same molecules, one charge set each.
+    """
 
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")

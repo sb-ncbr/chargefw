@@ -23,6 +23,8 @@ class Bond {
     [[nodiscard]] auto second_atom_index() const noexcept -> std::size_t;
     [[nodiscard]] auto order() const noexcept -> BondOrder;
 
+    [[nodiscard]] auto operator==(const Bond&) const -> bool = default;
+
   private:
     std::size_t first_atom_index_;
     std::size_t second_atom_index_;

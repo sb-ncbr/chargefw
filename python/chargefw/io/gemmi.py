@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from importlib import import_module
 from typing import Any, cast
 
@@ -12,6 +13,7 @@ from . import (
     BondStrategy,
     ConformerSelection,
     RecordSelection,
+    _native_results,
     dumps,
     parse,
 )
@@ -82,32 +84,34 @@ def from_document(
     )
 
 
-def to_document(result: CalculationResult) -> _gemmi.cif.Document:
-    """Create a fresh Gemmi mmCIF document from a calculation result."""
+def to_document(
+    result: CalculationResult | Sequence[CalculationResult],
+) -> _gemmi.cif.Document:
+    """Create a fresh Gemmi mmCIF document from one or more results for the same molecules."""
 
     gemmi = _require_gemmi()
-    if not isinstance(result, CalculationResult):
-        raise TypeError("result must be a CalculationResult")
     return cast("_gemmi.cif.Document", gemmi.cif.read_string(dumps(result, format="mmcif")))
 
 
 def attach_charges(
     document: _gemmi.cif.Document,
-    result: CalculationResult,
+    result: CalculationResult | Sequence[CalculationResult],
     *,
     overwrite: bool = False,
 ) -> None:
-    """Attach charges to the unchanged Gemmi document used for the calculation input."""
+    """Attach charges to the unchanged Gemmi document used for the calculation input.
+
+    Several results for the same molecules are attached as separate charge sets.
+    """
 
     gemmi = _require_gemmi()
     if not isinstance(document, gemmi.cif.Document):
         raise TypeError("document must be a gemmi.cif.Document")
-    if not isinstance(result, CalculationResult):
-        raise TypeError("result must be a CalculationResult")
+    results = _native_results(result)
     if not isinstance(overwrite, bool):
         raise TypeError("overwrite must be a bool")
     attached = gemmi.cif.read_string(
-        _native_adapters._attach_mmcif(document.as_string(), result._native, overwrite)
+        _native_adapters._attach_mmcif(document.as_string(), results, overwrite)
     )
     document.clear()
     for block in attached:
