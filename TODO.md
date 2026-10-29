@@ -29,9 +29,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Format correctness
 
-- [ ] Decide how structural import handles `_struct_conn` partners in different symmetry images
-  (`ptnr*_symmetry`): skip them with a record diagnostic, or refuse the record. They are now read as
-  bonds to atoms of the asymmetric unit.
 - [ ] Decide explicit and hybrid bonds for `chargefw.io.gemmi.from_structure()`: Gemmi does not keep
   `_chem_comp_bond` or connection bond orders when writing a `Structure` as mmCIF, so ligand bond orders
   are lost. Options: refuse these strategies and default to `templates`, or document the loss.

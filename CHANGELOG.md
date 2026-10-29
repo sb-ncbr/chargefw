@@ -26,6 +26,10 @@
 
 ### Input
 
+- PDB and mmCIF connections to an atom of a symmetry-related copy (`LINK`, `SSBOND`, or
+  `_struct_conn` partners with different symmetry codes) are left out with a
+  `symmetry_connections_ignored` warning. Before, they became bonds to the atom of the same name in the
+  file, which is a different atom.
 - An mmCIF block that contains partial charges, for example from an earlier calculation, gives its
   record a `partial_charges_ignored` warning, as MOL2 input does; the charges are not used.
 - mmCIF bonds between residues keep their order from `_struct_conn.pdbx_value_order`; they were all

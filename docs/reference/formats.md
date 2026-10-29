@@ -181,6 +181,13 @@ Structural readers provide four explicit bond strategies:
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
 
+Crystal structure files can describe bonds to symmetry-related copies of the listed atoms: a connection
+whose partners have different symmetry codes (`_struct_conn.ptnr1_symmetry` and `ptnr2_symmetry` in
+mmCIF, the symmetry columns of `LINK` and `SSBOND` in PDB). ChargeFW does not build those copies, so
+`explicit` and `hybrid` leave such connections out; the calculation covers only the atoms in the file.
+When both partner atoms are among the selected atoms, which would otherwise have been bonded wrongly,
+the record receives a `symmetry_connections_ignored` warning.
+
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide

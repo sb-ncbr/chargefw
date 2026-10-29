@@ -336,6 +336,42 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
     CHECK(explicit_molecule.bond(3).order() == chargefw::core::BondOrder::SINGLE);
     CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 4);
 
+    // A connection to an atom of a symmetry-related copy is not a bond of this molecule.
+    const auto read_connection = [](const std::string_view second_symmetry) {
+        std::istringstream input{atom_site_header("symmetry") + R"cif(
+HETATM 1 S S1 . LIG A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 LIG A S1 1
+HETATM 2 S S2 . LIG B 1 ? 15.0 0.0 0.0 1.0 20.0 0 1 LIG B S2 1
+#
+loop_
+_struct_conn.id
+_struct_conn.conn_type_id
+_struct_conn.ptnr1_label_asym_id
+_struct_conn.ptnr1_label_comp_id
+_struct_conn.ptnr1_label_seq_id
+_struct_conn.ptnr1_label_atom_id
+_struct_conn.ptnr1_symmetry
+_struct_conn.ptnr2_label_asym_id
+_struct_conn.ptnr2_label_comp_id
+_struct_conn.ptnr2_label_seq_id
+_struct_conn.ptnr2_label_atom_id
+_struct_conn.ptnr2_symmetry
+disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
+                                 std::string{second_symmetry} + "\n#\n"};
+        auto record =
+            mmcif::MmcifReader{
+                input, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
+                .next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+    const auto same_copy = read_connection("1_555");
+    CHECK(same_copy.molecule.bond_count() == 1);
+    CHECK(same_copy.diagnostics.empty());
+    const auto other_copy = read_connection("2_555");
+    CHECK(other_copy.molecule.bond_count() == 0);
+    REQUIRE(other_copy.diagnostics.size() == 1);
+    CHECK(other_copy.diagnostics.front().code == "symmetry_connections_ignored");
+
     const auto duplicate_input = [](const std::string_view component_bond) {
         return atom_site_header("duplicate") + R"cif(
 ATOM 1 N N . ALA A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 ALA A N 1
