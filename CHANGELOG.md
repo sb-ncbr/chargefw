@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.0.0rc1
 
 ### Command line
 
