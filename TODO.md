@@ -35,8 +35,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   output omits, such as `_entity` and `_atom_type`.
 - [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
   number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
-- [ ] After 3.0.0, compare the optional mmCIF model token exactly during strict attachment,
-  distinguishing an absent column, `.`, `?`, and an explicit value.
 
 ## Scientific qualification
 

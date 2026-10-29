@@ -444,8 +444,9 @@ does not copy other data of the input.
 
 `attach_charges(document, result)` adds the charges to the document that was passed to
 `from_document()`. Both functions also take a list of results for the same molecules, one charge set
-each. It first checks that the document still matches the calculated molecules: blocks,
-atom sites, IDs, models, elements, labels, coordinates, and formal charges. Occupancies and B factors may
-differ. If anything does not match, the document stays unchanged. Existing charge data is an error unless
-you pass `overwrite=True`. The function replaces the document's blocks, so get block objects such as
-`document.sole_block()` again afterwards.
+each. Do not change the document between `from_document()` and `attach_charges()`: the charges are
+matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
+document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
+longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
+Existing charge data is an error unless you pass `overwrite=True`. The function replaces the document's
+blocks, so get block objects such as `document.sole_block()` again afterwards.
