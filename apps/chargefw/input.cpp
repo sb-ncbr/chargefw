@@ -24,7 +24,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
     std::vector<core::Molecule> molecules;
     std::vector<adapters::ImportedMoleculeRecord> records;
 
-    while (const auto record = reader.next()) {
+    while (auto record = reader.next()) {
         auto imported = std::move(*record);
         molecules.push_back(imported.molecule);
         records.push_back(std::move(imported));
