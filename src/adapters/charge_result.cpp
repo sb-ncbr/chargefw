@@ -1,5 +1,7 @@
 #include <chargefw/adapters/charge_result.h>
 
+#include "adapters/record_assignments.h"
+
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/methods/method_prerequisites.h>
 
@@ -321,6 +323,19 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         }
     }
     return diagnostics;
+}
+
+auto record_assignments(const ChargeCalculationResult& result, const std::size_t record_index)
+    -> std::span<const charges::ChargeAssignment> {
+    if (!result.execution().charges.has_value()) {
+        return {};
+    }
+    const auto assignments = result.execution().charges->assignments();
+    const auto [first, last] =
+        std::ranges::equal_range(assignments, record_index, {}, [](const auto& assignment) {
+            return assignment.target.molecule_index;
+        });
+    return {first, last};
 }
 
 } // namespace chargefw::adapters

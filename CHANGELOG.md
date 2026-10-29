@@ -28,6 +28,10 @@
 
 ### Output
 
+- Writing mmCIF for many molecules with the same name, such as an SDF library whose records share a
+  title, no longer slows down with the cube of their number: 4,000 such molecules took about 100
+  seconds and now take half a second. Result JSON and MOL2 output of large collections is also
+  faster.
 - ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,
   `format="pqr"` in Python, and `PqrWriter` in C++. PQR is available for one structure read from PDB or
   mmCIF, with one conformer; each atom gets its element's van der Waals radius. ChargeFW refuses

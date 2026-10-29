@@ -2,6 +2,7 @@
 
 #include "adapters/gemmi/mmcif_attachment.h"
 #include "adapters/gemmi/mmcif_labels.h"
+#include "adapters/record_assignments.h"
 
 #include <chargefw/core/periodic_table.h>
 
@@ -26,6 +27,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -100,19 +102,27 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
     return candidate;
 }
 
-[[nodiscard]] auto unique_block_name(const ::gemmi::cif::Document& document, std::string candidate)
-    -> std::string {
-    if (document.find_block(candidate) == nullptr) {
-        return candidate;
-    }
-    const auto base = candidate;
-    for (std::size_t suffix = 2;; ++suffix) {
-        candidate = base + "_" + std::to_string(suffix);
-        if (document.find_block(candidate) == nullptr) {
+// Block names must be unique, so repeated names get _2, _3, and so on. Remembering used names and
+// the next suffix per name keeps this linear in the number of records, which often share a name.
+class BlockNames {
+  public:
+    [[nodiscard]] auto unique(std::string candidate) -> std::string {
+        if (used_.insert(candidate).second) {
             return candidate;
         }
+        auto& suffix = next_suffix_.try_emplace(candidate, 2).first->second;
+        while (true) {
+            auto name = candidate + "_" + std::to_string(suffix++);
+            if (used_.insert(name).second) {
+                return name;
+            }
+        }
     }
-}
+
+  private:
+    std::unordered_set<std::string> used_;
+    std::unordered_map<std::string, std::size_t> next_suffix_;
+};
 
 [[nodiscard]] auto atom_ids(const core::Molecule& molecule) -> std::vector<std::string> {
     std::vector<std::string> result;
@@ -169,10 +179,7 @@ struct OutputAssignments {
     auto assignments = OutputAssignments{
         .molecule = nullptr,
         .conformers = std::vector<const charges::ChargeAssignment*>(molecule.conformer_count())};
-    for (const auto& assignment : result.execution().charges->assignments()) {
-        if (assignment.target.molecule_index != molecule_index) {
-            continue;
-        }
+    for (const auto& assignment : record_assignments(result, molecule_index)) {
         if (assignment.target.conformer_index.has_value()) {
             assignments.conformers[*assignment.target.conformer_index] = std::addressof(assignment);
         } else {
@@ -765,9 +772,11 @@ auto MmcifWriter::write(const ResultSpan results, const std::string_view generat
     validate_results_output(results);
     auto document = ::gemmi::cif::Document{};
     const auto inputs = results.front()->inputs();
+    auto names = BlockNames{};
+    document.blocks.reserve(inputs.size());
     for (std::size_t index = 0; index < inputs.size(); ++index) {
-        auto& block =
-            document.add_new_block(unique_block_name(document, block_name(inputs[index], index)));
+        // Names are already unique, so the document's own duplicate search is not needed.
+        auto& block = document.blocks.emplace_back(names.unique(block_name(inputs[index], index)));
         write_result_block(block, results, index, generator_version);
     }
     ::gemmi::cif::write_cif_to_stream(*output_, document);

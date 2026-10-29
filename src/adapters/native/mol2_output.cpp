@@ -1,5 +1,7 @@
 #include <chargefw/adapters/native/mol2_output.h>
 
+#include "adapters/record_assignments.h"
+
 #include <chargefw/core/periodic_table.h>
 
 #include <algorithm>
@@ -49,22 +51,21 @@ namespace {
     return std::string{core::element_symbol(atom.atomic_number())} + std::to_string(atom_index + 1);
 }
 
-[[nodiscard]] auto assignment_for(const charges::ChargeSet& charge_set,
+[[nodiscard]] auto assignment_for(const ChargeCalculationResult& result,
                                   const std::size_t molecule_index,
                                   const std::size_t conformer_index)
     -> const charges::ChargeAssignment& {
-    const auto found = std::ranges::find_if(
-        charge_set.assignments(), [molecule_index, conformer_index](const auto& assignment) {
-            return assignment.target.molecule_index == molecule_index &&
-                   (!assignment.target.conformer_index.has_value() ||
-                    *assignment.target.conformer_index == conformer_index);
-        });
-    if (found == charge_set.assignments().end()) {
+    // A record has one assignment for the molecule, or one per conformer in conformer order.
+    const auto record_charges = record_assignments(result, molecule_index);
+    if (record_charges.size() == 1 && !record_charges.front().target.conformer_index.has_value()) {
+        return record_charges.front();
+    }
+    if (conformer_index >= record_charges.size()) {
         throw std::invalid_argument{"MOL2 output has no charge assignment for molecule " +
                                     std::to_string(molecule_index + 1) + ", conformer " +
                                     std::to_string(conformer_index + 1)};
     }
-    return *found;
+    return record_charges[conformer_index];
 }
 
 auto validate_result(const ChargeCalculationResult& result) -> void {
@@ -75,7 +76,6 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
         throw std::invalid_argument{"MOL2 output requires at least one molecule record"};
     }
 
-    const auto& charge_set = *result.execution().charges;
     for (std::size_t molecule_index = 0; molecule_index < result.inputs().size();
          ++molecule_index) {
         const auto& molecule = result.inputs()[molecule_index].molecule;
@@ -89,7 +89,7 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
         for (std::size_t conformer_index = 0; conformer_index < molecule.conformer_count();
              ++conformer_index) {
             const auto& conformer = molecule.conformer(conformer_index);
-            const auto& assignment = assignment_for(charge_set, molecule_index, conformer_index);
+            const auto& assignment = assignment_for(result, molecule_index, conformer_index);
             if (assignment.charges.size() != molecule.atom_count()) {
                 throw std::invalid_argument{
                     "MOL2 charge assignment size does not match molecule atom count"};
@@ -168,7 +168,7 @@ auto Mol2Writer::write(const ChargeCalculationResult& result,
             }
             first = false;
             write_record(*output_, record, molecule_index, conformer_index,
-                         assignment_for(charge_set, molecule_index, conformer_index), charge_set,
+                         assignment_for(result, molecule_index, conformer_index), charge_set,
                          generator_version);
         }
     }
