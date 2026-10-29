@@ -20,6 +20,9 @@
   `chargefw.io.gemmi.attach_charges()`. Two sets with the same method and parameter set are refused.
 - A charge set calculated per conformer now has one ID in mmCIF output, covering all conformers. Before,
   each conformer got its own ID, so viewers listed the same method once per conformer.
+- Attaching charges to an mmCIF document replaces its other charges dictionary declarations in
+  `_audit_conform`, such as `mmcif_charges_v10.dic` from ACC or ChargeFW2 files, and repeated ones;
+  declarations of other dictionaries stay.
 
 ### Input
 

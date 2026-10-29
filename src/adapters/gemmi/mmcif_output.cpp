@@ -745,15 +745,18 @@ auto write_result_block(::gemmi::cif::Block& block, const ResultSpan results,
     append_bonds(block, record, generated_atom_ids);
 }
 
+// Declares the charges dictionary once. Declarations of other charges dictionary versions, such as
+// mmcif_charges_v10.dic in older files, no longer describe the charges and are removed; other
+// dictionaries stay.
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
     auto table =
         block.find_or_add("_audit_conform.", {"dict_name", "dict_version", "dict_location"});
-    for (auto row : table) {
-        if (::gemmi::cif::as_string(row[0]) == dictionary_name) {
-            return;
+    table.ensure_loop();
+    for (auto index = static_cast<int>(table.length()); index-- > 0;) {
+        if (::gemmi::cif::as_string(table[index][0]).starts_with("mmcif_charges_")) {
+            table.remove_row(index);
         }
     }
-    table.ensure_loop();
     table.append_row({dictionary_name, dictionary_version, dictionary_location});
 }
 

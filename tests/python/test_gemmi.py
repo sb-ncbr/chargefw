@@ -556,6 +556,29 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         chargefw.io.gemmi.attach_charges(document, result, overwrite=cast(Any, 1))
 
 
+def test_attach_charges_replaces_other_charges_dictionary_declarations() -> None:
+    document = gemmi.cif.read_string(MMCIF_TEXT)
+    declarations = document[0].init_loop(
+        "_audit_conform.", ["dict_name", "dict_version", "dict_location"]
+    )
+    for row in (
+        ["mmcif_pdbx.dic", "5.0", "."],
+        ["mmcif_charges_v10.dic", "1.0", "."],
+        ["mmcif_charges_v11.dic", "1.1", "."],
+        ["mmcif_charges_v11.dic", "1.1", "."],
+    ):
+        declarations.add_row(row)
+    result = calculate(chargefw.io.gemmi.from_document(document), method="formal")
+
+    chargefw.io.gemmi.attach_charges(document, result)
+
+    rows = document[0].find("_audit_conform.", ["dict_name", "dict_version"])
+    assert [(gemmi.cif.as_string(row[0]), gemmi.cif.as_string(row[1])) for row in rows] == [
+        ("mmcif_pdbx.dic", "5.0"),
+        ("mmcif_charges_v11.dic", "1.1"),
+    ]
+
+
 def test_attach_charges_ignores_atom_site_categories_without_ids() -> None:
     document = gemmi.cif.read_string(
         f"{MMCIF_TEXT}data_auxiliary\nloop_\n_atom_site.label_atom_id\nX\n#\n"
