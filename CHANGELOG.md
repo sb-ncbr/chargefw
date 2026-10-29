@@ -26,6 +26,12 @@
 
 ### Input
 
+- `chargefw.io.gemmi.from_structure()` uses template bonds by default and refuses `bonds="explicit"`
+  and `"hybrid"`. Converting a `gemmi.Structure` loses the file's ligand bond orders, connection bond
+  orders, and PDB `CONECT` records, so those bonds were lost or became single without a warning. With
+  the new default, links that only the file records, such as disulfides and covalent ligands, are no
+  longer bonded. For bonds from the file, use `from_document()` for mmCIF and `chargefw.io.read()` for
+  PDB.
 - PDB and mmCIF connections to an atom of a symmetry-related copy (`LINK`, `SSBOND`, or
   `_struct_conn` partners with different symmetry codes) are left out with a
   `symmetry_connections_ignored` warning. Before, they became bonds to the atom of the same name in the

@@ -29,9 +29,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Format correctness
 
-- [ ] Decide explicit and hybrid bonds for `chargefw.io.gemmi.from_structure()`: Gemmi does not keep
-  `_chem_comp_bond` or connection bond orders when writing a `Structure` as mmCIF, so ligand bond orders
-  are lost. Options: refuse these strategies and default to `templates`, or document the loss.
 - [ ] Decide whether to check generated mmCIF against the PDBx and charges dictionaries regularly, as a
   release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
   mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal

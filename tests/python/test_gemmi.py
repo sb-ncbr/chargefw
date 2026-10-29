@@ -356,6 +356,12 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     structure_molecule = structure_collection[0]
     np.testing.assert_array_equal(structure_molecule.atomic_numbers, text_molecule.atomic_numbers)
     np.testing.assert_array_equal(structure_molecule.coordinates, text_molecule.coordinates)
+    # Template bonds by default; bonds from the file need the document.
+    assert structure_molecule.bond_count == 1
+    assert chargefw.io.gemmi.from_structure(structure, bonds="none")[0].bond_count == 0
+    for strategy in ("explicit", "hybrid"):
+        with pytest.raises(ValueError, match="from_document"):
+            chargefw.io.gemmi.from_structure(structure, bonds=cast(Any, strategy))
 
 
 def test_mmcif_text_file_and_document_preserve_records(tmp_path: Path) -> None:
