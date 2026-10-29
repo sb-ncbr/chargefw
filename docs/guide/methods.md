@@ -40,6 +40,13 @@ chargefw applicability molecule.sdf
 In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
 rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
 
+When a parameter set is rejected because it has no entry for an atom's bond order,
+[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets it use
+the entry for the next lower order: `--permissive-types` on the command line, or
+`parameter_matching="permissive"` in Python. `chargefw parameters --method METHOD` lists the
+parameter sets of a method, and `chargefw parameters ID --keys` the atom and bond types a set has
+values for.
+
 A new ChargeFW release can add parameter sets and so change what automatic selection picks. Name the
 method and the parameter set whenever results must stay the same between releases.
 
@@ -80,7 +87,10 @@ Two further IDs are not charge models: `formal` returns the formal charges of yo
 charge model applies.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
-method's options and their defaults.
+method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the
+command line, or `options={"iters": 8}` in Python; see
+[Choosing the model](../interfaces/cli.md#choosing-the-model) and
+[Calculating charges](../interfaces/python.md#calculating-charges).
 
 ## Method descriptions
 

@@ -34,9 +34,13 @@ chargefw calculate --execution cover --radius 14 structure.cif output
 result = chargefw.calculate(molecules, method="eem", execution="cover", radius=14.0)
 ```
 
+With automatic execution, a radius sets the radius ChargeFW uses if it switches to cutoff or cover.
+
 Explicit full execution also runs above the size limits; the result then carries a warning. The limits
 themselves can be changed with `--cutoff-atom-threshold` and `--cover-atom-threshold` on the command line,
-or `cutoff_threshold` and `cover_threshold` in Python.
+or `cutoff_threshold` and `cover_threshold` in Python. `unlimited` on the command line, or `None` in
+Python, removes a limit. The cover limit must not be lower than the cutoff limit, and removing the
+cutoff limit requires removing the cover limit too.
 
 Before a long calculation, `chargefw applicability` estimates the working memory and the number of
 operations of every possible plan. For crambin with hydrogens (642 atoms) and SQE+qp:
@@ -85,10 +89,11 @@ molecule; it is not guaranteed to be small.
 
 Both approximations leave out what lies beyond the radius: bonds cut at the edge of a fragment and atoms
 farther away. [Fixed ions](fixed-ions.md) are the exception: they never become fragment centers, every
-fragment includes all of them, also those beyond the radius, and their charges are not corrected. A larger radius brings the charges closer to a full calculation and makes the calculation
-slower. Below 8 Å, the charges differed too much from full calculations, which is why 8 Å is the
-smallest radius allowed. To judge the error for your system, calculate a smaller but similar structure
-both in full and with the approximation, and compare.
+fragment includes all of them, also those beyond the radius, and their charges are not corrected. A
+larger radius brings the charges closer to a full calculation and makes the calculation slower.
+Below 8 Å, the charges differed too much from full calculations, which is why 8 Å is the smallest
+radius allowed. To judge the error for your system, calculate a smaller but similar structure both
+in full and with the approximation, and compare.
 
 ## Threads and estimates
 
