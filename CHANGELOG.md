@@ -10,6 +10,13 @@
 - A method option given as NaN or infinity, such as `--method-option denr.step=nan`, is refused as
   invalid input, exit status 2; it used to pass validation and fail later during the calculation.
 
+### Python
+
+- `chargefw.calculate()` with an assessed plan refuses `parameter_matching`, `execution`,
+  `cutoff_threshold`, and `cover_threshold` also when they are passed with their default value, such as
+  `parameter_matching="strict"`. Before, such arguments were silently ignored and the plan's own
+  settings were used.
+
 ### Output
 
 - ChargeFW writes PQR files for electrostatics with APBS: `--output-pqr` on the command line,
