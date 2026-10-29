@@ -234,14 +234,13 @@ void print_methods(const std::string& method_id) {
     std::println("full name: {}", metadata.full_name);
     std::println("publication: {}", metadata.publication.value_or("-"));
     std::println("notes: {}", metadata.notes.empty() ? "-" : metadata.notes);
-    std::println("priority: {}", metadata.priority);
     std::println("requires coordinates: {}", requirements.coordinates ? "yes" : "no");
     std::println("time complexity: {}", methods::complexity_notation(requirements.resources.time));
     std::println("memory complexity: {}",
                  methods::complexity_notation(requirements.resources.memory));
     std::println("supports cutoff: {}", requirements.resources.supports_cutoff ? "yes" : "no");
     std::println("supports cover: {}", requirements.resources.supports_cover ? "yes" : "no");
-    std::println("supports fixed point sources: {}",
+    std::println("supports fixed ions: {}",
                  requirements.supports_fixed_point_sources ? "yes" : "no");
     std::println("options:{}", method->option_schema().empty() ? " none" : "");
     for (const auto& option : method->option_schema()) {
@@ -302,7 +301,6 @@ void print_parameter_sets(const std::string& parameter_set_id, const std::string
     std::println("name: {}", metadata.name);
     std::println("publication: {}", metadata.publication.empty() ? "-" : metadata.publication);
     std::println("notes: {}", metadata.notes.empty() ? "-" : metadata.notes);
-    std::println("priority: {}", metadata.priority);
     print_atom_keys(parameter_set->atom(), keys);
     print_bond_keys(parameter_set->bond(), keys);
 }

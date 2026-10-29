@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Python
+
+- The execution mode and radius of a plan, an executed plan, and a rejection are in `execution`, an
+  `Execution` value, matching the `execution` argument and the result JSON. Before, they were in
+  `policy`, an `ExecutionPolicy` value.
+- `Method.supports_fixed_point_sources` is renamed to `Method.supports_fixed_ions`.
+- `Method.priority`, `ParameterSet.priority`, and `ParameterSetCatalog.for_method()` are removed. The
+  catalogs list methods and parameter sets in the order automatic selection tries them; use
+  `chargefw.methods["eem"].parameter_sets` for the sets of one method.
+
+### Command line
+
+- `chargefw methods METHOD` reports `supports fixed ions` instead of `supports fixed point sources`.
+  `chargefw methods METHOD` and `chargefw parameters ID` no longer print a priority; the listings are
+  in the order automatic selection tries them.
+- PEOE and MPEOE are named after partial equalization of *orbital* electronegativity, as in their
+  publications.
+
+### Documentation
+
+- The new Python API reference lists every public class and attribute of the Python package.
+
 ## 3.0.0rc1
 
 ### Command line

@@ -176,7 +176,7 @@ def test_reduced_execution_reports_policy_and_fragment_progress() -> None:
 
         assert result.status == "success"
         assert result.plan is not None, "successful calculation must report plan provenance"
-        assert result.plan.policy == chargefw.ExecutionPolicy(mode=mode, radius=8.0)
+        assert result.plan.execution == chargefw.Execution(mode=mode, radius=8.0)
         fragments = [event for event in observer.events if event.phase == "fragment_progress"]
         assert fragments
         assert fragments[-1].completed_fragment_count == fragments[-1].fragment_count
@@ -387,10 +387,10 @@ def test_assessment_and_full_calculation() -> None:
     molecule = water()
     assessment = chargefw.assess(molecule, method="eem", execution="full")
     assert assessment.plans
-    assert all(plan.policy.mode == "full" for plan in assessment.plans)
+    assert all(plan.execution.mode == "full" for plan in assessment.plans)
     plan = assessment.default_plan
     assert plan is not None, "assessment must produce a default plan"
-    assert plan.policy == chargefw.ExecutionPolicy(
+    assert plan.execution == chargefw.Execution(
         mode="full",
         radius=None,
     )
@@ -419,7 +419,7 @@ def test_assessment_and_full_calculation() -> None:
     assert executed is not None, "successful calculation must report plan provenance"
     assert executed.method.id == "eem"
     assert executed.parameter_set == plan.parameter_set
-    assert executed.policy.mode == "full"
+    assert executed.execution.mode == "full"
     assert result.timings.applicability_seconds >= 0.0
     assert result.timings.computation_seconds >= 0.0
     with pytest.raises(TypeError):
@@ -440,7 +440,7 @@ def test_plan_keeps_prepared_state_alive() -> None:
 def test_plans_are_filtered_reusable_and_target_bound() -> None:
     molecule = water()
     assessment = chargefw.assess(molecule, method="eqeq")
-    assert {candidate_plan.policy.mode for candidate_plan in assessment.plans} == {
+    assert {candidate_plan.execution.mode for candidate_plan in assessment.plans} == {
         "full",
         "cutoff",
         "cover",
@@ -455,7 +455,7 @@ def test_plans_are_filtered_reusable_and_target_bound() -> None:
         radius=8.0,
     )
     assert cutoff.plans
-    assert all(plan.policy.mode == "cutoff" for plan in cutoff.plans)
+    assert all(plan.execution.mode == "cutoff" for plan in cutoff.plans)
 
     default_plan = assessment.default_plan
     assert default_plan is not None, "assessment must produce a default plan"
@@ -609,9 +609,9 @@ def test_automatic_thresholds_and_explicit_full_warnings() -> None:
         cover_threshold=100,
     )
     assert automatic.default_plan is not None, "assessment must produce a default plan"
-    assert automatic.default_plan.policy.mode == "cutoff"
+    assert automatic.default_plan.execution.mode == "cutoff"
     assert any(
-        rejection.policy is not None and rejection.policy.mode == "full"
+        rejection.execution is not None and rejection.execution.mode == "full"
         for rejection in automatic.rejections
     )
 
@@ -703,7 +703,7 @@ def test_results_outlive_calculation_inputs() -> None:
 
     result, plan = calculate_owned_result()
     gc.collect()
-    assert plan.policy.mode == "full"
+    assert plan.execution.mode == "full"
     assert result.status == "success"
     assert result.assignments[0].source.record_id == "owned-record"
     assert result.assignments[0].atom_ids == ("O", "H1", "H2")
@@ -789,12 +789,13 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
         del cast(Any, methods)["eem"]
 
     eem = methods["eem"]
-    assert tuple(eem.parameter_sets) == tuple(chargefw.parameter_sets.for_method("eem"))
     peoe = methods["peoe"]
     assert isinstance(peoe.options, Mapping)
     assert peoe.options["iters"].id == "iters"
 
     assert isinstance(chargefw.parameter_sets, Mapping)
+    assert eem.parameter_sets
+    assert all(parameter_set.method == "eem" for parameter_set in eem.parameter_sets.values())
     parameter_set = next(iter(eem.parameter_sets.values()))
     assert chargefw.parameter_sets[parameter_set.id] == parameter_set
 

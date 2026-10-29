@@ -13,7 +13,7 @@ import numpy as np
 
 from ._methods import Method
 from ._parameters import ParameterSet
-from ._types import Execution, MethodOptionValue, ParameterMatching
+from ._types import MethodOptionValue, ParameterMatching, RequestedExecution
 
 _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
@@ -122,7 +122,7 @@ class RequestedCalculation:
     parameter_set: str | None
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
     parameter_matching: ParameterMatching
-    execution: Execution
+    execution: RequestedExecution
     radius: float | None
     cutoff_threshold: int | None
     cover_threshold: int | None
@@ -137,7 +137,7 @@ class RequestedCalculation:
         options: Mapping[str, MethodOptionValue] | None = None,
         options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
         parameter_matching: ParameterMatching = "strict",
-        execution: Execution = "auto",
+        execution: RequestedExecution = "auto",
         radius: float | None = None,
         cutoff_threshold: int | None = 20_000,
         cover_threshold: int | None = 80_000,

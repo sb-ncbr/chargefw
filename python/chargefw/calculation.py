@@ -14,7 +14,7 @@ from ._calculation_values import (
     CalculationTimings,
     ChargeFWError,
     ExecutedPlan,
-    ExecutionPolicy,
+    Execution,
     FixedIons,
     NoExecutablePlanError,
     NumericalFailureError,
@@ -30,10 +30,10 @@ from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
 from ._payloads import CalculationProgressPayload
 from ._types import (
     CalculationPhase,
-    Execution,
     ExecutionMode,
     MethodOptionValue,
     ParameterMatching,
+    RequestedExecution,
 )
 from .core import Molecule, MoleculeCollection
 
@@ -48,7 +48,7 @@ __all__ = [
     "ExecutedPlan",
     "FixedAtomCharge",
     "FixedIons",
-    "ExecutionPolicy",
+    "Execution",
     "NoExecutablePlanError",
     "NumericalFailureError",
     "Plan",
@@ -113,7 +113,7 @@ def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAd
 
 for _value_type in (
     RequestedCalculation,
-    ExecutionPolicy,
+    Execution,
     ExecutedPlan,
     CalculationTimings,
     ChargeFWError,
@@ -213,7 +213,7 @@ def assess(
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
     parameter_matching: ParameterMatching = "strict",
-    execution: Execution = "auto",
+    execution: RequestedExecution = "auto",
     radius: float | None = None,
     cutoff_threshold: int | None = 20_000,
     cover_threshold: int | None = 80_000,
@@ -304,7 +304,7 @@ def calculate(
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
     parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
-    execution: Execution = cast(Execution, _Default("auto")),
+    execution: RequestedExecution = cast(RequestedExecution, _Default("auto")),
     radius: float | None = None,
     cutoff_threshold: int | None = cast(int, _Default(20_000)),
     cover_threshold: int | None = cast(int, _Default(80_000)),
@@ -315,7 +315,7 @@ def calculate(
     """Calculate molecules directly, or execute an explicitly assessed plan.
 
     Direct calculation assesses the input and uses the default plan. Without an explicit method,
-    selection uses deterministic catalog priority among applicable methods.
+    selection uses the deterministic catalog order among applicable methods.
     """
 
     collection = _as_collection(molecules)

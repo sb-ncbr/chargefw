@@ -4,7 +4,7 @@ from typing import Literal
 
 type MethodOptionValue = bool | int | float | str
 type PortableId = str | int
-type Execution = Literal["auto", "full", "cutoff", "cover"]
+type RequestedExecution = Literal["auto", "full", "cutoff", "cover"]
 type ParameterMatching = Literal["strict", "permissive"]
 type AtomClassifier = Literal["plain", "hbo", "bonded"]
 type BondClassifier = Literal["plain", "bo"]

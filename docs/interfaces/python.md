@@ -1,8 +1,9 @@
 # Python
 
 The `chargefw` package reads molecules, calculates charges, and returns them as NumPy arrays.
-[Installation](../getting-started/installation.md#python-package) describes how to install it, and the
-[examples](../examples/index.md) show complete scripts.
+[Installation](../getting-started/installation.md#python-package) describes how to install it, the
+[examples](../examples/index.md) show complete scripts, and the
+[Python API reference](../reference/python-api.md) lists every class and attribute.
 
 ```python
 import chargefw
@@ -164,7 +165,7 @@ separately:
 ```python
 for molecule in molecules:
     result = chargefw.calculate(molecule)
-    print(molecule.name, result.plan.method.id, result.plan.policy.mode)
+    print(molecule.name, result.plan.method.id, result.plan.execution.mode)
 ```
 
 ### Fixed ions
@@ -227,7 +228,8 @@ except chargefw.ChargeFWError as error:
     raise
 ```
 
-Indices of molecules, atoms, bonds, and conformers in the reasons count from zero.
+The `molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero;
+the numbers in its message count from one.
 
 ## Writing results
 
@@ -250,7 +252,8 @@ chargefw.io.write("charged.cif", [sqeqp, eem], format="mmcif")
 
 The other formats hold one result. The [mmCIF reference](../reference/formats.md#mmcif) lists the rules.
 
-MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or mmCIF. [Choosing an output
+MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates; PQR
+only for a structure read from PDB or mmCIF, with one model. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares the formats, and the
 [format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
 result the format cannot hold raises `ValueError`, and a file that cannot be written raises an `OSError`,
@@ -262,10 +265,10 @@ Result JSON keeps integer IDs as numbers. MOL2 and mmCIF write them as text wher
 
 ## Methods and parameter sets
 
-`chargefw.methods` and `chargefw.parameter_sets` look up methods and parameter sets by ID. Methods are
-ordered by descending priority, then ID, as in the [method table](../guide/methods.md#available-methods);
-parameter sets are grouped by method ID and, within a method, ordered by descending priority, then ID.
-Pass the ID or the object to `calculate()`:
+`chargefw.methods` and `chargefw.parameter_sets` look up methods and parameter sets by ID. Both list
+their entries in the order automatic selection tries them: methods as in the [method
+table](../guide/methods.md#available-methods), parameter sets grouped by method. Pass the ID or the
+object to `calculate()`:
 
 ```python
 eem = chargefw.methods["eem"]
@@ -278,9 +281,9 @@ iterations = chargefw.methods["peoe"].options["iters"]
 print(iterations.default, iterations.minimum, iterations.maximum)
 ```
 
-A `Method` has its name, publication, `notes`, `priority`, `requires_coordinates`,
-`time_complexity` and `memory_complexity`, `supports_cutoff`, `supports_cover`,
-`supports_fixed_point_sources`, `options`, and `parameter_sets`. A method that requires coordinates
+A `Method` has its name, publication, `notes`, `requires_coordinates`, `time_complexity` and
+`memory_complexity`, `supports_cutoff`, `supports_cover`, `supports_fixed_ions`, `options`, and
+`parameter_sets`. A method that requires coordinates
 needs finite coordinates for every conformer and gives one assignment per conformer. These attributes
 describe the method in general; whether it applies to particular molecules shows only when you
 calculate or [assess](#assessing-before-calculating). `formal` and `dummy` are not charge models: they
@@ -312,7 +315,7 @@ again; the [parameter-set comparison example](../examples/compare_parameter_sets
 assessment = chargefw.assess(molecule, method="eem", execution="full")
 
 for plan in assessment.plans:
-    print(plan.method.id, plan.parameter_set.id, plan.policy.mode, plan.warnings)
+    print(plan.method.id, plan.parameter_set.id, plan.execution.mode, plan.warnings)
 
 if assessment.default_plan is None:
     for rejection in assessment.rejections:
@@ -320,10 +323,10 @@ if assessment.default_plan is None:
             print(rejection.method.id, issue.kind, issue.message)
 ```
 
-An `Assessment` has the possible `plans` in selection order, the `rejections`, the `default_plan` that
-`calculate()` would use, and the time taken in `seconds`. A `Plan` has its method, parameter set, all
-option values, execution mode, and warnings. `plan.parameter_set` is `None` for methods without
-parameter sets.
+An `Assessment` has the possible `plans` in selection order, the `rejections`, the `default_plan`
+that `calculate()` would use, and the time taken in `seconds`. A `Plan` has its method, parameter
+set, all option values, `execution` with the execution mode and radius, and warnings.
+`plan.parameter_set` is `None` for methods without parameter sets.
 
 Calculate a plan by passing it after the molecules; the molecules are not prepared again. A plan
 estimates its memory and number of operations before you run it:

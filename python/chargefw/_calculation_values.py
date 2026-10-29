@@ -30,7 +30,7 @@ from .core import MoleculeCollection
 
 
 @dataclass(frozen=True, slots=True)
-class ExecutionPolicy:
+class Execution:
     mode: ExecutionMode
     radius: float | None
 
@@ -50,7 +50,7 @@ class Plan:
         "_method",
         "_parameter_set",
         "_options",
-        "_policy",
+        "_execution",
         "_warnings",
         "_native",
         "_molecules",
@@ -69,7 +69,7 @@ class Plan:
         self._method = methods[payload["method_id"]]
         self._parameter_set = _resolved_parameter_set(payload["parameter_set_id"], parameter_sets)
         self._options = MappingProxyType(dict(payload["method_options"]))
-        self._policy = _execution_policy(payload["execution_policy"])
+        self._execution = _execution(payload["execution_policy"])
         self._warnings = tuple(_execution_issue(issue) for issue in payload["warnings"])
         self._native = native
         self._molecules = molecules
@@ -88,8 +88,8 @@ class Plan:
         return self._options
 
     @property
-    def policy(self) -> ExecutionPolicy:
-        return self._policy
+    def execution(self) -> Execution:
+        return self._execution
 
     @property
     def warnings(self) -> tuple[ExecutionIssue, ...]:
@@ -123,7 +123,7 @@ class Plan:
         parameter_set = self.parameter_set.id if self.parameter_set is not None else None
         return (
             f"{type(self).__name__}(method={self.method.id!r}, "
-            f"parameter_set={parameter_set!r}, mode={self.policy.mode!r})"
+            f"parameter_set={parameter_set!r}, mode={self.execution.mode!r})"
         )
 
 
@@ -131,7 +131,7 @@ class Plan:
 class Rejection:
     method: Method
     parameter_set: ParameterSet | None
-    policy: ExecutionPolicy | None
+    execution: Execution | None
     issues: tuple[PrerequisiteIssue | ExecutionIssue, ...]
 
 
@@ -154,7 +154,7 @@ class ExecutedPlan:
     method: Method
     parameter_set: ParameterSet | None
     options: Mapping[str, MethodOptionValue]
-    policy: ExecutionPolicy
+    execution: Execution
     warnings: tuple[ExecutionIssue, ...]
     fixed_ions: FixedIons | None = None
 
@@ -202,10 +202,8 @@ def _rejections(
         Rejection(
             method=methods[value["method_id"]],
             parameter_set=_resolved_parameter_set(value["parameter_set_id"], parameter_sets),
-            policy=(
-                None
-                if value["execution_policy"] is None
-                else _execution_policy(value["execution_policy"])
+            execution=(
+                None if value["execution_policy"] is None else _execution(value["execution_policy"])
             ),
             issues=(
                 *(_prerequisite_issue(issue) for issue in value["prerequisite_issues"]),
@@ -216,8 +214,8 @@ def _rejections(
     )
 
 
-def _execution_policy(value: ExecutionPolicyPayload) -> ExecutionPolicy:
-    return ExecutionPolicy(
+def _execution(value: ExecutionPolicyPayload) -> Execution:
+    return Execution(
         mode=value["mode"],
         radius=value["radius"],
     )
@@ -244,7 +242,7 @@ def _executed_plan(
         method=methods[value["method_id"]],
         parameter_set=_resolved_parameter_set(value["parameter_set_id"], parameter_sets),
         options=value["method_options"],
-        policy=_execution_policy(value["execution_policy"]),
+        execution=_execution(value["execution_policy"]),
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
         fixed_ions=_fixed_ions_provenance(value["fixed_ions"]),
     )

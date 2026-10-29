@@ -140,13 +140,12 @@ name: PEOE
 full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default zero-charge initialization, every connected component must be formally neutral. initial_charges=formal is a ChargeFW extension that preserves supplied formal charges.
-priority: 120
 requires coordinates: no
 time complexity: O(n + m)
 memory complexity: O(n)
 supports cutoff: no
 supports cover: no
-supports fixed point sources: no
+supports fixed ions: no
 options:
   iters (default=6) minimum>=1 maximum<=25
   initial_charges (default=zero) choices=zero,formal

@@ -68,6 +68,7 @@ examples/index
 reference/formats
 reference/parameter-sets
 reference/parameter-format
+reference/python-api
 ```
 
 ```{toctree}
