@@ -32,9 +32,10 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Decide explicit and hybrid bonds for `chargefw.io.gemmi.from_structure()`: Gemmi does not keep
   `_chem_comp_bond` or connection bond orders when writing a `Structure` as mmCIF, so ligand bond orders
   are lost. Options: refuse these strategies and default to `templates`, or document the loss.
-- [ ] Validate generated mmCIF, including the bond categories, against the PDBx and charges dictionaries
-  once; check in particular `_chem_comp.type`, which is not written. Decide whether to automate the
-  check.
+- [ ] Decide whether to check generated mmCIF against the PDBx and charges dictionaries regularly, as a
+  release step or a test. A manual check with `gemmi validate -d mmcif_pdbx_v50.dic -d
+  mmcif_charges_v11.dic` passes; the optional parent checks (`-p`) report categories that minimal
+  output omits, such as `_entity` and `_atom_type`.
 - [ ] Leave atom names empty in the MOL/SDF reader, so generated output names are element plus atom
   number (`O1`, `O2`, `C3`) rather than the bare symbol followed by numbered duplicates (`O`, `O2`).
 - [ ] After 3.0.0, compare the optional mmCIF model token exactly during strict attachment,

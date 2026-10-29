@@ -252,9 +252,9 @@ rejects missing or non-finite coordinates, empty records, unsuccessful results, 
 dictionary's inclusive `[-5, 5]` range before serializing the document.
 
 The bonds used in the calculation are written with their orders (`sing`, `doub`, or `trip`), which
-viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named by residue
-and atom name, with the residue names listed in `_chem_comp`. Bonds between residues, such as peptide
-links, go to `_struct_conn`: a bond between two sulfur atoms as `disulf`, any other bond as `covale`.
+viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named
+by residue and atom name. Bonds between residues, such as peptide links, go to `_struct_conn`: a bond
+between two sulfur atoms as `disulf`, any other bond as `covale`.
 A record from SDF, MOL2, molecule JSON, or Python arrays is one residue, `UNL`, so all its bonds are in
 `_chem_comp_bond`. A molecule without bonds gets no bond categories.
 

@@ -405,7 +405,6 @@ struct ComponentBond {
 };
 
 struct RecordBonds {
-    std::vector<std::string> components;
     std::vector<ComponentBond> component_bonds;
     std::vector<const core::Bond*> connections;
 };
@@ -429,9 +428,6 @@ struct RecordBonds {
             throw std::invalid_argument{std::format(
                 "mmCIF bond output requires unique atom names, but {} has atom '{}' more than once",
                 residue.description, site.label_atom)};
-        }
-        if (!std::ranges::contains(result.components, site.label_residue)) {
-            result.components.push_back(site.label_residue);
         }
     }
 
@@ -477,12 +473,9 @@ struct RecordBonds {
     return result;
 }
 
+// No _chem_comp rows are written: _chem_comp requires each component's type, which ChargeFW does
+// not know. Omitting the category lets readers that support residue-name fallback use it.
 auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds) -> void {
-    block.init_loop("_chem_comp.", {"id"});
-    auto components = block.find("_chem_comp.", {"id"});
-    for (const auto& component : bonds.components) {
-        components.append_row({quote(component)});
-    }
     if (bonds.component_bonds.empty()) {
         return;
     }
