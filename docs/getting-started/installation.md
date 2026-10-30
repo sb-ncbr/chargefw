@@ -12,6 +12,11 @@ pip install --pre chargefw
 Without `--pre`, pip installs 0.1.7, the last release of the previous series. One wheel serves CPython
 3.12 and newer, and pip installs NumPy 2.0 or newer with it.
 
+On Linux, the wheels need glibc 2.27 or newer (2.26 on aarch64), as in Ubuntu 18.04, Debian 10, RHEL 8,
+and later releases. There are no wheels for Alpine Linux and other systems based on musl; pip then tries
+to build ChargeFW from source, which is not supported. Use the [Docker image](#command-line-in-docker)
+for the command line there.
+
 On Python 3.11, pip reports no error but installs an older ChargeFW release. If your system Python is
 3.11, as on Debian 12, create an environment with a newer Python. [uv](https://docs.astral.sh/uv/)
 downloads one for you:
