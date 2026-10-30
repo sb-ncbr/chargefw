@@ -117,9 +117,9 @@ input options.
 `chargefw inspect` reports what ChargeFW read, without loading any parameters:
 
 ```console
-$ chargefw inspect structure.cif
+$ chargefw inspect 1l2y-h.cif
 records: 1
-record 0 (STRUCTURE) atoms=642 bonds=652 conformers=1 coordinates=true formal_charge=0 elements=H:315,C:202,N:55,O:64,S:6
+record 0 (1L2Y) atoms=304 bonds=310 conformers=1 coordinates=true formal_charge=1 elements=H:150,C:98,N:27,O:29
 ```
 
 [Preparing input](../guide/input.md#check-the-molecule-before-calculating) explains what to compare.

@@ -71,14 +71,34 @@ where bonds come from, `--structural-selection` (`selection`) leaves out water o
 
 ## Check the molecule before calculating
 
-`chargefw inspect` reports what ChargeFW read from a file:
+`chargefw inspect` reports what ChargeFW read from a file. Here it reads the NMR structure of the
+Trp-cage miniprotein, [1L2Y](https://www.rcsb.org/structure/1L2Y), as downloaded from the PDB:
 
 ```console
-$ chargefw inspect 1crn-h.cif
+$ chargefw inspect 1L2Y.cif
 records: 1
-record 0 (STRUCTURE) atoms=642 bonds=652 conformers=1 coordinates=true formal_charge=0 elements=H:315,C:202,N:55,O:64,S:6
+record 0 (1L2Y) atoms=304 bonds=310 conformers=38 coordinates=true formal_charge=0 elements=H:150,C:98,N:27,O:29
 ```
 
 Compare the atom count, the bond count, and the formal charge with what you expect: the formal charge is
 the net charge of the molecule at your pH. A different formal charge, or missing bonds, means the
 structure was not prepared completely.
+
+Here the formal charge is wrong. The file contains every hydrogen, and the hydrogens describe a peptide
+with charge +1: the N-terminus, Lys 8, and Arg 16 are protonated, and Asp 9 and the C-terminus are not.
+The file records no formal charges, however, so ChargeFW reads every atom as neutral. NMR structures
+from the PDB often look like this. ChargeFW does not derive formal charges from the hydrogens.
+
+{download}`1l2y-h.cif` is the first model of 1L2Y prepared with Hydride at pH 7, which also writes the
+formal charges:
+
+```console
+$ chargefw inspect 1l2y-h.cif
+records: 1
+record 0 (1L2Y) atoms=304 bonds=310 conformers=1 coordinates=true formal_charge=1 elements=H:150,C:98,N:27,O:29
+```
+
+How much missing formal charges change the charges depends on the method. EEM and SQE+qp use only the
+total charge: for 1L2Y read as neutral, the charges differ by 0.003 e per atom on average. SQE+q0 also
+uses which atoms carry the formal charges: read as neutral, Lys 8 NZ gets −1.08 instead of +0.14, and
+Asp 9 OD2 −0.22 instead of −1.23.

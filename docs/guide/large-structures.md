@@ -43,12 +43,15 @@ Python, removes a limit. The cover limit must not be lower than the cutoff limit
 cutoff limit requires removing the cover limit too.
 
 Before a long calculation, `chargefw applicability` estimates the working memory and the number of
-operations of every possible plan. For crambin with hydrogens (642 atoms) and SQE+qp:
+operations of every possible plan. For the Trp-cage miniprotein {download}`1l2y-h.cif` (304 atoms) and
+SQE+qp:
 
-```text
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=full memory=6.4MiB operations=1.9e+08
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cutoff memory=102.2MiB operations=1.2e+11
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cover memory=102.2MiB operations=1.1e+10
+```console
+$ chargefw applicability --method sqeqp --parameter-set SQEqp_Schindler2021_CCD_gen 1l2y-h.cif
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=full memory=1.4MiB operations=2.0e+07
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cutoff memory=23.0MiB operations=6.1e+09
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cover memory=23.0MiB operations=5.7e+08
+...
 ```
 
 For a molecule this small, full execution is by far the cheapest. Cover needs about ten times fewer
