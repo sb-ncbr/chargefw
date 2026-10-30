@@ -6,10 +6,18 @@ engine, methods, and bundled parameter sets.
 
 ChargeFW is the new implementation of ChargeFW2, the calculation core of
 [Atomic Charge Calculator III](https://acc.biodata.ceitec.cz/)
-([Raček et al., 2026](https://doi.org/10.1093/nar/gkag379)). It calculates charges with the 20 methods
-and the parameter sets of ChargeFW2, and adds an in-memory Python interface with RDKit and Gemmi
-integration, a C++ library, charges for every conformer, explanations of why a method does not apply, a
-record of every calculation, cutoff and cover for more methods, and fixed ions.
+([Raček et al., 2026](https://doi.org/10.1093/nar/gkag379)). It has the same 20 methods and parameter
+sets, and adds:
+
+- a [Python package](interfaces/python.md) that works with molecules in memory, including RDKit and
+  Gemmi objects;
+- [charges for every conformer](guide/results.md) of a molecule and every model of a structure;
+- [reasons](guide/methods.md#choosing-a-method) why a method or parameter set does not apply;
+- a [record](guide/results.md#what-the-result-records) of the method, parameter set, and settings of
+  every calculation;
+- [faster approximate calculation](guide/large-structures.md) of large structures for more methods;
+- [fixed ions](guide/fixed-ions.md) for structures with metal and other monatomic ions.
+
 [Differences from ChargeFW2](about/chargefw2.md) describes what changed and how to move over.
 
 You give ChargeFW a molecule with its bonds, formal charges, and coordinates where the method needs
