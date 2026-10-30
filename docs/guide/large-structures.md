@@ -22,6 +22,27 @@ Methods that are not expensive, such as PEOE, always run in full. Expensive meth
 cover, such as DelRe or SMP/QEq, are not chosen automatically for molecules above 20,000 atoms; request
 full execution to use them anyway. The result records the execution mode and radius that were used.
 
+## How long a calculation takes
+
+These times were measured with the command line on an 8-core desktop processor (AMD Ryzen 7 9700X,
+16 threads, all used by default), including reading the input and writing the result:
+
+| Structure | Atoms | Method | Execution | Time | Peak memory |
+| --- | --- | --- | --- | --- | --- |
+| [1L2Y](input.md#check-the-molecule-before-calculating) | 304 | EEM or SQE+qp | full | 0.01 s | 10 MB |
+| 10AW, without hydrogens | 10,479 | EEM | full | 5.5 s | 0.9 GB |
+| 10AW, without hydrogens | 10,479 | SQE+qp | full | 6.7 s | 1.8 GB |
+| 8YAX | 40,737 | EEM | full | 4.9 min | 13 GB |
+| 8YAX | 40,737 | SQE+qp | full | 5.2 min | 25 GB |
+| 8YAX | 40,737 | EEM | cutoff, 12 Å (default) | 5.9 s | 0.16 GB |
+| 8YAX | 40,737 | EEM | cover, 12 Å | 1.0 s | 0.15 GB |
+| 8YAX | 40,737 | SQE+qp | cutoff, 12 Å (default) | 9.6 s | 0.22 GB |
+| 8YAX | 40,737 | SQE+qp | cover, 12 Å | 1.6 s | 0.21 GB |
+
+Four times as many atoms made the full calculation about 50 times slower and its memory 14 times
+larger. Cutoff and cover grow about in proportion to the number of atoms, and on this structure they
+were 30 to 300 times faster than the full calculation.
+
 ## Choosing the execution yourself
 
 Request a mode and, for cutoff and cover, a radius of at least 8 Å:
