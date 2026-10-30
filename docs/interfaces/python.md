@@ -425,11 +425,18 @@ such as ionic, hydrogen, or zero-order bonds, remain errors.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.
-Existing properties of that name are an error unless you pass `overwrite=True`. It matches atoms by their IDs, which must
-be integers that map every atom exactly once. `molecule_index` selects the input molecule (default `0`).
-When that molecule has a single assignment, it is used; otherwise pass `conformer`, the ChargeFW
-conformer index, not the RDKit conformer ID. The property belongs to the molecule, not to a conformer, so
-keep separate copies or property names to store several sets of charges.
+Existing properties of that name are an error unless you pass `overwrite=True`.
+
+Pass the molecule that was given to `from_mol()`, or a copy of it, and do not change it in between: the
+charges are matched to its atoms by index and describe the molecule as it was read. ChargeFW refuses a
+molecule whose atom count, elements, or formal charges no longer match. It does not check bonds or
+coordinates, so reordered atoms of the same element, changed bonds, or new coordinates go unnoticed:
+the charges then sit on the wrong atoms or belong to another structure.
+
+`molecule_index` selects the input molecule (default `0`). When that molecule has a single
+assignment, it is used; otherwise pass `conformer`, the ChargeFW conformer index, not the RDKit
+conformer ID. The property belongs to the molecule, not to a conformer, so keep separate copies or
+property names to store several sets of charges.
 
 ## Gemmi
 
