@@ -440,7 +440,7 @@ without it; its functions then raise an `ImportError` that says what to install.
 ```python
 import chargefw.io.gemmi
 
-molecules = chargefw.io.gemmi.from_document(document)  # or from_structure(structure)
+molecules = chargefw.io.gemmi.from_document(document)
 result = chargefw.calculate(molecules, method="qeq", parameter_set="QEq_original")
 
 charged = chargefw.io.gemmi.to_document(result)
@@ -451,13 +451,12 @@ chargefw.io.gemmi.attach_charges(document, result)
 document.write_file("charged-with-source-metadata.cif")
 ```
 
-`from_structure()` and `from_document()` write the Gemmi object as mmCIF text and read it with
+`from_document()` and `from_structure()` write the Gemmi object as mmCIF text and read it with
 ChargeFW's own reader, so the `selection`, `bonds`, and `conformers` options behave as for files.
-`from_structure()` accepts only `bonds="templates"` (the default) or `"none"`. Converting a
-`gemmi.Structure` loses the bonds defined in the file: ligand bond orders, the orders of `_struct_conn`
-connections, and PDB `CONECT` records. With template bonds, links that only the file records, such as
-disulfides and covalently bound ligands, are therefore not bonded. For bonds from the file, read mmCIF
-through its document and PDB with ChargeFW's own reader:
+
+For a structure read from a file, use `from_document()` for mmCIF, or `chargefw.io.read()`. They use
+the bonds the file records, such as the bonds of ligands, of disulfide bridges, and of the hydrogens a
+preparation tool added:
 
 ```python
 document = gemmi.cif.read("structure.cif")
@@ -465,6 +464,17 @@ molecules = chargefw.io.gemmi.from_document(document)  # bonds="hybrid" by defau
 
 molecules = chargefw.io.read("structure.pdb", format="pdb", bonds="hybrid")
 ```
+
+`from_structure()` is for a structure that exists only in memory, for example one you built or edited
+with Gemmi. A `gemmi.Structure` does not keep the bonds of the file it was read from, so
+`from_structure()` takes bonds only from ChargeFW's residue templates: it accepts `bonds="templates"`
+(the default) or `"none"`. Use it only for structures with standard residues and water. A ligand or
+modified residue then has no bonds, and links between residues, such as disulfide bridges and
+covalently bound ligands, are left out. This matters wherever bonds are used: in methods that work on
+bonds, such as the SQE methods and the topology-based methods, and in parameter sets whose atom types
+depend on bonds. Such a calculation fails, or proceeds with the incomplete bonds without a warning.
+Methods that use only coordinates with parameter sets that type atoms by element alone, such as QEq,
+are not affected.
 
 `to_document()` creates a new mmCIF document, the same as `chargefw.io.dumps(..., format="mmcif")`; it
 does not copy other data of the input.

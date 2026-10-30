@@ -52,17 +52,22 @@ quantum chemistry workflow, can be read directly.
 ## Proteins and nucleic acids
 
 Structures from the PDB usually lack hydrogens, and the protonation of a residue depends on the pH and
-on its environment. Add hydrogens and assign protonation states with a tool built for that, such as
-[Hydride](https://hydride.biotite-python.org/) or [PDB2PQR](https://server.poissonboltzmann.org/),
-before you calculate charges. Which tool fits depends on your structure; ligands and non-standard
-residues in particular may need separate care.
+on its environment. Add hydrogens and assign protonation states with a tool built for that before you
+calculate charges. [Hydride](https://hydride.biotite-python.org/) writes mmCIF that ChargeFW reads
+directly: it records the formal charges of the charged atoms and the bonds of the hydrogens it adds.
+Ligands and non-standard residues may need separate care.
 
-The prepared file must contain the formal charges of the charged atoms. Not every tool writes them,
-so check the file before the calculation, as described [below](#check-the-molecule-before-calculating).
+The prepared file must contain the formal charges of the charged atoms. Not every tool writes them, so
+check the file before the calculation, as described [below](#check-the-molecule-before-calculating).
+The PDB output of [PDB2PQR](https://server.poissonboltzmann.org/), for example, records no formal
+charges and names residues after force-field conventions, such as `HID` for histidine, so ChargeFW
+cannot use it as it is.
 
-ChargeFW then takes bonds from its residue templates for common amino acids, nucleotides, and water,
-together with the bonds recorded in the file. For other residues, the file must contain their bonds:
-mmCIF `_chem_comp_bond` rows or PDB `CONECT` records.
+ChargeFW then takes bonds from its residue templates for the 20 standard amino acids, the nucleotides
+A, C, G, U, DA, DC, DG, and DT, and water, under their PDB residue names, together with the bonds
+recorded in the file. For other residues, the file must contain their bonds: mmCIF `_chem_comp_bond`
+rows or PDB `CONECT` records. mmCIF files downloaded from the PDB and files written by Hydride contain
+them.
 
 Three options control how a PDB or mmCIF file is read: `--structural-bonds` (`bonds` in Python) sets
 where bonds come from, `--structural-selection` (`selection`) leaves out water or ligands, and
@@ -82,7 +87,9 @@ record 0 (1L2Y) atoms=304 bonds=310 conformers=38 coordinates=true formal_charge
 
 Compare the atom count, the bond count, and the formal charge with what you expect: the formal charge is
 the net charge of the molecule at your pH. A different formal charge, or missing bonds, means the
-structure was not prepared completely.
+structure was not prepared completely. ChargeFW calculates with the bonds as it read them and cannot
+tell that one is missing, such as a disulfide bridge the file does not record, so the bond count is
+worth checking.
 
 Here the formal charge is wrong. The file contains every hydrogen, and the hydrogens describe a peptide
 with charge +1: the N-terminus, Lys 8, and Arg 16 are protonated, and Asp 9 and the C-terminus are not.

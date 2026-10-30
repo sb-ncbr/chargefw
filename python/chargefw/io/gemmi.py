@@ -52,10 +52,12 @@ def from_structure(
     bonds: StructureBondStrategy = "templates",
     conformers: ConformerSelection = "all",
 ) -> MoleculeCollection:
-    """Convert a ``gemmi.Structure`` to a one-molecule collection.
+    """Convert an in-memory ``gemmi.Structure`` to a one-molecule collection.
 
-    Bonds come from residue templates. For bonds defined in the file, read mmCIF with
-    ``from_document()`` and PDB with ``chargefw.io.read()``.
+    Bonds come only from residue templates, so ligands get none and links between residues, such
+    as disulfide bridges, are left out. A calculation that uses bonds may then fail or proceed
+    with the incomplete bonds. For a structure read from a file, use ``from_document()`` for mmCIF
+    or ``chargefw.io.read()``, which use the bonds the file records.
     """
 
     gemmi = _require_gemmi()
