@@ -43,6 +43,38 @@ constexpr std::string_view v30_prefix{"M  V30 "};
     return core::Atom{element.atomic_number, formal_charge};
 }
 
+// The charge field of a V2000 atom line; writers may end the line after the atom symbol.
+[[nodiscard]] auto v2000_atom_charge(const std::string_view atom_line) -> int {
+    if (atom_line.size() < 39) {
+        return 0;
+    }
+
+    const auto code = common::trim(atom_line.substr(36, 3));
+    if (code.empty()) {
+        return 0;
+    }
+
+    switch (common::parse_int(code, "V2000 atom charge")) {
+    case 0:
+    case 4: // doublet radical, uncharged
+        return 0;
+    case 1:
+        return 3;
+    case 2:
+        return 2;
+    case 3:
+        return 1;
+    case 5:
+        return -1;
+    case 6:
+        return -2;
+    case 7:
+        return -3;
+    default:
+        throw std::runtime_error{"invalid V2000 atom charge '" + std::string{code} + "'"};
+    }
+}
+
 struct ParsedMolecule {
     std::vector<core::Atom> atoms;
     std::vector<core::Bond> bonds;
@@ -71,6 +103,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
     result.source_connectivity =
         bond_count == 0 ? SourceConnectivity::explicitly_empty : SourceConnectivity::present;
     auto ignored_property_codes = std::unordered_set<std::string>{};
+    auto charges_from_properties = false;
 
     for (int index = 0; index < atom_count; ++index) {
         const auto atom_line = common::read_line(input, line, "MOL");
@@ -82,7 +115,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
             common::fixed_field(atom_line, 20, 10, "V2000 z coordinate"), "V2000 z coordinate");
         const auto symbol = common::fixed_field(atom_line, 31, 3, "V2000 atom symbol");
 
-        result.atoms.push_back(atom_from_symbol(symbol, 0));
+        result.atoms.push_back(atom_from_symbol(symbol, v2000_atom_charge(atom_line)));
         result.positions.push_back(core::Position{.x = x, .y = y, .z = z});
         result.atom_references.push_back(
             SourceAtomReference{.position = static_cast<std::size_t>(index),
@@ -121,6 +154,15 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
                     return std::isupper(character) != 0 || std::isdigit(character) != 0;
                 })) {
             throw std::runtime_error{"unexpected V2000 property line"};
+        }
+
+        // M  CHG and M  RAD lines replace all charges and radicals of the atom block.
+        if ((property_line.starts_with("M  CHG") || property_line.starts_with("M  RAD")) &&
+            !charges_from_properties) {
+            charges_from_properties = true;
+            for (auto& atom : result.atoms) {
+                atom = core::Atom{atom.atomic_number(), 0, std::string{atom.name()}};
+            }
         }
 
         if (!property_line.starts_with("M  CHG")) {

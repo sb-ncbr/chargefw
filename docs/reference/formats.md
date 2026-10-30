@@ -35,15 +35,18 @@ read whole into memory.
 
 ## MOL and SDF input
 
-The MOL reader accepts one V2000 or V3000 record. The SDF reader applies the same MOL parser to each
-record and skips SDF data fields after `M  END`; data fields do not become molecule properties.
+The MOL reader accepts one V2000 or V3000 record, as defined in the BIOVIA
+[CTfile Formats](https://www.3ds.com/assets/invest/2026-01/biovia_chemistry_2026_ctfile_formats.pdf)
+specification. The SDF reader applies the same MOL parser to each record and skips SDF data fields
+after `M  END`; data fields do not become molecule properties.
 
 The supported subsets import:
 
 - concrete element symbols represented by ChargeFW's periodic table;
 - Cartesian coordinates as one conformer;
 - source atom order and single, double, or triple covalent bonds; and
-- formal charges from V2000 `M  CHG` records or V3000 atom `CHG=` attributes.
+- formal charges from V3000 atom `CHG=` attributes, and in V2000 from `M  CHG` records or, in a
+  record without `M  CHG` and `M  RAD` records, from the charge field of the atom lines.
 
 Molfiles have no atom names, so imported atoms have none. MOL2 and mmCIF output give them names from
 the element and atom position, such as `C1`, `C2`, and `O3`.

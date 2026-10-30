@@ -42,6 +42,12 @@
   SQE+qp, and TSEF) refuse a molecule of several atoms without bonds, as methods that use coordinates
   refuse a molecule without them. Before, some of them calculated meaningless charges for it.
 
+### Input
+
+- MOL and SDF V2000 records without `M  CHG` and `M  RAD` lines take formal charges from the charge field of the
+  atom lines, as the format defines. Before, their atoms were read as neutral. A charge code outside
+  0-7 is an error.
+
 ### Documentation
 
 - The new Python API reference lists every public class and attribute of the Python package.
