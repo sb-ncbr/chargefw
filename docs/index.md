@@ -85,6 +85,7 @@ reference/python-api
 
 about/versions
 about/chargefw2
+about/citing
 ```
 
 ChargeFW is developed at [sb-ncbr/chargefw](https://github.com/sb-ncbr/chargefw) and distributed
