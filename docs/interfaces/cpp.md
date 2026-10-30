@@ -314,9 +314,17 @@ declares common parameters must also declare atom or bond parameters; make stand
 options instead, or assessment refuses the method.
 
 `parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
-`parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the sets by
-method ID and order each method's sets by descending priority, then ID. The
-[parameter-set format](../reference/parameter-format.md) describes the files.
+`parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
+sets by method ID and order each method's sets by descending priority, then ID.
+`parameters::load_parameter_set_json_file()` loads one file, and `load_parameter_set_json()` one set
+from a `std::istream`. These functions are declared in
+`<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
+format](../reference/parameter-format.md) describes the files.
+
+`<chargefw/parameters/io/parameter_data_paths.h>` declares
+`parameters::bundled_parameter_directory()`, the directory with the bundled sets of the installed
+library, and `parameters::default_parameter_directories()`, every directory
+`load_default_parameter_sets()` searches.
 
 ## Progress and cancellation
 
