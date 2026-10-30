@@ -13,6 +13,8 @@
   `chargefw.methods["eem"].parameter_sets` for the sets of one method.
 - The message of `NoExecutablePlanError` lists the first rejected methods and parameter sets with
   their reasons. Before, it was only `no_executable_plan`.
+- Each fixed ion in `result.plan.fixed_ions.sources` has a `component_id`, the residue name it was
+  selected by, such as `"MG"`, as in the result JSON.
 
 ### Command line
 

@@ -34,17 +34,24 @@ def _normalized_nonnegative_integer(value: SupportsIndex, name: str) -> int:
 
 @dataclass(frozen=True, slots=True, init=False)
 class FixedAtomCharge:
-    """A prescribed fixed charge on one source atom in the input collection."""
+    """A fixed charge on one atom; component_id is the residue name it was selected by."""
 
     molecule_index: int
     atom_index: int
     charge: float
+    component_id: str | None
 
     def __init__(
-        self, molecule_index: SupportsIndex, atom_index: SupportsIndex, charge: float
+        self,
+        molecule_index: SupportsIndex,
+        atom_index: SupportsIndex,
+        charge: float,
+        component_id: str | None = None,
     ) -> None:
         if isinstance(charge, (bool, np.bool)) or not isinstance(charge, numbers.Real):
             raise TypeError("charge must be a real number")
+        if component_id is not None and not isinstance(component_id, str):
+            raise TypeError("component_id must be a string or None")
         try:
             normalized_charge = float(charge)
         except OverflowError as error:
@@ -58,6 +65,7 @@ class FixedAtomCharge:
             self, "atom_index", _normalized_nonnegative_integer(atom_index, "atom_index")
         )
         object.__setattr__(self, "charge", normalized_charge)
+        object.__setattr__(self, "component_id", component_id)
 
 
 def _normalized_option_values(

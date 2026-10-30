@@ -128,7 +128,7 @@ def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> 
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "ALL_IONS must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 1.0),)
+    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 1.0, "CU1"),)
 
 
 def test_observer_receives_owned_execution_progress() -> None:
@@ -215,8 +215,8 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "executed plan must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0),)
-    assert result.plan.fixed_ions == chargefw.FixedIons([chargefw.FixedAtomCharge(0, 3, 2.0)])
+    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
+    assert result.plan.fixed_ions == chargefw.FixedIons([chargefw.FixedAtomCharge(0, 3, 2.0, "MG")])
     with pytest.raises(AttributeError):
         cast(Any, result.plan.fixed_ions).sources = ()
     with pytest.raises(AttributeError):
@@ -339,7 +339,7 @@ def test_observer_can_cancel_a_reusable_plan() -> None:
         if groups is not None:
             assert cancelled.plan is not None
             assert cancelled.plan.fixed_ions is not None
-            assert cancelled.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0),)
+            assert cancelled.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
 
         result = chargefw.calculate(molecule, plan, threads=1)
         assert result.status == "success"

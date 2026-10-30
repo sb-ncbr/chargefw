@@ -131,8 +131,8 @@ assessed with, which includes having the same `name`.
 
 ### FixedIons and FixedAtomCharge
 
-`FixedIons.sources` is a tuple of `FixedAtomCharge`, one per fixed ion, each with `molecule_index`,
-`atom_index`, and `charge`.
+`FixedIons.sources` is a tuple of `FixedAtomCharge`, one per fixed ion, each with `component_id` (the
+residue name it was selected by, such as `"MG"`), `molecule_index`, `atom_index`, and `charge`.
 
 ### CalculationTimings
 

@@ -205,8 +205,9 @@ assignments, conformers, and atom order.
 `result.assignment(molecule=0, conformer=1)` returns one assignment. For methods that use geometry,
 `conformer` is required, also for molecules with one conformer; for the other methods, omit it.
 
-With fixed ions, `result.requested.fixed_ions` holds the names you passed and `result.plan.fixed_ions`
-the ions that were fixed, each with its molecule and atom index and its charge.
+With fixed ions, `result.requested.fixed_ions` holds the names you passed and
+`result.plan.fixed_ions.sources` the ions that were fixed, each with its residue name in
+`component_id`, its molecule and atom index, and its charge.
 
 ### Errors
 

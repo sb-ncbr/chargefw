@@ -26,7 +26,7 @@ from ._payloads import (
 )
 from ._types import ExecutionMode, ExecutionStatus, MethodOptionValue
 from .charges import ChargeAssignment
-from .core import MoleculeCollection
+from .core import Molecule, MoleculeCollection
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,13 +221,32 @@ def _execution(value: ExecutionPolicyPayload) -> Execution:
     )
 
 
+def _component_id(molecule: Molecule, atom_index: int) -> str | None:
+    # The residue that fixed-ion selection matched, so the name is the one the caller requested.
+    mapping = molecule.source_mapping
+    if mapping is None:
+        return None
+    for component in mapping.components:
+        if atom_index in component.atom_indices:
+            return component.component_id
+    return None
+
+
 def _fixed_ions_provenance(
-    value: FixedIonsPayload | None,
+    value: FixedIonsPayload | None, molecules: MoleculeCollection
 ) -> FixedIons | None:
     if value is None:
         return None
     return FixedIons(
-        sources=tuple(FixedAtomCharge(**source) for source in value["sources"]),
+        sources=tuple(
+            FixedAtomCharge(
+                **source,
+                component_id=_component_id(
+                    molecules[source["molecule_index"]], source["atom_index"]
+                ),
+            )
+            for source in value["sources"]
+        ),
     )
 
 
@@ -235,6 +254,7 @@ def _executed_plan(
     value: EffectiveCalculationPayload | None,
     methods: MethodCatalog,
     parameter_sets: ParameterSetCatalog,
+    molecules: MoleculeCollection,
 ) -> ExecutedPlan | None:
     if value is None:
         return None
@@ -244,7 +264,7 @@ def _executed_plan(
         options=value["method_options"],
         execution=_execution(value["execution_policy"]),
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
-        fixed_ions=_fixed_ions_provenance(value["fixed_ions"]),
+        fixed_ions=_fixed_ions_provenance(value["fixed_ions"], molecules),
     )
 
 
@@ -352,7 +372,7 @@ class CalculationResult:
         self._assignments = tuple(assignments)
         self._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
         self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
-        self._plan = _executed_plan(payload["effective"], methods, parameter_sets)
+        self._plan = _executed_plan(payload["effective"], methods, parameter_sets, molecules)
         self._failure_message = payload["failure_message"]
         self._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],
