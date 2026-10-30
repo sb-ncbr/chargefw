@@ -1,14 +1,12 @@
 # Charge a Gemmi document
 
-This script reads an mmCIF or PDB file with Gemmi, calculates charges, and adds them to the document.
-For mmCIF input, all other data of the file is kept. A PDB file is first converted to a new mmCIF
-document, so only what Gemmi takes over from the PDB file is kept. The output is mmCIF with the charges
-in the SB NCBR partial atomic charges categories. For the Trp-cage miniprotein
-[1l2y-h.cif](../guide/1l2y-h.cif):
+This script reads an mmCIF file with Gemmi, calculates charges, and adds them to the document. All
+other data of the file is kept. The output is mmCIF with the charges in the SB NCBR partial atomic
+charges categories. For the Trp-cage miniprotein [1l2y-h.cif](../guide/1l2y-h.cif):
 
 ```console
 $ pip install --pre "chargefw[gemmi]"
-$ python charge_gemmi_document.py 1l2y-h.cif charged.cif --format mmcif
+$ python charge_gemmi_document.py 1l2y-h.cif charged.cif
 ```
 
 `charged.cif` then contains:

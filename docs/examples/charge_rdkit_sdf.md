@@ -1,7 +1,7 @@
 # Write charges to RDKit molecules
 
 This script reads an SDF file with RDKit, calculates charges for all records, and writes them back as
-RDKit atom properties:
+RDKit atom properties. For [paracetamol.sdf](../getting-started/paracetamol.sdf):
 
 ```console
 $ pip install --pre "chargefw[rdkit]"

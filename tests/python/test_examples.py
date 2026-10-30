@@ -98,7 +98,7 @@ def test_gemmi_document_example_preserves_unchanged_mmcif(tmp_path: Path) -> Non
     document.sole_block().set_pair("_audit.creation_method", "recipe-test")
     document.write_file(str(input_path))
 
-    run_example("charge_gemmi_document.py", input_path, output_path, "--format", "mmcif")
+    run_example("charge_gemmi_document.py", input_path, output_path)
 
     block = gemmi.cif.read_file(str(output_path)).sole_block()
     assert block.find_value("_audit.creation_method") == "recipe-test"

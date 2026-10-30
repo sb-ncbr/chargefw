@@ -3,7 +3,8 @@
 This script shows what ChargeFW reads from a file: for every record, its identity, atom and bond counts,
 conformers, and total formal charge. With `--classifier`, it also counts the atoms by element and by
 the [atom type](../reference/parameter-format.md#classifiers) that parameter sets use, which shows which
-atom types a parameter set needs to cover the molecule:
+atom types a parameter set needs to cover the molecule. For
+[paracetamol.sdf](../getting-started/paracetamol.sdf):
 
 ```console
 $ python inspect_molecules.py paracetamol.sdf --format sdf --classifier hbo

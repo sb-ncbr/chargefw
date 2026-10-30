@@ -1,7 +1,8 @@
 # Compare bundled parameter sets
 
 This script calculates one molecule with every parameter set of a method that applies to it, and
-compares the charges with those of the first set:
+compares the charges with those of the first set. For
+[paracetamol.sdf](../getting-started/paracetamol.sdf):
 
 ```console
 $ python compare_parameter_sets.py paracetamol.sdf --format sdf --method eem
