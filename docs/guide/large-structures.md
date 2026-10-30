@@ -12,7 +12,7 @@ method expensive. A method is expensive when its time grows with the cube of the
 its memory with the square; the **Time** column of the [method table](methods.md#available-methods)
 shows the time. For expensive methods, ChargeFW chooses:
 
-| Atoms in the molecule | Execution |
+| Atoms in the largest molecule | Execution |
 | --- | --- |
 | up to 20,000 | full |
 | 20,001 to 80,000 | cutoff, with a 12 Å radius |
@@ -21,6 +21,10 @@ shows the time. For expensive methods, ChargeFW chooses:
 Methods that are not expensive, such as PEOE, always run in full. Expensive methods without cutoff and
 cover, such as DelRe or SMP/QEq, are not chosen automatically for molecules above 20,000 atoms; request
 full execution to use them anyway. The result records the execution mode and radius that were used.
+
+ChargeFW chooses one execution for all molecules of a calculation, so the largest molecule decides: a
+50-atom molecule calculated together with a 30,000-atom protein gets cutoff too. To keep small molecules
+in full execution, calculate them separately from large ones.
 
 ## How long a calculation takes
 

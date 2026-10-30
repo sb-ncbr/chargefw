@@ -41,10 +41,10 @@ Once ChargeFW has read the input and accepted the options, it writes `<input>.ch
 [result JSON](../guide/results.md) with all charges and the record of the calculation. It is written
 also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as a
 malformed input file or an invalid option value, are reported on standard error and leave no result
-file. An unknown method, or a parameter set of another method, is found only when ChargeFW selects the
-model, so it is reported in the result JSON with status `invalid_input_or_request`; the exit status is 2
-in both cases. On
-request, ChargeFW also writes the molecules with their charges:
+file. An unknown method, a parameter set of another method, or a cover threshold below the cutoff
+threshold is found only when ChargeFW assesses the calculation, so it is reported in the result JSON
+with status `invalid_input_or_request`. The exit status is 2 in all these cases. On request, ChargeFW
+also writes the molecules with their charges:
 
 ```bash
 chargefw calculate --output-mol2 molecule.sdf output    # output/molecule.chargefw.mol2
@@ -99,8 +99,8 @@ A malformed record in the input stops the command before any calculation.
 | --- | --- |
 | `--execution auto\|full\|cutoff\|cover` | Calculate the whole molecule or fragments (default `auto`); see [Large structures](../guide/large-structures.md) |
 | `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
-| `--cutoff-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cutoff (default 20,000 atoms) |
-| `--cover-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cover (default 80,000 atoms) |
+| `--cutoff-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
+| `--cover-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
 | `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
 
 ### Output and progress
@@ -172,3 +172,6 @@ publications.
 | `4` | The calculation failed, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
 | `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |
+
+Statuses 3 to 6 come only from `chargefw calculate`. `chargefw applicability` exits with 0 once it has
+assessed the input, also when it finds no plan that can run.

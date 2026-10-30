@@ -129,8 +129,8 @@ keyword arguments:
 | `parameter_matching` | `"strict"` (default) or `"permissive"`; see [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
 | `execution` | `"auto"` (default), `"full"`, `"cutoff"`, or `"cover"`; see [Large structures](../guide/large-structures.md) |
 | `radius` | Fragment radius in ångströms, at least `8.0`; required with `"cutoff"` and `"cover"`, optional with `"auto"` (default 12), not allowed with `"full"` |
-| `cutoff_threshold` | Size above which `"auto"` uses cutoff; default `20_000` atoms, `None` for no limit |
-| `cover_threshold` | Size above which `"auto"` uses cover; default `80_000` atoms, `None` for no limit |
+| `cutoff_threshold` | Size of the largest molecule above which `"auto"` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default); default `20_000` atoms, `None` for no limit |
+| `cover_threshold` | Size of the largest molecule above which `"auto"` uses cover for expensive methods; default `80_000` atoms, `None` for no limit |
 | `threads` | Maximum number of threads; by default, and with `0`, all available cores |
 | `fixed_ions` | Residue names of ions to keep as fixed charges; see [below](#fixed-ions) |
 | `observer` | Receives progress and can cancel; see [Progress and cancellation](#progress-and-cancellation) |

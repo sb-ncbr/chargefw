@@ -30,8 +30,7 @@ Readers report malformed or unsupported data as errors. MOL, SDF, and MOL2 files
 endings. Every record read keeps its source name, zero-based record index, record ID from the file, and
 warnings, together with a mapping to the file: each atom's position and ID where the format has IDs, the
 file sites of each conformer, the reading options, and whether the file had no bond data, an empty bond
-list, or bonds. SDF and MOL2 files are read one record at a time; molecule JSON, PDB, and mmCIF files are
-read whole into memory.
+list, or bonds.
 
 ## MOL and SDF input
 

@@ -4,9 +4,11 @@ Many structures contain monatomic ions such as Mg²⁺, Zn²⁺, Na⁺, or Cl⁻
 values for them, so a method that has to include them in its calculation cannot be used. Removing the
 ions from the structure avoids that, but their charge then has no effect on the rest of the molecule.
 
-With fixed ions, ChargeFW keeps each selected ion at its formal charge, as a point charge, and calculates
-the charges of all other atoms in the electric field of the ions. EEM, SQE, SQE+q0, and SQE+qp support
-fixed ions; the **Fixed ions** column of the [method table](methods.md#available-methods) shows them.
+With fixed ions, ChargeFW keeps each selected ion at a fixed charge, as a point charge, and calculates
+the charges of all other atoms in the electric field of the ions. The charge comes from the residue
+name, not from the formal charge in the file: `MG` is +2, `FE` is +3, and `FE2` is +2, as listed in
+the [ion catalog](#ion-catalog). EEM, SQE, SQE+q0, and SQE+qp support fixed ions; the **Fixed ions**
+column of the [method table](methods.md#available-methods) shows them.
 
 ## Selecting ions
 
