@@ -211,7 +211,8 @@ With fixed ions, `result.requested.fixed_ions` holds the names you passed and
 
 ### Errors
 
-Invalid arguments raise `TypeError` or `ValueError`. A calculation that fails raises a
+Invalid arguments raise `TypeError` or `ValueError`, and a calculation that runs out of memory raises
+`MemoryError`. A calculation that fails raises a
 `chargefw.ChargeFWError`:
 
 - `NoExecutablePlanError`: no method and parameter set apply with the requested settings;

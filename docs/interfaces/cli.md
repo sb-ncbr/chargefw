@@ -40,7 +40,10 @@ handle the molecules, the calculation fails with the reasons; ChargeFW does not 
 Once ChargeFW has read the input and accepted the options, it writes `<input>.chargefw.json`, the
 [result JSON](../guide/results.md) with all charges and the record of the calculation. It is written
 also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as a
-malformed input file or an invalid option, are reported on standard error and leave no result file. On
+malformed input file or an invalid option value, are reported on standard error and leave no result
+file. An unknown method, or a parameter set of another method, is found only when ChargeFW selects the
+model, so it is reported in the result JSON with status `invalid_input_or_request`; the exit status is 2
+in both cases. On
 request, ChargeFW also writes the molecules with their charges:
 
 ```bash
@@ -162,9 +165,9 @@ publications.
 | Status | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | Unexpected internal error |
+| `1` | Not enough memory, or an unexpected internal error; no result JSON is written |
 | `2` | Invalid input or options, or the result JSON could not be written |
 | `3` | No executable plan for the molecules and the requested settings |
-| `4` | The calculation failed numerically, for example did not converge |
+| `4` | The calculation failed, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
 | `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |

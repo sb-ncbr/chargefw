@@ -15,6 +15,8 @@
   their reasons. Before, it was only `no_executable_plan`.
 - Each fixed ion in `result.plan.fixed_ions.sources` has a `component_id`, the residue name it was
   selected by, such as `"MG"`, as in the result JSON.
+- A calculation that runs out of memory raises `MemoryError`. Before, it raised
+  `NumericalFailureError`.
 
 ### Command line
 
@@ -23,6 +25,13 @@
   in the order automatic selection tries them.
 - PEOE and MPEOE are named after partial equalization of *orbital* electronegativity, as in their
   publications.
+- A calculation that runs out of memory reports `Not enough memory` and exits with status 1, without
+  a result JSON. Before, it was reported as a numerical failure with status 4.
+
+### C++
+
+- `calculate()` with an assessment no longer reports exceptions other than `std::logic_error` and
+  `std::runtime_error` as `numerical_failure`; they reach the caller, for example `std::bad_alloc`.
 
 ### Documentation
 

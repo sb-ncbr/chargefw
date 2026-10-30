@@ -20,7 +20,10 @@
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <snitch/snitch.hpp>
 #include <stdexcept>
@@ -151,27 +154,32 @@ class ThrowOnEveryCallbackObserver final : public calculation::CalculationObserv
     mutable std::atomic<std::size_t> callbacks_{0};
 };
 
+enum class DirectFailure : std::uint8_t { none, logic_error, allocation };
+
 class DirectTestMethod final : public chargefw::test::StubMethod {
   public:
-    explicit DirectTestMethod(const bool fails = false)
+    explicit DirectTestMethod(const DirectFailure failure = DirectFailure::none)
         : StubMethod{"direct-test",
                      {.coordinates = true,
                       .resources = {.supports_cutoff = true,
                                     .supports_cover = true,
                                     .reduced_charge_policy =
                                         methods::ReducedChargePolicy::zero_components}}},
-          fails_{fails} {}
+          failure_{failure} {}
 
     [[nodiscard]] auto calculate(const methods::CalculationInput& input) const
         -> charges::AtomicCharges override {
-        if (fails_) {
+        if (failure_ == DirectFailure::logic_error) {
             throw std::logic_error{"direct observer test failure"};
+        }
+        if (failure_ == DirectFailure::allocation) {
+            throw std::bad_alloc{};
         }
         return StubMethod::calculate(input);
     }
 
   private:
-    bool fails_;
+    DirectFailure failure_;
 };
 
 auto assert_single_terminal_fragment_progress(const std::vector<RecordedProgress>& events,
@@ -611,17 +619,19 @@ TEST_CASE("direct calculation finishes observation after success, failure, and c
     const auto molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}};
     const auto prepared = features::PreparedMoleculeCollection{molecules};
     const auto method = DirectTestMethod{};
-    const auto failing_method = DirectTestMethod{true};
+    const auto failing_method = DirectTestMethod{DirectFailure::logic_error};
+    const auto allocating_method = DirectTestMethod{DirectFailure::allocation};
 
     for (const auto mode : all_modes) {
         CAPTURE(calculation::to_string(mode));
         const auto calculate_direct = [&](const methods::Method& selected_method,
-                                          const calculation::CalculationObserver& observer) {
+                                          const calculation::CalculationObserver& observer,
+                                          const std::size_t max_threads = 1) {
             const auto selected = methods::ApplicableMethod{.method = &selected_method};
             return calculation::calculate({.molecules = prepared,
                                            .selected = selected,
                                            .execution_policy = make_direct_policy(mode),
-                                           .max_threads = 1,
+                                           .max_threads = max_threads,
                                            .observer = observer});
         };
 
@@ -630,9 +640,22 @@ TEST_CASE("direct calculation finishes observation after success, failure, and c
         assert_computation_boundary(observer.events(), mode);
 
         const auto failure_observer = RecordingObserver{};
+        // The direct overload throws failures; it keeps their kind while adding the target or
+        // fragment. The assessment-based overload reports this one as numerical_failure.
         CHECK_THROWS_AS(static_cast<void>(calculate_direct(failing_method, failure_observer)),
-                        std::exception);
+                        std::logic_error);
         assert_computation_boundary(failure_observer.events(), mode);
+
+        // An allocation failure is not wrapped by the target or fragment handlers, also when
+        // fragments or targets run in parallel, so callers can report it as running out of memory.
+        for (const auto max_threads : {std::size_t{1}, std::size_t{4}}) {
+            CAPTURE(max_threads);
+            const auto allocation_observer = RecordingObserver{};
+            CHECK_THROWS_AS(static_cast<void>(calculate_direct(allocating_method,
+                                                               allocation_observer, max_threads)),
+                            std::bad_alloc);
+            assert_computation_boundary(allocation_observer.events(), mode);
+        }
 
         const auto cancelling_observer = CancellingObserver{};
         CHECK_THROWS_AS(static_cast<void>(calculate_direct(method, cancelling_observer)),

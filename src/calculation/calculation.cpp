@@ -169,10 +169,15 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
         status = ExecutionStatus::cancelled;
     } catch (const std::invalid_argument&) {
         throw;
-    } catch (const std::exception& error) {
+    } catch (const std::logic_error& error) {
+        // Methods report invalid parameter values and degenerate equations as logic errors.
+        status = ExecutionStatus::numerical_failure;
+        failure_message = error.what();
+    } catch (const std::runtime_error& error) {
         status = ExecutionStatus::numerical_failure;
         failure_message = error.what();
     }
+    // Anything else, such as std::bad_alloc, is not a failure of the calculation and propagates.
 
     const auto computation_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - computation_started}

@@ -115,7 +115,8 @@ execute_calculation_targets(const methods::ApplicableMethod& selected,
                 make_target_failure_message(selected, molecule, target, error)};
         } catch (const std::logic_error& error) {
             throw std::logic_error{make_target_failure_message(selected, molecule, target, error)};
-        } catch (const std::exception& error) {
+        } catch (const std::runtime_error& error) {
+            // Other exceptions, such as std::bad_alloc, pass unchanged.
             throw std::runtime_error{
                 make_target_failure_message(selected, molecule, target, error)};
         }

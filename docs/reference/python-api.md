@@ -273,5 +273,5 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |
 | `chargefw.CalculationCancelledError` | The observer cancelled the calculation |
 
-Invalid arguments raise `TypeError` or `ValueError`, and files that cannot be read or written raise
-`OSError`.
+Invalid arguments raise `TypeError` or `ValueError`, files that cannot be read or written raise
+`OSError`, and a calculation that runs out of memory raises `MemoryError`.
