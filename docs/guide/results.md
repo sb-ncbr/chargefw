@@ -9,9 +9,20 @@ Methods that use 3D coordinates give each conformer of a molecule its own charge
 or mmCIF file, the conformers of an RDKit molecule, and the conformers in molecule JSON all count as
 conformers. Methods that use only the molecular graph give one set of charges per molecule.
 
-Each set of charges is an assignment. Here ethanol has three RDKit conformers:
+Each set of charges is an assignment. Here ethanol gets three RDKit conformers; the RDKit integration
+needs `pip install --pre "chargefw[rdkit]"`:
 
 ```python
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+import chargefw
+import chargefw.io.rdkit
+
+ethanol = Chem.AddHs(Chem.MolFromSmiles("CCO"))
+AllChem.EmbedMultipleConfs(ethanol, numConfs=3, randomSeed=42)
+molecule = chargefw.io.rdkit.from_mol(ethanol)
+
 for method in ("eem", "peoe"):
     result = chargefw.calculate(molecule, method=method)
     for assignment in result.assignments:
@@ -24,9 +35,9 @@ for method in ("eem", "peoe"):
 ```
 
 ```text
-eem 0 0 [-0.503 -0.017 -0.876]
-eem 0 1 [-0.488 -0.042 -0.867]
-eem 0 2 [-0.488 -0.021 -0.876]
+eem 0 0 [-0.476 -0.015 -0.878]
+eem 0 1 [-0.492 -0.028 -0.868]
+eem 0 2 [-0.486 -0.01  -0.875]
 peoe 0 None [-0.042  0.041 -0.395]
 ```
 
@@ -66,11 +77,16 @@ A calculation fails without charges when no method and parameter set apply to yo
 calculation does not converge, or when it is cancelled. The command line still writes the result JSON,
 with the reasons, and exits with a [status](../interfaces/cli.md#exit-statuses) other than 0. Python
 raises a `chargefw.ChargeFWError`; its `result` attribute holds the same information. Here the
-parameter set has no values for chlorine, and `molecules` holds chlorobenzene:
+parameter set has no values for chlorine in chlorobenzene:
 
 ```python
+chlorobenzene = Chem.AddHs(Chem.MolFromSmiles("Clc1ccccc1"))
+AllChem.EmbedMolecule(chlorobenzene, randomSeed=42)
+Chem.Kekulize(chlorobenzene, clearAromaticFlags=True)
+molecule = chargefw.io.rdkit.from_mol(chlorobenzene)
+
 try:
-    result = chargefw.calculate(molecules, method="eem", parameter_set="EEM_Baek1991")
+    result = chargefw.calculate(molecule, method="eem", parameter_set="EEM_Baek1991")
 except chargefw.ChargeFWError as error:
     for rejection in error.result.rejections:
         for issue in rejection.issues:
