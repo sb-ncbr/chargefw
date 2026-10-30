@@ -643,6 +643,7 @@ def test_no_plan_result_and_typed_exception() -> None:
     assert result.assignments == ()
     assert result.rejections
     assert result.rejections[0].issues[0].kind == "missing_feature"
+    assert result.rejections[0].issues[0].message in str(context.value)
 
 
 def test_nonfinite_coordinates_are_assessed_per_method() -> None:

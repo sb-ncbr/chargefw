@@ -11,6 +11,8 @@
 - `Method.priority`, `ParameterSet.priority`, and `ParameterSetCatalog.for_method()` are removed. The
   catalogs list methods and parameter sets in the order automatic selection tries them; use
   `chargefw.methods["eem"].parameter_sets` for the sets of one method.
+- The message of `NoExecutablePlanError` lists the first rejected methods and parameter sets with
+  their reasons. Before, it was only `no_executable_plan`.
 
 ### Command line
 

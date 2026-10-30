@@ -194,7 +194,7 @@ result = chargefw.calculate(
 | `molecules` | The input molecules |
 | `status` | `"success"`, or the reason for a failure |
 | `rejections`, `warnings` | Rejected methods and parameter sets with reasons, and warnings |
-| `failure_message` | Text of a failure, if any |
+| `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | Time spent selecting and calculating |
 
 A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` array in atom order, and
@@ -217,8 +217,16 @@ Invalid arguments raise `TypeError` or `ValueError`. A calculation that fails ra
 - `NumericalFailureError`: the calculation failed, for example did not converge;
 - `CalculationCancelledError`: the calculation was cancelled.
 
-The exception's `result` holds the complete result, with the reasons; it can still be written as result
-JSON:
+The message of `NoExecutablePlanError` names the first five rejected methods or parameter sets, each
+with its first reason:
+
+```text
+no method and parameter set apply to the molecules:
+  method 'peoe': molecule 1 ('1L2Y'): PEOE supports only molecules with neutral connected components
+```
+
+The exception's `result` holds the complete result, with every reason; it can still be written as
+result JSON:
 
 ```python
 try:

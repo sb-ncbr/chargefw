@@ -248,6 +248,29 @@ def _executed_plan(
     )
 
 
+_REJECTIONS_IN_MESSAGE = 5
+
+
+def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
+    """List the first reason of the first rejected candidates; the result holds all of them."""
+
+    lines = ["no method and parameter set apply to the molecules:"]
+    for rejection in rejections[:_REJECTIONS_IN_MESSAGE]:
+        candidate = f"method '{rejection.method.id}'"
+        if rejection.parameter_set is not None:
+            candidate += f", parameter set '{rejection.parameter_set.id}'"
+        line = f"  {candidate}"
+        if rejection.issues:
+            line += f": {rejection.issues[0].message}"
+        if len(rejection.issues) > 1:
+            line += f" (and {len(rejection.issues) - 1} more)"
+        lines.append(line)
+    if len(rejections) > _REJECTIONS_IN_MESSAGE:
+        omitted = len(rejections) - _REJECTIONS_IN_MESSAGE
+        lines.append(f"  ... {omitted} more rejected candidates in error.result.rejections")
+    return "\n".join(lines)
+
+
 class ChargeFWError(RuntimeError):
     """Base class for a failed ChargeFW calculation result."""
 
@@ -423,5 +446,8 @@ class CalculationResult:
             "cancelled": CalculationCancelledError,
         }
         exception_type = exception_types.get(self.status)
-        if exception_type is not None:
-            raise exception_type(self.failure_message or self.status, self)
+        if exception_type is None:
+            return
+        if self.status == "no_executable_plan":
+            raise exception_type(_no_executable_plan_message(self.rejections), self)
+        raise exception_type(self.failure_message or self.status, self)
