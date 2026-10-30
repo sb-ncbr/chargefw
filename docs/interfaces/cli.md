@@ -21,9 +21,9 @@ $ chargefw calculate molecule.sdf output
 Wrote output/molecule.chargefw.json
 ```
 
-ChargeFW chooses the input format from the file extension: `.sdf` and `.mol`, `.mol2`, `.pdb`, `.cif`
-and `.mmcif`, or `.json` for molecule JSON. It creates the output directory if needed and names the
-results after the input file.
+ChargeFW chooses the input format from the file extension, in lower or upper case: `.sdf` and
+`.mol`, `.mol2`, `.pdb`, `.cif` and `.mmcif`, or `.json` for molecule JSON. It creates the output
+directory if needed and names the results after the input file.
 
 Without other options, ChargeFW chooses the method and parameter set itself, as described in
 [Choosing a method](../guide/methods.md#choosing-a-method). Name them to get the same model every time:
@@ -151,10 +151,11 @@ options:
   initial_charges (default=zero) choices=zero,formal
 ```
 
-`chargefw parameters` lists the parameter sets, `--method METHOD` only those of one method, and
-`chargefw parameters ID` describes one. Add `--keys` to the last form to list every atom and bond type
-the set has values for. The [parameter-set reference](../reference/parameter-sets.md) shows the same
-sets with their publications.
+`chargefw parameters` lists the parameter sets, `chargefw parameters --method METHOD` only those of
+one method, and `chargefw parameters ID` describes one; `--method` cannot be combined with an ID.
+Add `--keys` to the last form to list every atom and bond type the set has values for. The
+[parameter-set reference](../reference/parameter-sets.md) shows the same sets with their
+publications.
 
 ## Exit statuses
 
