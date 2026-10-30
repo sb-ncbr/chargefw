@@ -1,6 +1,7 @@
 #include "fixed_ions.h"
 
 #include "component.h"
+#include "core/diagnostic_description.h"
 
 #include <algorithm>
 #include <array>
@@ -103,12 +104,16 @@ auto resolve_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
         if (record.molecule.atom_count() == 0) {
             continue;
         }
-        if (!record.import_metadata ||
-            record.import_metadata->atoms.size() != record.molecule.atom_count() ||
-            record.import_metadata->components.empty()) {
+        if (!record.import_metadata || record.import_metadata->components.empty()) {
+            throw std::invalid_argument(
+                "fixed ions are selected by residue name, but " +
+                core::detail::molecule_description(record.molecule, molecule_index) +
+                " has no residues; read the structure from a PDB or mmCIF file");
+        }
+        if (record.import_metadata->atoms.size() != record.molecule.atom_count()) {
             throw std::invalid_argument(
                 context(molecule_index, std::string_view::npos, {},
-                        "fixed-charge resolution requires complete component metadata"));
+                        "fixed-ion source atom mapping does not match the molecule's atoms"));
         }
         const auto& atoms = record.import_metadata->atoms;
         const auto atom_count = record.molecule.atom_count();
