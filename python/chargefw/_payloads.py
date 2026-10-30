@@ -136,6 +136,7 @@ class MethodDescriptorPayload(TypedDict):
     publication: str | None
     notes: str
     requires_coordinates: bool
+    requires_bonds: bool
     time_complexity: str
     memory_complexity: str
     supports_cutoff: bool

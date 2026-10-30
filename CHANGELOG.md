@@ -17,6 +17,7 @@
   selected by, such as `"MG"`, as in the result JSON.
 - A calculation that runs out of memory raises `MemoryError`. Before, it raised
   `NumericalFailureError`.
+- `Method.requires_bonds` is true for methods that use the bonds of the molecule.
 
 ### Command line
 
@@ -27,11 +28,19 @@
   publications.
 - A calculation that runs out of memory reports `Not enough memory` and exits with status 1, without
   a result JSON. Before, it was reported as a numerical failure with status 4.
+- `chargefw methods METHOD` reports whether the method requires bonds.
 
 ### C++
 
 - `calculate()` with an assessment no longer reports exceptions other than `std::logic_error` and
   `std::runtime_error` as `numerical_failure`; they reach the caller, for example `std::bad_alloc`.
+- `MethodRequirements::bonds` marks methods that use the bonds of the molecule.
+
+### Calculation
+
+- Methods that use bonds (ABEEM, Charge2, DelRe, DENR, GDAC, KCM, MGC, MPEOE, PEOE, SQE, SQE+q0,
+  SQE+qp, and TSEF) refuse a molecule of several atoms without bonds, as methods that use coordinates
+  refuse a molecule without them. Before, some of them calculated meaningless charges for it.
 
 ### Documentation
 

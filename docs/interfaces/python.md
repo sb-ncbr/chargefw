@@ -291,7 +291,7 @@ iterations = chargefw.methods["peoe"].options["iters"]
 print(iterations.default, iterations.minimum, iterations.maximum)
 ```
 
-A `Method` has its name, publication, `notes`, `requires_coordinates`, `time_complexity` and
+A `Method` has its name, publication, `notes`, `requires_coordinates`, `requires_bonds`, `time_complexity` and
 `memory_complexity`, `supports_cutoff`, `supports_cover`, `supports_fixed_ions`, `options`, and
 `parameter_sets`. A method that requires coordinates
 needs finite coordinates for every conformer and gives one assignment per conformer. These attributes

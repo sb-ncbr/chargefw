@@ -144,6 +144,7 @@ full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default zero-charge initialization, every connected component must be formally neutral. initial_charges=formal is a ChargeFW extension that preserves supplied formal charges.
 requires coordinates: no
+requires bonds: yes
 time complexity: O(n + m)
 memory complexity: O(n)
 supports cutoff: no

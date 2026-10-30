@@ -22,6 +22,7 @@ class SQEqpMethod final : public Method {
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
         requirements.coordinates = true;
+        requirements.bonds = true;
         requirements.atom_parameters = {"electronegativity", "hardness", "width", "q0"};
         requirements.bond_parameters = {"kappa"};
         requirements.resources.time = ComplexityTerm::bonds_cubed;

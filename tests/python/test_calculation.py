@@ -791,6 +791,7 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
 
     eem = methods["eem"]
     peoe = methods["peoe"]
+    assert peoe.requires_bonds and not eem.requires_bonds
     assert isinstance(peoe.options, Mapping)
     assert peoe.options["iters"].id == "iters"
 

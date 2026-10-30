@@ -26,6 +26,7 @@ class MPEOEMethod final : public Method {
 
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
+        requirements.bonds = true;
         requirements.common_parameters = {"Hplus"};
         requirements.atom_parameters = {"A", "B"};
         requirements.bond_parameters = {"f"};

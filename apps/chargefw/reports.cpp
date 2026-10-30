@@ -235,6 +235,7 @@ void print_methods(const std::string& method_id) {
     std::println("publication: {}", metadata.publication.value_or("-"));
     std::println("notes: {}", metadata.notes.empty() ? "-" : metadata.notes);
     std::println("requires coordinates: {}", requirements.coordinates ? "yes" : "no");
+    std::println("requires bonds: {}", requirements.bonds ? "yes" : "no");
     std::println("time complexity: {}", methods::complexity_notation(requirements.resources.time));
     std::println("memory complexity: {}",
                  methods::complexity_notation(requirements.resources.memory));

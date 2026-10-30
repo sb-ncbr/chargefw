@@ -65,6 +65,7 @@ class Method:
     publication: str | None
     notes: str
     requires_coordinates: bool
+    requires_bonds: bool
     time_complexity: str
     memory_complexity: str
     supports_cutoff: bool
@@ -96,6 +97,7 @@ def _method_descriptor(
         publication=value["publication"],
         notes=value["notes"],
         requires_coordinates=value["requires_coordinates"],
+        requires_bonds=value["requires_bonds"],
         time_complexity=value["time_complexity"],
         memory_complexity=value["memory_complexity"],
         supports_cutoff=value["supports_cutoff"],

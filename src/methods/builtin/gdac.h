@@ -28,6 +28,7 @@ class GDACMethod final : public Method {
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
         requirements.coordinates = true;
+        requirements.bonds = true;
         requirements.atom_parameters = {"A", "B"};
         requirements.resources.time = ComplexityTerm::atoms_plus_bonds;
         requirements.resources.memory = ComplexityTerm::atoms;

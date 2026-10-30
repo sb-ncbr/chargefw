@@ -210,6 +210,7 @@ A reason why an execution mode was not used, or a warning about the one that was
 | `publication` | DOI of the method's publication, or `None` |
 | `notes` | Remarks on how ChargeFW implements the method |
 | `requires_coordinates` | `True` for methods that use 3D coordinates |
+| `requires_bonds` | `True` for methods that use the bonds of the molecule |
 | `time_complexity`, `memory_complexity` | Cost for $n$ atoms and $m$ bonds, such as `"O(n^3)"` |
 | `supports_cutoff`, `supports_cover` | Whether the method can run the [approximations for large structures](../guide/large-structures.md) |
 | `supports_fixed_ions` | Whether the method accepts [fixed ions](../guide/fixed-ions.md) |

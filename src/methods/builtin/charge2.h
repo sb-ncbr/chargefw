@@ -21,6 +21,7 @@ class Charge2Method final : public Method {
 
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
+        requirements.bonds = true;
         requirements.common_parameters = {"a1", "a2", "a3", "b", "c", "alpha"};
         requirements.atom_parameters = {"chi", "P0", "q0"};
         requirements.resources.time = ComplexityTerm::atoms_plus_bonds;

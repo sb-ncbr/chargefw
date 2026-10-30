@@ -92,6 +92,43 @@ TEST_CASE("coordinate requirements detect molecules without conformers",
     CHECK(collection_result.issues()[0].message.contains("molecule 2"));
 }
 
+TEST_CASE("bond requirements reject molecules with several atoms and no bonds",
+          "[methods][method-prerequisites]") {
+    const chargefw::test::StubMethod bonds_method{"bonds-test", {.bonds = true}};
+    const auto empty_options = methods::MethodOptions{};
+    const auto water = chargefw::test::make_water();
+    const core::Molecule unbonded_pair{std::vector{core::Atom{11}, core::Atom{17}}};
+    const core::Molecule single_atom{std::vector{core::Atom{11}}};
+    const features::PreparedMolecule prepared_water{water};
+    const features::PreparedMolecule prepared_unbonded_pair{unbonded_pair};
+    const features::PreparedMolecule prepared_single_atom{single_atom};
+
+    CHECK(bonds_method.check_method_prerequisites(
+        {.prepared_molecule = prepared_water, .method_options = empty_options}));
+    CHECK(bonds_method.check_method_prerequisites(
+        {.prepared_molecule = prepared_single_atom, .method_options = empty_options}));
+
+    const auto missing_bonds = bonds_method.check_method_prerequisites(
+        {.prepared_molecule = prepared_unbonded_pair, .method_options = empty_options});
+    CHECK(!missing_bonds);
+    REQUIRE(missing_bonds.issues().size() == 1);
+    CHECK(missing_bonds.issues()[0].kind == methods::PrerequisiteIssueKind::missing_feature);
+
+    // Methods built on the bond graph declare the requirement; geometry-only methods do not.
+    for (const auto* method_id : {"peoe", "delre", "sqeqp", "abeem"}) {
+        CAPTURE(method_id);
+        const auto* method = methods::method_registry().find(method_id);
+        REQUIRE(method != nullptr);
+        CHECK(method->requirements().bonds);
+    }
+    for (const auto* method_id : {"eem", "qeq", "veem"}) {
+        CAPTURE(method_id);
+        const auto* method = methods::method_registry().find(method_id);
+        REQUIRE(method != nullptr);
+        CHECK_FALSE(method->requirements().bonds);
+    }
+}
+
 TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
           "[methods][method-prerequisites]") {
     const chargefw::test::StubMethod coordinates_method{"coordinates-test", {.coordinates = true}};

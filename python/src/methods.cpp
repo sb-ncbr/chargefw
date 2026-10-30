@@ -32,6 +32,7 @@ auto method_descriptors() -> nb::list {
                                         : nb::none();
         descriptor["notes"] = std::string{metadata.notes};
         descriptor["requires_coordinates"] = requirements.coordinates;
+        descriptor["requires_bonds"] = requirements.bonds;
         descriptor["time_complexity"] =
             std::string{methods::complexity_notation(requirements.resources.time)};
         descriptor["memory_complexity"] =
