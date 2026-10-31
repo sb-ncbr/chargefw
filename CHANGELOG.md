@@ -47,6 +47,8 @@
 
 ### Input
 
+- Residue templates bond an `H1` hydrogen to the nitrogen of an N-terminal proline, as Hydride names
+  it. Before, reading such a structure with template bonds left the hydrogen unbonded.
 - MOL and SDF V2000 records without `M  CHG` and `M  RAD` lines take formal charges from the charge field of the
   atom lines, as the format defines. Before, their atoms were read as neutral. A charge code outside
   0-7 is an error.

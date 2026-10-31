@@ -7,6 +7,7 @@
 #include <gemmi/cif.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdlib>
 #include <optional>
@@ -222,8 +223,15 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
         add_component_bonds(result, component, component_template->bonds);
         if (component_template->kind == component_templates::ComponentKind::amino_acid) {
             if (const auto nitrogen = component.find_atom("N")) {
-                // Supplement the base template with the remaining terminal hydrogen names.
-                for (const auto name : {component.name == "PRO" ? "H2" : "H1", "H3"}) {
+                // Supplement the base template with the remaining terminal hydrogen names. Hydride
+                // names the second hydrogen of an N-terminal proline H1 rather than H2 or H3.
+                static constexpr auto proline_names =
+                    std::array<std::string_view, 3>{"H1", "H2", "H3"};
+                static constexpr auto other_names = std::array<std::string_view, 2>{"H1", "H3"};
+                const auto names = component.name == "PRO"
+                                       ? std::span<const std::string_view>{proline_names}
+                                       : std::span<const std::string_view>{other_names};
+                for (const auto name : names) {
                     if (const auto hydrogen = component.find_atom(name)) {
                         result.add(*nitrogen, *hydrogen, core::BondOrder::SINGLE);
                     }

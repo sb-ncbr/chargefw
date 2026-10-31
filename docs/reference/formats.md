@@ -206,7 +206,7 @@ single, double, and triple bonds. Templates cover common amino acids, nucleotide
 links; they are not a complete Chemical Component Dictionary. No distance-based bond perception is performed.
 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
-N-terminal `N-H1` and `N-H3` bonds; `PRO` instead adds `N-H2` and `N-H3`. Only supplied atoms are
+N-terminal `N-H1` and `N-H3` bonds; `PRO` adds `N-H1`, `N-H2`, and `N-H3`. Only supplied atoms are
 connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
 These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
 names, independently of the position in the chain, so the structure must be prepared consistently.
