@@ -14,6 +14,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -91,6 +92,9 @@ enum class MethodScope : std::uint8_t {
     all,
 };
 
+[[nodiscard]] auto method_scope_from_string(std::string_view value) -> MethodScope;
+[[nodiscard]] auto to_string(MethodScope value) -> std::string_view;
+
 // Owns application assessment inputs so adapters and bindings do not need to manage native method
 // pointers, parameter spans, or prepared-feature lifetimes.
 struct AssessmentRequest {
@@ -98,11 +102,11 @@ struct AssessmentRequest {
     // IDs must be unique across this request, including parameter sets for different methods.
     std::vector<parameters::ParameterSet> parameter_sets;
     std::optional<std::string> method_id;
-    // Applies only without method_id; a named method is always assessed.
-    MethodScope method_scope = MethodScope::recommended;
     // A parameter-set ID requires method_id so the selected parameterization has an unambiguous
     // scientific model.
     std::optional<std::string> parameter_set_id;
+    // Applies only without method_id; a named method is always assessed.
+    MethodScope method_scope = MethodScope::recommended;
     std::unordered_map<std::string, methods::MethodOptions> method_options;
     parameters::ClassificationOptions classification_options{};
     ExecutionSelection execution_selection{};

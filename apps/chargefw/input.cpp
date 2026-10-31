@@ -194,6 +194,10 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
     arguments.parameter_set_option =
         command.add_option("--parameter-set", arguments.parameter_set_id, "Parameter-set ID");
     arguments.parameter_set_option->needs(arguments.method_option);
+    command
+        .add_option("--method-scope", arguments.method_scope,
+                    "Methods automatic selection may use: recommended or all")
+        ->excludes(arguments.method_option);
     command.add_option("--fixed-ions", arguments.fixed_ion_ids,
                        "Fixed-ion component ID (repeatable)");
     command.add_flag("--permissive-types", arguments.permissive_types,
@@ -240,6 +244,7 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
         .parameter_set_id = arguments.parameter_set_option->count() == 0
                                 ? std::nullopt
                                 : std::optional{arguments.parameter_set_id},
+        .method_scope = calculation::method_scope_from_string(arguments.method_scope),
         .method_options = std::move(method_options),
         .classification_options = {.permissive_types = arguments.permissive_types},
         .execution_selection =

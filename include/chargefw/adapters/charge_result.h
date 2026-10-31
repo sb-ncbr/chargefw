@@ -33,6 +33,7 @@ struct ResultDiagnostic {
 struct RequestedCalculationProvenance {
     std::optional<std::string> method_id;
     std::optional<std::string> parameter_set_id;
+    std::string method_scope = "recommended";
     bool permissive_types = false;
     std::optional<std::size_t> cutoff_atom_threshold;
     std::optional<std::size_t> cover_atom_threshold;

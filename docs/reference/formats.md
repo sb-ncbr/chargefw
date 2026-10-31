@@ -354,8 +354,9 @@ Record and atom IDs you supply are strings or signed 64-bit integers, and result
 strings or numbers. Atom IDs of a molecule built in code appear once, as `input.atom_ids`, in atom
 order.
 
-Requested provenance records method and parameter selection, classification mode, method options,
-execution request, size limits, and thread limit. The reading options are recorded per record, under
+Requested provenance records method and parameter selection, the methods automatic selection may
+use (`method_scope`), classification mode, method options, execution request, size limits, and thread
+limit. The reading options are recorded per record, under
 `input.import.policy`.
 Effective provenance records the resolved method, parameter set, complete options, execution policy, and
 warnings. When supplied by the application, metrics include UTC start/end timestamps through result

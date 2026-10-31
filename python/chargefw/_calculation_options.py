@@ -13,7 +13,7 @@ import numpy as np
 
 from ._methods import Method
 from ._parameters import ParameterSet
-from ._types import MethodOptionValue, ParameterMatching, RequestedExecution
+from ._types import MethodOptionValue, MethodScope, ParameterMatching, RequestedExecution
 
 _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
@@ -128,6 +128,7 @@ class RequestedCalculation:
 
     method: str | None
     parameter_set: str | None
+    method_scope: MethodScope
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
     parameter_matching: ParameterMatching
     execution: RequestedExecution
@@ -142,6 +143,7 @@ class RequestedCalculation:
         *,
         method: str | Method | None = None,
         parameter_set: str | ParameterSet | None = None,
+        method_scope: MethodScope = "recommended",
         options: Mapping[str, MethodOptionValue] | None = None,
         options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
         parameter_matching: ParameterMatching = "strict",
@@ -160,6 +162,12 @@ class RequestedCalculation:
         parameter_set_id = (
             parameter_set.id if isinstance(parameter_set, ParameterSet) else parameter_set
         )
+        if not isinstance(method_scope, str):
+            raise TypeError("method_scope must be a string")
+        if method_scope not in ("recommended", "all"):
+            raise ValueError("method_scope must be 'recommended' or 'all'")
+        if method_scope == "all" and method_id is not None:
+            raise ValueError("method_scope applies only without an explicit method")
         if options is not None and options_by_method is not None:
             raise ValueError("options and options_by_method cannot be used together")
         if options is not None:
@@ -208,6 +216,7 @@ class RequestedCalculation:
 
         object.__setattr__(self, "method", method_id)
         object.__setattr__(self, "parameter_set", parameter_set_id)
+        object.__setattr__(self, "method_scope", method_scope)
         object.__setattr__(
             self,
             "options_by_method",

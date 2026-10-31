@@ -33,7 +33,9 @@ parameter set were used.
 
 Some methods are included for their place in the history of empirical charges and for studying how
 the models work, but their charges are not recommended for general use. The table marks the
-recommended methods. Automatic selection uses only those; to use another method, name it.
+recommended methods. Automatic selection uses only those. To use another method, name it, or let
+automatic selection consider every method with `--method-scope all` on the command line, or
+`method_scope="all"` in Python.
 
 To see why a method or parameter set was not used, without calculating anything:
 

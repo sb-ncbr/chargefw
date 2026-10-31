@@ -418,9 +418,9 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                      const nb::sequence& identities, const nb::sequence& caller_atom_ids,
                      std::string molecule_collection_name, const NativeParameterCatalog& catalog,
                      std::optional<std::string> method_id,
-                     std::optional<std::string> parameter_set_id, const nb::dict& options,
-                     const bool permissive_types, const std::string& execution,
-                     const std::optional<double> radius,
+                     std::optional<std::string> parameter_set_id, const std::string& method_scope,
+                     const nb::dict& options, const bool permissive_types,
+                     const std::string& execution, const std::optional<double> radius,
                      const std::optional<std::size_t> cutoff_threshold,
                      const std::optional<std::size_t> cover_threshold,
                      const std::size_t max_threads, std::vector<std::string> fixed_ions)
@@ -466,6 +466,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
     auto requested =
         adapters::RequestedCalculationProvenance{.method_id = method_id,
                                                  .parameter_set_id = parameter_set_id,
+                                                 .method_scope = method_scope,
                                                  .permissive_types = permissive_types,
                                                  .cutoff_atom_threshold = cutoff_threshold,
                                                  .cover_atom_threshold = cover_threshold,
@@ -498,6 +499,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         .parameter_sets = catalog.parameter_sets(),
         .method_id = std::move(method_id),
         .parameter_set_id = std::move(parameter_set_id),
+        .method_scope = calculation::method_scope_from_string(method_scope),
         .method_options = std::move(native_method_options),
         .classification_options = {.permissive_types = permissive_types},
         .execution_selection =
@@ -541,9 +543,9 @@ void bind_calculation(nb::module_& module) {
     module.def("_make_assessment", &make_assessment, nb::arg("molecules"),
                nb::arg("input_metadata"), nb::arg("identities"), nb::arg("caller_atom_ids"),
                nb::arg("molecule_collection_name"), nb::arg("catalog"), nb::arg("method_id"),
-               nb::arg("parameter_set_id"), nb::arg("method_options"), nb::arg("permissive_types"),
-               nb::arg("execution"), nb::arg("radius"), nb::arg("cutoff_threshold"),
-               nb::arg("cover_threshold"), nb::arg("max_threads"),
+               nb::arg("parameter_set_id"), nb::arg("method_scope"), nb::arg("method_options"),
+               nb::arg("permissive_types"), nb::arg("execution"), nb::arg("radius"),
+               nb::arg("cutoff_threshold"), nb::arg("cover_threshold"), nb::arg("max_threads"),
                nb::arg("fixed_ions") = std::vector<std::string>{});
 }
 

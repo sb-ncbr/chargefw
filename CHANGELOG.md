@@ -18,6 +18,9 @@
 - A calculation that runs out of memory raises `MemoryError`. Before, it raised
   `NumericalFailureError`.
 - `Method.requires_bonds` is true for methods that use the bonds of the molecule.
+- `Method.recommended` is true for methods whose charges are recommended for general use.
+  `assess()` and `calculate()` take `method_scope="all"` to let automatic selection also consider the
+  other methods; `result.requested.method_scope` records it.
 - `chargefw.io.gemmi.from_structure()` accepts `bonds="hybrid"` and uses it by default: covalent links
   and disulfide bridges in `structure.connections` are added to the template bonds. Before, the only
   choices were `"templates"` and `"none"`, and the links were left out.
@@ -32,12 +35,16 @@
 - A calculation that runs out of memory reports `Not enough memory` and exits with status 1, without
   a result JSON. Before, it was reported as a numerical failure with status 4.
 - `chargefw methods METHOD` reports whether the method requires bonds.
+- `chargefw methods METHOD` reports whether the method is recommended. `calculate` and `applicability`
+  take `--method-scope all` to let automatic selection also consider methods that are not
+  recommended; the result JSON records it as `method_scope` in the requested provenance.
 
 ### C++
 
 - `calculate()` with an assessment no longer reports exceptions other than `std::logic_error` and
   `std::runtime_error` as `numerical_failure`; they reach the caller, for example `std::bad_alloc`.
 - `MethodRequirements::bonds` marks methods that use the bonds of the molecule.
+- `method_scope_from_string()` and `to_string()` convert `MethodScope` to and from its names.
 
 ### Calculation
 

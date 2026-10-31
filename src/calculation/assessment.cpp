@@ -221,6 +221,26 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
 
 } // namespace
 
+auto method_scope_from_string(const std::string_view value) -> MethodScope {
+    if (value == "recommended") {
+        return MethodScope::recommended;
+    }
+    if (value == "all") {
+        return MethodScope::all;
+    }
+    throw std::invalid_argument{"unknown method scope: " + std::string{value}};
+}
+
+auto to_string(const MethodScope value) -> std::string_view {
+    switch (value) {
+    case MethodScope::recommended:
+        return "recommended";
+    case MethodScope::all:
+        return "all";
+    }
+    throw std::logic_error{"unknown method scope"};
+}
+
 AssessmentResult::AssessmentResult(
     core::MoleculeCollection molecules,
     std::vector<parameters::ParameterSet> supplied_parameter_sets,

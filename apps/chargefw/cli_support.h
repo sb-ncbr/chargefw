@@ -30,6 +30,7 @@ struct InputArguments {
 struct SelectionArguments {
     std::string method_id;
     std::string parameter_set_id;
+    std::string method_scope = "recommended";
     std::string execution = "auto";
     std::optional<double> radius;
     std::string cutoff_atom_threshold;

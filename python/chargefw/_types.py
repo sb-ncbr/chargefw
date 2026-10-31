@@ -6,6 +6,7 @@ type MethodOptionValue = bool | int | float | str
 type PortableId = str | int
 type RequestedExecution = Literal["auto", "full", "cutoff", "cover"]
 type ParameterMatching = Literal["strict", "permissive"]
+type MethodScope = Literal["recommended", "all"]
 type AtomClassifier = Literal["plain", "hbo", "bonded"]
 type BondClassifier = Literal["plain", "bo"]
 type ExecutionMode = Literal["full", "cutoff", "cover"]

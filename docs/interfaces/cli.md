@@ -89,6 +89,7 @@ A malformed record in the input stops the command before any calculation.
 | --- | --- |
 | `--method ID` | Use this method |
 | `--parameter-set ID` | Use this parameter set; requires `--method` |
+| `--method-scope SCOPE` | Methods automatic selection may use: `recommended` (default) or `all`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; not with `--method` |
 | `--method-option METHOD.OPTION=VALUE` | Set an option of a method, such as `peoe.iters=8`; repeatable |
 | `--permissive-types` | Let a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
 | `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; repeatable; see [Fixed ions](../guide/fixed-ions.md) |
