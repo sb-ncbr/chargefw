@@ -81,6 +81,55 @@ assessed with, which includes having the same `name`.
 | `message` | Description |
 | `line` | Line in the file, or `None` |
 
+### SourceMapping
+
+How the atoms and conformers of a molecule correspond to its file. See
+[Where atoms came from](../interfaces/python.md#where-atoms-came-from).
+
+| Attribute | Content |
+| --- | --- |
+| `format` | Input format, such as `"sdf"` or `"mmcif"` |
+| `atoms` | Tuple of `SourceAtomReference`, one per atom, for the first conformer |
+| `conformers` | Tuple of `SourceConformerReference`, one per conformer |
+| `components` | Tuple of `SourceComponentInstance`, one per residue; empty for formats without residues |
+| `source_connectivity` | `"present"` when the file listed bonds, `"explicitly-empty"` when its bond section was empty, `"absent"` when it had no bond records, such as a PDB file without `CONECT`, `LINK`, or `SSBOND` records |
+| `record_selection`, `conformer_selection`, `bond_strategy` | The `selection`, `conformers`, and `bonds` values used for reading, such as `"all"` and `"hybrid"`; `None` where the reader has no such option |
+| `alternate_location_selection` | `"first-source-order"` for PDB and mmCIF, where the first [alternate location](formats.md#structural-selection) of each atom is read; otherwise `None` |
+
+### SourceAtomReference
+
+| Attribute | Content |
+| --- | --- |
+| `position` | Position of the atom site in the record, counting from zero |
+| `id` | Atom ID in the file, such as the MOL2 atom ID or the mmCIF `_atom_site.id`; `None` for formats without atom IDs |
+| `structural_labels` | `SourceStructuralLabels` for PDB and mmCIF; otherwise `None` |
+
+### SourceConformerReference
+
+| Attribute | Content |
+| --- | --- |
+| `position` | Position of the model in the file, counting from zero |
+| `id` | Model number from the file, such as `"1"`; `None` when the file has none |
+| `sites` | Tuple of `SourceAtomReference`: the atom sites of this model, in atom order |
+
+### SourceStructuralLabels and SourceHierarchyLabels
+
+| Attribute | Content |
+| --- | --- |
+| `author` | `SourceHierarchyLabels` with the author names: `_atom_site.auth_*` in mmCIF, the only names in PDB |
+| `label` | `SourceHierarchyLabels` with the mmCIF `_atom_site.label_*` names; all `None` for PDB |
+| `entity` | mmCIF entity ID, or `None` |
+| `insertion_code`, `alternate_location` | As written in the file, including the mmCIF placeholders `"?"` and `"."`; `None` when absent |
+| `segment` | PDB segment ID, or `None` |
+
+`SourceHierarchyLabels` has `atom`, `residue`, `chain`, and `sequence`, each a string or `None`, such
+as `"N"`, `"GLU"`, `"A"`, and `"1"`.
+
+### SourceComponentInstance
+
+`component_id` is the residue name, such as `"GLU"`, and `atom_indices` the indices of its atoms in the
+molecule.
+
 ## Results
 
 ### CalculationResult
