@@ -14,7 +14,7 @@ print(plan.parameter_set.id, plan.parameter_set.publication)
 ```
 
 ```text
-3.0.0rc1 sqeqp 10.1186/s13321-021-00528-w
+3.0.0rc2 sqeqp 10.1186/s13321-021-00528-w
 SQEqp_Schindler2021_CCD_gen 10.1186/s13321-021-00528-w
 ```
 

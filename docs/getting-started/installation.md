@@ -51,7 +51,7 @@ sets. Mount the directory with your structures and run a command in it:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-    sbncbr/chargefw:3.0.0rc1 calculate molecule.sdf output
+    sbncbr/chargefw:3.0.0rc2 calculate molecule.sdf output
 ```
 
 The charges are written to `output/`. `--user` makes the output files yours rather than root's. Every
