@@ -20,7 +20,8 @@ class GDACMethod final : public Method {
             .notes = "This implementation omits charged-species "
                      "initialization; every connected component must be "
                      "formally neutral.",
-            .priority = 100};
+            .priority = 100,
+            .recommended = false};
 
         return metadata;
     }

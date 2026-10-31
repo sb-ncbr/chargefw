@@ -13,7 +13,8 @@ class SMPQEqMethod final : public Method {
             .full_name = "Self-Consistent Charge Equilibration Method",
             .publication = "10.1021/jp8063273",
             .notes = "Iterates charge-dependent hardness to convergence.",
-            .priority = 160};
+            .priority = 160,
+            .recommended = false};
 
         return metadata;
     }

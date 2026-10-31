@@ -44,6 +44,9 @@
 - Methods that use bonds (ABEEM, Charge2, DelRe, DENR, GDAC, KCM, MGC, MPEOE, PEOE, SQE, SQE+q0,
   SQE+qp, and TSEF) refuse a molecule of several atoms without bonds, as methods that use coordinates
   refuse a molecule without them. Before, some of them calculated meaningless charges for it.
+- Automatic selection uses only methods whose charges are recommended for general use, so it no
+  longer uses Charge2, DelRe, GDAC, SMP/QEq, VEEM, or the formal and dummy charges. Before, it fell
+  back to them when no other method applied. They are still calculated when named.
 - With permissive matching, an atom without bonds, such as the oxygen of a water molecule without its
   hydrogens, matches single-bonded parameters. Before, such an atom stopped the calculation even with
   permissive matching.

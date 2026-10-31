@@ -9,6 +9,7 @@
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
@@ -84,6 +85,12 @@ struct FixedIons {
     std::vector<FixedAtomCharge> sources;
 };
 
+// The methods automatic selection may choose from: only recommended methods, or all methods.
+enum class MethodScope : std::uint8_t {
+    recommended,
+    all,
+};
+
 // Owns application assessment inputs so adapters and bindings do not need to manage native method
 // pointers, parameter spans, or prepared-feature lifetimes.
 struct AssessmentRequest {
@@ -91,6 +98,8 @@ struct AssessmentRequest {
     // IDs must be unique across this request, including parameter sets for different methods.
     std::vector<parameters::ParameterSet> parameter_sets;
     std::optional<std::string> method_id;
+    // Applies only without method_id; a named method is always assessed.
+    MethodScope method_scope = MethodScope::recommended;
     // A parameter-set ID requires method_id so the selected parameterization has an unambiguous
     // scientific model.
     std::optional<std::string> parameter_set_id;

@@ -87,7 +87,9 @@ namespace {
     auto result = std::vector<const methods::Method*>{};
     result.reserve(registry.methods().size());
     for (const auto& method : registry.methods()) {
-        result.push_back(method.get());
+        if (request.method_scope == MethodScope::all || method->metadata().recommended) {
+            result.push_back(method.get());
+        }
     }
     return result;
 }

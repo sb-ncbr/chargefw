@@ -31,6 +31,10 @@ parameter-set reference. It uses the first combination that applies to every mol
 calculation, so all molecules get charges from the same model. The result records which method and
 parameter set were used.
 
+Some methods are included for their place in the history of empirical charges and for studying how
+the models work, but their charges are not recommended for general use. The table marks the
+recommended methods. Automatic selection uses only those; to use another method, name it.
+
 To see why a method or parameter set was not used, without calculating anything:
 
 ```bash
@@ -66,33 +70,34 @@ through parameter sets whose atom types depend on bonds.
 included in ChargeFW instead. **Cutoff/cover** marks methods that can run the approximations for
 [large structures](large-structures.md), and **Fixed ions** those that accept
 [fixed ions](fixed-ions.md). **Time** is the calculation cost for $n$ atoms and $m$ bonds.
+**Recommended** marks the methods whose charges are recommended for general use; automatic selection
+uses only these.
 
-| Method | ID | Coordinates | Bonds | Parameter sets | Cutoff/cover | Fixed ions | Time |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [SQE+qp](#sqeqp) | `sqeqp` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [EEM](#eem) | `eem` | yes | | 28 | yes | yes | $O(n^3)$ |
-| [ABEEM](#abeem) | `abeem` | yes | yes | 1 | yes | | $O((n+m)^3)$ |
-| [SFKEEM](#sfkeem) | `sfkeem` | yes | | 1 | yes | | $O(n^3)$ |
-| [QEq](#qeq) | `qeq` | yes | | 1 | yes | | $O(n^3)$ |
-| [SMP/QEq](#smpqeq) | `smpqeq` | yes | | 1 | | | $O(n^3)$ |
-| [EQeq](#eqeq) | `eqeq` | yes | | built-in | yes | | $O(n^3)$ |
-| [EQeq+C](#eqeqc) | `eqeqc` | yes | | 2 | yes | | $O(n^3)$ |
-| [DelRe](#delre) | `delre` | | yes | 1 | | | $O(n^3)$ |
-| [PEOE](#peoe) | `peoe` | | yes | 1 | | | $O(n + m)$ |
-| [MPEOE](#mpeoe) | `mpeoe` | | yes | 1 | | | $O(n + m)$ |
-| [GDAC](#gdac) | `gdac` | yes | yes | 1 | | | $O(n + m)$ |
-| [SQE](#sqe) | `sqe` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [SQE+q0](#sqeq0) | `sqeq0` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [MGC](#mgc) | `mgc` | | yes | built-in | | | $O(n^3)$ |
-| [KCM](#kcm) | `kcm` | | yes | 2 | | | $O(n^3)$ |
-| [TSEF](#tsef) | `tsef` | | yes | 1 | | | $O(n^3)$ |
-| [DENR](#denr) | `denr` | | yes | 1 | | | $O(n^3)$ |
-| [Charge2](#charge2) | `charge2` | | yes | 1 | | | $O(n + m)$ |
-| [VEEM](#veem) | `veem` | | | built-in | | | $O(n)$ |
+| Method | ID | Coordinates | Bonds | Parameter sets | Cutoff/cover | Fixed ions | Time | Recommended |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [SQE+qp](#sqeqp) | `sqeqp` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [EEM](#eem) | `eem` | yes | | 28 | yes | yes | $O(n^3)$ | yes |
+| [ABEEM](#abeem) | `abeem` | yes | yes | 1 | yes | | $O((n+m)^3)$ | yes |
+| [SFKEEM](#sfkeem) | `sfkeem` | yes | | 1 | yes | | $O(n^3)$ | yes |
+| [QEq](#qeq) | `qeq` | yes | | 1 | yes | | $O(n^3)$ | yes |
+| [SMP/QEq](#smpqeq) | `smpqeq` | yes | | 1 | | | $O(n^3)$ | |
+| [EQeq](#eqeq) | `eqeq` | yes | | built-in | yes | | $O(n^3)$ | yes |
+| [EQeq+C](#eqeqc) | `eqeqc` | yes | | 2 | yes | | $O(n^3)$ | yes |
+| [DelRe](#delre) | `delre` | | yes | 1 | | | $O(n^3)$ | |
+| [PEOE](#peoe) | `peoe` | | yes | 1 | | | $O(n + m)$ | yes |
+| [MPEOE](#mpeoe) | `mpeoe` | | yes | 1 | | | $O(n + m)$ | yes |
+| [GDAC](#gdac) | `gdac` | yes | yes | 1 | | | $O(n + m)$ | |
+| [SQE](#sqe) | `sqe` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [SQE+q0](#sqeq0) | `sqeq0` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [MGC](#mgc) | `mgc` | | yes | built-in | | | $O(n^3)$ | yes |
+| [KCM](#kcm) | `kcm` | | yes | 2 | | | $O(n^3)$ | yes |
+| [TSEF](#tsef) | `tsef` | | yes | 1 | | | $O(n^3)$ | yes |
+| [DENR](#denr) | `denr` | | yes | 1 | | | $O(n^3)$ | yes |
+| [Charge2](#charge2) | `charge2` | | yes | 1 | | | $O(n + m)$ | |
+| [VEEM](#veem) | `veem` | | | built-in | | | $O(n)$ | |
 
 Two further IDs are not charge models: `formal` returns the formal charges of your input unchanged, and
-`dummy` returns zero for every atom. Automatic selection tries them last, so they are used only when no
-charge model applies.
+`dummy` returns zero for every atom. Automatic selection never uses them; name them to use them.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
 method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the

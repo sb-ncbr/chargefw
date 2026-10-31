@@ -14,7 +14,8 @@ class FormalMethod final : public Method {
             .publication = std::nullopt,
             .notes = "Copies input atomic formal charges unchanged; "
                      "not an empirical charge model.",
-            .priority = 10};
+            .priority = 10,
+            .recommended = false};
 
         return metadata;
     }

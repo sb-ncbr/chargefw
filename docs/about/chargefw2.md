@@ -53,7 +53,9 @@ Things to know when you move over:
 - **Results** are assignments per molecule and conformer, in input order, not a dictionary keyed by
   molecule name; [Results](../guide/results.md) describes them.
 - **Automatic selection** tries methods and parameter sets in a fixed priority order, the same for
-  every structure. Name the method and parameter set to get a particular model.
+  every structure. It uses only the [recommended methods](../guide/methods.md#available-methods), so
+  it skips Charge2, DelRe, GDAC, SMP/QEq, and VEEM, and the formal and dummy charges. Name the method
+  and parameter set to get a particular model.
 - **One model per calculation:** all molecules of a call are calculated with the same model, and the
   calculation fails if it does not apply to one of them. Calculate molecules
   [one by one](../interfaces/python.md#one-model-for-all-molecules) to let each get its own model.
