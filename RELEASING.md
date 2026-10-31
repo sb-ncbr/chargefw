@@ -39,16 +39,17 @@ package index, release a new version. Do not delete or reuse a published version
 
 ## 1. Prepare the version commit
 
-Start from an up-to-date `main` and a clean worktree:
+Start from an up-to-date `main` and a clean worktree. In the commands below, replace `NEW_VERSION` with
+the full version, for example `3.0.0rc1`:
 
 ```bash
-./utils/release/01-prepare.sh 3.0.0a3
+./utils/release/01-prepare.sh NEW_VERSION
 ```
 
 The script updates both version parts in `CMakeLists.txt` and the Docker image tag in `README.md` and
 `docs/getting-started/installation.md`. Rename the `## Unreleased` heading in `CHANGELOG.md` to
-`## 3.0.0a3`; the workflow requires that section and uses it as the GitHub Release notes, so its links
-must be absolute. Commit these files, for example as "Prepare release 3.0.0a3".
+`## NEW_VERSION`; the workflow requires that section and uses it as the GitHub Release notes, so its
+links must be absolute. Commit these files, for example as "Prepare release NEW_VERSION".
 
 ## 2. Validate locally
 
@@ -88,7 +89,7 @@ to run on a commit without a successful CI run.
 ## 4. Run the release workflow
 
 ```bash
-gh workflow run release.yml -f version=3.0.0a3
+gh workflow run release.yml -f version=NEW_VERSION
 ```
 
 or use **Actions → Release → Run workflow** on `main`. The jobs run in this order:

@@ -35,6 +35,12 @@ find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::core)
 ```
 
+Point CMake at the installation when you configure that project:
+
+```bash
+cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install"
+```
+
 The installed package requires the exact nlohmann/json and Gemmi versions ChargeFW was built against,
 because their types appear in the public headers. With installed dependency packages, your project needs
 those packages discoverable and the oneTBB runtime library available. With
