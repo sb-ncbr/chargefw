@@ -58,6 +58,8 @@ struct ResourceRequirements {
 
 struct MethodRequirements {
     bool coordinates = false;
+    // The method uses the bonds of the molecule, not only its atoms and coordinates.
+    bool bonds = false;
 
     std::vector<std::string_view> common_parameters;
     std::vector<std::string_view> atom_parameters;

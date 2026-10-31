@@ -12,7 +12,7 @@ class PEOEMethod final : public Method {
         static constexpr MethodMetadata metadata{
             .id = "peoe",
             .name = "PEOE",
-            .full_name = "Partial Equalization of Atomic Electronegativity",
+            .full_name = "Partial Equalization of Orbital Electronegativity",
             .publication = "10.1016/0040-4020(80)80168-2",
             .notes =
                 "With the default zero-charge initialization, every connected component must be "
@@ -26,6 +26,7 @@ class PEOEMethod final : public Method {
 
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
+        requirements.bonds = true;
         requirements.common_parameters = {"dampH"};
         requirements.atom_parameters = {"A", "B", "C"};
         requirements.resources.time = ComplexityTerm::atoms_plus_bonds;

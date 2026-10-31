@@ -31,15 +31,15 @@ auto method_descriptors() -> nb::list {
                                         ? nb::cast(std::string{*metadata.publication})
                                         : nb::none();
         descriptor["notes"] = std::string{metadata.notes};
-        descriptor["priority"] = metadata.priority;
         descriptor["requires_coordinates"] = requirements.coordinates;
+        descriptor["requires_bonds"] = requirements.bonds;
         descriptor["time_complexity"] =
             std::string{methods::complexity_notation(requirements.resources.time)};
         descriptor["memory_complexity"] =
             std::string{methods::complexity_notation(requirements.resources.memory)};
         descriptor["supports_cutoff"] = requirements.resources.supports_cutoff;
         descriptor["supports_cover"] = requirements.resources.supports_cover;
-        descriptor["supports_fixed_point_sources"] = requirements.supports_fixed_point_sources;
+        descriptor["supports_fixed_ions"] = requirements.supports_fixed_point_sources;
         auto options = nb::list{};
         for (const auto& spec : method->option_schema()) {
             auto option = nb::dict{};

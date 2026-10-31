@@ -20,6 +20,7 @@ class ABEEMMethod final : public Method {
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
         requirements.coordinates = true;
+        requirements.bonds = true;
         requirements.common_parameters = {"k"};
         requirements.atom_parameters = {"a", "b", "c"};
         requirements.bond_parameters = {"A", "B", "C", "D"};

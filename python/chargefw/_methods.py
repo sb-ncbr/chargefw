@@ -64,13 +64,13 @@ class Method:
     full_name: str
     publication: str | None
     notes: str
-    priority: int
     requires_coordinates: bool
+    requires_bonds: bool
     time_complexity: str
     memory_complexity: str
     supports_cutoff: bool
     supports_cover: bool
-    supports_fixed_point_sources: bool
+    supports_fixed_ions: bool
     options: MethodOptionCatalog
     parameter_sets: ParameterSetCatalog
 
@@ -96,13 +96,13 @@ def _method_descriptor(
         full_name=value["full_name"],
         publication=value["publication"],
         notes=value["notes"],
-        priority=value["priority"],
         requires_coordinates=value["requires_coordinates"],
+        requires_bonds=value["requires_bonds"],
         time_complexity=value["time_complexity"],
         memory_complexity=value["memory_complexity"],
         supports_cutoff=value["supports_cutoff"],
         supports_cover=value["supports_cover"],
-        supports_fixed_point_sources=value["supports_fixed_point_sources"],
+        supports_fixed_ions=value["supports_fixed_ions"],
         options=MethodOptionCatalog(
             tuple(
                 MethodOption(
@@ -119,7 +119,13 @@ def _method_descriptor(
                 for option in value["options"]
             )
         ),
-        parameter_sets=parameter_sets.for_method(value["id"]),
+        parameter_sets=ParameterSetCatalog(
+            tuple(
+                parameter_set
+                for parameter_set in parameter_sets.values()
+                if parameter_set.method == value["id"]
+            )
+        ),
     )
 
 

@@ -40,47 +40,60 @@ chargefw applicability molecule.sdf
 In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
 rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
 
+When a parameter set is rejected because it has no entry for an atom's bond order,
+[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets it use
+the entry for the next lower order: `--permissive-types` on the command line, or
+`parameter_matching="permissive"` in Python. `chargefw parameters --method METHOD` lists the
+parameter sets of a method, and `chargefw parameters ID --keys` the atom and bond types a set has
+values for.
+
 A new ChargeFW release can add parameter sets and so change what automatic selection picks. Name the
 method and the parameter set whenever results must stay the same between releases.
 
 ## Available methods
 
 The table lists the methods in the order automatic selection tries them. **Coordinates** shows whether
-the method needs 3D coordinates; methods that do produce one set of charges per conformer.
+the method needs 3D coordinates; methods that do produce one set of charges per conformer. **Bonds**
+marks methods that use the bonds of the molecule; ChargeFW refuses them for a molecule of several
+atoms without bonds. The other methods use only atoms and coordinates, so bonds matter for them only
+through parameter sets whose atom types depend on bonds.
 **Parameter sets** gives the number of bundled sets; methods marked "built-in" use element properties
 included in ChargeFW instead. **Cutoff/cover** marks methods that can run the approximations for
 [large structures](large-structures.md), and **Fixed ions** those that accept
 [fixed ions](fixed-ions.md). **Time** is the calculation cost for $n$ atoms and $m$ bonds.
 
-| Method | ID | Coordinates | Parameter sets | Cutoff/cover | Fixed ions | Time |
-| --- | --- | --- | --- | --- | --- | --- |
-| [SQE+qp](#sqeqp) | `sqeqp` | yes | 3 | yes | yes | $O(m^3)$ |
-| [EEM](#eem) | `eem` | yes | 28 | yes | yes | $O(n^3)$ |
-| [ABEEM](#abeem) | `abeem` | yes | 1 | yes | | $O((n+m)^3)$ |
-| [SFKEEM](#sfkeem) | `sfkeem` | yes | 1 | yes | | $O(n^3)$ |
-| [QEq](#qeq) | `qeq` | yes | 1 | yes | | $O(n^3)$ |
-| [SMP/QEq](#smpqeq) | `smpqeq` | yes | 1 | | | $O(n^3)$ |
-| [EQeq](#eqeq) | `eqeq` | yes | built-in | yes | | $O(n^3)$ |
-| [EQeq+C](#eqeqc) | `eqeqc` | yes | 2 | yes | | $O(n^3)$ |
-| [DelRe](#delre) | `delre` | | 1 | | | $O(n^3)$ |
-| [PEOE](#peoe) | `peoe` | | 1 | | | $O(n + m)$ |
-| [MPEOE](#mpeoe) | `mpeoe` | | 1 | | | $O(n + m)$ |
-| [GDAC](#gdac) | `gdac` | yes | 1 | | | $O(n + m)$ |
-| [SQE](#sqe) | `sqe` | yes | 3 | yes | yes | $O(m^3)$ |
-| [SQE+q0](#sqeq0) | `sqeq0` | yes | 3 | yes | yes | $O(m^3)$ |
-| [MGC](#mgc) | `mgc` | | built-in | | | $O(n^3)$ |
-| [KCM](#kcm) | `kcm` | | 2 | | | $O(n^3)$ |
-| [TSEF](#tsef) | `tsef` | | 1 | | | $O(n^3)$ |
-| [DENR](#denr) | `denr` | | 1 | | | $O(n^3)$ |
-| [Charge2](#charge2) | `charge2` | | 1 | | | $O(n + m)$ |
-| [VEEM](#veem) | `veem` | | built-in | | | $O(n)$ |
+| Method | ID | Coordinates | Bonds | Parameter sets | Cutoff/cover | Fixed ions | Time |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [SQE+qp](#sqeqp) | `sqeqp` | yes | yes | 3 | yes | yes | $O(m^3)$ |
+| [EEM](#eem) | `eem` | yes | | 28 | yes | yes | $O(n^3)$ |
+| [ABEEM](#abeem) | `abeem` | yes | yes | 1 | yes | | $O((n+m)^3)$ |
+| [SFKEEM](#sfkeem) | `sfkeem` | yes | | 1 | yes | | $O(n^3)$ |
+| [QEq](#qeq) | `qeq` | yes | | 1 | yes | | $O(n^3)$ |
+| [SMP/QEq](#smpqeq) | `smpqeq` | yes | | 1 | | | $O(n^3)$ |
+| [EQeq](#eqeq) | `eqeq` | yes | | built-in | yes | | $O(n^3)$ |
+| [EQeq+C](#eqeqc) | `eqeqc` | yes | | 2 | yes | | $O(n^3)$ |
+| [DelRe](#delre) | `delre` | | yes | 1 | | | $O(n^3)$ |
+| [PEOE](#peoe) | `peoe` | | yes | 1 | | | $O(n + m)$ |
+| [MPEOE](#mpeoe) | `mpeoe` | | yes | 1 | | | $O(n + m)$ |
+| [GDAC](#gdac) | `gdac` | yes | yes | 1 | | | $O(n + m)$ |
+| [SQE](#sqe) | `sqe` | yes | yes | 3 | yes | yes | $O(m^3)$ |
+| [SQE+q0](#sqeq0) | `sqeq0` | yes | yes | 3 | yes | yes | $O(m^3)$ |
+| [MGC](#mgc) | `mgc` | | yes | built-in | | | $O(n^3)$ |
+| [KCM](#kcm) | `kcm` | | yes | 2 | | | $O(n^3)$ |
+| [TSEF](#tsef) | `tsef` | | yes | 1 | | | $O(n^3)$ |
+| [DENR](#denr) | `denr` | | yes | 1 | | | $O(n^3)$ |
+| [Charge2](#charge2) | `charge2` | | yes | 1 | | | $O(n + m)$ |
+| [VEEM](#veem) | `veem` | | | built-in | | | $O(n)$ |
 
 Two further IDs are not charge models: `formal` returns the formal charges of your input unchanged, and
 `dummy` returns zero for every atom. Automatic selection tries them last, so they are used only when no
 charge model applies.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
-method's options and their defaults.
+method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the
+command line, or `options={"iters": 8}` in Python; see
+[Choosing the model](../interfaces/cli.md#choosing-the-model) and
+[Calculating charges](../interfaces/python.md#calculating-charges).
 
 ## Method descriptions
 
@@ -147,7 +160,7 @@ from. Select a method to go to its description.
 ### Topology-based methods
 
 These methods use only the molecular graph: atoms, bonds, and formal charges. GDAC, which derives
-from PEOE and MPEOE, also needs coordinates.
+from PEOE and MPEOE, also needs coordinates. VEEM uses only the atoms, not the bonds.
 
 (delre)=
 #### DelRe

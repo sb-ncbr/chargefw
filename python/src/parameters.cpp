@@ -38,7 +38,6 @@ auto parameter_set_descriptors(const NativeParameterCatalog& catalog) -> nb::lis
         descriptor["name"] = metadata.name;
         descriptor["publication"] = metadata.publication;
         descriptor["notes"] = metadata.notes;
-        descriptor["priority"] = metadata.priority;
         auto atom_keys = nb::list{};
         for (const auto& entry : parameter_set.atom().entries()) {
             atom_keys.append(atom_key_payload(entry.key));

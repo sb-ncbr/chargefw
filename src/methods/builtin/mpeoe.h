@@ -12,7 +12,7 @@ class MPEOEMethod final : public Method {
         static constexpr MethodMetadata metadata{
             .id = "mpeoe",
             .name = "MPEOE",
-            .full_name = "Modified Partial Equalization of Atomic Electronegativity",
+            .full_name = "Modified Partial Equalization of Orbital Electronegativity",
             .publication = "10.1021/j100374a066",
             .notes =
                 "With the default zero-charge initialization, every connected component must be "
@@ -26,6 +26,7 @@ class MPEOEMethod final : public Method {
 
     [[nodiscard]] auto requirements() const -> MethodRequirements override {
         auto requirements = MethodRequirements{};
+        requirements.bonds = true;
         requirements.common_parameters = {"Hplus"};
         requirements.atom_parameters = {"A", "B"};
         requirements.bond_parameters = {"f"};

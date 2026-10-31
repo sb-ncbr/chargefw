@@ -21,9 +21,9 @@ $ chargefw calculate molecule.sdf output
 Wrote output/molecule.chargefw.json
 ```
 
-ChargeFW chooses the input format from the file extension: `.sdf` and `.mol`, `.mol2`, `.pdb`, `.cif`
-and `.mmcif`, or `.json` for molecule JSON. It creates the output directory if needed and names the
-results after the input file.
+ChargeFW chooses the input format from the file extension, in lower or upper case: `.sdf` and
+`.mol`, `.mol2`, `.pdb`, `.cif` and `.mmcif`, or `.json` for molecule JSON. It creates the output
+directory if needed and names the results after the input file.
 
 Without other options, ChargeFW chooses the method and parameter set itself, as described in
 [Choosing a method](../guide/methods.md#choosing-a-method). Name them to get the same model every time:
@@ -40,8 +40,11 @@ handle the molecules, the calculation fails with the reasons; ChargeFW does not 
 Once ChargeFW has read the input and accepted the options, it writes `<input>.chargefw.json`, the
 [result JSON](../guide/results.md) with all charges and the record of the calculation. It is written
 also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as a
-malformed input file or an invalid option, are reported on standard error and leave no result file. On
-request, ChargeFW also writes the molecules with their charges:
+malformed input file or an invalid option value, are reported on standard error and leave no result
+file. An unknown method, a parameter set of another method, or a cover threshold below the cutoff
+threshold is found only when ChargeFW assesses the calculation, so it is reported in the result JSON
+with status `invalid_input_or_request`. The exit status is 2 in all these cases. On request, ChargeFW
+also writes the molecules with their charges:
 
 ```bash
 chargefw calculate --output-mol2 molecule.sdf output    # output/molecule.chargefw.mol2
@@ -49,8 +52,9 @@ chargefw calculate --output-mmcif structure.cif output  # output/structure.charg
 chargefw calculate --output-pqr structure.cif output    # output/structure.chargefw.pqr
 ```
 
-MOL2 and mmCIF can be written for input in any format, PQR only for a structure read from PDB or
-mmCIF. [Choosing an output
+MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates. PQR
+is written only for a structure read from PDB or mmCIF, with one model; read a file with several
+models using `--conformers first`. [Choosing an output
 format](../guide/results.md#choosing-an-output-format) compares them.
 
 ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still
@@ -76,7 +80,8 @@ input and writing the results do not check for cancellation.
 | `--structural-bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
-options in detail. A malformed record in the input stops the command before any calculation.
+options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.
+A malformed record in the input stops the command before any calculation.
 
 ### Choosing the model
 
@@ -94,8 +99,8 @@ options in detail. A malformed record in the input stops the command before any 
 | --- | --- |
 | `--execution auto\|full\|cutoff\|cover` | Calculate the whole molecule or fragments (default `auto`); see [Large structures](../guide/large-structures.md) |
 | `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
-| `--cutoff-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cutoff (default 20,000 atoms) |
-| `--cover-atom-threshold COUNT\|unlimited` | Size above which `auto` uses cover (default 80,000 atoms) |
+| `--cutoff-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
+| `--cover-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
 | `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
 
 ### Output and progress
@@ -115,9 +120,9 @@ input options.
 `chargefw inspect` reports what ChargeFW read, without loading any parameters:
 
 ```console
-$ chargefw inspect structure.cif
+$ chargefw inspect 1l2y-h.cif
 records: 1
-record 0 (STRUCTURE) atoms=642 bonds=652 conformers=1 coordinates=true formal_charge=0 elements=H:315,C:202,N:55,O:64,S:6
+record 0 (1L2Y) atoms=304 bonds=310 conformers=1 coordinates=true formal_charge=1 elements=H:150,C:98,N:27,O:29
 ```
 
 [Preparing input](../guide/input.md#check-the-molecule-before-calculating) explains what to compare.
@@ -135,34 +140,38 @@ choose. With `--fixed-ions` or execution options, it shows their effect without 
 $ chargefw methods peoe
 id: peoe
 name: PEOE
-full name: Partial Equalization of Atomic Electronegativity
+full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default zero-charge initialization, every connected component must be formally neutral. initial_charges=formal is a ChargeFW extension that preserves supplied formal charges.
-priority: 120
 requires coordinates: no
+requires bonds: yes
 time complexity: O(n + m)
 memory complexity: O(n)
 supports cutoff: no
 supports cover: no
-supports fixed point sources: no
+supports fixed ions: no
 options:
   iters (default=6) minimum>=1 maximum<=25
   initial_charges (default=zero) choices=zero,formal
 ```
 
-`chargefw parameters` lists the parameter sets, `--method METHOD` only those of one method, and
-`chargefw parameters ID` describes one. Add `--keys` to the last form to list every atom and bond type
-the set has values for. The [parameter-set reference](../reference/parameter-sets.md) shows the same
-sets with their publications.
+`chargefw parameters` lists the parameter sets, `chargefw parameters --method METHOD` only those of
+one method, and `chargefw parameters ID` describes one; `--method` cannot be combined with an ID.
+Add `--keys` to the last form to list every atom and bond type the set has values for. The
+[parameter-set reference](../reference/parameter-sets.md) shows the same sets with their
+publications.
 
 ## Exit statuses
 
 | Status | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | Unexpected internal error |
+| `1` | Not enough memory, or an unexpected internal error; no result JSON is written |
 | `2` | Invalid input or options, or the result JSON could not be written |
 | `3` | No executable plan for the molecules and the requested settings |
-| `4` | The calculation failed numerically, for example did not converge |
+| `4` | The calculation failed, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
 | `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |
+
+Statuses 3 to 6 come only from `chargefw calculate`. `chargefw applicability` exits with 0 once it has
+assessed the input, also when it finds no plan that can run.

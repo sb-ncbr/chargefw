@@ -3,8 +3,8 @@
 ChargeFW's parameter sets are JSON files installed with ChargeFW; the
 [parameter-set reference](parameter-sets.md) lists them. This page describes the file format and how a
 parameter set matches atoms and bonds, for people who write or check parameter sets. The command line
-and Python use the installed sets; C++ applications can also load their own files with
-`parameters::load_parameter_set_json_file()` or `load_parameter_sets_json_directory()`.
+and Python use the installed sets; C++ applications can also load their own files, as described in
+[Methods and parameter sets](../interfaces/cpp.md#methods-and-parameter-sets).
 
 A parameter set holds the values for one method. The method determines which common, atom, and bond
 parameter names must be present. Before a calculation, ChargeFW checks the required names and matches
@@ -60,8 +60,11 @@ and must be unique within a loaded catalog; it does not depend on the source fil
 equal priorities use the stable ID as the tie-breaker. `priority` must be an integer from `0` through
 `65535`.
 
-`common`, `atom`, and `bond` are optional. Each section has a `names` array. Its names define the order of
-that section's numeric `values`; every values array must contain exactly one finite number per name.
+`common`, `atom`, and `bond` are optional. Each section has a `names` array. Its names define the
+order of that section's numeric `values`; every values array must contain exactly one finite number
+per name. A name may appear only once in its section.
+
+Members not described on this page are ignored.
 
 ## Atom parameters
 

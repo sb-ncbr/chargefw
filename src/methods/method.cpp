@@ -103,6 +103,11 @@ auto Method::check_method_prerequisites(const MethodPrerequisiteInput& input) co
     if (method_requirements.coordinates && molecule.has_coordinates()) {
         add_coordinate_prerequisite_issues(*this, molecule, result);
     }
+    if (method_requirements.bonds && molecule.atom_count() > 1 && molecule.bond_count() == 0) {
+        result.add(PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_feature,
+                                     .message = "method '" + std::string{id()} +
+                                                "' requires bonds, but the molecule has none"});
+    }
 
     add_method_specific_prerequisite_issues(input, result);
 

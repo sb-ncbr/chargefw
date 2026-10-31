@@ -75,7 +75,16 @@ namespace {
         work_items.size(), max_threads, progress_ctx, [&](const std::size_t work_item_index) {
             const auto pivot_source_atom_index =
                 work_items[work_item_index].pivot_source_atom_index;
+            const auto failure_message = [&](const std::exception& error) {
+                const auto original_atom_index =
+                    partition_target == nullptr
+                        ? pivot_source_atom_index
+                        : partition_target->active_atom_indices.at(pivot_source_atom_index);
+                return "cover fragment around source atom " +
+                       std::to_string(original_atom_index + 1) + " failed: " + error.what();
+            };
 
+            // As in cutoff: add the fragment and keep the kind of failure.
             try {
                 const auto fragment = fragment_builder.build(pivot_source_atom_index, radius);
                 const auto fragment_charges = detail::calculate_fragment_charges(
@@ -94,14 +103,12 @@ namespace {
                     throw std::logic_error{
                         "cover fragment did not include every owned source atom"};
                 }
-            } catch (const std::exception& error) {
-                const auto original_atom_index =
-                    partition_target == nullptr
-                        ? pivot_source_atom_index
-                        : partition_target->active_atom_indices.at(pivot_source_atom_index);
-                throw std::runtime_error{"cover fragment around source atom " +
-                                         std::to_string(original_atom_index + 1) +
-                                         " failed: " + error.what()};
+            } catch (const std::invalid_argument& error) {
+                throw std::runtime_error{failure_message(error)};
+            } catch (const std::runtime_error& error) {
+                throw std::runtime_error{failure_message(error)};
+            } catch (const std::logic_error& error) {
+                throw std::logic_error{failure_message(error)};
             }
         });
 

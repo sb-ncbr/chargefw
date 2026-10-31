@@ -135,13 +135,13 @@ class MethodDescriptorPayload(TypedDict):
     full_name: str
     publication: str | None
     notes: str
-    priority: int
     requires_coordinates: bool
+    requires_bonds: bool
     time_complexity: str
     memory_complexity: str
     supports_cutoff: bool
     supports_cover: bool
-    supports_fixed_point_sources: bool
+    supports_fixed_ions: bool
     options: list[MethodOptionDescriptorPayload]
 
 
@@ -171,6 +171,5 @@ class ParameterSetDescriptorPayload(TypedDict):
     name: str
     publication: str
     notes: str
-    priority: int
     atom_keys: list[AtomParameterKeyPayload]
     bond_keys: list[BondParameterKeyPayload]

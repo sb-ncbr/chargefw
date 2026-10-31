@@ -3,6 +3,7 @@
 #include "bonds.h"
 #include "selection.h"
 
+#include "adapters/component.h"
 #include "adapters/native/common_input.h"
 
 #include <chargefw/core/atom.h>
@@ -12,10 +13,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <format>
+#include <iterator>
 #include <numeric>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace chargefw::adapters::gemmi::structure_import {
@@ -189,6 +194,82 @@ template <typename T>
     return bonds;
 }
 
+// Names a residue as "MSE A 1" and its listed atoms as "(SE, CE)". The residue and atom names are
+// the label-first names that templates and component bonds are matched by.
+[[nodiscard]] auto describe_residue(const SourceComponentInstance& component,
+                                    const std::span<const std::size_t> unbonded,
+                                    const std::span<const SourceAtomReference> atoms)
+    -> std::string {
+    constexpr std::size_t listed_atom_limit = 4;
+    const auto& labels = atoms[component.atom_indices.front()].structural_labels;
+    auto result =
+        labels
+            ? detail::residue_description(
+                  component.component_id,
+                  detail::first_known_label(labels->author.chain, labels->label.chain, "?"),
+                  detail::first_known_label(labels->author.sequence, labels->label.sequence, "?"),
+                  labels->insertion_code.value_or(""))
+            : component.component_id;
+    result += " (";
+    for (std::size_t index = 0; index < unbonded.size() && index < listed_atom_limit; ++index) {
+        if (index > 0) {
+            result += ", ";
+        }
+        result += detail::canonical_atom_name(atoms[unbonded[index]].structural_labels, "?");
+    }
+    result += unbonded.size() > listed_atom_limit ? ", ...)" : ")";
+    return result;
+}
+
+// Reports atoms without any bond in residues of two or more atoms: a single-atom residue, such as
+// an ion, is unbonded by design, but an unbonded atom in a larger residue usually means that
+// neither the file nor a residue template supplied its bonds.
+[[nodiscard]] auto unbonded_residue_atoms(const std::span<const core::Bond> bonds,
+                                          const std::span<const SourceComponentInstance> components,
+                                          const std::span<const SourceAtomReference> atoms)
+    -> std::optional<MoleculeRecordDiagnostic> {
+    constexpr std::size_t listed_residue_limit = 3;
+    auto bonded = std::vector<bool>(atoms.size(), false);
+    for (const auto& bond : bonds) {
+        bonded[bond.first_atom_index()] = true;
+        bonded[bond.second_atom_index()] = true;
+    }
+
+    std::size_t atom_count = 0;
+    std::size_t residue_count = 0;
+    std::vector<std::string> examples;
+    for (const auto& component : components) {
+        if (component.atom_indices.size() < 2) {
+            continue;
+        }
+        auto unbonded = std::vector<std::size_t>{};
+        std::ranges::copy_if(component.atom_indices, std::back_inserter(unbonded),
+                             [&bonded](const std::size_t atom) { return !bonded[atom]; });
+        if (unbonded.empty()) {
+            continue;
+        }
+        atom_count += unbonded.size();
+        ++residue_count;
+        if (examples.size() < listed_residue_limit) {
+            examples.push_back(describe_residue(component, unbonded, atoms));
+        }
+    }
+    if (atom_count == 0) {
+        return std::nullopt;
+    }
+
+    auto message =
+        std::format("{} {} in {} {} {} no bonds, for example ", atom_count,
+                    atom_count == 1 ? "atom" : "atoms", residue_count,
+                    residue_count == 1 ? "residue" : "residues", atom_count == 1 ? "has" : "have");
+    for (std::size_t index = 0; index < examples.size(); ++index) {
+        message += (index == 0 ? "" : ", ") + examples[index];
+    }
+    message += ": neither the bonds read from the file nor the residue templates cover them.";
+    return MoleculeRecordDiagnostic{
+        .code = "unbonded_residue_atoms", .message = std::move(message), .line = std::nullopt};
+}
+
 } // namespace
 
 auto make_record(const ::gemmi::Structure& structure,
@@ -276,9 +357,16 @@ auto make_record(const ::gemmi::Structure& structure,
         .components = std::move(component_instances),
     };
 
+    auto diagnostics = std::vector<MoleculeRecordDiagnostic>{};
+    if (bond_strategy != BondStrategy::none) {
+        if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms)) {
+            diagnostics.push_back(std::move(*diagnostic));
+        }
+    }
+
     return native_common::make_record(std::move(first.atoms), std::move(bonds),
                                       std::move(conformers), std::move(identity), std::move(name),
-                                      {}, std::move(metadata));
+                                      std::move(diagnostics), std::move(metadata));
 }
 
 } // namespace chargefw::adapters::gemmi::structure_import

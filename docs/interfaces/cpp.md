@@ -35,6 +35,12 @@ find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::core)
 ```
 
+Point CMake at the installation when you configure that project:
+
+```bash
+cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install"
+```
+
 The installed package requires the exact nlohmann/json and Gemmi versions ChargeFW was built against,
 because their types appear in the public headers. With installed dependency packages, your project needs
 those packages discoverable and the oneTBB runtime library available. With
@@ -275,7 +281,9 @@ Invalid arguments throw `std::invalid_argument`, also from `assess()`. A valid a
 methods that do not apply as rejections, and `default_plan()` is null when none applies; it has no
 status. The `calculate()` overloads that take an assessment report failures and cancellation through
 the `ExecutionStatus`; the lower-level `CalculationRequest` overload throws them as exceptions
-instead.
+instead. A `std::logic_error` or `std::runtime_error` from a method, such as an invalid parameter value
+or a solver that does not converge, becomes `numerical_failure`. Other exceptions, such as
+`std::bad_alloc` when memory runs out, are not caught and reach the caller.
 
 ## Fixed ions
 
@@ -314,9 +322,17 @@ declares common parameters must also declare atom or bond parameters; make stand
 options instead, or assessment refuses the method.
 
 `parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
-`parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the sets by
-method ID and order each method's sets by descending priority, then ID. The
-[parameter-set format](../reference/parameter-format.md) describes the files.
+`parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
+sets by method ID and order each method's sets by descending priority, then ID.
+`parameters::load_parameter_set_json_file()` loads one file, and `load_parameter_set_json()` one set
+from a `std::istream`. These functions are declared in
+`<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
+format](../reference/parameter-format.md) describes the files.
+
+`<chargefw/parameters/io/parameter_data_paths.h>` declares
+`parameters::bundled_parameter_directory()`, the directory with the bundled sets of the installed
+library, and `parameters::default_parameter_directories()`, every directory
+`load_default_parameter_sets()` searches.
 
 ## Progress and cancellation
 

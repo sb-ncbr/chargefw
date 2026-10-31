@@ -11,11 +11,13 @@ The checked-in presets set `CHARGEFW_FETCH_DEPENDENCIES=ON`, so CMake downloads 
 checksum-verified dependency sources. CI and the compatibility containers build against distribution
 packages with `CHARGEFW_FETCH_DEPENDENCIES=OFF`; pass it to a preset to use installed packages locally.
 The supported versions are listed in [the C++ page](docs/interfaces/cpp.md#build-and-link).
+Test builds use an installed Snitch 1.3.2 when CMake finds one and otherwise download it, even with
+`CHARGEFW_FETCH_DEPENDENCIES=OFF`.
 
 The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.12 or
-newer, development headers, NumPy, Nanobind, Gemmi 0.7.4, and the test tools pytest, jsonschema, and
-mypy. RDKit is optional; its tests are skipped when it is absent. The presets use `/usr/bin/python3`;
-select another interpreter explicitly when needed:
+newer, development headers, NumPy 2.0 or newer, Nanobind 2.11 or newer, Gemmi 0.7.4, and the test
+tools pytest, jsonschema, and mypy. RDKit is optional; its tests are skipped when it is absent. The
+presets use `/usr/bin/python3`; select another interpreter explicitly when needed:
 
 ```bash
 cmake --preset gcc-debug \
@@ -235,7 +237,13 @@ docker build \
 ```
 
 The Dockerfiles under `docker/` build and test ChargeFW on Ubuntu 26.04, Debian 13, and Fedora 44. Run
-these builds one at a time because they are resource intensive.
+these builds one at a time because they are resource intensive:
+
+```bash
+docker build --file docker/Dockerfile.ubuntu-26.04 .
+docker build --file docker/Dockerfile.debian-13 .
+docker build --file docker/Dockerfile.fedora-44 .
+```
 
 Python distribution builds and publication are documented in [RELEASING.md](RELEASING.md).
 

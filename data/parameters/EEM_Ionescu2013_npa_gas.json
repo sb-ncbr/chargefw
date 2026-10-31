@@ -4,7 +4,6 @@
     "name": "Ionescu 2013 (EX-NPA_6-31Gd_gas)",
     "method": "eem",
     "publication": "10.1021/ci400448n",
-    "source": "protein",
     "notes": "Parameterised to reproduce HF/6-31G**/NPA/gas-phase charges",
     "priority": 60
   },

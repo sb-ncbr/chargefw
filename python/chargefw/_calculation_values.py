@@ -26,11 +26,11 @@ from ._payloads import (
 )
 from ._types import ExecutionMode, ExecutionStatus, MethodOptionValue
 from .charges import ChargeAssignment
-from .core import MoleculeCollection
+from .core import Molecule, MoleculeCollection
 
 
 @dataclass(frozen=True, slots=True)
-class ExecutionPolicy:
+class Execution:
     mode: ExecutionMode
     radius: float | None
 
@@ -50,7 +50,7 @@ class Plan:
         "_method",
         "_parameter_set",
         "_options",
-        "_policy",
+        "_execution",
         "_warnings",
         "_native",
         "_molecules",
@@ -69,7 +69,7 @@ class Plan:
         self._method = methods[payload["method_id"]]
         self._parameter_set = _resolved_parameter_set(payload["parameter_set_id"], parameter_sets)
         self._options = MappingProxyType(dict(payload["method_options"]))
-        self._policy = _execution_policy(payload["execution_policy"])
+        self._execution = _execution(payload["execution_policy"])
         self._warnings = tuple(_execution_issue(issue) for issue in payload["warnings"])
         self._native = native
         self._molecules = molecules
@@ -88,8 +88,8 @@ class Plan:
         return self._options
 
     @property
-    def policy(self) -> ExecutionPolicy:
-        return self._policy
+    def execution(self) -> Execution:
+        return self._execution
 
     @property
     def warnings(self) -> tuple[ExecutionIssue, ...]:
@@ -123,7 +123,7 @@ class Plan:
         parameter_set = self.parameter_set.id if self.parameter_set is not None else None
         return (
             f"{type(self).__name__}(method={self.method.id!r}, "
-            f"parameter_set={parameter_set!r}, mode={self.policy.mode!r})"
+            f"parameter_set={parameter_set!r}, mode={self.execution.mode!r})"
         )
 
 
@@ -131,7 +131,7 @@ class Plan:
 class Rejection:
     method: Method
     parameter_set: ParameterSet | None
-    policy: ExecutionPolicy | None
+    execution: Execution | None
     issues: tuple[PrerequisiteIssue | ExecutionIssue, ...]
 
 
@@ -154,7 +154,7 @@ class ExecutedPlan:
     method: Method
     parameter_set: ParameterSet | None
     options: Mapping[str, MethodOptionValue]
-    policy: ExecutionPolicy
+    execution: Execution
     warnings: tuple[ExecutionIssue, ...]
     fixed_ions: FixedIons | None = None
 
@@ -202,10 +202,8 @@ def _rejections(
         Rejection(
             method=methods[value["method_id"]],
             parameter_set=_resolved_parameter_set(value["parameter_set_id"], parameter_sets),
-            policy=(
-                None
-                if value["execution_policy"] is None
-                else _execution_policy(value["execution_policy"])
+            execution=(
+                None if value["execution_policy"] is None else _execution(value["execution_policy"])
             ),
             issues=(
                 *(_prerequisite_issue(issue) for issue in value["prerequisite_issues"]),
@@ -216,20 +214,39 @@ def _rejections(
     )
 
 
-def _execution_policy(value: ExecutionPolicyPayload) -> ExecutionPolicy:
-    return ExecutionPolicy(
+def _execution(value: ExecutionPolicyPayload) -> Execution:
+    return Execution(
         mode=value["mode"],
         radius=value["radius"],
     )
 
 
+def _component_id(molecule: Molecule, atom_index: int) -> str | None:
+    # The residue that fixed-ion selection matched, so the name is the one the caller requested.
+    mapping = molecule.source_mapping
+    if mapping is None:
+        return None
+    for component in mapping.components:
+        if atom_index in component.atom_indices:
+            return component.component_id
+    return None
+
+
 def _fixed_ions_provenance(
-    value: FixedIonsPayload | None,
+    value: FixedIonsPayload | None, molecules: MoleculeCollection
 ) -> FixedIons | None:
     if value is None:
         return None
     return FixedIons(
-        sources=tuple(FixedAtomCharge(**source) for source in value["sources"]),
+        sources=tuple(
+            FixedAtomCharge(
+                **source,
+                component_id=_component_id(
+                    molecules[source["molecule_index"]], source["atom_index"]
+                ),
+            )
+            for source in value["sources"]
+        ),
     )
 
 
@@ -237,6 +254,7 @@ def _executed_plan(
     value: EffectiveCalculationPayload | None,
     methods: MethodCatalog,
     parameter_sets: ParameterSetCatalog,
+    molecules: MoleculeCollection,
 ) -> ExecutedPlan | None:
     if value is None:
         return None
@@ -244,10 +262,33 @@ def _executed_plan(
         method=methods[value["method_id"]],
         parameter_set=_resolved_parameter_set(value["parameter_set_id"], parameter_sets),
         options=value["method_options"],
-        policy=_execution_policy(value["execution_policy"]),
+        execution=_execution(value["execution_policy"]),
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
-        fixed_ions=_fixed_ions_provenance(value["fixed_ions"]),
+        fixed_ions=_fixed_ions_provenance(value["fixed_ions"], molecules),
     )
+
+
+_REJECTIONS_IN_MESSAGE = 5
+
+
+def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
+    """List the first reason of the first rejected candidates; the result holds all of them."""
+
+    lines = ["no method and parameter set apply to the molecules:"]
+    for rejection in rejections[:_REJECTIONS_IN_MESSAGE]:
+        candidate = f"method '{rejection.method.id}'"
+        if rejection.parameter_set is not None:
+            candidate += f", parameter set '{rejection.parameter_set.id}'"
+        line = f"  {candidate}"
+        if rejection.issues:
+            line += f": {rejection.issues[0].message}"
+        if len(rejection.issues) > 1:
+            line += f" (and {len(rejection.issues) - 1} more)"
+        lines.append(line)
+    if len(rejections) > _REJECTIONS_IN_MESSAGE:
+        omitted = len(rejections) - _REJECTIONS_IN_MESSAGE
+        lines.append(f"  ... {omitted} more rejected candidates in error.result.rejections")
+    return "\n".join(lines)
 
 
 class ChargeFWError(RuntimeError):
@@ -331,7 +372,7 @@ class CalculationResult:
         self._assignments = tuple(assignments)
         self._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
         self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
-        self._plan = _executed_plan(payload["effective"], methods, parameter_sets)
+        self._plan = _executed_plan(payload["effective"], methods, parameter_sets, molecules)
         self._failure_message = payload["failure_message"]
         self._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],
@@ -425,5 +466,8 @@ class CalculationResult:
             "cancelled": CalculationCancelledError,
         }
         exception_type = exception_types.get(self.status)
-        if exception_type is not None:
-            raise exception_type(self.failure_message or self.status, self)
+        if exception_type is None:
+            return
+        if self.status == "no_executable_plan":
+            raise exception_type(_no_executable_plan_message(self.rejections), self)
+        raise exception_type(self.failure_message or self.status, self)

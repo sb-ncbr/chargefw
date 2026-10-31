@@ -1,5 +1,64 @@
 # Changelog
 
+## Unreleased
+
+### Python
+
+- The execution mode and radius of a plan, an executed plan, and a rejection are in `execution`, an
+  `Execution` value, matching the `execution` argument and the result JSON. Before, they were in
+  `policy`, an `ExecutionPolicy` value.
+- `Method.supports_fixed_point_sources` is renamed to `Method.supports_fixed_ions`.
+- `Method.priority`, `ParameterSet.priority`, and `ParameterSetCatalog.for_method()` are removed. The
+  catalogs list methods and parameter sets in the order automatic selection tries them; use
+  `chargefw.methods["eem"].parameter_sets` for the sets of one method.
+- The message of `NoExecutablePlanError` lists the first rejected methods and parameter sets with
+  their reasons. Before, it was only `no_executable_plan`.
+- Each fixed ion in `result.plan.fixed_ions.sources` has a `component_id`, the residue name it was
+  selected by, such as `"MG"`, as in the result JSON.
+- A calculation that runs out of memory raises `MemoryError`. Before, it raised
+  `NumericalFailureError`.
+- `Method.requires_bonds` is true for methods that use the bonds of the molecule.
+- `chargefw.io.gemmi.from_structure()` accepts `bonds="hybrid"` and uses it by default: covalent links
+  and disulfide bridges in `structure.connections` are added to the template bonds. Before, the only
+  choices were `"templates"` and `"none"`, and the links were left out.
+
+### Command line
+
+- `chargefw methods METHOD` reports `supports fixed ions` instead of `supports fixed point sources`.
+  `chargefw methods METHOD` and `chargefw parameters ID` no longer print a priority; the listings are
+  in the order automatic selection tries them.
+- PEOE and MPEOE are named after partial equalization of *orbital* electronegativity, as in their
+  publications.
+- A calculation that runs out of memory reports `Not enough memory` and exits with status 1, without
+  a result JSON. Before, it was reported as a numerical failure with status 4.
+- `chargefw methods METHOD` reports whether the method requires bonds.
+
+### C++
+
+- `calculate()` with an assessment no longer reports exceptions other than `std::logic_error` and
+  `std::runtime_error` as `numerical_failure`; they reach the caller, for example `std::bad_alloc`.
+- `MethodRequirements::bonds` marks methods that use the bonds of the molecule.
+
+### Calculation
+
+- Methods that use bonds (ABEEM, Charge2, DelRe, DENR, GDAC, KCM, MGC, MPEOE, PEOE, SQE, SQE+q0,
+  SQE+qp, and TSEF) refuse a molecule of several atoms without bonds, as methods that use coordinates
+  refuse a molecule without them. Before, some of them calculated meaningless charges for it.
+
+### Input
+
+- PDB and mmCIF records in which a residue of two or more atoms has an atom without bonds receive an
+  `unbonded_residue_atoms` warning, for example a ligand in a PDB file without `CONECT` records.
+- Residue templates bond an `H1` hydrogen to the nitrogen of an N-terminal proline, as Hydride names
+  it. Before, reading such a structure with template bonds left the hydrogen unbonded.
+- MOL and SDF V2000 records without `M  CHG` and `M  RAD` lines take formal charges from the charge field of the
+  atom lines, as the format defines. Before, their atoms were read as neutral. A charge code outside
+  0-7 is an error.
+
+### Documentation
+
+- The new Python API reference lists every public class and attribute of the Python package.
+
 ## 3.0.0rc1
 
 ### Command line

@@ -16,11 +16,12 @@ molecule=0 conformer=0: total=+4.000 e (active atoms +0.000, fixed ions +4.000)
 
 Each fixed ion is listed by chain, residue, and atom name, followed by the atoms within `--radius`
 (default 3.0 Å), such as the atoms coordinating it. Select ions with repeated `--ion`, or with
-`--common-ions` for the common ions; ions that are not in the structure are ignored. `--result-json`
-also writes the [result JSON](../guide/results.md).
+`--common-ions` for the common ions. Selected ions that are not in the structure are skipped, but the
+script stops with an error if none of them is. `--result-json` also writes the
+[result JSON](../guide/results.md).
 
-The script uses SQE+qp with `SQEqp_Schindler2021_CCD_gen` unless you choose another method or
-parameter set; only methods that support fixed ions can be used.
+The script uses SQE+qp with `SQEqp_Schindler2021_CCD_gen`. To use another method, give its parameter
+set with `--parameter-set` as well; only methods that support fixed ions can be used.
 
 Download {download}`calculate_with_fixed_ions.py`.
 

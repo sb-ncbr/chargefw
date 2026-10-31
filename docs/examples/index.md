@@ -7,7 +7,7 @@ Each example is a complete Python script that you can download and run. They use
 | --- | --- |
 | [Calculate a molecular file](calculate_file.md) | Charges of every atom of a file, printed or as CSV |
 | [Inspect imported molecules](inspect_molecules.md) | What ChargeFW reads from a file, and how parameter sets see its atoms |
-| [Charge a Gemmi document](charge_gemmi_document.md) | An mmCIF file with charges added; for mmCIF input, all its other data is kept |
+| [Charge a Gemmi document](charge_gemmi_document.md) | An mmCIF file with charges added and all its other data kept |
 | [Calculate with a fixed ion](calculate_with_fixed_ions.md) | Charges of a structure with ions, and the charges around each ion |
 | [Analyze conformer-dependent charges](analyze_rdkit_conformer_charges.md) | Which atoms' charges change most between RDKit conformers |
 | [Calculate dipole moments](calculate_dipole_moments.md) | Dipole moments from the calculated charges |

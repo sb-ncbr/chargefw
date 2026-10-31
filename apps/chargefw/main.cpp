@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <print>
 #include <span>
@@ -227,7 +228,11 @@ auto run(std::span<char*> arguments) -> int {
             return {.status = chargefw::calculation::ExecutionStatus::invalid_input_or_request,
                     .charges = std::nullopt,
                     .failure_message = error.what()};
-        } catch (const std::exception& error) {
+        } catch (const std::logic_error& error) {
+            return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
+                    .charges = std::nullopt,
+                    .failure_message = error.what()};
+        } catch (const std::runtime_error& error) {
             return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
                     .charges = std::nullopt,
                     .failure_message = error.what()};
@@ -245,6 +250,9 @@ auto run(std::span<char*> arguments) -> int {
 auto main(int argc, char* argv[]) noexcept -> int {
     try {
         return run({argv, static_cast<std::size_t>(argc)});
+    } catch (const std::bad_alloc& error) {
+        std::print(std::cerr, "Not enough memory: {}\n", error.what());
+        return 1;
     } catch (const std::invalid_argument& error) {
         std::print(std::cerr, "Invalid input or request: {}\n", error.what());
         return 2;

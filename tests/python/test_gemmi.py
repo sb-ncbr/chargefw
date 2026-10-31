@@ -30,6 +30,23 @@ CONECT    1    2
 END
 """
 
+DISULFIDE_PDB_TEXT = """\
+SSBOND   1 CYS A    1    CYS A    2                          1555   1555  2.04
+ATOM      1  N   CYS A   1       0.000   0.000   0.000  1.00  0.00           N
+ATOM      2  CA  CYS A   1       1.458   0.000   0.000  1.00  0.00           C
+ATOM      3  C   CYS A   1       2.009   1.420   0.000  1.00  0.00           C
+ATOM      4  O   CYS A   1       1.251   2.390   0.000  1.00  0.00           O
+ATOM      5  CB  CYS A   1       1.986  -0.760  -1.220  1.00  0.00           C
+ATOM      6  SG  CYS A   1       3.800  -0.800  -1.300  1.00  0.00           S
+ATOM      7  N   CYS A   2       3.300   1.600   0.000  1.00  0.00           N
+ATOM      8  CA  CYS A   2       3.900   2.900   0.000  1.00  0.00           C
+ATOM      9  C   CYS A   2       5.400   2.900   0.000  1.00  0.00           C
+ATOM     10  O   CYS A   2       6.000   1.800   0.000  1.00  0.00           O
+ATOM     11  CB  CYS A   2       3.400   3.700  -1.200  1.00  0.00           C
+ATOM     12  SG  CYS A   2       4.200   3.400  -2.800  1.00  0.00           S
+END
+"""
+
 MMCIF_TEXT = """data_first
 loop_
 _atom_site.group_PDB
@@ -356,12 +373,33 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     structure_molecule = structure_collection[0]
     np.testing.assert_array_equal(structure_molecule.atomic_numbers, text_molecule.atomic_numbers)
     np.testing.assert_array_equal(structure_molecule.coordinates, text_molecule.coordinates)
-    # Template bonds by default; bonds from the file need the document.
+    # The mmCIF conversion does not keep CONECT records, so the water bond comes from its template.
     assert structure_molecule.bond_count == 1
     assert chargefw.io.gemmi.from_structure(structure, bonds="none")[0].bond_count == 0
-    for strategy in ("explicit", "hybrid"):
-        with pytest.raises(ValueError, match="from_document"):
-            chargefw.io.gemmi.from_structure(structure, bonds=cast(Any, strategy))
+    with pytest.raises(ValueError, match="from_document"):
+        chargefw.io.gemmi.from_structure(structure, bonds=cast(Any, "explicit"))
+
+    # Source positions index the atoms of all models in Gemmi's order, skipping alternate
+    # locations that were not read.
+    structure_mapping = structure_molecule.source_mapping
+    assert structure_mapping is not None
+    structure_atoms = [
+        atom for model in structure for chain in model for residue in chain for atom in residue
+    ]
+    for conformer in structure_mapping.conformers:
+        sites = [structure_atoms[site.position] for site in conformer.sites]
+        assert [(atom.name, atom.altloc) for atom in sites] == [("O", "\0"), ("H1", "A")]
+        assert sites[0].pos.x == pytest.approx(0.1 * conformer.position)
+
+
+def test_structure_connections_become_bonds() -> None:
+    structure = gemmi.read_pdb_string(DISULFIDE_PDB_TEXT)
+    linked = chargefw.io.gemmi.from_structure(structure)[0]
+    unlinked = chargefw.io.gemmi.from_structure(structure, bonds="templates")[0]
+    disulfide = [5, 11, 1]
+    assert disulfide in linked.bonds.tolist()
+    assert disulfide not in unlinked.bonds.tolist()
+    assert linked.bond_count == unlinked.bond_count + 1
 
 
 def test_mmcif_text_file_and_document_preserve_records(tmp_path: Path) -> None:

@@ -168,13 +168,14 @@ TEST_CASE("mmCIF templates use canonical labels and reject ambiguous selected na
                    "ATOM 2 N N . PRO A 1 ? 1 0 0 1 20 0 9 AUTHOR A NITROGEN 1\n"
                    "ATOM 3 H H2 . PRO A 1 ? 2 0 0 1 20 0 9 AUTHOR A SECOND 1\n"
                    "ATOM 4 C CA . PRO A 1 ? 3 0 0 1 20 0 9 AUTHOR A ALPHA 1\n"
-                   "ATOM 5 C CD . PRO A 1 ? 4 0 0 1 20 0 9 AUTHOR A DELTA 1")};
+                   "ATOM 5 C CD . PRO A 1 ? 4 0 0 1 20 0 9 AUTHOR A DELTA 1\n"
+                   "ATOM 6 H H1 . PRO A 1 ? 5 0 0 1 20 0 9 AUTHOR A FIRST 1")};
     auto terminal_reader =
         mmcif::MmcifReader{terminal, {}, {.bond_strategy = gemmi_adapter::BondStrategy::templates}};
     const auto terminal_record = terminal_reader.next();
     REQUIRE(terminal_record.has_value());
-    CHECK(terminal_record->molecule.atom_count() == 5);
-    CHECK(terminal_record->molecule.bond_count() == 4);
+    CHECK(terminal_record->molecule.atom_count() == 6);
+    CHECK(terminal_record->molecule.bond_count() == 5);
     for (const auto& bond : terminal_record->molecule.bonds()) {
         CHECK(bond.first_atom_index() == 1);
         CHECK(bond.order() == chargefw::core::BondOrder::SINGLE);

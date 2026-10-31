@@ -5,10 +5,13 @@ selection tries them: ChargeFW uses the first set that covers every atom and bon
 To get the same charges in every run, name the parameter set explicitly; see
 [Methods and parameter sets](../guide/methods.md).
 
-**Elements** lists the elements with atom parameters. **Atom types by** shows what besides the element
-distinguishes atoms: the highest order of the atom's bonds, or the elements bonded to it. A set covers
-an atom only if it has an entry for that element and type. The
-[parameter-set format](parameter-format.md#classifiers) defines the types exactly.
+**Elements** lists the elements with atom parameters. **Atom types by** shows what besides the
+element distinguishes atoms: the highest order of the atom's bonds, or the elements bonded to it. A
+set covers an atom only if it has an entry for that element and type. **Bonds** appears for methods
+with bond parameters: a set covers a bond only if it has an entry for its two atoms and, where
+listed, its order (– single, = double, ≡ triple). `chargefw parameters ID --keys` lists every atom
+and bond entry of a set. The [parameter-set format](parameter-format.md#classifiers) defines the
+types exactly.
 
 On the command line, `chargefw parameters --method METHOD` lists the same sets; in Python, use
 `chargefw.parameter_sets`.

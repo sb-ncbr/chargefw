@@ -40,7 +40,6 @@ class ParameterSet:
     name: str
     publication: str
     notes: str
-    priority: int
     atom_keys: tuple[AtomParameterKey, ...]
     bond_keys: tuple[BondParameterKey, ...]
 
@@ -55,15 +54,6 @@ class ParameterSetCatalog(_Catalog[ParameterSet]):
 
     def __init__(self, values: tuple[ParameterSet, ...]) -> None:
         super().__init__(values, "parameter-set")
-
-    def for_method(self, method: str) -> ParameterSetCatalog:
-        """Return parameter sets associated with one method ID."""
-
-        if not isinstance(method, str):
-            raise TypeError("method must be a string")
-        return ParameterSetCatalog(
-            tuple(value for value in self.values() if value.method == method)
-        )
 
 
 def _atom_key(value: AtomParameterKeyPayload) -> AtomParameterKey:
@@ -88,7 +78,6 @@ def _parameter_set(value: ParameterSetDescriptorPayload) -> ParameterSet:
         name=value["name"],
         publication=value["publication"],
         notes=value["notes"],
-        priority=value["priority"],
         atom_keys=tuple(_atom_key(key) for key in value["atom_keys"]),
         bond_keys=tuple(_bond_key(key) for key in value["bond_keys"]),
     )

@@ -10,6 +10,7 @@ ATOM_TYPES = {
     "hbo": "element, highest bond order",
     "bonded": "element, bonded neighbors",
 }
+BOND_SYMBOLS = {"1": "–", "2": "=", "3": "≡"}
 METADATA = re.compile(r"MethodMetadata\s+metadata\{(.*?)\};", re.DOTALL)
 
 
@@ -28,7 +29,28 @@ def method_names(source_root):
     return names
 
 
-def table_row(document):
+def bond_column(document):
+    bonds = (document.get("bond") or {}).get("data", [])
+    if not bonds:
+        return ""
+    if any(atom["classifier"] != "plain" for entry in bonds for atom in entry["key"]["atoms"]):
+        return f"{len(bonds)} entries by atom types and bond order"
+    listed = []
+    for entry in bonds:
+        first, second = (atom["element"] for atom in entry["key"]["atoms"])
+        if first == "*" and second == "*":
+            listed.append("any bond")
+        else:
+            listed.append(first + BOND_SYMBOLS.get(entry["key"]["bond"]["type"], "–") + second)
+    if (
+        all(entry["key"]["bond"]["classifier"] == "plain" for entry in bonds)
+        and "any bond" not in listed
+    ):
+        return ", ".join(listed) + "; any bond order"
+    return ", ".join(listed)
+
+
+def table_row(document, with_bonds):
     metadata = document["metadata"]
     atoms = (document.get("atom") or {}).get("data", [])
     elements = sorted({entry["key"]["element"] for entry in atoms})
@@ -37,7 +59,11 @@ def table_row(document):
     if metadata.get("publication"):
         name = f"[{name}](https://doi.org/{metadata['publication']})"
     types = "; ".join(ATOM_TYPES[classifier] for classifier in classifiers)
-    return f"| {name} | `{metadata['id']}` | {', '.join(elements)} | {types} | {metadata.get('notes', '')} |"
+    bonds = f" {bond_column(document)} |" if with_bonds else ""
+    return (
+        f"| {name} | `{metadata['id']}` | {', '.join(elements)} | {types} |{bonds} "
+        f"{metadata.get('notes', '')} |"
+    )
 
 
 def render(source_root):
@@ -55,10 +81,19 @@ def render(source_root):
             lines += [f"{full_name}, method `{method_id}`.", ""]
         else:
             lines += [f"Method `{method_id}`.", ""]
-        lines += [
-            "| Parameter set | ID | Elements | Atom types by | Notes |",
-            "| --- | --- | --- | --- | --- |",
-        ]
+        with_bonds = any(
+            (document.get("bond") or {}).get("data") for document in by_method[method_id]
+        )
+        if with_bonds:
+            lines += [
+                "| Parameter set | ID | Elements | Atom types by | Bonds | Notes |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+        else:
+            lines += [
+                "| Parameter set | ID | Elements | Atom types by | Notes |",
+                "| --- | --- | --- | --- | --- |",
+            ]
         # The order in which automatic selection tries the sets.
         documents = sorted(
             by_method[method_id],
@@ -67,7 +102,7 @@ def render(source_root):
                 document["metadata"]["id"],
             ),
         )
-        lines += [table_row(document) for document in documents]
+        lines += [table_row(document, with_bonds) for document in documents]
         lines.append("")
     return "\n".join(lines)
 

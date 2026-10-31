@@ -40,20 +40,28 @@ namespace {
     ::chargefw::calculation::detail::progress_for_indexed(
         source_molecule.atom_count(), max_threads, progress_ctx,
         [&](const std::size_t center_source_atom_index) {
+            const auto failure_message = [&](const std::exception& error) {
+                const auto original_atom_index =
+                    partition_target == nullptr
+                        ? center_source_atom_index
+                        : partition_target->active_atom_indices.at(center_source_atom_index);
+                return "cutoff fragment around source atom " +
+                       std::to_string(original_atom_index + 1) + " failed: " + error.what();
+            };
+            // Add the fragment to the message and keep the kind of failure; anything else, such
+            // as std::bad_alloc, passes unchanged.
             try {
                 const auto fragment = fragment_builder.build(center_source_atom_index, radius);
                 const auto fragment_charges = detail::calculate_fragment_charges(
                     selected, source_classification, fragment, charge_context, fixed_sources);
                 values[center_source_atom_index] =
                     fragment_charges[fragment.center_local_atom_index()];
-            } catch (const std::exception& error) {
-                const auto original_atom_index =
-                    partition_target == nullptr
-                        ? center_source_atom_index
-                        : partition_target->active_atom_indices.at(center_source_atom_index);
-                throw std::runtime_error{"cutoff fragment around source atom " +
-                                         std::to_string(original_atom_index + 1) +
-                                         " failed: " + error.what()};
+            } catch (const std::invalid_argument& error) {
+                throw std::runtime_error{failure_message(error)};
+            } catch (const std::runtime_error& error) {
+                throw std::runtime_error{failure_message(error)};
+            } catch (const std::logic_error& error) {
+                throw std::logic_error{failure_message(error)};
             }
         });
 

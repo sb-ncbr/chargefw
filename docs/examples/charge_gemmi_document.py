@@ -1,6 +1,6 @@
 """Attach calculated charges to a Gemmi mmCIF document.
 
-Run with: python charge_gemmi_document.py input.cif charged.cif --format mmcif
+Run with: python charge_gemmi_document.py input.cif charged.cif
 """
 
 import argparse
@@ -11,29 +11,19 @@ import chargefw.io.gemmi
 import gemmi
 
 
-def load_document(input_path: Path, input_format: str) -> gemmi.cif.Document:
-    """Preserve an mmCIF document or convert a PDB structure to a new document."""
-
-    if input_format == "mmcif":
-        return gemmi.cif.read_file(str(input_path))
-    structure = gemmi.read_structure(str(input_path))
-    return structure.make_mmcif_document()
-
-
 def charge_document(
     input_path: str | Path,
     output_path: str | Path,
     *,
-    input_format: str,
     method: str = "eem",
     parameter_set: str | None = None,
     selection: str = "all",
     result_json: str | Path | None = None,
 ) -> None:
-    """Calculate charges and enrich an original or generated mmCIF document."""
+    """Calculate charges and add them to the mmCIF document, keeping all its other data."""
 
     input_path = Path(input_path)
-    document = load_document(input_path, input_format)
+    document = gemmi.cif.read_file(str(input_path))
     molecules = chargefw.io.gemmi.from_document(
         document,
         source_name=str(input_path),
@@ -57,7 +47,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--format", choices=("pdb", "mmcif"), required=True)
     parser.add_argument("--method", default="eem")
     parser.add_argument("--parameter-set")
     parser.add_argument(
@@ -68,7 +57,6 @@ def main() -> None:
     charge_document(
         arguments.input,
         arguments.output,
-        input_format=arguments.format,
         method=arguments.method,
         parameter_set=arguments.parameter_set,
         selection=arguments.selection,

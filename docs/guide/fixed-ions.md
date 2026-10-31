@@ -4,9 +4,11 @@ Many structures contain monatomic ions such as Mg²⁺, Zn²⁺, Na⁺, or Cl⁻
 values for them, so a method that has to include them in its calculation cannot be used. Removing the
 ions from the structure avoids that, but their charge then has no effect on the rest of the molecule.
 
-With fixed ions, ChargeFW keeps each selected ion at its formal charge, as a point charge, and calculates
-the charges of all other atoms in the electric field of the ions. EEM, SQE, SQE+q0, and SQE+qp support
-fixed ions; the **Fixed ions** column of the [method table](methods.md#available-methods) shows them.
+With fixed ions, ChargeFW keeps each selected ion at a fixed charge, as a point charge, and calculates
+the charges of all other atoms in the electric field of the ions. The charge comes from the residue
+name, not from the formal charge in the file: `MG` is +2, `FE` is +3, and `FE2` is +2, as listed in
+the [ion catalog](#ion-catalog). EEM, SQE, SQE+q0, and SQE+qp support fixed ions; the **Fixed ions**
+column of the [method table](methods.md#available-methods) shows them.
 
 ## Selecting ions
 
@@ -53,7 +55,8 @@ charge; the two ions here have formal charge 0 in the file. The result records w
 ]
 ```
 
-In Python, `result.plan.fixed_ions` holds the same information.
+In Python, `result.plan.fixed_ions.sources` lists each fixed ion with its `component_id`, such as
+`"MG"`, its `molecule_index` and `atom_index`, and its `charge`.
 
 The total charge of the calculated atoms is the sum of their formal charges; the fixed ions add their
 own charges to it. The total of the whole result can therefore differ from the formal charges in the

@@ -14,9 +14,10 @@ MOL2 files have no field for formal charges, so ChargeFW reads every atom of a M
 Use SDF, mmCIF, or molecule JSON for charged molecules. The
 [format reference](../reference/formats.md) describes exactly what each reader imports.
 
-Many SDF files are 2D drawings, for example the default download from PubChem. A drawing's x and y
-coordinates are not a geometry, so ChargeFW reads an SDF or MOL record that declares itself 2D without
-coordinates and warns with `coordinates_2d_ignored`. Methods that need no geometry still apply to it;
+Many SDF files, for example the default download from PubChem, contain a 2D layout: coordinates that
+only place the atoms for drawing the structural formula on a page. Their bond lengths and angles are
+not those of the molecule, so ChargeFW reads an SDF or MOL record marked 2D without coordinates and
+warns with `coordinates_2d_ignored`. Methods that need no geometry still apply to it;
 for the others, download or generate 3D coordinates. A flat 3D molecule, such as water with all z = 0,
 is not affected.
 
@@ -51,29 +52,62 @@ quantum chemistry workflow, can be read directly.
 ## Proteins and nucleic acids
 
 Structures from the PDB usually lack hydrogens, and the protonation of a residue depends on the pH and
-on its environment. Add hydrogens and assign protonation states with a tool built for that, such as
-[Hydride](https://hydride.biotite-python.org/) or [PDB2PQR](https://server.poissonboltzmann.org/),
-before you calculate charges. Which tool fits depends on your structure; ligands and non-standard
-residues in particular may need separate care.
+on its environment. Add hydrogens and assign protonation states with a tool built for that before you
+calculate charges. [Hydride](https://hydride.biotite-python.org/) writes mmCIF that ChargeFW reads
+directly: it records the formal charges of the charged atoms and the bonds of the hydrogens it adds.
+Ligands and non-standard residues may need separate care.
 
-The prepared file must contain the formal charges of the charged atoms. Not every tool writes them,
-so check the file before the calculation, as described [below](#check-the-molecule-before-calculating).
+The prepared file must contain the formal charges of the charged atoms. Not every tool writes them, so
+check the file before the calculation, as described [below](#check-the-molecule-before-calculating).
+The PDB output of [PDB2PQR](https://server.poissonboltzmann.org/), for example, records no formal
+charges and names residues after force-field conventions, such as `HID` for histidine, so ChargeFW
+cannot use it as it is.
 
-ChargeFW then takes bonds from its residue templates for common amino acids, nucleotides, and water,
-together with the bonds recorded in the file. For other residues, the file must contain their bonds:
-mmCIF `_chem_comp_bond` rows or PDB `CONECT` records. The
-[format reference](../reference/formats.md#connectivity) describes the bond options.
+ChargeFW then takes bonds from its residue templates for the 20 standard amino acids, the nucleotides
+A, C, G, U, DA, DC, DG, and DT, and water, under their PDB residue names, together with the bonds
+recorded in the file. For other residues, the file must contain their bonds: mmCIF `_chem_comp_bond`
+rows or PDB `CONECT` records. mmCIF files downloaded from the PDB and files written by Hydride contain
+them. When an atom of a residue with two or more atoms gets no bond at all, ChargeFW warns with
+`unbonded_residue_atoms` and names the first such residues; add the missing bonds to the file before
+you use a method or parameter set that depends on bonds.
+
+Three options control how a PDB or mmCIF file is read: `--structural-bonds` (`bonds` in Python) sets
+where bonds come from, `--structural-selection` (`selection`) leaves out water or ligands, and
+`--conformers` (`conformers`) reads all models or only the first. The
+[format reference](../reference/formats.md#pdb-and-mmcif-input) describes them.
 
 ## Check the molecule before calculating
 
-`chargefw inspect` reports what ChargeFW read from a file:
+`chargefw inspect` reports what ChargeFW read from a file. Here it reads the NMR structure of the
+Trp-cage miniprotein, [1L2Y](https://www.rcsb.org/structure/1L2Y), as downloaded from the PDB:
 
 ```console
-$ chargefw inspect 1crn-h.cif
+$ chargefw inspect 1L2Y.cif
 records: 1
-record 0 (STRUCTURE) atoms=642 bonds=652 conformers=1 coordinates=true formal_charge=0 elements=H:315,C:202,N:55,O:64,S:6
+record 0 (1L2Y) atoms=304 bonds=310 conformers=38 coordinates=true formal_charge=0 elements=H:150,C:98,N:27,O:29
 ```
 
 Compare the atom count, the bond count, and the formal charge with what you expect: the formal charge is
 the net charge of the molecule at your pH. A different formal charge, or missing bonds, means the
-structure was not prepared completely.
+structure was not prepared completely. ChargeFW calculates with the bonds as it read them and cannot
+tell that one is missing, such as a disulfide bridge the file does not record, so the bond count is
+worth checking.
+
+Here the formal charge is wrong. The file contains every hydrogen, and the hydrogens describe a peptide
+with charge +1: the N-terminus, Lys 8, and Arg 16 are protonated, and Asp 9 and the C-terminus are not.
+The file records no formal charges, however, so ChargeFW reads every atom as neutral. NMR structures
+from the PDB often look like this. ChargeFW does not derive formal charges from the hydrogens.
+
+{download}`1l2y-h.cif` is the first model of 1L2Y prepared with Hydride at pH 7, which also writes the
+formal charges:
+
+```console
+$ chargefw inspect 1l2y-h.cif
+records: 1
+record 0 (1L2Y) atoms=304 bonds=310 conformers=1 coordinates=true formal_charge=1 elements=H:150,C:98,N:27,O:29
+```
+
+How much missing formal charges change the charges depends on the method. EEM and SQE+qp use only the
+total charge: for 1L2Y read as neutral, the charges differ by 0.003 e per atom on average. SQE+q0 also
+uses which atoms carry the formal charges: read as neutral, Lys 8 NZ gets −1.08 instead of +0.14, and
+Asp 9 OD2 −0.22 instead of −1.23.

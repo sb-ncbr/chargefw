@@ -241,6 +241,32 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
     }
 
     {
+        // Atom-block charge codes count unless M  CHG or M  RAD lines replace them all.
+        constexpr std::string_view atoms =
+            "\nchargefw\n\n  3  0  0  0  0  0  0  0  0  0999 V2000\n"
+            "    0.0000    0.0000    0.0000 N   0  3  0  0  0  0  0  0  0  0  0  0\n"
+            "    1.0000    0.0000    0.0000 O   0  5  0  0  0  0  0  0  0  0  0  0\n"
+            "    2.0000    0.0000    0.0000 Fe  0  2\n";
+        std::istringstream block_only{std::string{atoms} + "M  END\n"};
+        const auto from_block = mol::parse_mol(block_only, {});
+        CHECK(from_block.molecule.atom(0).formal_charge() == 1);
+        CHECK(from_block.molecule.atom(1).formal_charge() == -1);
+        CHECK(from_block.molecule.atom(2).formal_charge() == 2);
+
+        std::istringstream with_chg{std::string{atoms} + "M  CHG  1   3   3\nM  END\n"};
+        const auto from_chg = mol::parse_mol(with_chg, {});
+        CHECK(from_chg.molecule.atom(0).formal_charge() == 0);
+        CHECK(from_chg.molecule.atom(1).formal_charge() == 0);
+        CHECK(from_chg.molecule.atom(2).formal_charge() == 3);
+
+        std::istringstream with_rad{std::string{atoms} + "M  RAD  1   3   2\nM  END\n"};
+        const auto from_rad = mol::parse_mol(with_rad, {});
+        for (std::size_t index = 0; index < 3; ++index) {
+            CHECK(from_rad.molecule.atom(index).formal_charge() == 0);
+        }
+    }
+
+    {
         std::ifstream input{fixture("synthetic/mol/v3000/charged_atoms.mol")};
         const auto result = mol::parse_mol(
             input, {.source = "charged_v3000.mol", .record_index = 0, .record_id = {}});
@@ -478,6 +504,10 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
                  "bad-v2000-property\nchargefw\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
                  "    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
                  "M  X\nM  END\n"},
+             std::string_view{
+                 "bad-v2000-charge\nchargefw\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                 "    0.0000    0.0000    0.0000 C   0  8  0  0  0  0  0  0  0  0  0  0\n"
+                 "M  END\n"},
              std::string_view{
                  "bad-v3000-bond\nchargefw\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
                  "M  V30 BEGIN CTAB\nM  V30 COUNTS 2 1 0 0 0\nM  V30 BEGIN ATOM\n"

@@ -13,7 +13,7 @@ import numpy as np
 
 from ._methods import Method
 from ._parameters import ParameterSet
-from ._types import Execution, MethodOptionValue, ParameterMatching
+from ._types import MethodOptionValue, ParameterMatching, RequestedExecution
 
 _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
@@ -34,17 +34,24 @@ def _normalized_nonnegative_integer(value: SupportsIndex, name: str) -> int:
 
 @dataclass(frozen=True, slots=True, init=False)
 class FixedAtomCharge:
-    """A prescribed fixed charge on one source atom in the input collection."""
+    """A fixed charge on one atom; component_id is the residue name it was selected by."""
 
     molecule_index: int
     atom_index: int
     charge: float
+    component_id: str | None
 
     def __init__(
-        self, molecule_index: SupportsIndex, atom_index: SupportsIndex, charge: float
+        self,
+        molecule_index: SupportsIndex,
+        atom_index: SupportsIndex,
+        charge: float,
+        component_id: str | None = None,
     ) -> None:
         if isinstance(charge, (bool, np.bool)) or not isinstance(charge, numbers.Real):
             raise TypeError("charge must be a real number")
+        if component_id is not None and not isinstance(component_id, str):
+            raise TypeError("component_id must be a string or None")
         try:
             normalized_charge = float(charge)
         except OverflowError as error:
@@ -58,6 +65,7 @@ class FixedAtomCharge:
             self, "atom_index", _normalized_nonnegative_integer(atom_index, "atom_index")
         )
         object.__setattr__(self, "charge", normalized_charge)
+        object.__setattr__(self, "component_id", component_id)
 
 
 def _normalized_option_values(
@@ -122,7 +130,7 @@ class RequestedCalculation:
     parameter_set: str | None
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
     parameter_matching: ParameterMatching
-    execution: Execution
+    execution: RequestedExecution
     radius: float | None
     cutoff_threshold: int | None
     cover_threshold: int | None
@@ -137,7 +145,7 @@ class RequestedCalculation:
         options: Mapping[str, MethodOptionValue] | None = None,
         options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
         parameter_matching: ParameterMatching = "strict",
-        execution: Execution = "auto",
+        execution: RequestedExecution = "auto",
         radius: float | None = None,
         cutoff_threshold: int | None = 20_000,
         cover_threshold: int | None = 80_000,

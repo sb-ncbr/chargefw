@@ -1,7 +1,8 @@
 # Calculate dipole moments
 
 This script calculates charges for every conformer of a molecule with coordinates and prints each
-conformer's net charge and dipole moment of the point charges, in debye:
+conformer's net charge and dipole moment of the point charges, in debye. For
+[paracetamol.sdf](../getting-started/paracetamol.sdf):
 
 ```console
 $ python calculate_dipole_moments.py paracetamol.sdf --format sdf --method eem

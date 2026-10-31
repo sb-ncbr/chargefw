@@ -12,8 +12,8 @@ order of molecules and atoms is kept in the charges and in every output.
 
 | Format | Accepted input | Available output | Input record model |
 | --- | --- | --- | --- |
-| MOL V2000/V3000 | Yes | No | One molecule, one conformer |
-| SDF V2000/V3000 | Yes | No | One molecule per record, one conformer each |
+| MOL V2000/V3000 | Yes | No | One molecule, one conformer (none for a 2D layout) |
+| SDF V2000/V3000 | Yes | No | One molecule per record, one conformer each (none for a 2D layout) |
 | Tripos MOL2 | Yes | Yes, written new | One molecule per `MOLECULE` record, one conformer each |
 | ChargeFW molecule JSON 1.0 | Yes | No | `molecules` array, zero or more conformers each |
 | PDB | Yes, through Gemmi | No | One molecule, models become conformers |
@@ -30,27 +30,30 @@ Readers report malformed or unsupported data as errors. MOL, SDF, and MOL2 files
 endings. Every record read keeps its source name, zero-based record index, record ID from the file, and
 warnings, together with a mapping to the file: each atom's position and ID where the format has IDs, the
 file sites of each conformer, the reading options, and whether the file had no bond data, an empty bond
-list, or bonds. SDF and MOL2 files are read one record at a time; molecule JSON, PDB, and mmCIF files are
-read whole into memory.
+list, or bonds.
 
 ## MOL and SDF input
 
-The MOL reader accepts one V2000 or V3000 record. The SDF reader applies the same MOL parser to each
-record and skips SDF data fields after `M  END`; data fields do not become molecule properties.
+The MOL reader accepts one V2000 or V3000 record, as defined in the BIOVIA
+[CTfile Formats](https://www.3ds.com/assets/invest/2026-01/biovia_chemistry_2026_ctfile_formats.pdf)
+specification. The SDF reader applies the same MOL parser to each record and skips SDF data fields
+after `M  END`; data fields do not become molecule properties.
 
 The supported subsets import:
 
 - concrete element symbols represented by ChargeFW's periodic table;
 - Cartesian coordinates as one conformer;
 - source atom order and single, double, or triple covalent bonds; and
-- formal charges from V2000 `M  CHG` records or V3000 atom `CHG=` attributes.
+- formal charges from V3000 atom `CHG=` attributes, and in V2000 from `M  CHG` records or, in a
+  record without `M  CHG` and `M  RAD` records, from the charge field of the atom lines.
 
 Molfiles have no atom names, so imported atoms have none. MOL2 and mmCIF output give them names from
 the element and atom position, such as `C1`, `C2`, and `O3`.
 
-A record whose header declares a 2D drawing, with `2D` in columns 21-22 of its second line, is imported
-without coordinates and receives a `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a
-record that does not declare 2D are kept.
+A record marked `2D` in columns 21-22 of its second line is a 2D layout: its coordinates only place
+the atoms for drawing the structural formula on a page, and its bond lengths and angles are not
+those of a molecule. ChargeFW imports such a record without coordinates and attaches a
+`coordinates_2d_ignored` warning. Coordinates with all z = 0 in a record not marked `2D` are kept.
 
 Query and wildcard atoms are rejected. Bond order 4 is imported as a single bond. V3000 coordinate bonds
 (order 9) and hydrogen bonds (order 10) are left out, because ChargeFW's molecules have only single,
@@ -65,7 +68,7 @@ V3000 source atom ID tokens are retained exactly for mapping, including leading 
 explicit atom-ID field, so its zero-based atom-row positions are the source references.
 
 The first MOL header line supplies the record ID and, unless another name is available, the molecule
-name. MOL and SDF input always produces one conformer named `input`.
+name. A MOL or SDF record produces one conformer named `input`, or none for a 2D layout.
 
 ## MOL2 input
 
@@ -100,13 +103,15 @@ shape:
       "name": "water",
       "atoms": [
         {"atomic_number": 8, "formal_charge": 0},
+        {"atomic_number": 1, "formal_charge": 0},
         {"atomic_number": 1, "formal_charge": 0}
       ],
       "bonds": [
-        {"atoms": [0, 1], "order": 1}
+        {"atoms": [0, 1], "order": 1},
+        {"atoms": [0, 2], "order": 1}
       ],
       "conformers": [
-        {"id": "model-1", "coordinates": [[0, 0, 0], [0.96, 0, 0]]}
+        {"id": "model-1", "coordinates": [[0, 0, 0], [0.96, 0, 0], [-0.24, 0.93, 0]]}
       ]
     }
   ]
@@ -195,13 +200,18 @@ mmCIF, the symmetry columns of `LINK` and `SSBOND` in PDB). ChargeFW does not bu
 When both partner atoms are among the selected atoms, which would otherwise have been bonded wrongly,
 the record receives a `symmetry_connections_ignored` warning.
 
+With any strategy other than `none`, a record in which some residue of two or more atoms has an atom
+without bonds receives one `unbonded_residue_atoms` warning. It counts these atoms and residues and
+names up to three residues, such as `MSE A 4 (N, CA, C, O, ...)`. Single-atom residues, such as ions,
+are not reported.
+
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
 links; they are not a complete Chemical Component Dictionary. No distance-based bond perception is performed.
 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
-N-terminal `N-H1` and `N-H3` bonds; `PRO` instead adds `N-H2` and `N-H3`. Only supplied atoms are
+N-terminal `N-H1` and `N-H3` bonds; `PRO` adds `N-H1`, `N-H2`, and `N-H3`. Only supplied atoms are
 connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
 These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
 names, independently of the position in the chain, so the structure must be prepared consistently.

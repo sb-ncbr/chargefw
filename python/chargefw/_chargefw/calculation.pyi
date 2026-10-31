@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
-from .._types import Execution, PortableId
+from .._types import PortableId, RequestedExecution
 from .adapters import _NativeInputMetadata
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog
@@ -34,7 +34,7 @@ def _make_assessment(
     parameter_set_id: str | None,
     method_options: dict[str, dict[str, bool | int | float | str]],
     permissive_types: bool,
-    execution: Execution,
+    execution: RequestedExecution,
     radius: float | None,
     cutoff_threshold: int | None,
     cover_threshold: int | None,

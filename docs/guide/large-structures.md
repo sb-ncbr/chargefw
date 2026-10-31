@@ -12,7 +12,7 @@ method expensive. A method is expensive when its time grows with the cube of the
 its memory with the square; the **Time** column of the [method table](methods.md#available-methods)
 shows the time. For expensive methods, ChargeFW chooses:
 
-| Atoms in the molecule | Execution |
+| Atoms in the largest molecule | Execution |
 | --- | --- |
 | up to 20,000 | full |
 | 20,001 to 80,000 | cutoff, with a 12 Å radius |
@@ -21,6 +21,31 @@ shows the time. For expensive methods, ChargeFW chooses:
 Methods that are not expensive, such as PEOE, always run in full. Expensive methods without cutoff and
 cover, such as DelRe or SMP/QEq, are not chosen automatically for molecules above 20,000 atoms; request
 full execution to use them anyway. The result records the execution mode and radius that were used.
+
+ChargeFW chooses one execution for all molecules of a calculation, so the largest molecule decides: a
+50-atom molecule calculated together with a 30,000-atom protein gets cutoff too. To keep small molecules
+in full execution, calculate them separately from large ones.
+
+## How long a calculation takes
+
+These times were measured with the command line on an 8-core desktop processor (AMD Ryzen 7 9700X,
+16 threads, all used by default), including reading the input and writing the result:
+
+| Structure | Atoms | Method | Execution | Time | Peak memory |
+| --- | --- | --- | --- | --- | --- |
+| [1L2Y](input.md#check-the-molecule-before-calculating) | 304 | EEM or SQE+qp | full | 0.01 s | 10 MB |
+| 10AW, without hydrogens | 10,479 | EEM | full | 5.5 s | 0.9 GB |
+| 10AW, without hydrogens | 10,479 | SQE+qp | full | 6.7 s | 1.8 GB |
+| 8YAX | 40,737 | EEM | full | 4.9 min | 13 GB |
+| 8YAX | 40,737 | SQE+qp | full | 5.2 min | 25 GB |
+| 8YAX | 40,737 | EEM | cutoff, 12 Å (default) | 5.9 s | 0.16 GB |
+| 8YAX | 40,737 | EEM | cover, 12 Å | 1.0 s | 0.15 GB |
+| 8YAX | 40,737 | SQE+qp | cutoff, 12 Å (default) | 9.6 s | 0.22 GB |
+| 8YAX | 40,737 | SQE+qp | cover, 12 Å | 1.6 s | 0.21 GB |
+
+Four times as many atoms made the full calculation about 50 times slower and its memory 14 times
+larger. Cutoff and cover grow about in proportion to the number of atoms, and on this structure they
+were 30 to 300 times faster than the full calculation.
 
 ## Choosing the execution yourself
 
@@ -34,17 +59,24 @@ chargefw calculate --execution cover --radius 14 structure.cif output
 result = chargefw.calculate(molecules, method="eem", execution="cover", radius=14.0)
 ```
 
+With automatic execution, a radius sets the radius ChargeFW uses if it switches to cutoff or cover.
+
 Explicit full execution also runs above the size limits; the result then carries a warning. The limits
 themselves can be changed with `--cutoff-atom-threshold` and `--cover-atom-threshold` on the command line,
-or `cutoff_threshold` and `cover_threshold` in Python.
+or `cutoff_threshold` and `cover_threshold` in Python. `unlimited` on the command line, or `None` in
+Python, removes a limit. The cover limit must not be lower than the cutoff limit, and removing the
+cutoff limit requires removing the cover limit too.
 
 Before a long calculation, `chargefw applicability` estimates the working memory and the number of
-operations of every possible plan. For crambin with hydrogens (642 atoms) and SQE+qp:
+operations of every possible plan. For the Trp-cage miniprotein {download}`1l2y-h.cif` (304 atoms) and
+SQE+qp:
 
-```text
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=full memory=6.4MiB operations=1.9e+08
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cutoff memory=102.2MiB operations=1.2e+11
-plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cover memory=102.2MiB operations=1.1e+10
+```console
+$ chargefw applicability --method sqeqp --parameter-set SQEqp_Schindler2021_CCD_gen 1l2y-h.cif
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=full memory=1.4MiB operations=2.0e+07
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cutoff memory=23.0MiB operations=6.1e+09
+plan method=sqeqp parameter_set=SQEqp_Schindler2021_CCD_gen execution=cover memory=23.0MiB operations=5.7e+08
+...
 ```
 
 For a molecule this small, full execution is by far the cheapest. Cover needs about ten times fewer
@@ -85,10 +117,11 @@ molecule; it is not guaranteed to be small.
 
 Both approximations leave out what lies beyond the radius: bonds cut at the edge of a fragment and atoms
 farther away. [Fixed ions](fixed-ions.md) are the exception: they never become fragment centers, every
-fragment includes all of them, also those beyond the radius, and their charges are not corrected. A larger radius brings the charges closer to a full calculation and makes the calculation
-slower. Below 8 Å, the charges differed too much from full calculations, which is why 8 Å is the
-smallest radius allowed. To judge the error for your system, calculate a smaller but similar structure
-both in full and with the approximation, and compare.
+fragment includes all of them, also those beyond the radius, and their charges are not corrected. A
+larger radius brings the charges closer to a full calculation and makes the calculation slower.
+Below 8 Å, the charges differed too much from full calculations, which is why 8 Å is the smallest
+radius allowed. To judge the error for your system, calculate a smaller but similar structure both
+in full and with the approximation, and compare.
 
 ## Threads and estimates
 

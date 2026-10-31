@@ -38,10 +38,12 @@ def _require_gemmi() -> Any:
         ) from error
 
 
-# This conversion supports template-derived bonds or no bonds; it cannot faithfully preserve
-# file-defined connectivity. A gemmi.Structure keeps neither the file's _chem_comp_bond rows nor the
-# bond orders of its connections, and writing it as mmCIF drops its PDB CONECT records.
-type StructureBondStrategy = Literal["none", "templates"]
+# A gemmi.Structure keeps its links between residues (structure.connections) but neither the
+# file's _chem_comp_bond rows nor the bond orders of the links, and writing it as mmCIF drops its
+# PDB CONECT records. The regenerated document therefore has _struct_conn rows and no
+# _chem_comp_bond, so "hybrid" yields template bonds plus the links; "explicit" would yield the
+# links alone.
+type StructureBondStrategy = Literal["none", "templates", "hybrid"]
 
 
 def from_structure(
@@ -49,22 +51,26 @@ def from_structure(
     *,
     source_name: str = "",
     selection: RecordSelection = "all",
-    bonds: StructureBondStrategy = "templates",
+    bonds: StructureBondStrategy = "hybrid",
     conformers: ConformerSelection = "all",
 ) -> MoleculeCollection:
-    """Convert a ``gemmi.Structure`` to a one-molecule collection.
+    """Convert an in-memory ``gemmi.Structure`` to a one-molecule collection.
 
-    Bonds come from residue templates. For bonds defined in the file, read mmCIF with
-    ``from_document()`` and PDB with ``chargefw.io.read()``.
+    With ``bonds="hybrid"``, residues get their template bonds, and the covalent and disulfide links
+    in ``structure.connections`` are added as single bonds. ``"templates"`` leaves the links out.
+    Residues without a template, such as ligands and modified residues, get no bonds within them;
+    the links still connect them to other residues. PDB ``CONECT`` records (``conect_map``) are not
+    used. For the bonds the file records, use ``from_document()`` for mmCIF or
+    ``chargefw.io.read()``.
     """
 
     gemmi = _require_gemmi()
     if not isinstance(structure, gemmi.Structure):
         raise TypeError("structure must be a gemmi.Structure")
-    if bonds not in ("none", "templates"):
+    if bonds not in ("none", "templates", "hybrid"):
         raise ValueError(
-            f"from_structure() does not support bonds={bonds!r}: converting a gemmi.Structure "
-            "loses the bonds and bond orders defined in the file. For mmCIF, keep the document "
+            f"from_structure() does not support bonds={bonds!r}: it uses only residue templates "
+            "and the links in structure.connections. For mmCIF, keep the document "
             "(gemmi.cif.read(path), or gemmi.read_structure(path, save_doc=document)) and use "
             "chargefw.io.gemmi.from_document(document); for PDB, use "
             f"chargefw.io.read(path, format='pdb', bonds={bonds!r})"

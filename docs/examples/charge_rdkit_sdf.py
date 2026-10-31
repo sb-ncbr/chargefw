@@ -87,8 +87,9 @@ def main() -> None:
     for molecule in molecules:
         charges = [atom.GetDoubleProp(PROPERTY_NAME) for atom in molecule.GetAtoms()]
         most_positive = molecule.GetAtomWithIdx(max(range(len(charges)), key=charges.__getitem__))
+        total = round(sum(charges), 3) + 0.0  # + 0.0 turns -0.0 into 0.0
         print(
-            f"{molecule.GetProp('_Name')!r}: total={sum(charges):+.3f} "
+            f"{molecule.GetProp('_Name')!r}: total={total:+.3f} "
             f"most positive={most_positive.GetSymbol()}{most_positive.GetIdx() + 1} "
             f"({most_positive.GetDoubleProp(PROPERTY_NAME):+.3f})"
         )
