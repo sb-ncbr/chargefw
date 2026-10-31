@@ -140,5 +140,6 @@ keys are accepted; later matching entries are not used.
 Strict classification is the default. With permissive classification (`--permissive-types` in the CLI or
 `parameter_matching="permissive"` in Python), `hbo` and `bo` lower a derived order above one by one before
 matching. For example, a double-bond order/type may match `"1"` and a triple-bond order/type may match
-`"2"`. `plain` and `bonded` matching do not change. ChargeFW tries strict matching first and tries
+`"2"`. An atom without bonds, `hbo` type `"0"`, may match `"1"`. `plain` and `bonded` matching do not
+change. ChargeFW tries strict matching first and tries
 permissive matching only when no strict entry matches.

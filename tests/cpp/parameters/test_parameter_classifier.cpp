@@ -58,6 +58,10 @@ auto make_carbonyl() -> core::Molecule {
                           "carbonyl"};
 }
 
+auto make_lone_oxygen() -> core::Molecule {
+    return core::Molecule{{core::Atom{8, 0, "O"}}, {}, {}, "lone-oxygen"};
+}
+
 } // namespace
 
 TEST_CASE("parameter classifier maps water atoms and bonds to parameter entries",
@@ -154,6 +158,16 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     CHECK(atom_indices[1] == 1);
     REQUIRE(bond_indices.size() == 1);
     CHECK(bond_indices[0] == 0);
+
+    // An atom without bonds has highest bond order 0 and falls back to the single-bond entry.
+    const auto lone_oxygen = make_lone_oxygen();
+    const features::TopologyFeatures lone_oxygen_topology{lone_oxygen};
+    CHECK_FALSE(
+        parameters::try_classify_parameters(lone_oxygen, lone_oxygen_topology, parameter_set));
+    const auto lone_permissive = parameters::try_classify_parameters(
+        lone_oxygen, lone_oxygen_topology, parameter_set, {.permissive_types = true});
+    REQUIRE(lone_permissive);
+    CHECK(lone_permissive.classification().atom()[0] == 1);
 }
 
 TEST_CASE("parameter classifier resolves wildcard entries in declaration order",

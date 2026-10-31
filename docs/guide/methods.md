@@ -40,12 +40,17 @@ chargefw applicability molecule.sdf
 In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
 rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
 
-When a parameter set is rejected because it has no entry for an atom's bond order,
-[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets it use
-the entry for the next lower order: `--permissive-types` on the command line, or
-`parameter_matching="permissive"` in Python. `chargefw parameters --method METHOD` lists the
-parameter sets of a method, and `chargefw parameters ID --keys` the atom and bond types a set has
-values for.
+When a parameter set is rejected because a few atoms of a large structure have no matching entry, for
+example the oxygen of a water molecule without its hydrogens,
+[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms
+use the entry for the next lower bond order, and an atom without bonds the entry for single bonds:
+`--permissive-types` on the command line, or `parameter_matching="permissive"` in Python. The values
+were not fitted for those atoms, so their charges, and with methods that couple every atom such as EEM
+the charges near them, are less reliable. To leave out the water instead, read the structure with
+`--structural-selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
+
+`chargefw parameters --method METHOD` lists the parameter sets of a method, and
+`chargefw parameters ID --keys` the atom and bond types a set has values for.
 
 A new ChargeFW release can add parameter sets and so change what automatic selection picks. Name the
 method and the parameter set whenever results must stay the same between releases.
