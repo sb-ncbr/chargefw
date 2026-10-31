@@ -200,6 +200,11 @@ mmCIF, the symmetry columns of `LINK` and `SSBOND` in PDB). ChargeFW does not bu
 When both partner atoms are among the selected atoms, which would otherwise have been bonded wrongly,
 the record receives a `symmetry_connections_ignored` warning.
 
+With any strategy other than `none`, a record in which some residue of two or more atoms has an atom
+without bonds receives one `unbonded_residue_atoms` warning. It counts these atoms and residues and
+names up to three residues, such as `MSE A 4 (N, CA, C, O, ...)`. Single-atom residues, such as ions,
+are not reported.
+
 Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide

@@ -1,5 +1,6 @@
 #include <chargefw/adapters/gemmi/mmcif_output.h>
 
+#include "adapters/component.h"
 #include "adapters/gemmi/mmcif_attachment.h"
 #include "adapters/gemmi/mmcif_labels.h"
 #include "adapters/record_assignments.h"
@@ -146,26 +147,6 @@ class BlockNames {
         result.push_back(std::move(candidate));
     }
     return result;
-}
-
-[[nodiscard]] auto known_label(const std::optional<std::string>& value)
-    -> std::optional<std::string_view> {
-    if (!value.has_value() || value->empty() || *value == "." || *value == "?") {
-        return std::nullopt;
-    }
-    return *value;
-}
-
-[[nodiscard]] auto label_or(const std::optional<std::string>& preferred,
-                            const std::optional<std::string>& alternate,
-                            const std::string_view fallback) -> std::string {
-    if (const auto value = known_label(preferred); value.has_value()) {
-        return std::string{*value};
-    }
-    if (const auto value = known_label(alternate); value.has_value()) {
-        return std::string{*value};
-    }
-    return std::string{fallback};
 }
 
 struct OutputAssignments {
@@ -326,7 +307,12 @@ struct OutputSiteLabels {
     }
     const auto known_or = [](const std::optional<std::string>& value,
                              const std::string_view fallback) {
-        return std::string{known_label(value).value_or(fallback)};
+        return std::string{detail::known_label(value).value_or(fallback)};
+    };
+    const auto label_or = [](const std::optional<std::string>& preferred,
+                             const std::optional<std::string>& alternate,
+                             const std::string_view fallback) {
+        return std::string{detail::first_known_label(preferred, alternate, fallback)};
     };
     return {.label_atom = label_or(labels->label.atom, labels->author.atom, fallback_atom),
             .author_atom = label_or(labels->author.atom, labels->label.atom, fallback_atom),
@@ -380,11 +366,9 @@ struct OutputSiteLabels {
     return result;
 }
 
-// The residue as users know it from PDB files: name, author chain, and author number.
 [[nodiscard]] auto residue_description(const OutputSiteLabels& labels) -> std::string {
-    return std::format("residue {} {} {}{}", labels.label_residue, labels.author_chain,
-                       labels.author_sequence,
-                       labels.insertion_code == "." ? "" : labels.insertion_code);
+    return "residue " + detail::residue_description(labels.label_residue, labels.author_chain,
+                                                    labels.author_sequence, labels.insertion_code);
 }
 
 // Two atom names in sorted order, so that a bond has one key whichever atom comes first.

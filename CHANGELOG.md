@@ -47,6 +47,8 @@
 
 ### Input
 
+- PDB and mmCIF records in which a residue of two or more atoms has an atom without bonds receive an
+  `unbonded_residue_atoms` warning, for example a ligand in a PDB file without `CONECT` records.
 - Residue templates bond an `H1` hydrogen to the nitrogen of an N-terminal proline, as Hydride names
   it. Before, reading such a structure with template bonds left the hydrogen unbonded.
 - MOL and SDF V2000 records without `M  CHG` and `M  RAD` lines take formal charges from the charge field of the

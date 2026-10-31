@@ -9,6 +9,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace gemmi_adapter = chargefw::adapters::gemmi;
 namespace pdb = gemmi_adapter::pdb_input;
@@ -279,6 +280,28 @@ END
     CHECK(record->import_metadata->atoms[1].id == "2");
     REQUIRE(record->import_metadata->atoms[0].structural_labels.has_value());
     CHECK(record->import_metadata->atoms[0].structural_labels->alternate_location == "B");
+}
+
+TEST_CASE("PDB input reports residue atoms without bonds", "[adapters][pdb]") {
+    using Strategy = gemmi_adapter::BondStrategy;
+    // A ligand without a template, and a single-atom ion that is unbonded by design.
+    const std::string atoms =
+        R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
+HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O
+HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
+)pdb";
+    const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
+        auto codes = std::vector<std::string>{};
+        for (const auto& diagnostic :
+             read_first(atoms + connectivity + "END\n", {.bond_strategy = strategy}).diagnostics) {
+            codes.push_back(diagnostic.code);
+        }
+        return codes;
+    };
+
+    CHECK(read_codes("", Strategy::hybrid) == std::vector<std::string>{"unbonded_residue_atoms"});
+    CHECK(read_codes("CONECT    1    2\n", Strategy::hybrid).empty());
+    CHECK(read_codes("", Strategy::none).empty());
 }
 
 TEST_CASE("PDB explicit connections retain address wildcard behavior", "[adapters][pdb]") {

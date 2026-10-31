@@ -1,5 +1,7 @@
 #include <chargefw/adapters/native/pqr_output.h>
 
+#include "adapters/component.h"
+
 #include <chargefw/core/periodic_table.h>
 
 #include <algorithm>
@@ -26,20 +28,11 @@ namespace {
     return value;
 }
 
-[[nodiscard]] auto known_label(const std::optional<std::string>& value)
-    -> std::optional<std::string_view> {
-    if (!value.has_value() || value->empty() || *value == "." || *value == "?") {
-        return std::nullopt;
-    }
-    return *value;
-}
-
 // PQR follows PDB, which writes author labels; label_* values are the fallback.
 [[nodiscard]] auto author_or_label(const std::optional<std::string>& author,
                                    const std::optional<std::string>& label,
                                    const std::string_view fallback) -> std::string {
-    return std::string{
-        known_label(author).or_else([&label] { return known_label(label); }).value_or(fallback)};
+    return std::string{detail::first_known_label(author, label, fallback)};
 }
 
 [[nodiscard]] auto atom_description(const std::size_t atom_index) -> std::string {
@@ -167,9 +160,9 @@ auto append_atom_line(std::string& text, const ImportedMoleculeRecord& record,
     const auto sequence =
         labels.has_value() ? author_or_label(labels->author.sequence, labels->label.sequence, "1")
                            : std::string{"1"};
-    const auto insertion_code = labels.has_value()
-                                    ? std::string{known_label(labels->insertion_code).value_or("")}
-                                    : std::string{};
+    const auto insertion_code =
+        labels.has_value() ? std::string{detail::known_label(labels->insertion_code).value_or("")}
+                           : std::string{};
     require_word(name, "atom name", atom_index);
     require_word(residue, "residue name", atom_index);
     require_chain(chain, atom_index);
