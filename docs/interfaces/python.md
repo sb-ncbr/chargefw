@@ -472,16 +472,65 @@ molecules = chargefw.io.gemmi.from_document(document)  # bonds="hybrid" by defau
 molecules = chargefw.io.read("structure.pdb", format="pdb", bonds="hybrid")
 ```
 
-`from_structure()` is for a structure that exists only in memory, for example one you built or edited
-with Gemmi. A `gemmi.Structure` does not keep the bonds of the file it was read from, so
-`from_structure()` takes bonds only from ChargeFW's residue templates: it accepts `bonds="templates"`
-(the default) or `"none"`. Use it only for structures with standard residues and water. A ligand or
-modified residue then has no bonds, and links between residues, such as disulfide bridges and
-covalently bound ligands, are left out. This matters wherever bonds are used: in methods that work on
+`from_structure()` is for a structure you changed with Gemmi after reading it, for example by removing
+waters or keeping one chain, or one you built. `source_mapping` links each charge back to the Gemmi
+atom: `site.position` is the index of the atom when you go through the structure's models, chains,
+residues, and atoms in order. Atoms that ChargeFW did not read, such as other alternate locations or
+atoms left out by `selection`, are skipped. For the prepared Trp-cage miniprotein
+[1l2y-h.cif](../guide/1l2y-h.cif):
+
+```python
+import chargefw
+import chargefw.io.gemmi
+import gemmi
+
+structure = gemmi.read_structure("1l2y-h.cif")
+structure.remove_waters()  # or any other change you make with Gemmi
+
+molecules = chargefw.io.gemmi.from_structure(structure)
+result = chargefw.calculate(molecules, method="sqeqp")
+assignment = result.assignment(molecule=0, conformer=0)
+sites = molecules[0].source_mapping.conformers[assignment.conformer_index].sites
+
+# The Gemmi residue and atom of every site, in the order of site.position
+gemmi_atoms = [
+    (residue, atom)
+    for model in structure
+    for chain in model
+    for residue in chain
+    for atom in residue
+]
+residue, atom = gemmi_atoms[sites[0].position]
+print(residue.name, residue.seqid.num, atom.name, f"{assignment.values[0]:+.3f}")
+
+# Total charge of each residue
+for component in molecules[0].source_mapping.components[:3]:
+    residue, _ = gemmi_atoms[sites[component.atom_indices[0]].position]
+    charge = assignment.values[list(component.atom_indices)].sum()
+    print(residue.name, residue.seqid.num, f"{charge:+.3f}")
+```
+
+```text
+ASN 1 N -1.048
+ASN 1 +0.195
+LEU 2 +0.078
+TYR 3 +0.058
+```
+
+Build the atom list from the structure you passed to `from_structure()`. If you change the structure
+afterwards, the positions no longer match.
+
+`from_structure()` takes bonds from ChargeFW's residue templates and from the links between residues
+that a `gemmi.Structure` keeps in `structure.connections`. With `bonds="hybrid"`, the default,
+covalent links and disulfide bridges are added to the template bonds as single bonds.
+`bonds="templates"` leaves the links out, and `"none"` reads no bonds. PDB `CONECT` records, which
+Gemmi keeps in `structure.conect_map`, are not used. Templates cover common amino acids, nucleotides,
+and water, so a ligand or modified residue gets no bonds within it; links in `structure.connections`
+still connect it to other residues. This matters wherever bonds are used: in methods that work on
 bonds, such as the SQE methods and the topology-based methods, and in parameter sets whose atom types
-depend on bonds. Such a calculation fails, or proceeds with the incomplete bonds without a warning.
-Methods that use only coordinates with parameter sets that type atoms by element alone, such as QEq,
-are not affected.
+depend on bonds. Such a calculation fails, or proceeds with the incomplete bonds without a warning. For a
+structure with ligands, use `from_document()` or `chargefw.io.read()`, or a method that uses only
+coordinates with a parameter set that types atoms by element alone, such as QEq.
 
 `to_document()` creates a new mmCIF document, the same as `chargefw.io.dumps(..., format="mmcif")`; it
 does not copy other data of the input.

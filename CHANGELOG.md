@@ -18,6 +18,9 @@
 - A calculation that runs out of memory raises `MemoryError`. Before, it raised
   `NumericalFailureError`.
 - `Method.requires_bonds` is true for methods that use the bonds of the molecule.
+- `chargefw.io.gemmi.from_structure()` accepts `bonds="hybrid"` and uses it by default: covalent links
+  and disulfide bridges in `structure.connections` are added to the template bonds. Before, the only
+  choices were `"templates"` and `"none"`, and the links were left out.
 
 ### Command line
 
