@@ -71,6 +71,9 @@
 ### Documentation
 
 - The new Python API reference lists every public class and attribute of the Python package.
+- The method descriptions say which methods are not recommended for general use and why, and where
+  ChargeFW differs from the publications, for example in the atom types of GDAC and KCM and the
+  non-periodic EQeq.
 
 ## 3.0.0rc1
 
