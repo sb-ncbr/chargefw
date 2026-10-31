@@ -235,6 +235,8 @@ geometry then reject the molecule.
 
 - the `MoleculeCollection` and the parameter sets;
 - an optional method ID and parameter-set ID;
+- a `MethodScope` for automatic selection without a method ID: `recommended` (default) considers only
+  the [recommended methods](../guide/methods.md#available-methods), `all` every method;
 - options per method, as `methods::MethodOptions`;
 - strict or permissive parameter matching;
 - an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
@@ -312,7 +314,8 @@ the atoms it is given.
 ## Methods and parameter sets
 
 `methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
-metadata, notes, requirements, and option schemas. `methods::complexity_notation()` formats the declared
+metadata, notes, requirements, and option schemas. `MethodMetadata::recommended` tells whether the
+method's charges are recommended for general use. `methods::complexity_notation()` formats the declared
 time and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
 one molecule of a given `TargetSize`. A method supports cutoff and cover when
 `ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`

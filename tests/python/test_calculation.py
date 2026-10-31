@@ -225,6 +225,7 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
         chargefw.calculate(molecules, plan, fixed_ions=[])
     # Selection arguments are refused with a plan even when they repeat the default value.
     for argument in (
+        {"method_scope": "recommended"},
         {"parameter_matching": "strict"},
         {"execution": "auto"},
         {"cutoff_threshold": 20_000},
@@ -381,6 +382,28 @@ def test_default_calculation_selects_a_supported_plan() -> None:
     result = chargefw.calculate(water())
     assert result.status == "success"
     assert result.plan is not None
+
+
+def test_method_scope_controls_methods_that_are_not_recommended() -> None:
+    assert not chargefw.methods["veem"].recommended
+    assert chargefw.methods["eem"].recommended
+
+    # VEEM needs no parameters and applies to water, but it is not recommended.
+    recommended = chargefw.assess(water())
+    assert "veem" not in {plan.method.id for plan in recommended.plans}
+
+    every = chargefw.assess(water(), method_scope="all")
+    assert "veem" in {plan.method.id for plan in every.plans}
+    assert chargefw.calculate(water(), method_scope="all").requested.method_scope == "all"
+    assert chargefw.calculate(water()).requested.method_scope == "recommended"
+
+    named = chargefw.calculate(water(), method="veem")
+    assert named.plan is not None and named.plan.method.id == "veem"
+
+    with pytest.raises(ValueError):
+        chargefw.assess(water(), method="veem", method_scope="all")
+    with pytest.raises(ValueError):
+        chargefw.assess(water(), method_scope=cast(Any, "some"))
 
 
 def test_assessment_and_full_calculation() -> None:

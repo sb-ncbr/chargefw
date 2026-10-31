@@ -31,6 +31,12 @@ parameter-set reference. It uses the first combination that applies to every mol
 calculation, so all molecules get charges from the same model. The result records which method and
 parameter set were used.
 
+Some methods are included for their place in the history of empirical charges and for studying how
+the models work, but their charges are not recommended for general use. The table marks the
+recommended methods. Automatic selection uses only those. To use another method, name it, or let
+automatic selection consider every method with `--method-scope all` on the command line, or
+`method_scope="all"` in Python.
+
 To see why a method or parameter set was not used, without calculating anything:
 
 ```bash
@@ -40,12 +46,17 @@ chargefw applicability molecule.sdf
 In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
 rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
 
-When a parameter set is rejected because it has no entry for an atom's bond order,
-[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets it use
-the entry for the next lower order: `--permissive-types` on the command line, or
-`parameter_matching="permissive"` in Python. `chargefw parameters --method METHOD` lists the
-parameter sets of a method, and `chargefw parameters ID --keys` the atom and bond types a set has
-values for.
+When a parameter set is rejected because a few atoms of a large structure have no matching entry, for
+example the oxygen of a water molecule without its hydrogens,
+[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms
+use the entry for the next lower bond order, and an atom without bonds the entry for single bonds:
+`--permissive-types` on the command line, or `parameter_matching="permissive"` in Python. The values
+were not fitted for those atoms, so their charges, and with methods that couple every atom such as EEM
+the charges near them, are less reliable. To leave out the water instead, read the structure with
+`--structural-selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
+
+`chargefw parameters --method METHOD` lists the parameter sets of a method, and
+`chargefw parameters ID --keys` the atom and bond types a set has values for.
 
 A new ChargeFW release can add parameter sets and so change what automatic selection picks. Name the
 method and the parameter set whenever results must stay the same between releases.
@@ -61,33 +72,34 @@ through parameter sets whose atom types depend on bonds.
 included in ChargeFW instead. **Cutoff/cover** marks methods that can run the approximations for
 [large structures](large-structures.md), and **Fixed ions** those that accept
 [fixed ions](fixed-ions.md). **Time** is the calculation cost for $n$ atoms and $m$ bonds.
+**Recommended** marks the methods whose charges are recommended for general use; automatic selection
+uses only these.
 
-| Method | ID | Coordinates | Bonds | Parameter sets | Cutoff/cover | Fixed ions | Time |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [SQE+qp](#sqeqp) | `sqeqp` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [EEM](#eem) | `eem` | yes | | 28 | yes | yes | $O(n^3)$ |
-| [ABEEM](#abeem) | `abeem` | yes | yes | 1 | yes | | $O((n+m)^3)$ |
-| [SFKEEM](#sfkeem) | `sfkeem` | yes | | 1 | yes | | $O(n^3)$ |
-| [QEq](#qeq) | `qeq` | yes | | 1 | yes | | $O(n^3)$ |
-| [SMP/QEq](#smpqeq) | `smpqeq` | yes | | 1 | | | $O(n^3)$ |
-| [EQeq](#eqeq) | `eqeq` | yes | | built-in | yes | | $O(n^3)$ |
-| [EQeq+C](#eqeqc) | `eqeqc` | yes | | 2 | yes | | $O(n^3)$ |
-| [DelRe](#delre) | `delre` | | yes | 1 | | | $O(n^3)$ |
-| [PEOE](#peoe) | `peoe` | | yes | 1 | | | $O(n + m)$ |
-| [MPEOE](#mpeoe) | `mpeoe` | | yes | 1 | | | $O(n + m)$ |
-| [GDAC](#gdac) | `gdac` | yes | yes | 1 | | | $O(n + m)$ |
-| [SQE](#sqe) | `sqe` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [SQE+q0](#sqeq0) | `sqeq0` | yes | yes | 3 | yes | yes | $O(m^3)$ |
-| [MGC](#mgc) | `mgc` | | yes | built-in | | | $O(n^3)$ |
-| [KCM](#kcm) | `kcm` | | yes | 2 | | | $O(n^3)$ |
-| [TSEF](#tsef) | `tsef` | | yes | 1 | | | $O(n^3)$ |
-| [DENR](#denr) | `denr` | | yes | 1 | | | $O(n^3)$ |
-| [Charge2](#charge2) | `charge2` | | yes | 1 | | | $O(n + m)$ |
-| [VEEM](#veem) | `veem` | | | built-in | | | $O(n)$ |
+| Method | ID | Coordinates | Bonds | Parameter sets | Cutoff/cover | Fixed ions | Time | Recommended |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [SQE+qp](#sqeqp) | `sqeqp` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [EEM](#eem) | `eem` | yes | | 28 | yes | yes | $O(n^3)$ | yes |
+| [ABEEM](#abeem) | `abeem` | yes | yes | 1 | yes | | $O((n+m)^3)$ | yes |
+| [SFKEEM](#sfkeem) | `sfkeem` | yes | | 1 | yes | | $O(n^3)$ | yes |
+| [QEq](#qeq) | `qeq` | yes | | 1 | yes | | $O(n^3)$ | yes |
+| [SMP/QEq](#smpqeq) | `smpqeq` | yes | | 1 | | | $O(n^3)$ | |
+| [EQeq](#eqeq) | `eqeq` | yes | | built-in | yes | | $O(n^3)$ | yes |
+| [EQeq+C](#eqeqc) | `eqeqc` | yes | | 2 | yes | | $O(n^3)$ | yes |
+| [DelRe](#delre) | `delre` | | yes | 1 | | | $O(n^3)$ | |
+| [PEOE](#peoe) | `peoe` | | yes | 1 | | | $O(n + m)$ | yes |
+| [MPEOE](#mpeoe) | `mpeoe` | | yes | 1 | | | $O(n + m)$ | yes |
+| [GDAC](#gdac) | `gdac` | yes | yes | 1 | | | $O(n + m)$ | |
+| [SQE](#sqe) | `sqe` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [SQE+q0](#sqeq0) | `sqeq0` | yes | yes | 3 | yes | yes | $O(m^3)$ | yes |
+| [MGC](#mgc) | `mgc` | | yes | built-in | | | $O(n^3)$ | yes |
+| [KCM](#kcm) | `kcm` | | yes | 2 | | | $O(n^3)$ | yes |
+| [TSEF](#tsef) | `tsef` | | yes | 1 | | | $O(n^3)$ | yes |
+| [DENR](#denr) | `denr` | | yes | 1 | | | $O(n^3)$ | yes |
+| [Charge2](#charge2) | `charge2` | | yes | 1 | | | $O(n + m)$ | |
+| [VEEM](#veem) | `veem` | | | built-in | | | $O(n)$ | |
 
 Two further IDs are not charge models: `formal` returns the formal charges of your input unchanged, and
-`dummy` returns zero for every atom. Automatic selection tries them last, so they are used only when no
-charge model applies.
+`dummy` returns zero for every atom. Automatic selection never uses them; name them to use them.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
 method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the
@@ -99,6 +111,10 @@ command line, or `options={"iters": 8}` in Python; see
 
 The symbols used throughout: $q_i$ stands for the charge on the $i$th atom, $Q$ is the total charge of
 the molecule, $N$ is the number of atoms, and $R_{i,j}$ is the distance between atoms $i$ and $j$ in Å.
+
+Each description explains the method as published. **When to use** follows for methods whose charges
+are not recommended for general use, and **In ChargeFW** gives the options, what the molecule must
+satisfy, and where ChargeFW differs from the publication.
 
 Methods derived from one another are kept together. Such families follow the year of their first
 method, and the methods within a family follow their own years.
@@ -183,7 +199,14 @@ $$
 where $\varepsilon_{i,j}$ is another bond parameter. Atom $i$ loses the bond charge and atom $j$ gains
 it; the charge on each atom is the sum over its bonds.
 
-Every connected component must be formally neutral.
+**When to use.** DelRe is the oldest method in ChargeFW and is included for its place in the
+development of empirical charges. Its bundled parameters cover only bonds of carbon to H, C, N, O, F,
+and Cl and of N–H and O–H, and its charges are not recommended for general use.
+
+**In ChargeFW.** Every connected component must be formally neutral. The publication gives the two
+directions of $\gamma$ for each pair of elements; ChargeFW orients a bond by the elements of the
+parameter entry it matches. For a bond between two atoms of the same element, the bundled parameters
+give both directions the same value.
 
 (peoe)=
 #### PEOE
@@ -209,9 +232,9 @@ The damping factor $(1/2)^\alpha$ accounts for the electrostatic field of the ch
 transferred. For hydrogen, the denominator is a hydrogen-specific value. The final charges are the initial
 charges plus the transfers of all iterations.
 
-`iters` sets the number of iterations (default 6). With the default `initial_charges=zero`, every
-connected component must be formally neutral; `initial_charges=formal` starts from the formal charges
-and allows charged molecules.
+**In ChargeFW.** `iters` sets the number of iterations (default 6). With the default
+`initial_charges=zero`, every connected component must be formally neutral; `initial_charges=formal`
+starts from the formal charges and allows charged molecules.
 
 (mpeoe)=
 #### MPEOE
@@ -232,8 +255,8 @@ $$
 
 As in PEOE, hydrogen uses a hydrogen-specific denominator.
 
-`iters` sets the number of iterations (default 7). `initial_charges` and the charge requirement are the
-same as for PEOE.
+**In ChargeFW.** `iters` sets the number of iterations (default 7). `initial_charges` and the charge
+requirement are the same as for PEOE.
 
 (gdac)=
 #### GDAC
@@ -246,9 +269,25 @@ f_{i,j} = 1 - \frac{R_{i,j}}{R_i^\mathrm{vdW} + R_j^\mathrm{vdW}}
 $$
 
 where $R^\mathrm{vdW}$ is the van der Waals radius. The denominator is $A_i + B_i$ for all atoms,
-including hydrogen.
+including hydrogen. The parameters were fitted to the dipole moments of 50 small molecules that model
+the backbone and side chains of proteins.
 
-`iters` sets the number of iterations (default 7). Every connected component must be formally neutral.
+**When to use.** GDAC is included for its approach to geometry dependence. Its charges are not
+recommended for general use: outside the molecules it was fitted to, the iteration can move charges of
+many electrons, and ChargeFW's atom types make this happen for amides (see below).
+
+**In ChargeFW.** `iters` sets the number of iterations (default 7); the publication iterates until the
+charges converge. The publication starts charged molecules from assigned initial charges; ChargeFW
+does not, so every connected component must be formally neutral.
+
+The bundled parameter set types atoms by their highest bond order and has the publication's values
+for H, C, N, O, and S with single or double bonds. The publication types the nitrogen of amides as
+sp2, but by bond order it has only single bonds and gets the sp3 values. Their negative charge
+coefficient lets the charges of amides and peptides grow to tens or hundreds of electrons. The
+publication's types for aromatic rings, arginine, histidine, and charged groups are not included.
+
+ChargeFW uses the van der Waals radii of Bondi (C 1.70, N 1.55, O 1.52 Å); the publication used those
+of Rowland and Taylor (C 1.77, N 1.64, O 1.58 Å).
 
 (charge2)=
 #### Charge2
@@ -278,11 +317,13 @@ $$
 P_i = \max\left(0,\; P_i^0 \left(1 + \alpha(q_i^0 - q_i)\right)\right)
 $$
 
-where $P^0$ and $q^0$ are atom parameters and $\alpha$ is a common parameter. The iteration stops when no
-charge changes by more than $10^{-5}$.
+where $P^0$ and $q^0$ are atom parameters and $\alpha$ is a common parameter.
 
-`iters` sets the maximum number of iterations (default 10). Every connected component must be formally
-neutral.
+**When to use.** Charge2 is included for its place in the development of empirical charges; its charges
+are not recommended for general use.
+
+**In ChargeFW.** The iteration stops when no charge changes by more than $10^{-5}$, or after `iters`
+iterations (default 10). Every connected component must be formally neutral.
 
 (mgc)=
 #### MGC
@@ -310,7 +351,7 @@ $$
 \mathbf{q} = \frac{\boldsymbol{\chi} - \boldsymbol{\chi}^0}{\chi_M}
 $$
 
-Every connected component must be formally neutral.
+**In ChargeFW.** Every connected component must be formally neutral.
 
 (kcm)=
 #### KCM
@@ -331,7 +372,10 @@ $$
 
 where $\boldsymbol{\chi}^0$ is the vector of atom electronegativities.
 
-Every connected component must be formally neutral.
+**In ChargeFW.** Every connected component must be formally neutral. The publication distinguishes 49
+atom types derived from MMFF94, including aromatic and resonance types. The bundled parameter sets
+type atoms by element and highest bond order and contain 8 of them; nitrogen has values only with
+single bonds.
 
 (denr)=
 #### DENR
@@ -348,8 +392,8 @@ where $\mathbf{L}$ is the Laplacian of the molecular graph, $\boldsymbol{\eta}$ 
 of atom hardnesses, $\boldsymbol{\chi}^0$ is the vector of atom electronegativities, and
 $\mathbf{q}^{(0)} = \mathbf{0}$.
 
-`step` sets $\Delta t$ (default 0.1) and `iters` the number of steps (default 3). Every connected
-component must be formally neutral.
+**In ChargeFW.** `step` sets $\Delta t$ (default 0.1) and `iters` the number of steps (default 3).
+Every connected component must be formally neutral.
 
 (tsef)=
 #### TSEF
@@ -370,7 +414,7 @@ where $\chi^0$ and $\eta$ are atom parameters, $\mathrm{MDP}$ is the minimal dis
 minimal number of bonds between two atoms, and $K$ is 0.556, 0.778, 1.000, 1.053, 1.087, and 1.091 for
 paths of 1 to 6 bonds and 1.091 for longer paths.
 
-The molecular graph must be connected.
+**In ChargeFW.** The molecular graph must be connected.
 
 (veem)=
 #### VEEM
@@ -390,7 +434,13 @@ $$
 q_i = N_{ve,i}\, \frac{\chi_{ve} - \chi_i}{\chi_{ve}}
 $$
 
-The molecule must be neutral.
+**When to use.** VEEM is included for comparison; its charges are not recommended for general use. A
+charge depends only on the element and on which elements the molecule contains, not on bonds or
+geometry, so all atoms of one element get the same charge. Because the charge scales with the number
+of valence electrons, oxygen gets large charges: in ethanol, both carbons get +0.24 e, every hydrogen
++0.19 e, and the oxygen −1.61 e.
+
+**In ChargeFW.** The molecule must be neutral.
 
 ### Geometry-dependent methods
 
@@ -429,7 +479,8 @@ B_1 & \kappa R_{1,2}^{-1} & \cdots & \kappa R_{1,N}^{-1} & 1 \\
 \begin{bmatrix} -A_1 \\ -A_2 \\ \vdots \\ -A_N \\ Q \end{bmatrix}
 $$
 
-EEM supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
+**In ChargeFW.** EEM supports charged molecules and
+[fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (abeem)=
 #### ABEEM
@@ -480,12 +531,14 @@ $$
 \chi_i = \chi_i^0 + J_i q_i + \sum_{j \neq i} J_{i,j} q_j
 $$
 
-where $\chi^0$ and $J$ are atom parameters in eV. Originally, the hardness of hydrogen depended on its
-charge, which made QEq iterative; ChargeFW uses fixed parameters and solves the system once.
+where $\chi^0$ and $J$ are atom parameters in eV. In the publication, the hardness of hydrogen depends
+on its charge, which makes QEq iterative, and the Coulomb term $J_{i,j}$ is obtained from *ab initio*
+calculations.
 
-In the original publication, the Coulomb term $J_{i,j}$ was obtained from *ab initio* calculations.
-Several empirical terms were developed to replace it with a simple expression. The default
-(DasGupta-Huzinaga) follows Oda and Hirono (*J. Mol. Struct. THEOCHEM* 634, 159, 2003):
+**In ChargeFW.** The hardness of hydrogen is a fixed parameter, so the system is solved once. The
+Coulomb term $J_{i,j}$ is one of several empirical expressions developed to replace the *ab initio*
+one; `overlap_term` selects it. The default, `DasGupta-Huzinaga`, follows Oda and Hirono
+(*J. Mol. Struct. THEOCHEM* 634, 159, 2003):
 
 $$
 J_{i,j} = \frac{k}{R_{i,j} + k \big/ \left(\frac{1}{2}(J_i + J_j)\, e^{0.4 R_{i,j} / a_0}\right)}
@@ -499,8 +552,6 @@ J_{i,j} = \frac{k}{\left[(k / \sqrt{J_i J_j})^3 + R_{i,j}^3\right]^{1/3}}
 $$
 
 The Nishimoto-Mataga, Nishimoto-Mataga-Weiss, Ohno, and Ohno-Klopman terms are also available.
-
-`overlap_term` selects the term (default `DasGupta-Huzinaga`).
 
 (smpqeq)=
 #### SMP/QEq
@@ -525,14 +576,19 @@ J_{i,j} = \frac{14.4}{\left[\left(14.4 / 2\sqrt{B_i B_j}\right)^3 + R_{i,j}^3\ri
 $$
 
 where $A$, $B$, $C$, and $D$ are atom parameters. Starting from zero charges, $\lambda$ is evaluated with
-the charges of the previous step until no charge changes by more than $10^{-10}$. A calculation that has
-not converged after 100 steps fails.
+the charges of the previous step until the charges converge.
+
+**When to use.** SMP/QEq is not recommended for general use with ChargeFW: its published parameters
+cover only Li, Na, K, Rb, Cu, Ag, Au, and Al, so it does not apply to organic or biological molecules.
+
+**In ChargeFW.** The iteration stops when no charge changes by more than $10^{-10}$; a calculation that
+has not converged after 100 steps fails.
 
 (eqeq)=
 #### EQeq
 
 Extended Charge Equilibration Method ([Wilmer 2012](https://doi.org/10.1021/jz3008485)) builds on
-[QEq](#qeq). ChargeFW implements the non-periodic case with neutral charge centers:
+[QEq](#qeq). For a molecule without periodic images and with neutral charge centers:
 
 $$
 \chi_i = \chi_i^0 + J_i q_i + \frac{\lambda k}{2} \sum_{j \neq i} q_j \left(\frac{1}{R_{i,j}} + O_{i,j}\right)
@@ -551,6 +607,10 @@ $$
 O_{i,j} = e^{-a^2 R_{i,j}^2} \left(2a - a^2 R_{i,j} - \frac{1}{R_{i,j}}\right), \qquad
 a = \frac{\sqrt{J_i J_j}}{k}
 $$
+
+**In ChargeFW.** Only this case is implemented. The publication also treats periodic crystals, such as
+metal–organic frameworks, with Ewald sums, and charge centers other than zero. A unit cell calculated
+in ChargeFW is treated as an isolated cluster, so its charges are not those of the crystal.
 
 (eqeqc)=
 #### EQeq+C
@@ -596,8 +656,8 @@ $$
 
 where $w$ is an atom parameter for the charge width.
 
-Every connected component must be formally neutral; use [SQE+q0](#sqeq0) for charged molecules. SQE
-supports [fixed ions](fixed-ions.md#what-the-approximation-does).
+**In ChargeFW.** Every connected component must be formally neutral; use [SQE+q0](#sqeq0) for charged
+molecules. SQE supports [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (sqeq0)=
 #### SQE+q0
@@ -615,7 +675,8 @@ $$
 where $\boldsymbol{\eta}$ is the vector of atomic hardnesses and $*$ is the element-wise product. Each
 connected component keeps the sum of its formal charges.
 
-SQE+q0 supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
+**In ChargeFW.** SQE+q0 supports charged molecules and
+[fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (sqeqp)=
 #### SQE+qp
@@ -633,7 +694,8 @@ where $\mathbf{1}^{\mathsf T}$ is a row vector of ones. The rest of the procedur
 whole molecule, so the parameterized charges of one connected component need not sum to its formal
 charge.
 
-SQE+qp supports charged molecules and [fixed ions](fixed-ions.md#what-the-approximation-does).
+**In ChargeFW.** SQE+qp supports charged molecules and
+[fixed ions](fixed-ions.md#what-the-approximation-does).
 
 ## Calculation cost
 

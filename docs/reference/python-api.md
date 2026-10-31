@@ -191,7 +191,7 @@ residue name it was selected by, such as `"MG"`), `molecule_index`, `atom_index`
 ### RequestedCalculation
 
 The arguments of a call as ChargeFW read them: `method` and `parameter_set` as IDs or `None`,
-`options_by_method`, `parameter_matching`, `execution`, `radius`, `cutoff_threshold`,
+`method_scope`, `options_by_method`, `parameter_matching`, `execution`, `radius`, `cutoff_threshold`,
 `cover_threshold`, `threads`, and `fixed_ions` as a tuple of residue names.
 
 ## Assessment
@@ -258,6 +258,7 @@ A reason why an execution mode was not used, or a warning about the one that was
 | `id`, `name`, `full_name` | Such as `"peoe"`, `"PEOE"`, and `"Partial Equalization of Orbital Electronegativity"` |
 | `publication` | DOI of the method's publication, or `None` |
 | `notes` | Remarks on how ChargeFW implements the method |
+| `recommended` | `True` for methods whose charges are recommended for general use; automatic selection uses only these unless `method_scope="all"` |
 | `requires_coordinates` | `True` for methods that use 3D coordinates |
 | `requires_bonds` | `True` for methods that use the bonds of the molecule |
 | `time_complexity`, `memory_complexity` | Cost for $n$ atoms and $m$ bonds, such as `"O(n^3)"` |

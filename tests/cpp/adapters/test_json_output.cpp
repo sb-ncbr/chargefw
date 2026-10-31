@@ -128,6 +128,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                                                    adapters::SourceConnectivity::present}}},
         {.method_id = std::nullopt,
          .parameter_set_id = std::nullopt,
+         .method_scope = "all",
          .permissive_types = true,
          .cutoff_atom_threshold = std::nullopt,
          .cover_atom_threshold = std::nullopt,
@@ -171,6 +172,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     const auto& requested = provenance.at("requested");
     CHECK(requested.at("method").is_null());
     CHECK(requested.at("parameter_set").is_null());
+    CHECK(requested.at("method_scope") == "all");
     CHECK(requested.at("execution").at("kind") == "auto");
     CHECK(requested.at("execution").at("radius_angstrom").is_null());
     CHECK(requested.at("classification").at("permissive_types") == true);

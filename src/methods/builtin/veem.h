@@ -14,7 +14,8 @@ class VEEMMethod final : public Method {
             .publication = "10.1088/1674-0068/24/01/31-39",
             .notes = "Supports only net-neutral molecules; molecular "
                      "connectivity is not used.",
-            .priority = 20};
+            .priority = 20,
+            .recommended = false};
 
         return metadata;
     }

@@ -175,6 +175,8 @@ expect_json(default_output "${default_json}" 1.0 schema_version)
 expect_json(default_output "${default_json}" "${CHARGEFW_VERSION}" generator version)
 expect_json(default_output "${default_json}" success results 0 status)
 expect_json(default_output "${default_json}" auto calculation_provenance requested execution kind)
+expect_json(default_output "${default_json}" recommended
+            calculation_provenance requested method_scope)
 expect_json(default_output "${default_json}" full calculation_provenance effective execution mode)
 expect_json(default_output "${default_json}" 20000
             calculation_provenance requested resource_policy cutoff_atom_threshold)

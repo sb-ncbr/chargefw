@@ -32,6 +32,7 @@ from ._types import (
     CalculationPhase,
     ExecutionMode,
     MethodOptionValue,
+    MethodScope,
     ParameterMatching,
     RequestedExecution,
 )
@@ -210,6 +211,7 @@ def assess(
     *,
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
+    method_scope: MethodScope = "recommended",
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
     parameter_matching: ParameterMatching = "strict",
@@ -225,6 +227,7 @@ def assess(
     requested = RequestedCalculation(
         method=method,
         parameter_set=parameter_set,
+        method_scope=method_scope,
         options=options,
         options_by_method=options_by_method,
         parameter_matching=parameter_matching,
@@ -252,6 +255,7 @@ def assess(
         _default_parameter_catalog(),
         requested.method,
         requested.parameter_set,
+        requested.method_scope,
         {
             method_id: dict(overrides)
             for method_id, overrides in requested.options_by_method.items()
@@ -301,6 +305,7 @@ def calculate(
     *,
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
+    method_scope: MethodScope = cast(MethodScope, _Default("recommended")),
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
     parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
@@ -325,6 +330,7 @@ def calculate(
             collection,
             method=method,
             parameter_set=parameter_set,
+            method_scope=_value(method_scope),
             options=options,
             options_by_method=options_by_method,
             parameter_matching=_value(parameter_matching),
@@ -354,6 +360,7 @@ def calculate(
         (
             method is not None,
             parameter_set is not None,
+            _passed(method_scope),
             options is not None,
             options_by_method is not None,
             _passed(parameter_matching),

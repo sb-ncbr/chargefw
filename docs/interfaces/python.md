@@ -124,6 +124,7 @@ keyword arguments:
 | --- | --- |
 | `method` | Method ID or `Method`; default `None`, chosen automatically |
 | `parameter_set` | Parameter-set ID or `ParameterSet`; requires `method` |
+| `method_scope` | Methods automatic selection may use: `"recommended"` (default) or `"all"`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; `"all"` cannot be combined with `method` |
 | `options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
 | `options_by_method` | Options per method ID for automatic selection, such as `{"peoe": {"iters": 8}}` |
 | `parameter_matching` | `"strict"` (default) or `"permissive"`; see [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
@@ -291,8 +292,9 @@ iterations = chargefw.methods["peoe"].options["iters"]
 print(iterations.default, iterations.minimum, iterations.maximum)
 ```
 
-A `Method` has its name, publication, `notes`, `requires_coordinates`, `requires_bonds`, `time_complexity` and
-`memory_complexity`, `supports_cutoff`, `supports_cover`, `supports_fixed_ions`, `options`, and
+A `Method` has its name, publication, `notes`, `recommended`, `requires_coordinates`,
+`requires_bonds`, `time_complexity` and `memory_complexity`, `supports_cutoff`, `supports_cover`,
+`supports_fixed_ions`, `options`, and
 `parameter_sets`. A method that requires coordinates
 needs finite coordinates for every conformer and gives one assignment per conformer. These attributes
 describe the method in general; whether it applies to particular molecules shows only when you

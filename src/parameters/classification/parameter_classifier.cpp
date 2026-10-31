@@ -36,8 +36,10 @@ auto highest_bond_order_type(const core::Molecule& molecule,
                              const std::size_t atom_index, const bool permissive) -> std::string {
     const auto highest = highest_bond_order_rank(molecule, topology, atom_index);
 
-    if (permissive && highest > 1) {
-        return std::to_string(highest - 1);
+    // An atom without bonds, such as the oxygen of water without its hydrogens, falls back to
+    // single-bonded parameters.
+    if (permissive) {
+        return std::to_string(std::max(1, highest - 1));
     }
 
     return std::to_string(highest);

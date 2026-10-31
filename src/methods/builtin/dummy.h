@@ -14,7 +14,8 @@ class DummyMethod final : public Method {
             .publication = std::nullopt,
             .notes = "Always returns zero charges regardless of input "
                      "formal charges; not an empirical charge model.",
-            .priority = 0};
+            .priority = 0,
+            .recommended = false};
 
         return metadata;
     }

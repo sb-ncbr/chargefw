@@ -121,6 +121,7 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
     auto requested = adapters::RequestedCalculationProvenance{
         .method_id = request.method_id,
         .parameter_set_id = request.parameter_set_id,
+        .method_scope = std::string{calculation::to_string(request.method_scope)},
         .permissive_types = request.classification_options.permissive_types,
         .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
         .cover_atom_threshold = request.resource_policy.cover_atom_threshold,

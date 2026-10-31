@@ -243,13 +243,41 @@ TEST_CASE("assessment reports parameter and automatic method rejections",
           std::optional<std::string>{"permissive-peoe-parameters"});
 
     auto automatic_rejected_assessment = calculation::assess(calculation::AssessmentRequest{
-        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}}});
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .method_scope = calculation::MethodScope::all});
     const auto automatic_rejected_result = calculation::calculate(automatic_rejected_assessment);
     const auto rejected_smpqeq = std::ranges::find_if(
         automatic_rejected_result.rejections,
         [](const calculation::Rejection& rejection) { return rejection.method_id == "smpqeq"; });
     REQUIRE(rejected_smpqeq != automatic_rejected_result.rejections.end());
     CHECK(!rejected_smpqeq->issues.empty());
+}
+
+TEST_CASE("automatic selection considers methods that are not recommended only when asked for all",
+          "[calculation][calculation]") {
+    const auto plan_method_ids = [](const calculation::AssessmentRequest& request) {
+        const auto assessment = calculation::assess(request);
+        auto ids = std::vector<std::string_view>{};
+        for (const auto& plan : assessment.plans()) {
+            ids.push_back(plan.method().id());
+        }
+        return ids;
+    };
+    const auto water = core::MoleculeCollection{std::vector{chargefw::test::make_water()}};
+
+    // VEEM needs no parameters and applies to water, but it is not recommended.
+    const auto recommended = plan_method_ids({.molecules = water});
+    REQUIRE_FALSE(recommended.empty());
+    CHECK(std::ranges::find(recommended, "veem") == recommended.end());
+
+    const auto all =
+        plan_method_ids({.molecules = water, .method_scope = calculation::MethodScope::all});
+    CHECK(std::ranges::find(all, "veem") != all.end());
+
+    // A named method is assessed whether or not it is recommended.
+    const auto named = plan_method_ids({.molecules = water, .method_id = "veem"});
+    REQUIRE(named.size() == 1);
+    CHECK(named[0] == "veem");
 }
 
 TEST_CASE("explicit no-plan assessment reports rejected scientific prerequisites",

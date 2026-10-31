@@ -14,7 +14,8 @@ class DelReMethod final : public Method {
                                                  .notes =
                                                      "Every connected component must be formally "
                                                      "neutral.",
-                                                 .priority = 130};
+                                                 .priority = 130,
+                                                 .recommended = false};
 
         return metadata;
     }

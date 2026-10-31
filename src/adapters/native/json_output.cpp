@@ -273,6 +273,7 @@ constexpr auto metric_scale = 1000.0;
     Json requested{
         {"method", optional_id(requested_provenance.method_id)},
         {"parameter_set", optional_id(requested_provenance.parameter_set_id)},
+        {"method_scope", requested_provenance.method_scope},
         {"classification", {{"permissive_types", requested_provenance.permissive_types}}},
         {"resource_policy",
          {{"cutoff_atom_threshold", threshold_value(requested_provenance.cutoff_atom_threshold)},
