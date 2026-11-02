@@ -263,9 +263,8 @@ JsonReader::JsonReader(std::istream& input, std::string source, const ConformerS
     }
 
     const std::string document_context{"document"};
-    const auto& molecules = member(document, "molecules", document_context);
-    require_array(molecules, "document.molecules");
-    molecule_records_ = molecules;
+    require_array(member(document, "molecules", document_context), "document.molecules");
+    molecule_records_ = std::move(document["molecules"]);
 }
 
 auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
@@ -274,11 +273,14 @@ auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
     }
 
     const auto current_record_index = record_index_++;
-    return parse_molecule(molecule_records_[current_record_index],
-                          MoleculeRecordIdentity{.source = source_,
-                                                 .record_index = current_record_index,
-                                                 .record_id = {}},
-                          conformers_);
+    auto record = parse_molecule(molecule_records_[current_record_index],
+                                 MoleculeRecordIdentity{.source = source_,
+                                                        .record_index = current_record_index,
+                                                        .record_id = {}},
+                                 conformers_);
+    // The reader only moves forward; release the parsed record's document.
+    molecule_records_[current_record_index] = nullptr;
+    return record;
 }
 
 } // namespace chargefw::adapters::native::json_input

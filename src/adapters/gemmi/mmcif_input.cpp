@@ -20,35 +20,70 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace chargefw::adapters::gemmi::mmcif_input {
 namespace {
 
-[[nodiscard]] auto parser_block(const ::gemmi::cif::Block& source) -> ::gemmi::cif::Block {
-    auto result = source;
-    auto atom_sites = result.find("_atom_site.", {"id"});
-    if (atom_sites.length() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        throw std::runtime_error{"mmCIF contains too many atom sites for Gemmi"};
+// Replaces the validated _atom_site.id values with their one-based positions for Gemmi while it
+// builds the structure, and restores the source IDs when destroyed. Renumbering in place avoids
+// copying the whole block.
+class ParserAtomSiteIds {
+  public:
+    explicit ParserAtomSiteIds(::gemmi::cif::Block& block)
+        : atom_sites_{block.find("_atom_site.", {"id"})} {
+        if (atom_sites_.length() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            throw std::runtime_error{"mmCIF contains too many atom sites for Gemmi"};
+        }
+        auto ids = std::unordered_set<std::string>{};
+        ids.reserve(atom_sites_.length());
+        for (auto row : atom_sites_) {
+            if (::gemmi::cif::is_null(row[0])) {
+                throw std::runtime_error{"mmCIF _atom_site.id must not be missing or unknown"};
+            }
+            auto source_id = ::gemmi::cif::as_string(row[0]);
+            if (source_id.empty()) {
+                throw std::runtime_error{"mmCIF _atom_site.id must not be missing or unknown"};
+            }
+            if (!ids.insert(source_id).second) {
+                throw std::runtime_error{"mmCIF _atom_site.id must be unique; duplicate value '" +
+                                         source_id + "'"};
+            }
+        }
+        source_ids_.reserve(atom_sites_.length());
+        try {
+            auto position = std::size_t{0};
+            for (auto row : atom_sites_) {
+                auto parser_id = std::to_string(++position);
+                source_ids_.push_back(std::exchange(row[0], std::move(parser_id)));
+            }
+        } catch (...) {
+            // The destructor does not run when construction fails.
+            restore();
+            throw;
+        }
     }
-    auto ids = std::unordered_set<std::string>{};
-    ids.reserve(atom_sites.length());
-    auto position = std::size_t{0};
-    for (auto row : atom_sites) {
-        if (::gemmi::cif::is_null(row[0])) {
-            throw std::runtime_error{"mmCIF _atom_site.id must not be missing or unknown"};
-        }
-        const auto source_id = ::gemmi::cif::as_string(row[0]);
-        if (source_id.empty()) {
-            throw std::runtime_error{"mmCIF _atom_site.id must not be missing or unknown"};
-        }
-        if (!ids.insert(source_id).second) {
-            throw std::runtime_error{"mmCIF _atom_site.id must be unique; duplicate value '" +
-                                     source_id + "'"};
-        }
-        row[0] = std::to_string(++position);
+
+    ParserAtomSiteIds(const ParserAtomSiteIds&) = delete;
+    ParserAtomSiteIds(ParserAtomSiteIds&&) = delete;
+    auto operator=(const ParserAtomSiteIds&) -> ParserAtomSiteIds& = delete;
+    auto operator=(ParserAtomSiteIds&&) -> ParserAtomSiteIds& = delete;
+
+    ~ParserAtomSiteIds() {
+        restore();
     }
-    return result;
-}
+
+  private:
+    // Puts back the source IDs saved so far; later rows were not changed.
+    auto restore() noexcept -> void {
+        for (std::size_t index = 0; index < source_ids_.size(); ++index) {
+            atom_sites_[static_cast<int>(index)][0] = std::move(source_ids_[index]);
+        }
+    }
+
+    ::gemmi::cif::Table atom_sites_;
+    std::vector<std::string> source_ids_;
+};
 
 struct MmcifSourceSite {
     std::optional<std::string> model_id;
@@ -137,8 +172,10 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
             continue;
         }
 
-        auto normalized = parser_block(block);
-        auto structure = ::gemmi::make_structure_from_block(normalized);
+        auto structure = [&block] {
+            const auto parser_ids = ParserAtomSiteIds{block};
+            return ::gemmi::make_structure_from_block(block);
+        }();
         if (structure.models.empty()) {
             throw std::runtime_error{"structural input contains no models"};
         }
