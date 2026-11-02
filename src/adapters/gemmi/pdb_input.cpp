@@ -98,7 +98,10 @@ struct StructuralLabelsLess {
     }
 };
 
-[[nodiscard]] auto parse_source(const std::string& contents) -> PdbSource {
+// Reads model IDs and connectivity from the whole file, but atom sites only for the first
+// retained_models models; the others are not mapped.
+[[nodiscard]] auto parse_source(const std::string& contents, const std::size_t retained_models)
+    -> PdbSource {
     auto result = PdbSource{};
     auto* current = static_cast<PdbSourceModel*>(nullptr);
     auto source_position = std::size_t{0};
@@ -135,6 +138,9 @@ struct StructuralLabelsLess {
         if (current == nullptr) {
             result.models.push_back(PdbSourceModel{.id = std::nullopt, .sites = {}});
             current = std::addressof(result.models.back());
+        }
+        if (result.models.size() > retained_models) {
+            continue;
         }
         auto labels =
             SourceStructuralLabels{.author = SourceHierarchyLabels{.atom = field(view, 12, 4),
@@ -229,7 +235,9 @@ PdbReader::PdbReader(std::istream& input, std::string source,
     const auto name = structure.name.empty() ? source : structure.name;
     auto selected_models =
         selection::select_models(structure, options.selection, options.conformers);
-    const auto parsed_source = parse_source(contents);
+    const auto retained_models =
+        options.conformers == ConformerSelection::all ? structure.models.size() : std::size_t{1};
+    const auto parsed_source = parse_source(contents, retained_models);
     auto mappings = source_models(structure, options, selected_models, parsed_source.models);
     for (std::size_t index = 0; index < selected_models.size(); ++index) {
         selected_models[index].normalize_component_names(mappings[index].conformer.sites);

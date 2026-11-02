@@ -86,35 +86,13 @@ class ParserAtomSiteIds {
     std::vector<std::string> source_ids_;
 };
 
-struct MmcifSourceSite {
-    std::optional<std::string> model_id;
-    SourceAtomReference reference;
-};
-
-[[nodiscard]] auto source_sites(::gemmi::cif::Block& block) -> std::vector<MmcifSourceSite> {
-    auto atom_sites = mmcif_labels::source_atom_sites(block);
-    auto result = std::vector<MmcifSourceSite>{};
-    result.reserve(atom_sites.length());
-    auto position = std::size_t{0};
-    for (const auto row : atom_sites) {
-        const auto id = ::gemmi::cif::as_string(row[0]);
-        const auto model_id = mmcif_labels::source_value(row, mmcif_labels::model_id_column);
-        result.push_back(
-            MmcifSourceSite{.model_id = model_id,
-                            .reference = SourceAtomReference{
-                                .position = position++,
-                                .id = id,
-                                .structural_labels = std::make_shared<const SourceStructuralLabels>(
-                                    mmcif_labels::decode_source_labels(row))}});
-    }
-    return result;
-}
-
 [[nodiscard]] auto
 make_source_mappings(::gemmi::cif::Block& block,
                      const std::span<const selection::SelectedModel> selected_models)
     -> std::vector<structure_import::SourceModelMapping> {
-    const auto sites = source_sites(block);
+    // Gemmi built the structure while each _atom_site.id held its row position plus one, so an
+    // atom's serial number names its row. Only the rows of selected atoms are decoded.
+    auto atom_sites = mmcif_labels::source_atom_sites(block);
     auto result = std::vector<structure_import::SourceModelMapping>{};
     result.reserve(selected_models.size());
     for (std::size_t model_index = 0; model_index < selected_models.size(); ++model_index) {
@@ -124,15 +102,19 @@ make_source_mappings(::gemmi::cif::Block& block,
         auto model_id = std::optional<std::string>{};
         auto model_id_initialized = false;
         for (const auto* atom : selected.atoms()) {
-            if (atom->serial <= 0 || static_cast<std::size_t>(atom->serial) > sites.size()) {
+            if (atom->serial <= 0 || static_cast<std::size_t>(atom->serial) > atom_sites.length()) {
                 throw std::runtime_error{"mmCIF source mapping does not match selected atoms"};
             }
-            const auto& source = sites[static_cast<std::size_t>(atom->serial) - 1];
+            const auto row = atom_sites[atom->serial - 1];
             if (!model_id_initialized) {
-                model_id = source.model_id;
+                model_id = mmcif_labels::source_value(row, mmcif_labels::model_id_column);
                 model_id_initialized = true;
             }
-            mapped.push_back(source.reference);
+            mapped.push_back(SourceAtomReference{
+                .position = static_cast<std::size_t>(atom->serial) - 1,
+                .id = ::gemmi::cif::as_string(row[0]),
+                .structural_labels = std::make_shared<const SourceStructuralLabels>(
+                    mmcif_labels::decode_source_labels(row))});
         }
         result.push_back(structure_import::SourceModelMapping{
             .conformer = SourceConformerReference{
