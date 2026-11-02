@@ -117,7 +117,7 @@ END
     CHECK(mapping.conformers[1].id == "2");
     CHECK(mapping.conformers[0].sites[0].position == 0);
     CHECK(mapping.conformers[1].sites[0].position == 3);
-    REQUIRE(mapping.atoms[1].structural_labels.has_value());
+    REQUIRE(mapping.atoms[1].structural_labels != nullptr);
     CHECK(mapping.atoms[1].structural_labels->author.atom == "H1");
     CHECK(mapping.atoms[1].structural_labels->author.residue == "HOH");
     CHECK(mapping.atoms[1].structural_labels->author.chain == "A");
@@ -278,7 +278,7 @@ END
     CHECK(record->import_metadata->atoms[0].id == "1");
     CHECK(record->import_metadata->atoms[1].position == 1);
     CHECK(record->import_metadata->atoms[1].id == "2");
-    REQUIRE(record->import_metadata->atoms[0].structural_labels.has_value());
+    REQUIRE(record->import_metadata->atoms[0].structural_labels != nullptr);
     CHECK(record->import_metadata->atoms[0].structural_labels->alternate_location == "B");
 }
 
@@ -366,8 +366,8 @@ END
     REQUIRE(record->import_metadata.has_value());
     const auto& conformers = record->import_metadata->conformers;
     REQUIRE(conformers.size() == 2);
-    REQUIRE(conformers[0].sites[0].structural_labels.has_value());
-    REQUIRE(conformers[1].sites[0].structural_labels.has_value());
+    REQUIRE(conformers[0].sites[0].structural_labels != nullptr);
+    REQUIRE(conformers[1].sites[0].structural_labels != nullptr);
     CHECK(conformers[0].sites[0].structural_labels->alternate_location == "A");
     CHECK(conformers[1].sites[0].structural_labels->alternate_location == "B");
 }
@@ -394,8 +394,8 @@ END
     REQUIRE(record->import_metadata.has_value());
     const auto& atoms = record->import_metadata->atoms;
     REQUIRE(atoms.size() == 2);
-    REQUIRE(atoms[0].structural_labels.has_value());
-    REQUIRE(atoms[1].structural_labels.has_value());
+    REQUIRE(atoms[0].structural_labels != nullptr);
+    REQUIRE(atoms[1].structural_labels != nullptr);
     CHECK(atoms[0].structural_labels->author.chain == "AB");
     CHECK(atoms[0].structural_labels->author.sequence == "0001");
     CHECK(atoms[1].structural_labels->author.chain == "AB");

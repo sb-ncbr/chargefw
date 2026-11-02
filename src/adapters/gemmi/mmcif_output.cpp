@@ -233,7 +233,7 @@ struct OutputAssignments {
                 throw std::invalid_argument{
                     "Gemmi target site mapping does not match the calculation input"};
             }
-            if (!site.structural_labels.has_value() ||
+            if (site.structural_labels == nullptr ||
                 mmcif_labels::decode_source_labels(target_site) != *site.structural_labels) {
                 throw std::invalid_argument{
                     "Gemmi target site mapping does not match the calculation input"};
@@ -268,8 +268,7 @@ struct OutputAssignments {
         return nullptr;
     }
     const auto& reference = record.import_metadata->conformers[conformer_index].sites[atom_index];
-    return reference.structural_labels.has_value() ? std::addressof(*reference.structural_labels)
-                                                   : nullptr;
+    return reference.structural_labels.get();
 }
 
 struct OutputSiteLabels {

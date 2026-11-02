@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -24,6 +25,15 @@ namespace gemmi_adapter = chargefw::adapters::gemmi;
 namespace mmcif = chargefw::adapters::gemmi::mmcif_input;
 
 namespace {
+// Structural labels are shared and immutable; replace them with an edited copy.
+template <typename Edit>
+void edit_labels(chargefw::adapters::SourceAtomReference& reference, const Edit& edit) {
+    auto labels = *reference.structural_labels;
+    edit(labels);
+    reference.structural_labels =
+        std::make_shared<const chargefw::adapters::SourceStructuralLabels>(std::move(labels));
+}
+
 auto mmcif_water_and_magnesium() -> ImportedMoleculeRecord {
     std::istringstream input{R"cif(data_fixed_ions
 loop_
@@ -75,11 +85,15 @@ auto ion_record(const std::string& component, const int atomic_number, const std
     chargefw::adapters::MoleculeImportMetadata metadata;
     metadata.atoms.push_back(
         {.position = 100,
-         .structural_labels = chargefw::adapters::SourceStructuralLabels{
-             .author =
-                 {.atom = atom_name, .residue = component, .chain = " ", .sequence = sequence},
-             .label = {
-                 .atom = atom_name, .residue = component, .chain = "L", .sequence = sequence}}});
+         .structural_labels = std::make_shared<const chargefw::adapters::SourceStructuralLabels>(
+             chargefw::adapters::SourceStructuralLabels{.author = {.atom = atom_name,
+                                                                   .residue = component,
+                                                                   .chain = " ",
+                                                                   .sequence = sequence},
+                                                        .label = {.atom = atom_name,
+                                                                  .residue = component,
+                                                                  .chain = "L",
+                                                                  .sequence = sequence}})});
     metadata.components.push_back({component, {0}});
     record.import_metadata = std::move(metadata);
     return record;
@@ -178,21 +192,27 @@ TEST_CASE("private fixed ions preserve atom order within one record", "[adapters
     first.position = 900;
     second.position = 2;
     third.position = 40;
-    first.structural_labels->label.sequence = "9";
-    first.structural_labels->label.atom = "FE";
-    first.structural_labels->author.atom = "FE";
-    second.structural_labels->label.sequence = "1";
-    second.structural_labels->author.sequence = "1";
-    second.structural_labels->label.residue = "MG";
-    second.structural_labels->author.residue = "MG";
-    second.structural_labels->label.atom = "MG";
-    second.structural_labels->author.atom = "MG";
-    third.structural_labels->label.sequence = "5";
-    third.structural_labels->author.sequence = "5";
-    third.structural_labels->label.residue = "FE";
-    third.structural_labels->author.residue = "FE";
-    third.structural_labels->label.atom = "FE";
-    third.structural_labels->author.atom = "FE";
+    edit_labels(first, [](auto& labels) {
+        labels.label.sequence = "9";
+        labels.label.atom = "FE";
+        labels.author.atom = "FE";
+    });
+    edit_labels(second, [](auto& labels) {
+        labels.label.sequence = "1";
+        labels.author.sequence = "1";
+        labels.label.residue = "MG";
+        labels.author.residue = "MG";
+        labels.label.atom = "MG";
+        labels.author.atom = "MG";
+    });
+    edit_labels(third, [](auto& labels) {
+        labels.label.sequence = "5";
+        labels.author.sequence = "5";
+        labels.label.residue = "FE";
+        labels.author.residue = "FE";
+        labels.label.atom = "FE";
+        labels.author.atom = "FE";
+    });
     record.import_metadata->atoms = {first, second, third};
     record.import_metadata->components = {{"FE2", {0}}, {"MG", {1}}, {"FE", {2}}};
 
@@ -244,7 +264,8 @@ TEST_CASE("private fixed ions use explicit components without hierarchy labels",
 TEST_CASE("private fixed ions use canonical component IDs and validate partitions",
           "[adapters][fixed-charge]") {
     auto record = ion_record("MG", 12, "MG", "1");
-    record.import_metadata->atoms[0].structural_labels->author.residue = "AUTHOR-NAMESPACE";
+    edit_labels(record.import_metadata->atoms[0],
+                [](auto& labels) { labels.author.residue = "AUTHOR-NAMESPACE"; });
     record.import_metadata->components = {{"MG", {0}}};
     const std::vector<std::string> request{"MG"};
     const auto resolved = detail::resolve_fixed_ions(std::vector{record}, request);
@@ -276,19 +297,24 @@ TEST_CASE("private fixed ions use canonical component IDs and validate partition
 TEST_CASE("private fixed ions match label names before author fallback",
           "[adapters][fixed-charge]") {
     auto record = ion_record("MG", 12, "AUTHOR-MG", "1");
-    record.import_metadata->atoms[0].structural_labels->author.atom = "AUTHOR-MG";
-    record.import_metadata->atoms[0].structural_labels->label.atom = "MG";
-    record.import_metadata->atoms[0].structural_labels->author.residue = "AUTHOR-COMP";
-    record.import_metadata->atoms[0].structural_labels->label.residue = "MG";
+    edit_labels(record.import_metadata->atoms[0], [](auto& labels) {
+        labels.author.atom = "AUTHOR-MG";
+        labels.label.atom = "MG";
+        labels.author.residue = "AUTHOR-COMP";
+        labels.label.residue = "MG";
+    });
     const std::vector<std::string> request{"MG"};
     const auto resolved = detail::resolve_fixed_ions(std::vector{record}, request);
     REQUIRE(resolved.sources.size() == 1);
     CHECK(resolved.sources[0].atom_index == 0);
 
-    record.import_metadata->atoms[0].structural_labels->label.residue = "NOT-MG";
+    edit_labels(record.import_metadata->atoms[0],
+                [](auto& labels) { labels.label.residue = "NOT-MG"; });
     CHECK(detail::resolve_fixed_ions(std::vector{record}, request).sources.empty());
-    record.import_metadata->atoms[0].structural_labels->label.residue = "";
-    record.import_metadata->atoms[0].structural_labels->author.residue = "MG";
+    edit_labels(record.import_metadata->atoms[0], [](auto& labels) {
+        labels.label.residue = "";
+        labels.author.residue = "MG";
+    });
     CHECK(detail::resolve_fixed_ions(std::vector{record}, request).sources.size() == 1);
     record.import_metadata->components.clear();
     CHECK_THROWS_AS(detail::resolve_fixed_ions(std::vector{record}, request),
@@ -316,8 +342,10 @@ TEST_CASE("private fixed ions reject extra atoms and incident bonds", "[adapters
         {chargefw::core::Atom{12, 0, "MG"}, chargefw::core::Atom{1, 0, "H"}}};
     auto extra_metadata = extra_atom.import_metadata->atoms.front();
     extra_metadata.position = 101;
-    extra_metadata.structural_labels->author.atom = "H";
-    extra_metadata.structural_labels->label.atom = "H";
+    edit_labels(extra_metadata, [](auto& labels) {
+        labels.author.atom = "H";
+        labels.label.atom = "H";
+    });
     extra_atom.import_metadata->atoms.push_back(extra_metadata);
     extra_atom.import_metadata->components[0].atom_indices.push_back(1);
     CHECK_THROWS_AS(detail::resolve_fixed_ions(std::vector{extra_atom}, mg_request),
@@ -329,12 +357,14 @@ TEST_CASE("private fixed ions reject extra atoms and incident bonds", "[adapters
         {chargefw::core::Bond{0, 1}}};
     auto active_metadata = bonded.import_metadata->atoms.front();
     active_metadata.position = 101;
-    active_metadata.structural_labels->author.atom = "O";
-    active_metadata.structural_labels->author.residue = "HOH";
-    active_metadata.structural_labels->author.sequence = "2";
-    active_metadata.structural_labels->label.atom = "O";
-    active_metadata.structural_labels->label.residue = "HOH";
-    active_metadata.structural_labels->label.sequence = "2";
+    edit_labels(active_metadata, [](auto& labels) {
+        labels.author.atom = "O";
+        labels.author.residue = "HOH";
+        labels.author.sequence = "2";
+        labels.label.atom = "O";
+        labels.label.residue = "HOH";
+        labels.label.sequence = "2";
+    });
     bonded.import_metadata->atoms.push_back(active_metadata);
     bonded.import_metadata->components.push_back({"HOH", {1}});
     CHECK_THROWS_AS(detail::resolve_fixed_ions(std::vector{bonded}, mg_request),
@@ -346,8 +376,10 @@ TEST_CASE("private fixed ions reject extra atoms and incident bonds", "[adapters
         {chargefw::core::Bond{0, 1}}};
     auto second = two_selected.import_metadata->atoms.front();
     second.position = 101;
-    second.structural_labels->author.sequence = "2";
-    second.structural_labels->label.sequence = "2";
+    edit_labels(second, [](auto& labels) {
+        labels.author.sequence = "2";
+        labels.label.sequence = "2";
+    });
     two_selected.import_metadata->atoms.push_back(second);
     two_selected.import_metadata->components = {{"MG", {0}}, {"MG", {1}}};
     CHECK_THROWS_MATCHES(detail::resolve_fixed_ions(std::vector{two_selected}, mg_request),

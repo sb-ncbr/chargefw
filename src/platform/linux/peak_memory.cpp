@@ -10,7 +10,8 @@ auto peak_resident_memory_bytes() -> std::uint64_t {
         return 0;
     }
 
-    // Linux reports ru_maxrss in kilobytes.
+    // Linux reports ru_maxrss in kilobytes. glibc declares it in an anonymous union.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     return static_cast<std::uint64_t>(usage.ru_maxrss) * 1024;
 }
 

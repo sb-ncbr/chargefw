@@ -20,6 +20,8 @@
 
 namespace {
 
+// A signal handler can reach only static state.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::atomic_flag interruption_requested;
 
 extern "C" void request_interruption(int /*signal*/) {
@@ -49,10 +51,7 @@ class InterruptibleCalculationObserver final : public chargefw::calculation::Cal
 
 class ScopedInterruptHandler final {
   public:
-    ScopedInterruptHandler() {
-        interruption_requested.clear(std::memory_order_relaxed);
-        previous_handler_ = std::signal(SIGINT, request_interruption);
-    }
+    ScopedInterruptHandler() : previous_handler_{install_handler()} {}
 
     ScopedInterruptHandler(const ScopedInterruptHandler&) = delete;
     auto operator=(const ScopedInterruptHandler&) -> ScopedInterruptHandler& = delete;
@@ -66,7 +65,13 @@ class ScopedInterruptHandler final {
   private:
     using SignalHandler = void (*)(int);
 
-    SignalHandler previous_handler_ = SIG_DFL;
+    // Clears an earlier request before installing the handler, so that no new one is lost.
+    [[nodiscard]] static auto install_handler() -> SignalHandler {
+        interruption_requested.clear(std::memory_order_relaxed);
+        return std::signal(SIGINT, request_interruption);
+    }
+
+    SignalHandler previous_handler_;
 };
 
 class TerminalProgressObserver final : public chargefw::calculation::CalculationObserver {

@@ -118,6 +118,18 @@ template <typename T>
     return result;
 }
 
+// Reuses the first model's labels where a later model's are equal, alternate location included.
+void share_equal_labels(const std::span<SourceAtomReference> sites,
+                        const std::span<const SourceAtomReference> first_sites) {
+    for (std::size_t index = 0; index < sites.size(); ++index) {
+        auto& labels = sites[index].structural_labels;
+        const auto& first = first_sites[index].structural_labels;
+        if (labels != nullptr && first != nullptr && *labels == *first) {
+            labels = first;
+        }
+    }
+}
+
 [[nodiscard]] auto conformer_positions(const selection::SelectedModel& model,
                                        const std::span<const core::Atom> reference,
                                        const std::span<const SourceAtomReference> reference_mapping,
@@ -148,8 +160,8 @@ template <typename T>
         const auto& reference_labels = reference_mapping[index].structural_labels;
         const auto& source_labels = source_mapping[index].structural_labels;
         const auto same_hierarchy = [&] {
-            if (!reference_labels.has_value() || !source_labels.has_value()) {
-                return reference_labels.has_value() == source_labels.has_value();
+            if (reference_labels == nullptr || source_labels == nullptr) {
+                return (reference_labels == nullptr) == (source_labels == nullptr);
             }
             const auto& first = *reference_labels;
             const auto& second = *source_labels;
@@ -215,7 +227,7 @@ template <typename T>
         if (index > 0) {
             result += ", ";
         }
-        result += detail::canonical_atom_name(atoms[unbonded[index]].structural_labels, "?");
+        result += detail::canonical_atom_name(atoms[unbonded[index]].structural_labels.get(), "?");
     }
     result += unbonded.size() > listed_atom_limit ? ", ...)" : ")";
     return result;
@@ -323,6 +335,8 @@ auto make_record(const ::gemmi::Structure& structure,
         auto positions = conformer_positions(
             selected_models[index], first.atoms, source_models.front().conformer.sites,
             source_models[index].conformer.sites, source_orders[index]);
+        share_equal_labels(source_models[index].conformer.sites,
+                           source_models.front().conformer.sites);
         conformers.emplace_back(std::move(positions), std::to_string(structure.models[index].num));
     }
 

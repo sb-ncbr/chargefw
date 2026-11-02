@@ -42,7 +42,7 @@ void print_summary(const std::vector<SummaryRow>& rows) {
         bytes /= 1024.0;
         ++unit;
     }
-    return std::format("{:.1f}{}", bytes, units[unit]);
+    return std::format("{:.1f}{}", bytes, units.at(unit));
 }
 
 // Shows a classifier and its expected type; an empty type is quoted to stay visible.

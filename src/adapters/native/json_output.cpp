@@ -126,7 +126,7 @@ constexpr auto metric_scale = 1000.0;
 
 [[nodiscard]] auto component_id(const SourceAtomReference& reference)
     -> std::optional<std::string> {
-    if (!reference.structural_labels.has_value()) {
+    if (reference.structural_labels == nullptr) {
         return std::nullopt;
     }
     const auto& labels = *reference.structural_labels;

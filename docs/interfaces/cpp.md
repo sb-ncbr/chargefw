@@ -194,7 +194,9 @@ records stay valid after the reader is destroyed.
 `MoleculeImportMetadata`: the source atoms (`SourceAtomReference`), conformers
 (`SourceConformerReference`), structural labels, connectivity, and residues
 (`SourceComponentInstance`). The [format reference](../reference/formats.md) describes what each reader
-fills in. `PortableId` holds a record or atom ID that is absent, a string, or a 64-bit integer.
+fills in. Structural labels are shared, immutable objects: to change a site's labels, replace its
+`structural_labels` with a new object. `PortableId` holds a record or atom ID that is absent, a
+string, or a 64-bit integer.
 
 `make_charge_calculation_result()` checks that the records fit the calculation: their number, their atom
 and conformer counts, the assignments, and the method and parameter set. It cannot check that they are

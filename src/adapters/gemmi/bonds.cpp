@@ -10,11 +10,14 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <map>
+#include <memory>
 #include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -60,32 +63,68 @@ class BondAccumulator {
     std::unordered_set<BondKey, BondKeyHash> seen_;
 };
 
-[[nodiscard]] auto selected_atom_index(const ::gemmi::Model& model,
+// Residues of a model by chain name and sequence ID, in model order, so that each connection
+// partner is found without scanning every chain and residue.
+class ResidueIndex {
+  public:
+    explicit ResidueIndex(const ::gemmi::Model& model) {
+        for (const auto& chain : model.chains) {
+            for (const auto& residue : chain.residues) {
+                residues_[key(chain.name, residue.seqid)].push_back(std::addressof(residue));
+            }
+        }
+    }
+
+    [[nodiscard]] auto find(const std::string_view chain_name, const ::gemmi::SeqId& seqid) const
+        -> std::span<const ::gemmi::Residue* const> {
+        const auto found = residues_.find(key(chain_name, seqid));
+        if (found == residues_.end()) {
+            return {};
+        }
+        return found->second;
+    }
+
+  private:
+    using Key = std::tuple<std::string_view, int, char>;
+
+    // gemmi compares insertion codes ignoring case and treats a blank code as no code.
+    [[nodiscard]] static auto key(const std::string_view chain_name, const ::gemmi::SeqId& seqid)
+        -> Key {
+        return {chain_name, seqid.num.value, static_cast<char>(seqid.icode | 0x20)};
+    }
+
+    std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;
+};
+
+[[nodiscard]] auto selected_atom_index(const ResidueIndex& residues,
                                        const selection::SelectedModel& selected,
                                        const ::gemmi::AtomAddress& address)
     -> std::optional<std::size_t> {
-    const auto cra = model.find_cra(address, true);
-    if (cra.atom != nullptr) {
-        return selected.atom_index(cra.atom);
+    const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
+    // As Model::find_cra(address, true): the first residue with the given name decides.
+    for (const auto* residue : candidates) {
+        if (residue->name != address.res_id.name) {
+            continue;
+        }
+        if (!address.atom_name.empty()) {
+            if (const auto* atom = residue->find_atom(address.atom_name, address.altloc)) {
+                return selected.atom_index(atom);
+            }
+        }
+        break;
     }
     if (!address.res_id.name.empty() && address.altloc != '\0') {
         return std::nullopt;
     }
 
-    for (const auto& chain : model.chains) {
-        if (chain.name != address.chain_name) {
+    for (const auto* residue : candidates) {
+        if (!address.res_id.name.empty() && residue->name != address.res_id.name) {
             continue;
         }
-        for (const auto& residue : chain.residues) {
-            if (residue.seqid != address.res_id.seqid ||
-                (!address.res_id.name.empty() && residue.name != address.res_id.name)) {
-                continue;
-            }
-            for (const auto& atom : residue.atoms) {
-                if (atom.name == address.atom_name &&
-                    (address.altloc == '\0' || atom.altloc == address.altloc)) {
-                    return selected.atom_index(std::addressof(atom));
-                }
+        for (const auto& atom : residue->atoms) {
+            if (atom.name == address.atom_name &&
+                (address.altloc == '\0' || atom.altloc == address.altloc)) {
+                return selected.atom_index(std::addressof(atom));
             }
         }
     }
@@ -103,20 +142,23 @@ using ConnectionOrders = std::unordered_map<std::string, core::BondOrder>;
                                              const ::gemmi::Structure& structure,
                                              const selection::SelectedModel& selected,
                                              const ConnectionOrders& orders = {}) -> std::size_t {
-    if (structure.models.empty()) {
+    const auto is_bond = [](const ::gemmi::Connection& connection) {
+        return connection.type == ::gemmi::Connection::Covale ||
+               connection.type == ::gemmi::Connection::Disulf;
+    };
+    if (structure.models.empty() || !std::ranges::any_of(structure.connections, is_bond)) {
         return 0;
     }
 
-    const auto& model = structure.models.front();
+    const auto residues = ResidueIndex{structure.models.front()};
     auto skipped = std::size_t{0};
     for (const auto& connection : structure.connections) {
-        if (connection.type != ::gemmi::Connection::Covale &&
-            connection.type != ::gemmi::Connection::Disulf) {
+        if (!is_bond(connection)) {
             continue;
         }
 
-        const auto first = selected_atom_index(model, selected, connection.partner1);
-        const auto second = selected_atom_index(model, selected, connection.partner2);
+        const auto first = selected_atom_index(residues, selected, connection.partner1);
+        const auto second = selected_atom_index(residues, selected, connection.partner2);
         if (!first.has_value() || !second.has_value()) {
             continue;
         }

@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -110,9 +111,19 @@ struct SourceStructuralLabels {
 struct SourceAtomReference {
     std::size_t position = 0;
     std::optional<std::string> id;
-    std::optional<SourceStructuralLabels> structural_labels;
+    // PDB and mmCIF only. Readers share one immutable object among sites with equal labels, such
+    // as an atom's sites in the first and later models; replace it instead of editing it.
+    std::shared_ptr<const SourceStructuralLabels> structural_labels;
 
-    [[nodiscard]] auto operator==(const SourceAtomReference&) const -> bool = default;
+    // Compares label values, not objects, so records read separately compare equal.
+    [[nodiscard]] friend auto operator==(const SourceAtomReference& first,
+                                         const SourceAtomReference& second) -> bool {
+        const auto same_labels =
+            first.structural_labels == second.structural_labels ||
+            (first.structural_labels != nullptr && second.structural_labels != nullptr &&
+             *first.structural_labels == *second.structural_labels);
+        return first.position == second.position && first.id == second.id && same_labels;
+    }
 };
 
 struct SourceConformerReference {

@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace chargefw::adapters {
@@ -69,10 +70,20 @@ class ChargeCalculationResult {
                                                RequestedCalculationProvenance requested,
                                                calculation::ExecutionResult execution)
         -> ChargeCalculationResult;
+    friend auto charge_record_diagnostics(const ChargeCalculationResult& result,
+                                          std::size_t molecule_index)
+        -> std::vector<ResultDiagnostic>;
+
+    // Positions (rejection index, issue index) of rejection issues in execution order, so that
+    // record diagnostics need not scan the issues of every other molecule. Built only when no
+    // plan was executable, the only case in which records report rejections.
+    using IssuePosition = std::pair<std::size_t, std::size_t>;
 
     std::vector<ImportedMoleculeRecord> inputs_;
     RequestedCalculationProvenance requested_;
     calculation::ExecutionResult execution_;
+    std::vector<std::vector<IssuePosition>> molecule_issues_;
+    std::vector<IssuePosition> shared_issues_;
 };
 
 [[nodiscard]] auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,

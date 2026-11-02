@@ -46,16 +46,18 @@ struct ComponentAtom {
     std::size_t index;
 };
 
-[[nodiscard]] inline auto
-canonical_component_name(const std::optional<SourceStructuralLabels>& labels,
-                         const std::string_view fallback) -> std::string_view {
-    return labels ? first_known_label(labels->label.residue, labels->author.residue, fallback)
-                  : fallback;
+[[nodiscard]] inline auto canonical_component_name(const SourceStructuralLabels* labels,
+                                                   const std::string_view fallback)
+    -> std::string_view {
+    return labels != nullptr
+               ? first_known_label(labels->label.residue, labels->author.residue, fallback)
+               : fallback;
 }
 
-[[nodiscard]] inline auto canonical_atom_name(const std::optional<SourceStructuralLabels>& labels,
+[[nodiscard]] inline auto canonical_atom_name(const SourceStructuralLabels* labels,
                                               const std::string_view fallback) -> std::string_view {
-    return labels ? first_known_label(labels->label.atom, labels->author.atom, fallback) : fallback;
+    return labels != nullptr ? first_known_label(labels->label.atom, labels->author.atom, fallback)
+                             : fallback;
 }
 
 struct ComponentView {

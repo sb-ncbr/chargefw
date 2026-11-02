@@ -5,20 +5,8 @@
 #include <cmath>
 #include <map>
 #include <stdexcept>
-#include <tuple>
 
 namespace chargefw::features {
-namespace {
-
-// Lexicographic order on finite coordinates; -0.0 and 0.0 compare equivalent.
-struct PositionKeyLess {
-    [[nodiscard]] auto operator()(const core::Position& first,
-                                  const core::Position& second) const noexcept -> bool {
-        return std::tie(first.x, first.y, first.z) < std::tie(second.x, second.y, second.z);
-    }
-};
-
-} // namespace
 
 ConformerFeatures::ConformerFeatures(const core::Molecule& molecule,
                                      const std::size_t conformer_index)
@@ -65,7 +53,7 @@ auto ConformerFeatures::first_nonfinite_atom_index() const noexcept -> std::opti
 auto ConformerFeatures::coincident_atom_indices() const
     -> std::optional<std::pair<std::size_t, std::size_t>> {
     const auto positions = molecule_->conformer(conformer_index_).positions();
-    std::map<core::Position, std::size_t, PositionKeyLess> first_atom_by_position;
+    std::map<core::Position, std::size_t> first_atom_by_position;
 
     for (std::size_t atom_index = 0; atom_index < positions.size(); ++atom_index) {
         const auto [found, inserted] =

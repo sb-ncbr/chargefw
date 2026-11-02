@@ -18,6 +18,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -73,11 +74,12 @@ auto make_component_record(const std::string_view id,
         const auto author_component = author_components.empty()
                                           ? std::optional<std::string>{}
                                           : author_components.at(conformer_index);
-        auto source = std::optional<adapters::SourceStructuralLabels>{};
+        auto source = std::shared_ptr<const adapters::SourceStructuralLabels>{};
         if (label_components[conformer_index].has_value() || author_component.has_value()) {
-            source = adapters::SourceStructuralLabels{
-                .author = {.residue = author_component},
-                .label = {.residue = label_components[conformer_index]}};
+            source = std::make_shared<const adapters::SourceStructuralLabels>(
+                adapters::SourceStructuralLabels{
+                    .author = {.residue = author_component},
+                    .label = {.residue = label_components[conformer_index]}});
         }
         auto sites = std::vector<adapters::SourceAtomReference>{
             {.position = 1, .structural_labels = std::move(source)}, {.position = 0}};
@@ -337,7 +339,7 @@ HETATM 3 Mg MG . MG B 1 ? 0 3 1 1 20 2 1 MG B MG E2 1
     }
     REQUIRE(records.size() == 2);
     REQUIRE(records[0].import_metadata.has_value());
-    REQUIRE(records[0].import_metadata->atoms[2].structural_labels.has_value());
+    REQUIRE(records[0].import_metadata->atoms[2].structural_labels != nullptr);
     CHECK(records[0].import_metadata->atoms[2].structural_labels->label.residue == "MG");
 
     auto molecules = std::vector<core::Molecule>{};
