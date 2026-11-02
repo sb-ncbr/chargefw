@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <optional>
 #include <ranges>
 #include <set>
@@ -231,6 +232,14 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     throw std::logic_error{"unknown execution result status"};
 }
 
+[[nodiscard]] auto issue_molecule_index(const calculation::RejectionIssue& issue_value)
+    -> std::optional<std::size_t> {
+    if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
+        return issue->molecule_index;
+    }
+    return std::get<methods::ExecutionIssue>(issue_value).molecule_index;
+}
+
 } // namespace
 
 auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
@@ -243,6 +252,23 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
     result.execution_ = std::move(execution);
+    if (result.execution_.status == calculation::ExecutionStatus::no_executable_plan) {
+        result.molecule_issues_.resize(result.inputs_.size());
+        const auto& rejections = result.execution_.rejections;
+        for (std::size_t rejection_index = 0; rejection_index < rejections.size();
+             ++rejection_index) {
+            const auto& issues = rejections[rejection_index].issues;
+            for (std::size_t issue_index = 0; issue_index < issues.size(); ++issue_index) {
+                const auto position = std::pair{rejection_index, issue_index};
+                const auto molecule_index = issue_molecule_index(issues[issue_index]);
+                if (!molecule_index.has_value()) {
+                    result.shared_issues_.push_back(position);
+                } else if (*molecule_index < result.molecule_issues_.size()) {
+                    result.molecule_issues_[*molecule_index].push_back(position);
+                }
+            }
+        }
+    }
     return result;
 }
 
@@ -288,38 +314,34 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     if (execution.status != calculation::ExecutionStatus::no_executable_plan) {
         return diagnostics;
     }
-    for (const auto& rejected : execution.rejections) {
-        for (const auto& issue_value : rejected.issues) {
-            auto candidate = "method '" + rejected.method_id + "'";
-            if (rejected.parameter_set_id.has_value()) {
-                candidate += ", parameter set '" + *rejected.parameter_set_id + "'";
-            }
-            if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
-                if (issue->molecule_index.has_value() && *issue->molecule_index != molecule_index) {
-                    continue;
-                }
-                auto diagnostic = ResultDiagnostic{};
-                diagnostic.severity = DiagnosticSeverity::error;
-                diagnostic.code = prerequisite_code(issue->kind);
-                diagnostic.message = candidate + ": " + issue->message;
-                diagnostic.molecule_index = issue->molecule_index;
-                diagnostic.atom_index = issue->atom_index;
-                diagnostic.bond_index = issue->bond_index;
-                diagnostic.conformer_index = issue->conformer_index;
-                append_unique(diagnostics, std::move(diagnostic));
-            } else {
-                const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);
-                if (execution_issue.molecule_index.has_value() &&
-                    *execution_issue.molecule_index != molecule_index) {
-                    continue;
-                }
-                auto diagnostic = ResultDiagnostic{};
-                diagnostic.severity = DiagnosticSeverity::error;
-                diagnostic.code = methods::to_string(execution_issue.kind);
-                diagnostic.message = candidate + ": " + execution_issue.message;
-                diagnostic.molecule_index = execution_issue.molecule_index;
-                append_unique(diagnostics, std::move(diagnostic));
-            }
+    auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
+    std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,
+                       std::back_inserter(positions));
+    for (const auto& [rejection_index, issue_index] : positions) {
+        const auto& rejected = execution.rejections[rejection_index];
+        const auto& issue_value = rejected.issues[issue_index];
+        auto candidate = "method '" + rejected.method_id + "'";
+        if (rejected.parameter_set_id.has_value()) {
+            candidate += ", parameter set '" + *rejected.parameter_set_id + "'";
+        }
+        if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
+            auto diagnostic = ResultDiagnostic{};
+            diagnostic.severity = DiagnosticSeverity::error;
+            diagnostic.code = prerequisite_code(issue->kind);
+            diagnostic.message = candidate + ": " + issue->message;
+            diagnostic.molecule_index = issue->molecule_index;
+            diagnostic.atom_index = issue->atom_index;
+            diagnostic.bond_index = issue->bond_index;
+            diagnostic.conformer_index = issue->conformer_index;
+            append_unique(diagnostics, std::move(diagnostic));
+        } else {
+            const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);
+            auto diagnostic = ResultDiagnostic{};
+            diagnostic.severity = DiagnosticSeverity::error;
+            diagnostic.code = methods::to_string(execution_issue.kind);
+            diagnostic.message = candidate + ": " + execution_issue.message;
+            diagnostic.molecule_index = execution_issue.molecule_index;
+            append_unique(diagnostics, std::move(diagnostic));
         }
     }
     return diagnostics;

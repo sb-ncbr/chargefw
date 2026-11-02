@@ -196,7 +196,11 @@ def test_failed_result_json_preserves_input_identity() -> None:
     assert imported_record["input"]["import"]["format"] == "molecule-json"
     assert manual_record["input"]["atom_ids"] == ["hydrogen"]
     assert all("assignments" not in record for record in encoded["results"])
-    assert imported_record["diagnostics"]
+    # Each record reports the rejection cause of its own molecule, never another molecule's.
+    for index, record in enumerate(encoded["results"]):
+        molecule_indices = [value.get("molecule_index") for value in record["diagnostics"]]
+        assert index in molecule_indices
+        assert set(molecule_indices) <= {index, None}
     for format_name in ("mol2", "mmcif"):
         with pytest.raises(ValueError, match="successful calculation"):
             chargefw.io.dumps(failed_result, format=cast(Any, format_name))
