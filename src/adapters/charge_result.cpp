@@ -42,13 +42,12 @@ namespace {
     throw std::logic_error{"unknown prerequisite issue kind"};
 }
 
-auto append_unique(std::vector<ResultDiagnostic>& diagnostics, ResultDiagnostic diagnostic)
-    -> void {
-    const auto duplicate =
-        std::ranges::any_of(diagnostics, [&diagnostic](const ResultDiagnostic& existing) {
-            return existing.code == diagnostic.code && existing.message == diagnostic.message;
-        });
-    if (!duplicate) {
+// Code and message of the diagnostics already appended; a molecule can have one per atom.
+using SeenDiagnostics = std::set<std::pair<std::string, std::string>>;
+
+auto append_unique(std::vector<ResultDiagnostic>& diagnostics, SeenDiagnostics& seen,
+                   ResultDiagnostic diagnostic) -> void {
+    if (seen.emplace(diagnostic.code, diagnostic.message).second) {
         diagnostics.push_back(std::move(diagnostic));
     }
 }
@@ -299,6 +298,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     }
     const auto& execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
+    auto seen = SeenDiagnostics{};
     for (const auto& import_diagnostic : records[molecule_index].diagnostics) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
@@ -306,10 +306,10 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.message = import_diagnostic.message;
         imported.molecule_index = molecule_index;
         imported.line = import_diagnostic.line;
-        append_unique(diagnostics, std::move(imported));
+        append_unique(diagnostics, seen, std::move(imported));
     }
     if (const auto diagnostic = calculation_diagnostic(execution); diagnostic.has_value()) {
-        append_unique(diagnostics, *diagnostic);
+        append_unique(diagnostics, seen, *diagnostic);
     }
     if (execution.status != calculation::ExecutionStatus::no_executable_plan) {
         return diagnostics;
@@ -333,7 +333,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             diagnostic.atom_index = issue->atom_index;
             diagnostic.bond_index = issue->bond_index;
             diagnostic.conformer_index = issue->conformer_index;
-            append_unique(diagnostics, std::move(diagnostic));
+            append_unique(diagnostics, seen, std::move(diagnostic));
         } else {
             const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);
             auto diagnostic = ResultDiagnostic{};
@@ -341,7 +341,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             diagnostic.code = methods::to_string(execution_issue.kind);
             diagnostic.message = candidate + ": " + execution_issue.message;
             diagnostic.molecule_index = execution_issue.molecule_index;
-            append_unique(diagnostics, std::move(diagnostic));
+            append_unique(diagnostics, seen, std::move(diagnostic));
         }
     }
     return diagnostics;
