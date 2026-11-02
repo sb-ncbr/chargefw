@@ -97,7 +97,7 @@ struct MoleculePayload {
     -> nb::list {
     auto result = nb::list{};
     for (const auto& reference : references) {
-        if (!reference.structural_labels.has_value()) {
+        if (reference.structural_labels == nullptr) {
             result.append(nb::make_tuple(reference.position, reference.id, nb::none()));
             continue;
         }

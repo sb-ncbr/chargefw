@@ -147,22 +147,23 @@ auto append_atom_line(std::string& text, const ImportedMoleculeRecord& record,
     }
 
     const auto generated_name = std::string{symbol} + std::to_string(atom_index + 1);
-    const auto& labels = record.import_metadata->conformers[0].sites[atom_index].structural_labels;
-    auto name = labels.has_value()
+    const auto* labels =
+        record.import_metadata->conformers[0].sites[atom_index].structural_labels.get();
+    auto name = labels != nullptr
                     ? author_or_label(labels->author.atom, labels->label.atom, generated_name)
                     : generated_name;
-    const auto residue = labels.has_value()
+    const auto residue = labels != nullptr
                              ? author_or_label(labels->author.residue, labels->label.residue, "UNL")
                              : std::string{"UNL"};
-    const auto chain = labels.has_value()
+    const auto chain = labels != nullptr
                            ? author_or_label(labels->author.chain, labels->label.chain, "A")
                            : std::string{"A"};
     const auto sequence =
-        labels.has_value() ? author_or_label(labels->author.sequence, labels->label.sequence, "1")
-                           : std::string{"1"};
+        labels != nullptr ? author_or_label(labels->author.sequence, labels->label.sequence, "1")
+                          : std::string{"1"};
     const auto insertion_code =
-        labels.has_value() ? std::string{detail::known_label(labels->insertion_code).value_or("")}
-                           : std::string{};
+        labels != nullptr ? std::string{detail::known_label(labels->insertion_code).value_or("")}
+                          : std::string{};
     require_word(name, "atom name", atom_index);
     require_word(residue, "residue name", atom_index);
     require_chain(chain, atom_index);

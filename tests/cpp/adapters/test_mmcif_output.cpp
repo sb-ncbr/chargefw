@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -52,21 +53,25 @@ auto structural_result() -> adapters::ChargeCalculationResult {
     auto first_sites = std::vector<adapters::SourceAtomReference>{
         {.position = 2,
          .id = "Csite",
-         .structural_labels =
+         .structural_labels = std::make_shared<const adapters::SourceStructuralLabels>(
              adapters::SourceStructuralLabels{
                  .author = {.atom = "AUTH_C", .residue = "ARES", .chain = "AC", .sequence = "17"},
                  .label = {.atom = "LABEL_C", .residue = "LRES", .chain = "LC", .sequence = "7"},
                  .entity = "E1",
-                 .alternate_location = "A"}},
+                 .alternate_location = "A"})},
         {.position = 3,
          .id = "001",
-         .structural_labels = adapters::SourceStructuralLabels{
-             .author = {.atom = "AUTH_O", .residue = "ARES", .chain = "AC", .sequence = "17"},
-             .label = {.atom = "LABEL_O", .residue = "LRES", .chain = "LC", .sequence = "7"},
-             .entity = "E1"}}};
+         .structural_labels = std::make_shared<const adapters::SourceStructuralLabels>(
+             adapters::SourceStructuralLabels{
+                 .author = {.atom = "AUTH_O", .residue = "ARES", .chain = "AC", .sequence = "17"},
+                 .label = {.atom = "LABEL_O", .residue = "LRES", .chain = "LC", .sequence = "7"},
+                 .entity = "E1"})}};
     auto second_sites = first_sites;
     second_sites[0].id = "9223372036854775808";
-    second_sites[0].structural_labels->alternate_location = "B";
+    auto second_labels = *second_sites[0].structural_labels;
+    second_labels.alternate_location = "B";
+    second_sites[0].structural_labels =
+        std::make_shared<const adapters::SourceStructuralLabels>(std::move(second_labels));
     second_sites[1].id = "other";
     record.import_metadata = adapters::MoleculeImportMetadata{
         .format = adapters::MolecularSourceFormat::mmcif,
@@ -112,9 +117,10 @@ auto labelled_record(const std::vector<LabelledAtom>& atoms, std::vector<core::B
         if (!atom.author_atom.empty()) {
             author.atom = atom.author_atom;
         }
-        sites.push_back({.position = index,
-                         .structural_labels =
-                             adapters::SourceStructuralLabels{.author = author, .label = label}});
+        sites.push_back(
+            {.position = index,
+             .structural_labels = std::make_shared<const adapters::SourceStructuralLabels>(
+                 adapters::SourceStructuralLabels{.author = author, .label = label})});
     }
     auto record = adapters::ImportedMoleculeRecord{
         .molecule = core::Molecule{std::vector<core::Atom>(atoms.size(), core::Atom{6}),
@@ -340,6 +346,38 @@ TEST_CASE("mmCIF holds one charge set per result for the same molecules", "[adap
                         std::invalid_argument);
         CHECK(rejected_output.str().empty());
     }
+}
+
+TEST_CASE("mmCIF combines results for one structure read twice", "[adapters][mmcif]") {
+    // Each reading creates its own structural label objects; records compare by label values.
+    const auto read = [] {
+        auto pdb = std::istringstream{
+            "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  0.00           O\n"
+            "ATOM      2  H1  HOH A   1       0.957   0.000   0.000  1.00  0.00           H\n"
+            "END\n"};
+        auto record = pdb_input::PdbReader{pdb, "input.pdb"}.next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+    const auto charge_set = [](std::string method, const double charge) {
+        return charges::ChargeSet{std::move(method),
+                                  {{.target = {.molecule_index = 0},
+                                    .charges = charges::AtomicCharges{{-charge, charge}}}}};
+    };
+    const auto qeq = calculation_result({read()}, charge_set("qeq", 0.4));
+    const auto eem = calculation_result({read()}, charge_set("eem", 0.3));
+    auto output = std::ostringstream{};
+    CHECK_NOTHROW(mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}, "test"));
+
+    auto renamed = read();
+    auto labels = *renamed.import_metadata->atoms[1].structural_labels;
+    labels.author.atom = "H2";
+    renamed.import_metadata->atoms[1].structural_labels =
+        std::make_shared<const adapters::SourceStructuralLabels>(std::move(labels));
+    const auto other = calculation_result({std::move(renamed)}, charge_set("eem", 0.3));
+    auto rejected_output = std::ostringstream{};
+    CHECK_THROWS_AS(mmcif_output::MmcifWriter{rejected_output}.write(std::array{&qeq, &other}),
+                    std::invalid_argument);
 }
 
 TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique blocks",

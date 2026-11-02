@@ -150,7 +150,8 @@ auto resolve_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
         const auto first_source = result.sources.size();
         for (const auto& component : record.import_metadata->components) {
             const auto canonical_name = canonical_component_name(
-                atoms[component.atom_indices.front()].structural_labels, component.component_id);
+                atoms[component.atom_indices.front()].structural_labels.get(),
+                component.component_id);
             const auto target = std::ranges::find(selected, canonical_name,
                                                   [](const Ion* ion) { return ion->component; });
             if (target == selected.end()) {

@@ -155,7 +155,7 @@ auto require_array(const Json& value, const std::string& context) -> void {
             member(atom_value, "formal_charge", atom_context), atom_context + ".formal_charge");
         atoms.emplace_back(atomic_number, formal_charge);
         atom_references.push_back(SourceAtomReference{
-            .position = index, .id = std::nullopt, .structural_labels = std::nullopt});
+            .position = index, .id = std::nullopt, .structural_labels = nullptr});
     }
 
     std::vector<core::Bond> bonds;

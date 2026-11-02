@@ -15,6 +15,7 @@
 #include <istream>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -98,12 +99,13 @@ struct MmcifSourceSite {
     for (const auto row : atom_sites) {
         const auto id = ::gemmi::cif::as_string(row[0]);
         const auto model_id = mmcif_labels::source_value(row, mmcif_labels::model_id_column);
-        result.push_back(MmcifSourceSite{
-            .model_id = model_id,
-            .reference =
-                SourceAtomReference{.position = position++,
-                                    .id = id,
-                                    .structural_labels = mmcif_labels::decode_source_labels(row)}});
+        result.push_back(
+            MmcifSourceSite{.model_id = model_id,
+                            .reference = SourceAtomReference{
+                                .position = position++,
+                                .id = id,
+                                .structural_labels = std::make_shared<const SourceStructuralLabels>(
+                                    mmcif_labels::decode_source_labels(row))}});
     }
     return result;
 }

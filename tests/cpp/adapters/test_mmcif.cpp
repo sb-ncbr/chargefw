@@ -99,7 +99,7 @@ _atom_site.pdbx_PDB_model_num
     CHECK(mapping.atoms[2].id == "9223372036854775808");
     CHECK(mapping.atoms[3].id == ".");
     CHECK(mapping.atoms[4].id == "?");
-    REQUIRE(mapping.atoms[0].structural_labels.has_value());
+    REQUIRE(mapping.atoms[0].structural_labels != nullptr);
     CHECK(mapping.atoms[0].structural_labels->author.atom == "A1");
     CHECK(mapping.atoms[0].structural_labels->author.chain == "AC");
     CHECK(mapping.atoms[0].structural_labels->label.atom == "L1");

@@ -16,6 +16,7 @@
 #include <istream>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -147,11 +148,13 @@ struct StructuralLabelsLess {
                                    .segment = field(view, 72, 4)};
         auto identity = labels;
         identity.author.sequence = normalized_sequence(labels.author.sequence);
-        current->sites.push_back(
-            PdbSourceSite{.reference = SourceAtomReference{.position = source_position++,
-                                                           .id = field(view, 6, 5),
-                                                           .structural_labels = std::move(labels)},
-                          .identity = std::move(identity)});
+        current->sites.push_back(PdbSourceSite{
+            .reference = SourceAtomReference{.position = source_position++,
+                                             .id = field(view, 6, 5),
+                                             .structural_labels =
+                                                 std::make_shared<const SourceStructuralLabels>(
+                                                     std::move(labels))},
+            .identity = std::move(identity)});
     }
     return result;
 }

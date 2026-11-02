@@ -122,7 +122,7 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
         atoms.emplace_back(element.atomic_number, 0, std::move(atom_name));
         atom_references.push_back(SourceAtomReference{.position = static_cast<std::size_t>(index),
                                                       .id = std::move(source_id_text),
-                                                      .structural_labels = std::nullopt});
+                                                      .structural_labels = nullptr});
         positions.push_back(core::Position{.x = common::parse_double(x_text, "MOL2 x coordinate"),
                                            .y = common::parse_double(y_text, "MOL2 y coordinate"),
                                            .z = common::parse_double(z_text, "MOL2 z coordinate")});

@@ -106,7 +106,7 @@ void SelectedModel::normalize_component_names(
         auto names = std::unordered_set<std::string_view>{};
         names.reserve(residue.atoms.size());
         for (auto& atom : residue.atoms) {
-            const auto& labels = source_atoms[atom.index].structural_labels;
+            const auto* labels = source_atoms[atom.index].structural_labels.get();
             const auto canonical_component =
                 detail::canonical_component_name(labels, residue.residue->name);
             const auto canonical_atom =

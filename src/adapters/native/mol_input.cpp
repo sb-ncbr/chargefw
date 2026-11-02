@@ -120,7 +120,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         result.atom_references.push_back(
             SourceAtomReference{.position = static_cast<std::size_t>(index),
                                 .id = std::nullopt,
-                                .structural_labels = std::nullopt});
+                                .structural_labels = nullptr});
     }
 
     for (int index = 0; index < bond_count; ++index) {
@@ -307,7 +307,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         result.atom_references.push_back(
             SourceAtomReference{.position = static_cast<std::size_t>(index),
                                 .id = atom[0],
-                                .structural_labels = std::nullopt});
+                                .structural_labels = nullptr});
         result.positions.push_back(
             core::Position{.x = common::parse_double(atom[2], "V3000 x coordinate"),
                            .y = common::parse_double(atom[3], "V3000 y coordinate"),
