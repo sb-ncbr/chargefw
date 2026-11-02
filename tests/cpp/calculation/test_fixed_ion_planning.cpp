@@ -735,6 +735,18 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
                          snitch::matchers::with_what_contains{
                              "molecule 0, conformer 1, atom 0 coincides with active atom 1"});
 
+    // Several sources whose spatial order differs from their atom order; the last source meets the
+    // active atom, and -0.0 coincides with 0.0.
+    auto coincident_later_source =
+        make_request(core::MoleculeCollection{std::vector{make_molecule_with_positions(
+                         std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}, core::Atom{6}},
+                         {{{4.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, {-0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},
+                     {{0, 0, 0.0}, {0, 1, 0.0}, {0, 2, 0.0}});
+    CHECK_THROWS_MATCHES(calculation::assess(std::move(coincident_later_source)),
+                         std::invalid_argument,
+                         snitch::matchers::with_what_contains{
+                             "molecule 0, conformer 0, atom 2 coincides with active atom 3"});
+
     auto swapped_conformers = make_request(
         core::MoleculeCollection{std::vector{make_molecule_with_positions(
             pair_atoms, {separated_pair.front(), {{2.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},

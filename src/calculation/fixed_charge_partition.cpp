@@ -107,22 +107,26 @@ struct ValidatedTarget {
                         std::to_string(conformer_index) + ", atom " + std::to_string(atom_index)};
                 }
             }
+            // Source positions with their atom indices, sorted for lookup by position.
+            auto source_positions = std::vector<std::pair<core::Position, std::size_t>>{};
+            source_positions.reserve(static_cast<std::size_t>(last - first));
             for (auto source = first; source != last; ++source) {
-                const auto& source_position = positions[source->atom_index];
-                for (std::size_t active_atom = 0; active_atom < positions.size(); ++active_atom) {
-                    if (selected_mask[active_atom]) {
-                        continue;
-                    }
-                    const auto& active_position = positions[active_atom];
-                    if (source_position.x == active_position.x &&
-                        source_position.y == active_position.y &&
-                        source_position.z == active_position.z) {
-                        throw std::invalid_argument{
-                            "fixed charge source at molecule " + std::to_string(molecule_index) +
-                            ", conformer " + std::to_string(conformer_index) + ", atom " +
-                            std::to_string(source->atom_index) + " coincides with active atom " +
-                            std::to_string(active_atom)};
-                    }
+                source_positions.emplace_back(positions[source->atom_index], source->atom_index);
+            }
+            std::ranges::sort(source_positions);
+            for (std::size_t active_atom = 0; active_atom < positions.size(); ++active_atom) {
+                if (selected_mask[active_atom]) {
+                    continue;
+                }
+                const auto found =
+                    std::ranges::lower_bound(source_positions, positions[active_atom], {},
+                                             &std::pair<core::Position, std::size_t>::first);
+                if (found != source_positions.end() && found->first == positions[active_atom]) {
+                    throw std::invalid_argument{
+                        "fixed charge source at molecule " + std::to_string(molecule_index) +
+                        ", conformer " + std::to_string(conformer_index) + ", atom " +
+                        std::to_string(found->second) + " coincides with active atom " +
+                        std::to_string(active_atom)};
                 }
             }
         }
