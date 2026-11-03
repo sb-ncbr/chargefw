@@ -7,10 +7,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -215,7 +218,7 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     }
 }
 
-[[nodiscard]] auto calculation_diagnostic(const calculation::ExecutionResult& result)
+[[nodiscard]] auto status_diagnostic(const ChargeCalculationResult& result)
     -> std::optional<ResultDiagnostic> {
     const auto make = [](const DiagnosticSeverity severity, std::string code, std::string message) {
         auto diagnostic = ResultDiagnostic{};
@@ -224,23 +227,28 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
         diagnostic.message = std::move(message);
         return diagnostic;
     };
-    switch (result.status) {
-    case calculation::ExecutionStatus::success:
+    const auto* execution = result.execution();
+    const auto failure_message = [execution](std::string fallback) {
+        return execution->failure_message.value_or(std::move(fallback));
+    };
+    switch (result.status()) {
+    case ResultStatus::success:
         return std::nullopt;
-    case calculation::ExecutionStatus::invalid_input_or_request:
-        return make(DiagnosticSeverity::error, "invalid_input_or_request",
-                    result.failure_message.value_or("Invalid input or calculation request."));
-    case calculation::ExecutionStatus::no_executable_plan:
+    case ResultStatus::invalid_request:
+        return make(DiagnosticSeverity::error,
+                    std::string{to_string(ResultStatus::invalid_request)},
+                    std::string{*result.request_failure()});
+    case ResultStatus::no_executable_plan:
         return make(DiagnosticSeverity::error, "no_executable_plan",
                     "No executable method and parameter-set plan was found.");
-    case calculation::ExecutionStatus::numerical_failure:
+    case ResultStatus::numerical_failure:
         return make(DiagnosticSeverity::error, "numerical_failure",
-                    result.failure_message.value_or("Calculation failed numerically."));
-    case calculation::ExecutionStatus::cancelled:
+                    failure_message("Calculation failed numerically."));
+    case ResultStatus::cancelled:
         return make(DiagnosticSeverity::info, "calculation_cancelled",
                     "Calculation was cancelled before completion.");
     }
-    throw std::logic_error{"unknown execution result status"};
+    throw std::logic_error{"unknown result status"};
 }
 
 [[nodiscard]] auto issue_molecule_index(const calculation::RejectionIssue& issue_value)
@@ -263,10 +271,11 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
-    result.execution_ = std::move(execution);
-    if (result.execution_.status == calculation::ExecutionStatus::no_executable_plan) {
+    const auto& stored =
+        result.outcome_.emplace<calculation::ExecutionResult>(std::move(execution));
+    if (stored.status == calculation::ExecutionStatus::no_executable_plan) {
         result.molecule_issues_.resize(result.inputs_.size());
-        const auto& rejections = result.execution_.rejections;
+        const auto& rejections = stored.rejections;
         for (std::size_t rejection_index = 0; rejection_index < rejections.size();
              ++rejection_index) {
             const auto& issues = rejections[rejection_index].issues;
@@ -292,14 +301,71 @@ auto ChargeCalculationResult::requested() const noexcept -> const RequestedCalcu
     return requested_;
 }
 
-auto ChargeCalculationResult::execution() const noexcept -> const calculation::ExecutionResult& {
-    return execution_;
+auto make_failed_request_result(std::vector<ImportedMoleculeRecord> inputs,
+                                RequestedCalculationProvenance requested, std::string message)
+    -> ChargeCalculationResult {
+    validate_import_metadata(inputs);
+    auto result = ChargeCalculationResult{};
+    result.inputs_ = std::move(inputs);
+    result.requested_ = std::move(requested);
+    result.outcome_.emplace<ChargeCalculationResult::RequestFailure>(std::move(message));
+    return result;
+}
+
+auto to_string(const ResultStatus value) -> std::string_view {
+    switch (value) {
+    case ResultStatus::success:
+        return "success";
+    case ResultStatus::invalid_request:
+        return "invalid_input_or_request";
+    case ResultStatus::no_executable_plan:
+        return "no_executable_plan";
+    case ResultStatus::numerical_failure:
+        return "numerical_failure";
+    case ResultStatus::cancelled:
+        return "cancelled";
+    }
+    throw std::invalid_argument{"unknown result status"};
+}
+
+auto ChargeCalculationResult::status() const noexcept -> ResultStatus {
+    const auto* execution = this->execution();
+    if (execution == nullptr) {
+        return ResultStatus::invalid_request;
+    }
+    switch (execution->status) {
+    case calculation::ExecutionStatus::success:
+        return ResultStatus::success;
+    case calculation::ExecutionStatus::no_executable_plan:
+        return ResultStatus::no_executable_plan;
+    case calculation::ExecutionStatus::numerical_failure:
+        return ResultStatus::numerical_failure;
+    case calculation::ExecutionStatus::cancelled:
+        return ResultStatus::cancelled;
+    }
+    std::abort();
+}
+
+auto ChargeCalculationResult::execution() const noexcept -> const calculation::ExecutionResult* {
+    return std::get_if<calculation::ExecutionResult>(&outcome_);
+}
+
+auto ChargeCalculationResult::request_failure() const noexcept -> std::optional<std::string_view> {
+    if (const auto* failure = std::get_if<RequestFailure>(&outcome_)) {
+        return failure->message;
+    }
+    return std::nullopt;
+}
+
+auto ChargeCalculationResult::charges() const noexcept -> const charges::ChargeSet* {
+    const auto* execution = this->execution();
+    return execution != nullptr && execution->calculated() ? std::addressof(*execution->charges)
+                                                           : nullptr;
 }
 
 auto charge_result_diagnostics(const ChargeCalculationResult& result)
     -> std::vector<ResultDiagnostic> {
-    const auto& execution = result.execution();
-    const auto diagnostic = calculation_diagnostic(execution);
+    const auto diagnostic = status_diagnostic(result);
     return diagnostic.has_value() ? std::vector{*diagnostic} : std::vector<ResultDiagnostic>{};
 }
 
@@ -309,7 +375,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     if (molecule_index >= records.size()) {
         throw std::out_of_range{"result diagnostic molecule index is outside the input"};
     }
-    const auto& execution = result.execution();
+    const auto* execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
     auto seen = SeenDiagnostics{};
     for (const auto& import_diagnostic : records[molecule_index].diagnostics) {
@@ -321,8 +387,12 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.line = import_diagnostic.line;
         append_unique(diagnostics, seen, std::move(imported));
     }
+    // A request that failed has no execution result, so only its status follows.
+    const auto input_warnings =
+        execution != nullptr ? std::span<const calculation::InputIssue>{execution->input_warnings}
+                             : std::span<const calculation::InputIssue>{};
     // Input warnings are in molecule order.
-    for (const auto& issue : std::ranges::equal_range(execution.input_warnings, molecule_index, {},
+    for (const auto& issue : std::ranges::equal_range(input_warnings, molecule_index, {},
                                                       &calculation::InputIssue::molecule_index)) {
         auto diagnostic = ResultDiagnostic{};
         diagnostic.severity = DiagnosticSeverity::warning;
@@ -332,17 +402,17 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         diagnostic.conformer_index = issue.conformer_index;
         append_unique(diagnostics, seen, std::move(diagnostic));
     }
-    if (const auto diagnostic = calculation_diagnostic(execution); diagnostic.has_value()) {
+    if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
         append_unique(diagnostics, seen, *diagnostic);
     }
-    if (execution.status != calculation::ExecutionStatus::no_executable_plan) {
+    if (result.status() != ResultStatus::no_executable_plan) {
         return diagnostics;
     }
     auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
     std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,
                        std::back_inserter(positions));
     for (const auto& [rejection_index, issue_index] : positions) {
-        const auto& rejected = execution.rejections[rejection_index];
+        const auto& rejected = execution->rejections[rejection_index];
         const auto& issue_value = rejected.issues[issue_index];
         auto candidate = "method '" + rejected.method_id + "'";
         if (rejected.parameter_set_id.has_value()) {
@@ -373,10 +443,11 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
 
 auto record_assignments(const ChargeCalculationResult& result, const std::size_t record_index)
     -> std::span<const charges::ChargeAssignment> {
-    if (!result.execution().charges.has_value()) {
+    const auto* charge_set = result.charges();
+    if (charge_set == nullptr) {
         return {};
     }
-    const auto assignments = result.execution().charges->assignments();
+    const auto assignments = charge_set->assignments();
     const auto [first, last] =
         std::ranges::equal_range(assignments, record_index, {}, [](const auto& assignment) {
             return assignment.target.molecule_index;

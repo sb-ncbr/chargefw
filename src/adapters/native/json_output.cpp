@@ -198,7 +198,7 @@ constexpr auto metric_scale = 1000.0;
 }
 
 [[nodiscard]] auto record_json(const ImportedMoleculeRecord& record,
-                               const calculation::ExecutionResult& execution,
+                               const ChargeCalculationResult& calculation_result,
                                const std::span<const charges::ChargeAssignment> record_charges,
                                const std::vector<ResultDiagnostic>& diagnostics) -> Json {
     Json input{{"source", record.identity.source}, {"record_index", record.identity.record_index}};
@@ -212,8 +212,8 @@ constexpr auto metric_scale = 1000.0;
         input["import"] = import_metadata_json(*record.import_metadata);
     }
 
-    Json result{{"input", std::move(input)}, {"status", calculation::to_string(execution.status)}};
-    if (!execution.charges.has_value()) {
+    Json result{{"input", std::move(input)}, {"status", to_string(calculation_result.status())}};
+    if (calculation_result.charges() == nullptr) {
         result["diagnostics"] = diagnostics_json(diagnostics);
         return result;
     }
@@ -288,8 +288,9 @@ constexpr auto metric_scale = 1000.0;
                           {"parameter_set", nullptr},
                           {"warnings", Json::array()},
                           {"method_options", Json::object()}};
-    if (result.execution().effective.has_value()) {
-        const auto& value = *result.execution().effective;
+    if (const auto* execution = result.execution();
+        execution != nullptr && execution->effective.has_value()) {
+        const auto& value = *execution->effective;
         effective["method"] = optional_id(value.method_id);
         effective["parameter_set"] = optional_id(value.parameter_set_id);
         for (const auto& issue : value.execution_issues) {
@@ -330,14 +331,13 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
     Json records = Json::array();
     const auto inputs = result.inputs();
     for (std::size_t index = 0; index < inputs.size(); ++index) {
-        records.push_back(record_json(inputs[index], result.execution(),
-                                      record_assignments(result, index),
+        records.push_back(record_json(inputs[index], result, record_assignments(result, index),
                                       charge_record_diagnostics(result, index)));
     }
 
     Json document{{"schema_version", "1.0"},
                   {"generator", {{"name", "ChargeFW"}, {"version", generator_version}}},
-                  {"status", calculation::to_string(result.execution().status)},
+                  {"status", to_string(result.status())},
                   {"diagnostics", diagnostics_json(charge_result_diagnostics(result))},
                   {"results", std::move(records)}};
     document["calculation_provenance"] = provenance_json(result, execution_metrics);

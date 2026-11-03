@@ -216,7 +216,8 @@ auto run(std::span<char*> arguments) -> int {
     const auto interrupt_handler = ScopedInterruptHandler{};
     const auto interruptible_observer =
         InterruptibleCalculationObserver{progress ? std::addressof(progress_observer) : nullptr};
-    auto result = [&]() -> chargefw::calculation::ExecutionResult {
+    auto failure_message = std::string{};
+    auto execution = [&]() -> std::optional<chargefw::calculation::ExecutionResult> {
         try {
             auto assessment = chargefw::calculation::assess(std::move(request));
             const auto* plan = assessment.default_plan();
@@ -230,24 +231,32 @@ auto run(std::span<char*> arguments) -> int {
             return chargefw::calculation::calculate(assessment, *plan, max_threads,
                                                     interruptible_observer);
         } catch (const std::invalid_argument& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::invalid_input_or_request,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
+            failure_message = error.what();
+            return std::nullopt;
         } catch (const std::logic_error& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
+            return chargefw::calculation::ExecutionResult{
+                .status = chargefw::calculation::ExecutionStatus::numerical_failure,
+                .charges = std::nullopt,
+                .failure_message = error.what()};
         } catch (const std::runtime_error& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
+            return chargefw::calculation::ExecutionResult{
+                .status = chargefw::calculation::ExecutionStatus::numerical_failure,
+                .charges = std::nullopt,
+                .failure_message = error.what()};
         }
     }();
-    run.metrics.applicability_seconds = result.metrics.applicability_seconds;
-    run.metrics.computation_seconds = result.metrics.computation_seconds;
-    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path,
-                                                    std::move(records), requested_provenance,
-                                                    std::move(result), calculate_output, run);
+    auto result = [&] {
+        if (!execution.has_value()) {
+            return chargefw::adapters::make_failed_request_result(
+                std::move(records), requested_provenance, std::move(failure_message));
+        }
+        run.metrics.applicability_seconds = execution->metrics.applicability_seconds;
+        run.metrics.computation_seconds = execution->metrics.computation_seconds;
+        return chargefw::adapters::make_charge_calculation_result(
+            std::move(records), requested_provenance, std::move(*execution));
+    }();
+    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path, result,
+                                                    calculate_output, run);
 }
 
 } // namespace

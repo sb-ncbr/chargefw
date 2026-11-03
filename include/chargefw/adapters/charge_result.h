@@ -2,6 +2,7 @@
 
 #include <chargefw/adapters/molecule_record.h>
 #include <chargefw/calculation/calculation.h>
+#include <chargefw/charges/charge_collection.h>
 #include <chargefw/methods/method_options.h>
 
 #include <cstddef>
@@ -10,12 +11,27 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace chargefw::adapters {
 
 enum class DiagnosticSeverity : std::uint8_t { info, warning, error };
+
+// The outcome an application reports for its request. Unlike calculation::ExecutionStatus, it
+// includes a request that failed with an exception, so that no execution result exists.
+enum class ResultStatus : std::uint8_t {
+    success,
+    invalid_request,
+    no_executable_plan,
+    numerical_failure,
+    cancelled,
+};
+
+// The result JSON value; invalid_request is "invalid_input_or_request".
+[[nodiscard]] auto to_string(ResultStatus value) -> std::string_view;
 
 struct ResultDiagnostic {
     DiagnosticSeverity severity = DiagnosticSeverity::error;
@@ -60,16 +76,30 @@ class ChargeCalculationResult {
   public:
     [[nodiscard]] auto inputs() const noexcept -> std::span<const ImportedMoleculeRecord>;
     [[nodiscard]] auto requested() const noexcept -> const RequestedCalculationProvenance&;
-    [[nodiscard]] auto execution() const noexcept -> const calculation::ExecutionResult&;
+    // The calculation's status, or invalid_request when the request failed.
+    [[nodiscard]] auto status() const noexcept -> ResultStatus;
+    // Null when the request failed with an exception, so that no execution result exists.
+    [[nodiscard]] auto execution() const noexcept -> const calculation::ExecutionResult*;
+    // The message of the exception with which the request failed.
+    [[nodiscard]] auto request_failure() const noexcept -> std::optional<std::string_view>;
+    // The calculated charges; null unless the calculation succeeded.
+    [[nodiscard]] auto charges() const noexcept -> const charges::ChargeSet*;
 
   private:
-    // Results come only from make_charge_calculation_result(), which validates them.
+    struct RequestFailure {
+        std::string message;
+    };
+
+    // Results come only from the two factories below, each of which creates one alternative.
     ChargeCalculationResult() = default;
 
     friend auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
                                                RequestedCalculationProvenance requested,
                                                calculation::ExecutionResult execution)
         -> ChargeCalculationResult;
+    friend auto make_failed_request_result(std::vector<ImportedMoleculeRecord> inputs,
+                                           RequestedCalculationProvenance requested,
+                                           std::string message) -> ChargeCalculationResult;
     friend auto charge_record_diagnostics(const ChargeCalculationResult& result,
                                           std::size_t molecule_index)
         -> std::vector<ResultDiagnostic>;
@@ -81,7 +111,7 @@ class ChargeCalculationResult {
 
     std::vector<ImportedMoleculeRecord> inputs_;
     RequestedCalculationProvenance requested_;
-    calculation::ExecutionResult execution_;
+    std::variant<calculation::ExecutionResult, RequestFailure> outcome_;
     std::vector<std::vector<IssuePosition>> molecule_issues_;
     std::vector<IssuePosition> shared_issues_;
 };
@@ -90,6 +120,11 @@ class ChargeCalculationResult {
                                                   RequestedCalculationProvenance requested,
                                                   calculation::ExecutionResult execution)
     -> ChargeCalculationResult;
+
+// For a request that failed with an exception after its records and options were available.
+[[nodiscard]] auto make_failed_request_result(std::vector<ImportedMoleculeRecord> inputs,
+                                              RequestedCalculationProvenance requested,
+                                              std::string message) -> ChargeCalculationResult;
 
 [[nodiscard]] auto charge_result_diagnostics(const ChargeCalculationResult& result)
     -> std::vector<ResultDiagnostic>;

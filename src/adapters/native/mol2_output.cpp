@@ -69,7 +69,7 @@ namespace {
 }
 
 auto validate_result(const ChargeCalculationResult& result) -> void {
-    if (!result.execution().calculated() || !result.execution().charges.has_value()) {
+    if (result.charges() == nullptr) {
         throw std::invalid_argument{"MOL2 output requires a successful calculation"};
     }
     if (result.inputs().empty()) {
@@ -156,7 +156,7 @@ Mol2Writer::Mol2Writer(std::ostream& output) : output_{std::addressof(output)} {
 auto Mol2Writer::write(const ChargeCalculationResult& result,
                        const std::string_view generator_version) const -> void {
     validate_result(result);
-    const auto& charge_set = *result.execution().charges;
+    const auto& charge_set = *result.charges();
     bool first = true;
     for (std::size_t molecule_index = 0; molecule_index < result.inputs().size();
          ++molecule_index) {

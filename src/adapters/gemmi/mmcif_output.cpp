@@ -637,7 +637,7 @@ auto append_bonds(::gemmi::cif::Block& block, const ImportedMoleculeRecord& reco
 }
 
 auto validate_result_output(const ChargeCalculationResult& result) -> void {
-    if (!result.execution().calculated() || !result.execution().charges.has_value()) {
+    if (result.charges() == nullptr) {
         throw std::invalid_argument{"mmCIF output requires a successful calculation"};
     }
     if (result.inputs().empty()) {
@@ -665,7 +665,7 @@ auto validate_result_output(const ChargeCalculationResult& result) -> void {
             }
         }
     }
-    for (const auto& assignment : result.execution().charges->assignments()) {
+    for (const auto& assignment : result.charges()->assignments()) {
         for (const auto charge : assignment.charges.values()) {
             if (charge < -5.0 || charge > 5.0) {
                 throw std::invalid_argument{"mmCIF charge is outside the dictionary range [-5, 5]"};
@@ -693,7 +693,7 @@ auto validate_results_output(const ResultSpan results) -> void {
             throw std::invalid_argument{
                 "mmCIF output requires charge sets calculated for the same molecules"};
         }
-        const auto& charge_set = *result->execution().charges;
+        const auto& charge_set = *result->charges();
         const auto parameter_set = charge_set.parameter_set_id().transform(
             [](const std::string_view value) { return std::string{value}; });
         if (!charge_sets.emplace(std::string{charge_set.method_id()}, parameter_set).second) {
@@ -731,7 +731,7 @@ auto append_charge_sets(::gemmi::cif::Block& block, const ResultSpan results,
     for (std::size_t result_index = 0; result_index < results.size(); ++result_index) {
         const auto& result = *results[result_index];
         const auto id = std::to_string(result_index + 1);
-        append_charge_metadata(metadata, id, *result.execution().charges, generator_version);
+        append_charge_metadata(metadata, id, *result.charges(), generator_version);
         const auto assignments = assignments_for_result(result, record_index);
         for (std::size_t conformer = 0; conformer < site_ids.size(); ++conformer) {
             const auto* assignment = assignments.molecule != nullptr

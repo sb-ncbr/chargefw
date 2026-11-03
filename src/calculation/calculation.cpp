@@ -110,8 +110,6 @@ auto to_string(const ExecutionStatus value) -> std::string_view {
     switch (value) {
     case ExecutionStatus::success:
         return "success";
-    case ExecutionStatus::invalid_input_or_request:
-        return "invalid_input_or_request";
     case ExecutionStatus::no_executable_plan:
         return "no_executable_plan";
     case ExecutionStatus::numerical_failure:

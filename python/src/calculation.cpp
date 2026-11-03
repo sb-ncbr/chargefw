@@ -543,7 +543,8 @@ void bind_calculation(nb::module_& module) {
     });
     nb::class_<NativeExecutionResult>(module, "_NativeExecutionResult")
         .def("report", [](const NativeExecutionResult& value) {
-            return execution_result(value.result().execution());
+            // Python reports failed requests as exceptions, so every result has an execution.
+            return execution_result(*value.result().execution());
         });
     nb::class_<NativePlan>(module, "_NativePlan")
         .def("report", &NativePlan::report)

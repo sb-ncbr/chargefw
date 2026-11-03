@@ -76,11 +76,10 @@ void print_methods(const std::string& method_id);
 void print_parameter_sets(const std::string& parameter_set_id, const std::string& method_id,
                           bool keys);
 
-[[nodiscard]] auto
-write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                          std::vector<adapters::ImportedMoleculeRecord> records,
-                          const adapters::RequestedCalculationProvenance& requested,
-                          calculation::ExecutionResult result,
-                          const OutputArguments& output_arguments, CalculationRun& run) -> int;
+[[nodiscard]] auto write_calculation_outputs(const std::string& output_directory,
+                                             const std::string& input_path,
+                                             const adapters::ChargeCalculationResult& owned_result,
+                                             const OutputArguments& output_arguments,
+                                             CalculationRun& run) -> int;
 
 } // namespace chargefw::cli

@@ -135,14 +135,9 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
 }
 
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                               std::vector<adapters::ImportedMoleculeRecord> records,
-                               const adapters::RequestedCalculationProvenance& requested,
-                               calculation::ExecutionResult result,
+                               const adapters::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
-    const auto owned_result =
-        adapters::make_charge_calculation_result(std::move(records), requested, std::move(result));
-    const auto& execution = owned_result.execution();
     run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
     const auto directory = std::filesystem::path{output_directory};
     std::error_code directory_error;
@@ -156,29 +151,26 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
-    if (!execution.calculated()) {
+    if (owned_result.charges() == nullptr) {
         run.metrics.ended_at = utc_timestamp();
         run.metrics.runtime_seconds =
             std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
         write_json(prefix.string() + ".json", owned_result, run.metrics);
         report_diagnostics(owned_result);
-        switch (execution.status) {
-        case calculation::ExecutionStatus::invalid_input_or_request:
+        switch (owned_result.status()) {
+        case adapters::ResultStatus::invalid_request:
             return 2;
-        case calculation::ExecutionStatus::no_executable_plan:
+        case adapters::ResultStatus::no_executable_plan:
             return 3;
-        case calculation::ExecutionStatus::numerical_failure:
+        case adapters::ResultStatus::numerical_failure:
             return 4;
-        case calculation::ExecutionStatus::cancelled:
+        case adapters::ResultStatus::cancelled:
             return 5;
-        case calculation::ExecutionStatus::success:
+        case adapters::ResultStatus::success:
             throw std::logic_error{"successful result has no charges"};
         }
     }
 
-    if (!execution.charges.has_value()) {
-        throw std::runtime_error{"calculation result is missing charges"};
-    }
     run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
     run.metrics.ended_at = utc_timestamp();
     run.metrics.runtime_seconds =

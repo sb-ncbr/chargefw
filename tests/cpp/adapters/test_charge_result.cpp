@@ -53,6 +53,32 @@ TEST_CASE("result assembly validates fixed ion provenance", "[adapters][result]"
     }
 }
 
+TEST_CASE("results hold either an execution or a failed request", "[adapters][result]") {
+    const auto records = std::vector{adapters::ImportedMoleculeRecord{
+        .molecule = core::Molecule{std::vector{core::Atom{1}}},
+        .diagnostics = {{.code = "partial_charges_ignored", .message = "ignored"}}}};
+
+    const auto cancelled = adapters::make_charge_calculation_result(
+        records, {}, {.status = calculation::ExecutionStatus::cancelled});
+    CHECK(cancelled.status() == adapters::ResultStatus::cancelled);
+    REQUIRE(cancelled.execution() != nullptr);
+    CHECK_FALSE(cancelled.request_failure().has_value());
+    CHECK(cancelled.charges() == nullptr);
+
+    const auto failed = adapters::make_failed_request_result(records, {}, "bad threshold");
+    CHECK(failed.status() == adapters::ResultStatus::invalid_request);
+    CHECK(failed.execution() == nullptr);
+    CHECK(failed.request_failure() == "bad threshold");
+    CHECK(failed.charges() == nullptr);
+    CHECK(adapters::to_string(failed.status()) == "invalid_input_or_request");
+    // The record keeps its import warnings and reports the failure after them.
+    const auto diagnostics = adapters::charge_record_diagnostics(failed, 0);
+    REQUIRE(diagnostics.size() == 2);
+    CHECK(diagnostics[0].code == "partial_charges_ignored");
+    CHECK(diagnostics[1].code == "invalid_input_or_request");
+    CHECK(diagnostics[1].message == "bad threshold");
+}
+
 TEST_CASE("record diagnostics carry the input warnings of their own molecule",
           "[adapters][result]") {
     const auto records = std::vector(
