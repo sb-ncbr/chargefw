@@ -19,6 +19,7 @@ from ._arrays import (
     immutable_array,
 )
 from ._chargefw import core as _native_core
+from ._types import ImportIssueKind
 from ._types import PortableId as _PortableId
 
 type PortableId = _PortableId
@@ -122,10 +123,10 @@ class SourceMapping:
 
 
 @dataclass(frozen=True, slots=True)
-class ImportDiagnostic:
-    """A warning that a file reader attached to an imported molecule."""
+class ImportIssue:
+    """A caution that a file reader attached to an imported molecule."""
 
-    code: str
+    kind: ImportIssueKind
     message: str
     line: int | None = None
 
@@ -311,8 +312,8 @@ class Molecule:
         return self._source.source
 
     @property
-    def import_diagnostics(self) -> tuple[ImportDiagnostic, ...]:
-        """Warnings from reading this molecule's file; empty for molecules built in Python."""
+    def import_issues(self) -> tuple[ImportIssue, ...]:
+        """Cautions from reading this molecule's file; empty for molecules built in Python."""
 
         return ()
 

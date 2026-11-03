@@ -239,7 +239,7 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
 [[nodiscard]] auto unbonded_residue_atoms(const std::span<const core::Bond> bonds,
                                           const std::span<const SourceComponentInstance> components,
                                           const std::span<const SourceAtomReference> atoms)
-    -> std::optional<MoleculeRecordDiagnostic> {
+    -> std::optional<ImportIssue> {
     constexpr std::size_t listed_residue_limit = 3;
     auto bonded = std::vector<bool>(atoms.size(), false);
     for (const auto& bond : bonds) {
@@ -278,8 +278,9 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         message += (index == 0 ? "" : ", ") + examples[index];
     }
     message += ": neither the bonds read from the file nor the residue templates cover them.";
-    return MoleculeRecordDiagnostic{
-        .code = "unbonded_residue_atoms", .message = std::move(message), .line = std::nullopt};
+    return ImportIssue{.kind = ImportIssueKind::unbonded_residue_atoms,
+                       .message = std::move(message),
+                       .line = std::nullopt};
 }
 
 } // namespace
@@ -371,16 +372,16 @@ auto make_record(const ::gemmi::Structure& structure,
         .components = std::move(component_instances),
     };
 
-    auto diagnostics = std::vector<MoleculeRecordDiagnostic>{};
+    auto issues = std::vector<ImportIssue>{};
     if (bond_strategy != BondStrategy::none) {
         if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms)) {
-            diagnostics.push_back(std::move(*diagnostic));
+            issues.push_back(std::move(*diagnostic));
         }
     }
 
     return native_common::make_record(std::move(first.atoms), std::move(bonds),
                                       std::move(conformers), std::move(identity), std::move(name),
-                                      std::move(diagnostics), std::move(metadata));
+                                      std::move(issues), std::move(metadata));
 }
 
 } // namespace chargefw::adapters::gemmi::structure_import

@@ -182,7 +182,7 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
                    {.bond_strategy = gemmi_adapter::BondStrategy::templates});
     CHECK(record.molecule.atom_count() == 21);
     CHECK(record.molecule.bond_count() == 23);
-    CHECK(record.diagnostics.empty());
+    CHECK(record.issues.empty());
 }
 
 TEST_CASE("structural input options share stable string conversion", "[adapters][options]") {
@@ -421,9 +421,9 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
 )pdb";
     const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
         auto codes = std::vector<std::string>{};
-        for (const auto& diagnostic :
-             read_first(atoms + connectivity + "END\n", {.bond_strategy = strategy}).diagnostics) {
-            codes.push_back(diagnostic.code);
+        for (const auto& issue :
+             read_first(atoms + connectivity + "END\n", {.bond_strategy = strategy}).issues) {
+            codes.emplace_back(chargefw::adapters::to_string(issue.kind));
         }
         return codes;
     };
@@ -454,8 +454,9 @@ END
     const auto symmetry =
         read_link("LINK         C   ALA A   1                 C1  LIG A   5     1555   2555");
     CHECK(symmetry.molecule.bond_count() == 0);
-    REQUIRE(symmetry.diagnostics.size() == 1);
-    CHECK(symmetry.diagnostics.front().code == "symmetry_connections_ignored");
+    REQUIRE(symmetry.issues.size() == 1);
+    CHECK(symmetry.issues.front().kind ==
+          chargefw::adapters::ImportIssueKind::symmetry_connections_ignored);
 }
 
 TEST_CASE("PDB source mapping follows Gemmi record handling", "[adapters][pdb]") {

@@ -7,6 +7,7 @@
 #include <chargefw/core/atom.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_applicability.h>
 
 #include <snitch/snitch.hpp>
 
@@ -14,7 +15,9 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -51,6 +54,33 @@ TEST_CASE("result assembly validates fixed ion provenance", "[adapters][result]"
         CAPTURE(index);
         CHECK_THROWS_AS(make_result(invalid_cases[index]), std::invalid_argument);
     }
+}
+
+TEST_CASE("results hold either an execution or a failed request", "[adapters][result]") {
+    const auto records = std::vector{adapters::ImportedMoleculeRecord{
+        .molecule = core::Molecule{std::vector{core::Atom{1}}},
+        .issues = {
+            {.kind = adapters::ImportIssueKind::partial_charges_ignored, .message = "ignored"}}}};
+
+    const auto cancelled = adapters::make_charge_calculation_result(
+        records, {}, {.status = calculation::ExecutionStatus::cancelled});
+    CHECK(cancelled.status() == adapters::ResultStatus::cancelled);
+    REQUIRE(cancelled.execution() != nullptr);
+    CHECK_FALSE(cancelled.request_failure().has_value());
+    CHECK(cancelled.charges() == nullptr);
+
+    const auto failed = adapters::make_failed_request_result(records, {}, "bad threshold");
+    CHECK(failed.status() == adapters::ResultStatus::invalid_request);
+    CHECK(failed.execution() == nullptr);
+    CHECK(failed.request_failure() == "bad threshold");
+    CHECK(failed.charges() == nullptr);
+    CHECK(adapters::to_string(failed.status()) == "invalid_input_or_request");
+    // The record keeps its import warnings and reports the failure after them.
+    const auto diagnostics = adapters::charge_record_diagnostics(failed, 0);
+    REQUIRE(diagnostics.size() == 2);
+    CHECK(diagnostics[0].code == "partial_charges_ignored");
+    CHECK(diagnostics[1].code == "invalid_input_or_request");
+    CHECK(diagnostics[1].message == "bad threshold");
 }
 
 TEST_CASE("record diagnostics carry the input warnings of their own molecule",
@@ -95,6 +125,42 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
         CHECK_THROWS_AS(adapters::make_charge_calculation_result(records, {}, std::move(invalid)),
                         std::invalid_argument);
     }
+}
+
+TEST_CASE("plan warnings go to their molecule's record or to the document", "[adapters][result]") {
+    const auto records = std::vector(
+        2,
+        adapters::ImportedMoleculeRecord{.molecule = core::Molecule{std::vector{core::Atom{6}}}});
+    const auto make_result = [&records](std::vector<chargefw::methods::ExecutionIssue> warnings) {
+        auto effective = full_effective("eem");
+        effective.execution_issues = std::move(warnings);
+        return adapters::make_charge_calculation_result(
+            records, {},
+            {.status = calculation::ExecutionStatus::cancelled, .effective = std::move(effective)});
+    };
+    const auto threshold = [](std::optional<std::size_t> molecule_index) {
+        return chargefw::methods::ExecutionIssue{
+            .kind = chargefw::methods::ExecutionIssueKind::resource_threshold_exceeded,
+            .message = "above the limit",
+            .molecule_index = molecule_index};
+    };
+    const auto codes = [](const std::vector<adapters::ResultDiagnostic>& diagnostics) {
+        auto result = std::vector<std::string>{};
+        for (const auto& diagnostic : diagnostics) {
+            result.push_back(diagnostic.code);
+        }
+        return result;
+    };
+
+    const auto result = make_result({threshold(std::nullopt), threshold(1)});
+    CHECK(codes(adapters::charge_result_diagnostics(result)) ==
+          std::vector<std::string>{"resource_threshold_exceeded", "calculation_cancelled"});
+    CHECK(codes(adapters::charge_record_diagnostics(result, 0)) ==
+          std::vector<std::string>{"calculation_cancelled"});
+    CHECK(codes(adapters::charge_record_diagnostics(result, 1)) ==
+          std::vector<std::string>{"resource_threshold_exceeded", "calculation_cancelled"});
+
+    CHECK_THROWS_AS(make_result({threshold(1), threshold(0)}), std::invalid_argument);
 }
 
 TEST_CASE("result assembly validates assignment dimensions targets and scope",

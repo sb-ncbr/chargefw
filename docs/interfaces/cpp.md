@@ -201,6 +201,12 @@ string, or a 64-bit integer.
 `make_charge_calculation_result()` checks that the records fit the calculation: their number, their atom
 and conformer counts, the assignments, and the method and parameter set. It cannot check that they are
 the records you calculated, so pass the same records whose molecules you calculated.
+
+When the request itself fails, `assess()` or `calculate()` throws `std::invalid_argument` and there is
+no `ExecutionResult`. To still write result JSON for the records, as the command line does, create the
+result with `make_failed_request_result()` and the exception's message. Its `status()` is
+`ResultStatus::invalid_request`, written as `invalid_input_or_request`, and `execution()` is null.
+`charges()` gives the charges of a successful calculation, and is null otherwise.
 `RequestedCalculationProvenance` records what was requested, for the result JSON; its `execution_kind`
 defaults to `"auto"`, so set it when you request another execution mode.
 
@@ -273,7 +279,7 @@ estimates](../guide/large-structures.md#threads-and-estimates) explains them.
 
 `calculation::ExecutionResult` has an `ExecutionStatus`, an optional `charges::ChargeSet`, the
 rejections, the model that was used in `effective`, an optional failure message, the time spent on
-assessment and calculation, and the `input_warnings`. The status is `success`, `invalid_input_or_request`, `no_executable_plan`,
+assessment and calculation, and the `input_warnings`. The status is `success`, `no_executable_plan`,
 `numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),

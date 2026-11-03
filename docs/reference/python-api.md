@@ -65,7 +65,7 @@ the arguments. `len(molecule)` is its number of atoms.
 | `record_id` | ID of the record in the file, such as the SDF title line or the mmCIF block name; `None` when there is none |
 | `source` | `SourceIdentity` with `source`, `record_index`, and `record_id` together |
 | `source_mapping` | `SourceMapping` linking atoms and conformers to the file; `None` for molecules built from arrays; see [Where atoms came from](../interfaces/python.md#where-atoms-came-from) |
-| `import_diagnostics` | Tuple of `ImportDiagnostic`: what the reader left out of the record |
+| `import_issues` | Tuple of `ImportIssue`: what the reader left out of the record |
 
 ### MoleculeCollection
 
@@ -73,11 +73,11 @@ the arguments. `len(molecule)` is its number of atoms.
 like a tuple; `molecules` returns the tuple. A [plan](#plan) works only with the collection it was
 assessed with, which includes having the same `name`.
 
-### ImportDiagnostic
+### ImportIssue
 
 | Attribute | Content |
 | --- | --- |
-| `code` | Kind of warning, such as `"partial_charges_ignored"` or `"coordinates_2d_ignored"` |
+| `kind` | Kind of caution, such as `"partial_charges_ignored"` or `"coordinates_2d_ignored"`; the same code appears in result JSON |
 | `message` | Description |
 | `line` | Line in the file, or `None` |
 
@@ -144,7 +144,6 @@ molecule.
 | `requested` | `RequestedCalculation`: the arguments of the call |
 | `molecules` | The input `MoleculeCollection` |
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
-| `warnings` | Tuple of `ExecutionIssue`, such as full execution above the size limits |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |

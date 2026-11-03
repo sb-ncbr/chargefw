@@ -48,14 +48,14 @@ for molecule in molecules:
     )
 ```
 
-A reader that ignores part of a record says so in `molecule.import_diagnostics`, a tuple of
-`chargefw.ImportDiagnostic` with a `code`, a `message`, and the file `line` when known. For example,
+A reader that ignores part of a record says so in `molecule.import_issues`, a tuple of
+`chargefw.ImportIssue` with a `kind`, a `message`, and the file `line` when known. For example,
 partial charges in a MOL2 or mmCIF file give `partial_charges_ignored`, and bonds to symmetry-related
 copies in a crystal structure give `symmetry_connections_ignored`. Molecules created in Python have none.
 
 ```python
-for diagnostic in molecules[0].import_diagnostics:
-    print(diagnostic.code, diagnostic.message)
+for issue in molecules[0].import_issues:
+    print(issue.kind, issue.message)
 ```
 
 ### Molecules from arrays
@@ -194,7 +194,7 @@ result = chargefw.calculate(
 | `requested` | What was requested |
 | `molecules` | The input molecules |
 | `status` | `"success"`, or the reason for a failure |
-| `rejections`, `warnings` | Rejected methods and parameter sets with reasons, and warnings |
+| `rejections` | Rejected methods and parameter sets with reasons |
 | `input_warnings` | Cautions about the input molecules, such as [missing hydrogens](../guide/input.md) |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | Time spent selecting and calculating |

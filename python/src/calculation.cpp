@@ -503,7 +503,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                                                    .identity = std::move(source_identities[index]),
                                                    .caller_atom_ids =
                                                        std::move(source_caller_atom_ids[index]),
-                                                   .diagnostics = {},
+                                                   .issues = {},
                                                    .import_metadata = std::nullopt}
                 : source_metadata[index]->make_record(molecule));
         owned_molecules.push_back(std::move(molecule));
@@ -543,7 +543,8 @@ void bind_calculation(nb::module_& module) {
     });
     nb::class_<NativeExecutionResult>(module, "_NativeExecutionResult")
         .def("report", [](const NativeExecutionResult& value) {
-            return execution_result(value.result().execution());
+            // Python reports failed requests as exceptions, so every result has an execution.
+            return execution_result(*value.result().execution());
         });
     nb::class_<NativePlan>(module, "_NativePlan")
         .def("report", &NativePlan::report)

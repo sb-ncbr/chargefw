@@ -1,5 +1,7 @@
 #include "cli_support.h"
 
+#include <chargefw/methods/method_applicability.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -216,7 +218,8 @@ auto run(std::span<char*> arguments) -> int {
     const auto interrupt_handler = ScopedInterruptHandler{};
     const auto interruptible_observer =
         InterruptibleCalculationObserver{progress ? std::addressof(progress_observer) : nullptr};
-    auto result = [&]() -> chargefw::calculation::ExecutionResult {
+    auto failure_message = std::string{};
+    auto execution = [&]() -> std::optional<chargefw::calculation::ExecutionResult> {
         try {
             auto assessment = chargefw::calculation::assess(std::move(request));
             const auto* plan = assessment.default_plan();
@@ -224,30 +227,39 @@ auto run(std::span<char*> arguments) -> int {
                 return chargefw::calculation::calculate(assessment, max_threads,
                                                         interruptible_observer);
             }
+            // Warned before a possibly long calculation, and not again with the diagnostics.
             for (const auto& warning : plan->warnings()) {
-                std::println(std::cerr, "Warning: {}", warning.message);
+                const auto code = std::string{chargefw::methods::to_string(warning.kind)};
+                if (run.reported.emplace(code, warning.message).second) {
+                    std::println(std::cerr, "Warning: {}", warning.message);
+                }
             }
             return chargefw::calculation::calculate(assessment, *plan, max_threads,
                                                     interruptible_observer);
         } catch (const std::invalid_argument& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::invalid_input_or_request,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
-        } catch (const std::logic_error& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
-        } catch (const std::runtime_error& error) {
-            return {.status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                    .charges = std::nullopt,
-                    .failure_message = error.what()};
+            failure_message = error.what();
+            return std::nullopt;
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception& error) {
+            // calculate() reports failures of the calculation in its result, so any other
+            // exception is a bug in ChargeFW. A plain std::logic_error is what main() reports as
+            // an internal error; std::runtime_error and std::out_of_range would read as bad input.
+            throw std::logic_error{error.what()};
         }
     }();
-    run.metrics.applicability_seconds = result.metrics.applicability_seconds;
-    run.metrics.computation_seconds = result.metrics.computation_seconds;
-    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path,
-                                                    std::move(records), requested_provenance,
-                                                    std::move(result), calculate_output, run);
+    auto result = [&] {
+        if (!execution.has_value()) {
+            return chargefw::adapters::make_failed_request_result(
+                std::move(records), requested_provenance, std::move(failure_message));
+        }
+        run.metrics.applicability_seconds = execution->metrics.applicability_seconds;
+        run.metrics.computation_seconds = execution->metrics.computation_seconds;
+        return chargefw::adapters::make_charge_calculation_result(
+            std::move(records), requested_provenance, std::move(*execution));
+    }();
+    return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path, result,
+                                                    calculate_output, run);
 }
 
 } // namespace

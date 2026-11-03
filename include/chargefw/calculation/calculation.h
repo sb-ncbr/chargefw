@@ -50,7 +50,6 @@ struct EffectiveCalculation {
 
 enum class ExecutionStatus : std::uint8_t {
     success,
-    invalid_input_or_request,
     no_executable_plan,
     numerical_failure,
     cancelled,

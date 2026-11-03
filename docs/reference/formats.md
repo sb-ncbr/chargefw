@@ -405,7 +405,9 @@ use (`method_scope`), classification mode, method options, execution request, si
 limit. The reading options are recorded per record, under
 `input.import.policy`.
 Effective provenance records the resolved method, parameter set, complete options, execution policy, and
-warnings. When supplied by the application, metrics include UTC start/end timestamps through result
+warnings. Each warning also appears as a diagnostic with severity `warning` and its code, such as
+`resource_threshold_exceeded`: in the record of the molecule it concerns, or in the document's
+diagnostics when it concerns no single molecule. When supplied by the application, metrics include UTC start/end timestamps through result
 finalization, parsing, applicability and computation runtimes, and peak resident memory. Durations and
 memory are rounded to three decimal places.
 

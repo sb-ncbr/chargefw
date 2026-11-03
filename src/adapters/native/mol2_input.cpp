@@ -286,17 +286,17 @@ struct SourceBond {
         identity.record_id = name;
     }
 
-    auto diagnostics = std::vector<MoleculeRecordDiagnostic>{};
+    auto issues = std::vector<ImportIssue>{};
 
     if (has_partial_charges) {
-        diagnostics.push_back(MoleculeRecordDiagnostic{
-            .code = "partial_charges_ignored",
+        issues.push_back(ImportIssue{
+            .kind = ImportIssueKind::partial_charges_ignored,
             .message = "MOL2 partial charges were ignored; they are not formal charges and "
                        "were not used for calculation.",
             .line = std::nullopt});
     }
     if (aromatic_bonds > 0) {
-        diagnostics.push_back(common::aromatic_bonds_diagnostic(aromatic_bonds));
+        issues.push_back(common::aromatic_bonds_issue(aromatic_bonds));
     }
 
     auto sites = atom_references;
@@ -313,9 +313,9 @@ struct SourceBond {
             bond_count == 0 ? SourceConnectivity::explicitly_empty : SourceConnectivity::present,
         .components = {},
     };
-    return common::make_record(
-        std::move(atoms), std::move(bonds), {core::Conformer{std::move(positions), "input"}},
-        std::move(identity), {}, std::move(diagnostics), std::move(metadata));
+    return common::make_record(std::move(atoms), std::move(bonds),
+                               {core::Conformer{std::move(positions), "input"}},
+                               std::move(identity), {}, std::move(issues), std::move(metadata));
 }
 
 } // namespace

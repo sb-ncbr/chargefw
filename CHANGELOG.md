@@ -1,5 +1,76 @@
 # Changelog
 
+## Unreleased
+
+### Input
+
+- Histidine and arginine get bond orders that fit their hydrogens and formal charges, using the
+  structures of the wwPDB protonation variants. Before, a neutral histidine protonated on ND1 got the
+  bonds of the cation and wrong charges.
+- Nucleotide templates connect the sugar atoms. Before, PDB nucleic acids and mmCIF files without
+  `_chem_comp_bond` had their bases and phosphates as separate fragments, and automatic selection fell
+  back to methods that do not use bonds.
+- The N-terminal hydrogens `H1` and `H3` are bonded only in amino acids without a peptide link to the
+  previous residue. Before, a hydrogen that Hydride names `H1` on the carboxyl carbon of a C-terminal
+  residue was bonded to the backbone nitrogen.
+- MOL2 files are read with the formal charges in their `UNITY_ATOM_ATTR` section, which Open Babel
+  writes for charged atoms, and with their sections in any order. Before, such files were refused.
+- Records with aromatic bonds, which are read as single bonds, get an `aromatic_bonds_converted`
+  warning.
+- Reading takes less memory, especially for many small molecules and for PDB files with many models
+  read with `--conformers first`. Bonds stated in large PDB and mmCIF files are read in linear time.
+
+### Calculation
+
+- A molecule with carbon but no hydrogen atoms gets a `hydrogens_missing` warning, because its
+  hydrogens were most likely not added.
+- Fixed ions in large systems are checked against the other atoms much faster.
+
+### Output
+
+- mmCIF output writes structures whose histidines or arginines are in different protonation states.
+  The bonds whose order differs are written with order `delo`, and the bond rows of a residue name
+  follow its template. Reading the file back gives the same bonds.
+- The warnings of the executed plan also appear in result JSON as warning diagnostics with their
+  code, such as `resource_threshold_exceeded`: in the record of the molecule they concern, or in the
+  document's diagnostics. `effective.warnings` still lists them as text.
+- Writing results of rejected large structures takes linear instead of quadratic time.
+
+### Python
+
+- `molecule.import_diagnostics` is renamed to `molecule.import_issues`, and its values from
+  `chargefw.ImportDiagnostic` to `chargefw.ImportIssue`, with a `kind` instead of a `code`. The kinds
+  are the same strings, such as `"partial_charges_ignored"`.
+- `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
+  plan was recorded.
+- `Assessment.input_warnings` and `CalculationResult.input_warnings` list `chargefw.InputIssue`
+  values, such as missing hydrogens.
+
+### Command line
+
+- An unexpected error during assessment is reported as an internal error, exit status 1. Before, it
+  was reported as a numerical failure, exit status 4, with result JSON.
+- Each warning of the executed plan, such as a full calculation above the size limit, is printed once,
+  before the calculation. Before, it was printed once per molecule.
+
+### C++
+
+- `adapters::MoleculeRecordDiagnostic` is replaced by `adapters::ImportIssue`, with an
+  `ImportIssueKind` instead of a string code, and `ImportedMoleculeRecord::diagnostics` is renamed to
+  `issues`.
+- `ChargeCalculationResult::execution()` returns a pointer, which is null for a request that failed
+  with an exception; create such a result with `make_failed_request_result()`. `status()` returns the
+  new `ResultStatus`, and `charges()` the charges of a successful calculation.
+- `calculation::ExecutionStatus::invalid_input_or_request` is removed; the library never returned it.
+- `SourceAtomReference::structural_labels` is a `std::shared_ptr<const SourceStructuralLabels>`
+  instead of a `std::optional`. Readers share one object among sites with equal labels; replace it
+  instead of editing it.
+- `calculation::InputIssue`, `AssessmentResult::input_warnings()`, and
+  `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
+- `features::PreparedMolecule` finds the geometry defects of its conformers once, in
+  `geometry_defects()`, and copies share them.
+- `core::Position` has a lexicographic three-way comparison.
+
 ## 3.0.0rc2
 
 ### Python

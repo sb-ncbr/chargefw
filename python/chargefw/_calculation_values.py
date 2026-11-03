@@ -472,12 +472,6 @@ class CalculationResult:
         return self._plan
 
     @property
-    def warnings(self) -> tuple[ExecutionIssue, ...]:
-        if self._plan is None:
-            return ()
-        return self._plan.warnings
-
-    @property
     def input_warnings(self) -> tuple[InputIssue, ...]:
         """Cautions about the input molecules, such as hydrogens that were probably not added."""
 

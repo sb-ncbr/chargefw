@@ -90,7 +90,7 @@ auto require_insertion_code(const std::string_view code, const std::size_t atom_
 }
 
 auto validate_result(const ChargeCalculationResult& result) -> void {
-    if (!result.execution().calculated() || !result.execution().charges.has_value()) {
+    if (result.charges() == nullptr) {
         throw std::invalid_argument{"PQR output requires a successful calculation"};
     }
     if (result.inputs().size() != 1) {
@@ -119,7 +119,7 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
                                     "; read the structure with only the first conformer or model"};
     }
 
-    const auto assignments = result.execution().charges->assignments();
+    const auto assignments = result.charges()->assignments();
     if (assignments.size() != 1 || assignments.front().target.molecule_index != 0 ||
         assignments.front().charges.size() != molecule.atom_count()) {
         throw std::invalid_argument{"PQR charge assignment does not match the molecule"};
@@ -189,7 +189,7 @@ PqrWriter::PqrWriter(std::ostream& output) : output_{std::addressof(output)} {}
 auto PqrWriter::write(const ChargeCalculationResult& result,
                       const std::string_view generator_version) const -> void {
     validate_result(result);
-    const auto& charge_set = *result.execution().charges;
+    const auto& charge_set = *result.charges();
     const auto& record = result.inputs().front();
     const auto& assignment = charge_set.assignments().front();
     // Every atom is checked before any output, so a refused structure leaves the stream unchanged.
