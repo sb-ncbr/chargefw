@@ -19,6 +19,15 @@ type CalculationPhase = Literal[
 ]
 type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_execution_mode"]
 type InputIssueKind = Literal["hydrogens_missing"]
+type ImportIssueKind = Literal[
+    "partial_charges_ignored",
+    "coordinates_2d_ignored",
+    "v2000_property_ignored",
+    "v3000_bond_order_ignored",
+    "aromatic_bonds_converted",
+    "symmetry_connections_ignored",
+    "unbonded_residue_atoms",
+]
 type PrerequisiteIssueKind = Literal[
     "invalid_options",
     "missing_feature",

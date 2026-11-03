@@ -123,7 +123,7 @@ def main() -> None:
     if result.plan is None or result.plan.fixed_ions is None:
         raise RuntimeError("the calculation did not resolve any selected fixed ions")
 
-    for warning in result.warnings:
+    for warning in result.plan.warnings:
         print(f"Warning: {warning.message}")
     print_ion_environments(result, arguments.radius)
     if arguments.result_json is not None:

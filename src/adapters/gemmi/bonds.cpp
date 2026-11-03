@@ -424,14 +424,13 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
             .aromatic_bonds = result.aromatic_bonds()};
 }
 
-auto symmetry_connections_diagnostic(const std::size_t count) -> MoleculeRecordDiagnostic {
-    return MoleculeRecordDiagnostic{
-        .code = "symmetry_connections_ignored",
-        .message = std::to_string(count) +
-                   (count == 1 ? " bond to an atom of a symmetry-related copy was"
-                               : " bonds to atoms of symmetry-related copies were") +
-                   " ignored; only the atoms in the file are calculated.",
-        .line = std::nullopt};
+auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
+    return ImportIssue{.kind = ImportIssueKind::symmetry_connections_ignored,
+                       .message = std::to_string(count) +
+                                  (count == 1 ? " bond to an atom of a symmetry-related copy was"
+                                              : " bonds to atoms of symmetry-related copies were") +
+                                  " ignored; only the atoms in the file are calculated.",
+                       .line = std::nullopt};
 }
 
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,

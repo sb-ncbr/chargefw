@@ -42,6 +42,6 @@ struct ExplicitBonds {
                                   const selection::SelectedModel& model) -> ExplicitBonds;
 
 // The record warning for skipped connections to symmetry copies.
-[[nodiscard]] auto symmetry_connections_diagnostic(std::size_t count) -> MoleculeRecordDiagnostic;
+[[nodiscard]] auto symmetry_connections_issue(std::size_t count) -> ImportIssue;
 
 } // namespace chargefw::adapters::gemmi::bonds

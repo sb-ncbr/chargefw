@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Literal
 
 from .._chargefw import adapters as _native_adapters
 from ..core import (
-    ImportDiagnostic,
+    ImportIssue,
     Molecule,
     MoleculeCollection,
     SourceAtomReference,
@@ -37,16 +37,16 @@ _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
 
 
 class _ImportedMolecule(Molecule):
-    __slots__ = ("_import_diagnostics", "_native_input_metadata")
+    __slots__ = ("_import_issues", "_native_input_metadata")
 
-    _import_diagnostics: tuple[ImportDiagnostic, ...]
+    _import_issues: tuple[ImportIssue, ...]
     _native_input_metadata: _native_adapters._NativeInputMetadata
 
     @property
-    def import_diagnostics(self) -> tuple[ImportDiagnostic, ...]:
-        """Warnings from reading this molecule's file."""
+    def import_issues(self) -> tuple[ImportIssue, ...]:
+        """Cautions from reading this molecule's file."""
 
-        return self._import_diagnostics
+        return self._import_issues
 
 
 def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
@@ -120,10 +120,8 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
     object.__setattr__(result, "_source_mapping", source_mapping)
     object.__setattr__(
         result,
-        "_import_diagnostics",
-        tuple(
-            ImportDiagnostic(code, message, line) for code, message, line in payload["diagnostics"]
-        ),
+        "_import_issues",
+        tuple(ImportIssue(kind, message, line) for kind, message, line in payload["import_issues"]),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
     return result

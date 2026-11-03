@@ -81,7 +81,7 @@ struct ParsedMolecule {
     std::vector<core::Position> positions;
     std::vector<SourceAtomReference> atom_references;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
-    std::vector<MoleculeRecordDiagnostic> diagnostics;
+    std::vector<ImportIssue> issues;
     std::size_t aromatic_bonds = 0;
 };
 
@@ -172,8 +172,8 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         if (!property_line.starts_with("M  CHG")) {
             auto property_code = property_line.substr(3, 3);
             if (ignored_property_codes.emplace(property_code).second) {
-                result.diagnostics.push_back(MoleculeRecordDiagnostic{
-                    .code = "v2000_property_ignored",
+                result.issues.push_back(ImportIssue{
+                    .kind = ImportIssueKind::v2000_property_ignored,
                     .message = "V2000 property '" + property_code +
                                "' was ignored because it is not used for charge calculation.",
                     .line = line});
@@ -348,8 +348,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         const auto order = common::parse_int(bond[1], "V3000 bond order");
         if (order == 9 || order == 10) {
             if (ignored_bond_orders.emplace(order).second) {
-                result.diagnostics.push_back(MoleculeRecordDiagnostic{
-                    .code = "v3000_bond_order_ignored",
+                result.issues.push_back(ImportIssue{
+                    .kind = ImportIssueKind::v3000_bond_order_ignored,
                     .message = "V3000 bond order " + std::to_string(order) +
                                " was ignored because it is not represented in charge calculations; "
                                "the imported graph omits this bond.",
@@ -388,11 +388,11 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     auto conformers = std::vector<core::Conformer>{};
     auto conformer_references = std::vector<SourceConformerReference>{};
     if (parsed.aromatic_bonds > 0) {
-        parsed.diagnostics.push_back(common::aromatic_bonds_diagnostic(parsed.aromatic_bonds));
+        parsed.issues.push_back(common::aromatic_bonds_issue(parsed.aromatic_bonds));
     }
     if (drawing) {
-        parsed.diagnostics.push_back(MoleculeRecordDiagnostic{
-            .code = "coordinates_2d_ignored",
+        parsed.issues.push_back(ImportIssue{
+            .kind = ImportIssueKind::coordinates_2d_ignored,
             .message = "the record is a 2D drawing; its coordinates were not used, so methods "
                        "that need 3D geometry do not apply",
             .line = 2});
@@ -414,7 +414,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     };
     return common::make_record(std::move(parsed.atoms), std::move(parsed.bonds),
                                std::move(conformers), std::move(identity), {},
-                               std::move(parsed.diagnostics), std::move(metadata));
+                               std::move(parsed.issues), std::move(metadata));
 }
 
 } // namespace

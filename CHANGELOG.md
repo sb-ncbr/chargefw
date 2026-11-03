@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased
+
+### Python
+
+- `molecule.import_diagnostics` is renamed to `molecule.import_issues`, and its values from
+  `chargefw.ImportDiagnostic` to `chargefw.ImportIssue`, with a `kind` instead of a `code`. The kinds
+  are the same strings, such as `"partial_charges_ignored"`.
+- `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
+  plan was recorded.
+
+### Command line
+
+- An unexpected error during assessment is reported as an internal error, exit status 1. Before, it
+  was reported as a numerical failure, exit status 4, with result JSON.
+- Each warning of the executed plan, such as a full calculation above the size limit, is printed once,
+  before the calculation. Before, it was printed once per molecule.
+
+### Output
+
+- The warnings of the executed plan also appear in result JSON as warning diagnostics with their
+  code, such as `resource_threshold_exceeded`: in the record of the molecule they concern, or in the
+  document's diagnostics. `effective.warnings` still lists them as text.
+
+### C++
+
+- `adapters::MoleculeRecordDiagnostic` is replaced by `adapters::ImportIssue`, with an
+  `ImportIssueKind` instead of a string code, and `ImportedMoleculeRecord::diagnostics` is renamed to
+  `issues`.
+- `ChargeCalculationResult::execution()` returns a pointer, which is null for a request that failed
+  with an exception; create such a result with `make_failed_request_result()`. `status()` returns the
+  new `ResultStatus`, and `charges()` the charges of a successful calculation.
+- `calculation::ExecutionStatus::invalid_input_or_request` is removed; the library never returned it.
+- `features::PreparedMolecule` finds the geometry defects of its conformers once, in
+  `geometry_defects()`, and copies share them.
+
 ## 3.0.0rc2
 
 ### Python

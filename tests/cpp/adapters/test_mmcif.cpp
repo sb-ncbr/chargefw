@@ -258,7 +258,7 @@ _sb_ncbr_partial_atomic_charges.charge
     CHECK(first->molecule.bond_count() == 0);
     CHECK(first->molecule.conformer_count() == 2);
     CHECK(first->molecule.conformer(1)[0].x == 0.1);
-    CHECK(first->diagnostics.empty());
+    CHECK(first->issues.empty());
 
     const auto second = reader.next();
     REQUIRE(second.has_value());
@@ -266,8 +266,9 @@ _sb_ncbr_partial_atomic_charges.charge
     CHECK(second->identity.record_id == "second");
     CHECK(second->molecule.atom_count() == 1);
     // Charges in the file are not calculation input.
-    REQUIRE(second->diagnostics.size() == 1);
-    CHECK(second->diagnostics.front().code == "partial_charges_ignored");
+    REQUIRE(second->issues.size() == 1);
+    CHECK(second->issues.front().kind ==
+          chargefw::adapters::ImportIssueKind::partial_charges_ignored);
     CHECK_FALSE(reader.next().has_value());
 
     std::istringstream deferred_error_input{atom_site_header("valid") + R"cif(
@@ -347,8 +348,9 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
             .next();
     REQUIRE(aromatic_record.has_value());
     CHECK(aromatic_record->molecule.bond(2).order() == chargefw::core::BondOrder::SINGLE);
-    REQUIRE(aromatic_record->diagnostics.size() == 1);
-    CHECK(aromatic_record->diagnostics[0].code == "aromatic_bonds_converted");
+    REQUIRE(aromatic_record->issues.size() == 1);
+    CHECK(aromatic_record->issues[0].kind ==
+          chargefw::adapters::ImportIssueKind::aromatic_bonds_converted);
 
     // A connection to an atom of a symmetry-related copy is not a bond of this molecule.
     const auto read_connection = [](const std::string_view second_symmetry) {
@@ -381,11 +383,12 @@ disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
     };
     const auto same_copy = read_connection("1_555");
     CHECK(same_copy.molecule.bond_count() == 1);
-    CHECK(same_copy.diagnostics.empty());
+    CHECK(same_copy.issues.empty());
     const auto other_copy = read_connection("2_555");
     CHECK(other_copy.molecule.bond_count() == 0);
-    REQUIRE(other_copy.diagnostics.size() == 1);
-    CHECK(other_copy.diagnostics.front().code == "symmetry_connections_ignored");
+    REQUIRE(other_copy.issues.size() == 1);
+    CHECK(other_copy.issues.front().kind ==
+          chargefw::adapters::ImportIssueKind::symmetry_connections_ignored);
 
     const auto duplicate_input = [](const std::string_view component_bond) {
         return atom_site_header("duplicate") + R"cif(
@@ -439,8 +442,8 @@ _chem_comp_bond.value_order
         std::istringstream aromatic{duplicate_input("ALA N CA arom")};
         const auto record = mmcif::MmcifReader{aromatic, {}, {.bond_strategy = strategy}}.next();
         REQUIRE(record.has_value());
-        const auto warned = std::ranges::any_of(record->diagnostics, [](const auto& diagnostic) {
-            return diagnostic.code == "aromatic_bonds_converted";
+        const auto warned = std::ranges::any_of(record->issues, [](const auto& issue) {
+            return issue.kind == chargefw::adapters::ImportIssueKind::aromatic_bonds_converted;
         });
         CHECK(warned == (strategy != gemmi_adapter::BondStrategy::templates));
     }

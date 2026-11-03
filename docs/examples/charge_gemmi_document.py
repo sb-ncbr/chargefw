@@ -34,8 +34,9 @@ def charge_document(
         method=method,
         parameter_set=parameter_set,
     )
-    for warning in result.warnings:
-        print(f"Warning: {warning.message}")
+    if result.plan is not None:
+        for warning in result.plan.warnings:
+            print(f"Warning: {warning.message}")
 
     chargefw.io.gemmi.attach_charges(document, result)
     document.write_file(str(output_path))

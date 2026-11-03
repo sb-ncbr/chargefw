@@ -422,13 +422,13 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     const auto* execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
     auto seen = SeenDiagnostics{};
-    for (const auto& import_diagnostic : records[molecule_index].diagnostics) {
+    for (const auto& issue : records[molecule_index].issues) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
-        imported.code = import_diagnostic.code;
-        imported.message = import_diagnostic.message;
+        imported.code = to_string(issue.kind);
+        imported.message = issue.message;
         imported.molecule_index = molecule_index;
-        imported.line = import_diagnostic.line;
+        imported.line = issue.line;
         append_unique(diagnostics, seen, std::move(imported));
     }
     // A request that failed has no execution result, so only its status follows.

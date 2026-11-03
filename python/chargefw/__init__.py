@@ -34,7 +34,7 @@ from .calculation import (
 )
 from .charges import ChargeAssignment
 from .core import (
-    ImportDiagnostic,
+    ImportIssue,
     Molecule,
     MoleculeCollection,
     PortableId,
@@ -65,7 +65,7 @@ __all__ = [
     "SourceHierarchyLabels",
     "SourceStructuralLabels",
     "SourceMapping",
-    "ImportDiagnostic",
+    "ImportIssue",
     "ChargeAssignment",
     "FixedAtomCharge",
     "CalculationResult",

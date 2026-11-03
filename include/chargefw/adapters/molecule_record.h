@@ -168,12 +168,26 @@ struct MoleculeRecordIdentity {
     [[nodiscard]] auto operator==(const MoleculeRecordIdentity&) const -> bool = default;
 };
 
-struct MoleculeRecordDiagnostic {
-    std::string code;
-    std::string message;
-    std::optional<std::size_t> line;
+enum class ImportIssueKind : std::uint8_t {
+    partial_charges_ignored,
+    coordinates_2d_ignored,
+    v2000_property_ignored,
+    v3000_bond_order_ignored,
+    aromatic_bonds_converted,
+    symmetry_connections_ignored,
+    unbonded_residue_atoms,
+};
 
-    [[nodiscard]] auto operator==(const MoleculeRecordDiagnostic&) const -> bool = default;
+// The code of the kind in result JSON, such as "partial_charges_ignored".
+[[nodiscard]] auto to_string(ImportIssueKind value) -> std::string_view;
+
+// A caution that a reader attached to a record, such as file data it did not use.
+struct ImportIssue {
+    ImportIssueKind kind;
+    std::string message;
+    std::optional<std::size_t> line; // One-based line in the source file.
+
+    [[nodiscard]] auto operator==(const ImportIssue&) const -> bool = default;
 };
 
 // A successful import result. Molecule ownership and source identity travel together so output
@@ -184,7 +198,7 @@ struct ImportedMoleculeRecord {
     // Explicit caller IDs are separate from source mappings, whose source positions and tokens
     // remain authoritative for imported records.
     std::optional<std::vector<PortableId>> caller_atom_ids;
-    std::vector<MoleculeRecordDiagnostic> diagnostics;
+    std::vector<ImportIssue> issues;
     std::optional<MoleculeImportMetadata> import_metadata;
 
     [[nodiscard]] auto operator==(const ImportedMoleculeRecord&) const -> bool = default;

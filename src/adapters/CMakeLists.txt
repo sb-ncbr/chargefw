@@ -10,6 +10,7 @@ target_sources(chargefw_core_objects
         native/pqr_output.cpp
         native/sdf_input.cpp
         input_options.cpp
+        molecule_record.cpp
         fixed_ions.cpp
         gemmi/bonds.cpp
         gemmi/structure_import.cpp
