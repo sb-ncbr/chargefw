@@ -4,9 +4,16 @@
 #include <chargefw/core/bond.h>
 #include <snitch/snitch.hpp>
 
+#include <cstddef>
+#include <cstdlib>
 #include <exception>
+#include <format>
+#include <map>
+#include <ranges>
+#include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -52,6 +59,75 @@ END
         for (const auto& bond : record->molecule.bonds()) {
             CHECK(bond.first_atom_index() == 0);
             CHECK(bond.order() == chargefw::core::BondOrder::SINGLE);
+        }
+    }
+}
+
+TEST_CASE("PDB templates follow the protonation state of histidine and arginine",
+          "[adapters][pdb]") {
+    struct Case {
+        std::string_view residue;
+        std::string_view atoms;
+        std::map<std::string_view, int> charges;
+        std::set<std::string> double_bonds;
+    };
+    // The charged forms follow the wwPDB protonation variants, such as HIS_LL_DHE2 for histidine
+    // without HE2. Without formal charges in the input, only neutral forms fit.
+    const auto cases = std::vector<Case>{
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1", {}, {"CG-CD2", "CE1-NE2"}},
+        {"HIS",
+         "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1",
+         {{"ND1", 1}, {"NE2", -1}},
+         {"CG-CD2", "ND1-CE1"}},
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HE2", {}, {"CG-CD2", "ND1-CE1"}},
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1 HE2", {{"ND1", 1}}, {"CG-CD2", "ND1-CE1"}},
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1 HE2", {{"NE2", 1}}, {"CG-CD2", "CE1-NE2"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH12 HH21 HH22", {{"NH2", 1}}, {"CZ-NH2"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH12 HH21 HH22", {{"NH1", 1}}, {"CZ-NH1"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH21 HH22", {}, {"CZ-NH1"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH12 HH21", {}, {"CZ-NH2"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HH11 HH12 HH21 HH22", {}, {"NE-CZ"}},
+        // No structure fits a cation without its formal charge or a group missing a bonded atom.
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1 HE2", {}, {"CG-CD2", "ND1-CE1"}},
+        {"HIS", "CG ND1 CD2 CE1 NE2 HD2 HE1 HD1", {}, {"CG-CD2", "ND1-CE1"}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH12 HH21 HH22", {}, {"CZ-NH2"}},
+        {"ARG", "NE CZ NH1 NH2 HE HH11 HH12 HH21 HH22", {}, {"CZ-NH2"}},
+        {"ARG", "CG CD HD2 NE CZ NH1 NH2 HH11 HH12 HH21 HH22", {}, {"CZ-NH2"}},
+    };
+
+    for (const auto& [residue, atoms, charges, double_bonds] : cases) {
+        auto text = std::string{};
+        auto serial = 0;
+        for (const auto name_range : std::views::split(atoms, ' ')) {
+            const auto name = std::string{std::string_view{name_range}};
+            const auto charge = charges.contains(name) ? charges.at(name) : 0;
+            const auto charge_field =
+                charge == 0 ? "  " : std::format("{}{}", std::abs(charge), charge > 0 ? '+' : '-');
+            ++serial;
+            text += std::format("ATOM  {:>5} {:<4} {} A   1    {:8.3f}   0.000   0.000  1.00 20.00"
+                                "          {:>2}{}\n",
+                                serial, name.size() == 4 ? name : " " + name, residue,
+                                static_cast<double>(serial), name.substr(0, 1), charge_field);
+        }
+        text += "END\n";
+
+        const auto record =
+            read_first(text, {.bond_strategy = gemmi_adapter::BondStrategy::templates});
+        const auto& molecule = record.molecule;
+        auto read_double_bonds = std::set<std::string>{};
+        for (const auto& bond : molecule.bonds()) {
+            if (bond.order() == chargefw::core::BondOrder::DOUBLE) {
+                read_double_bonds.insert(
+                    std::format("{}-{}", molecule.atom(bond.first_atom_index()).name(),
+                                molecule.atom(bond.second_atom_index()).name()));
+            }
+        }
+        CAPTURE(text);
+        CHECK(read_double_bonds == double_bonds);
+        for (std::size_t index = 0; index < molecule.atom_count(); ++index) {
+            const auto& atom = molecule.atom(index);
+            CHECK(atom.formal_charge() ==
+                  (charges.contains(atom.name()) ? charges.at(atom.name()) : 0));
         }
     }
 }

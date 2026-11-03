@@ -250,6 +250,69 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
     }
 }
 
+// The sum of bond orders that carbon and nitrogen atoms of a protonation motif have in a
+// closed-shell Lewis structure with the given formal charge.
+[[nodiscard]] auto motif_valence(const ::gemmi::Atom& atom) -> std::optional<int> {
+    if (atom.element == ::gemmi::El::C && atom.charge == 0) {
+        return 4;
+    }
+    if (atom.element == ::gemmi::El::N && atom.charge >= -1 && atom.charge <= 1) {
+        return 3 + atom.charge;
+    }
+    return std::nullopt;
+}
+
+// Whether every motif atom has the valence its element and formal charge require when the template
+// bonds take the orders of the alternative.
+[[nodiscard]] auto fits_motif(const selection::SelectedModel& model,
+                              const detail::ComponentView component,
+                              const component_templates::ComponentTemplate& component_template,
+                              const std::span<const component_templates::BondTemplate> alternative)
+    -> bool {
+    const auto order = [alternative](const component_templates::BondTemplate& bond) {
+        const auto replaced = std::ranges::find_if(alternative, [&bond](const auto& candidate) {
+            return (candidate.first == bond.first && candidate.second == bond.second) ||
+                   (candidate.first == bond.second && candidate.second == bond.first);
+        });
+        return core::bond_order_value(replaced == alternative.end() ? bond.order : replaced->order);
+    };
+    return std::ranges::all_of(component_template.motif->atoms, [&](const auto name) {
+        const auto atom = component.find_atom(name);
+        if (!atom.has_value()) {
+            return false;
+        }
+        auto sum = 0;
+        for (const auto& bond : component_template.bonds) {
+            const auto partner = bond.first == name    ? bond.second
+                                 : bond.second == name ? bond.first
+                                                       : std::string_view{};
+            if (!partner.empty() && component.find_atom(partner).has_value()) {
+                sum += order(bond);
+            }
+        }
+        return motif_valence(*model.atoms()[*atom]) == sum;
+    });
+}
+
+// The bonds whose orders replace the template's for this residue: those of the first alternative
+// Lewis structure that fits its hydrogens and formal charges, unless the template already fits.
+// A residue that no structure fits, such as one missing a motif atom, keeps the template orders.
+[[nodiscard]] auto
+protonation_bonds(const selection::SelectedModel& model, const detail::ComponentView component,
+                  const component_templates::ComponentTemplate& component_template)
+    -> std::span<const component_templates::BondTemplate> {
+    if (component_template.motif == nullptr ||
+        fits_motif(model, component, component_template, {})) {
+        return {};
+    }
+    const auto alternatives = component_template.motif->alternatives;
+    const auto fitting = std::ranges::find_if(alternatives, [&](const auto alternative) {
+        return fits_motif(model, component, component_template, alternative);
+    });
+    return fitting == alternatives.end() ? std::span<const component_templates::BondTemplate>{}
+                                         : *fitting;
+}
+
 [[nodiscard]] auto assign_template_bonds(const selection::SelectedModel& model)
     -> std::vector<core::Bond> {
     BondAccumulator result;
@@ -262,6 +325,9 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
             continue;
         }
 
+        // These orders go in first, so the accumulator ignores the template's for the same pairs.
+        add_component_bonds(result, component,
+                            protonation_bonds(model, component, *component_template));
         add_component_bonds(result, component, component_template->bonds);
         if (component_template->kind == component_templates::ComponentKind::amino_acid) {
             if (const auto nitrogen = component.find_atom("N")) {

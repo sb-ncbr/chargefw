@@ -8,6 +8,31 @@ namespace {
 
 #include "component_templates.inc"
 
+// Alternative Lewis structures follow the wwPDB amino acid protonation variants
+// (aa-variants-v1.cif). The CCD templates have the double bond at ND1=CE1 in histidine and at
+// CZ=NH2 in arginine.
+constexpr std::array<BondTemplate, 2> his_ce1_ne2_double_bonds{{
+    {"ND1", "CE1", core::BondOrder::SINGLE},
+    {"CE1", "NE2", core::BondOrder::DOUBLE},
+}};
+constexpr std::array<std::span<const BondTemplate>, 1> his_alternatives{his_ce1_ne2_double_bonds};
+constexpr std::array<std::string_view, 5> his_motif_atoms{"CG", "ND1", "CD2", "CE1", "NE2"};
+constexpr ProtonationMotif his_motif{.atoms = his_motif_atoms, .alternatives = his_alternatives};
+
+constexpr std::array<BondTemplate, 2> arg_cz_nh1_double_bonds{{
+    {"CZ", "NH1", core::BondOrder::DOUBLE},
+    {"CZ", "NH2", core::BondOrder::SINGLE},
+}};
+// Arginine without HE is not a wwPDB variant; force fields name it, for example, AR0.
+constexpr std::array<BondTemplate, 2> arg_ne_cz_double_bonds{{
+    {"NE", "CZ", core::BondOrder::DOUBLE},
+    {"CZ", "NH2", core::BondOrder::SINGLE},
+}};
+constexpr std::array<std::span<const BondTemplate>, 2> arg_alternatives{arg_cz_nh1_double_bonds,
+                                                                        arg_ne_cz_double_bonds};
+constexpr std::array<std::string_view, 5> arg_motif_atoms{"CD", "NE", "CZ", "NH1", "NH2"};
+constexpr ProtonationMotif arg_motif{.atoms = arg_motif_atoms, .alternatives = arg_alternatives};
+
 struct ComponentTemplateEntry {
     std::string_view component;
     ComponentTemplate component_template;
@@ -16,7 +41,7 @@ struct ComponentTemplateEntry {
 constexpr std::array<ComponentTemplateEntry, 29> templates{{
     {"A", {ComponentKind::nucleotide, a_bonds}},
     {"ALA", {ComponentKind::amino_acid, ala_bonds}},
-    {"ARG", {ComponentKind::amino_acid, arg_bonds}},
+    {"ARG", {ComponentKind::amino_acid, arg_bonds, &arg_motif}},
     {"ASN", {ComponentKind::amino_acid, asn_bonds}},
     {"ASP", {ComponentKind::amino_acid, asp_bonds}},
     {"C", {ComponentKind::nucleotide, c_bonds}},
@@ -29,7 +54,7 @@ constexpr std::array<ComponentTemplateEntry, 29> templates{{
     {"GLN", {ComponentKind::amino_acid, gln_bonds}},
     {"GLU", {ComponentKind::amino_acid, glu_bonds}},
     {"GLY", {ComponentKind::amino_acid, gly_bonds}},
-    {"HIS", {ComponentKind::amino_acid, his_bonds}},
+    {"HIS", {ComponentKind::amino_acid, his_bonds, &his_motif}},
     {"HOH", {ComponentKind::water, hoh_bonds}},
     {"ILE", {ComponentKind::amino_acid, ile_bonds}},
     {"LEU", {ComponentKind::amino_acid, leu_bonds}},

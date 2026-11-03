@@ -20,9 +20,17 @@ enum class ComponentKind : std::uint8_t {
     water,
 };
 
+// A group whose Lewis structure depends on where the residue is protonated, such as the histidine
+// ring. Each alternative lists the bonds of the group with orders other than the template's.
+struct ProtonationMotif {
+    std::span<const std::string_view> atoms;
+    std::span<const std::span<const BondTemplate>> alternatives;
+};
+
 struct ComponentTemplate {
     ComponentKind kind;
     std::span<const BondTemplate> bonds;
+    const ProtonationMotif* motif = nullptr;
 };
 
 [[nodiscard]] auto find(std::string_view component) -> const ComponentTemplate*;

@@ -213,8 +213,31 @@ links; they are not a complete Chemical Component Dictionary. No distance-based 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
 N-terminal `N-H1` and `N-H3` bonds; `PRO` adds `N-H1`, `N-H2`, and `N-H3`. Only supplied atoms are
 connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
+
 These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
 names, independently of the position in the chain, so the structure must be prepared consistently.
+
+Histidine and arginine templates follow the residue's protonation state. The templates come from the
+Chemical Component Dictionary, which gives histidine a double bond `ND1=CE1` and arginine `CZ=NH2`.
+A residue whose hydrogens and formal charges do not fit those bonds gets the structure from the wwPDB
+protonation variants that fits: `CE1=NE2` for histidine, `CZ=NH1` or `NE=CZ` for arginine. A structure
+fits when, among the histidine ring atoms or the arginine `CD`, `NE`, `CZ`, `NH1`, and `NH2`, every carbon
+has bond orders summing to 4 and every nitrogen to 3 plus its formal charge. For example:
+
+| Residue | Hydrogens | Formal charges | Bond |
+| --- | --- | --- | --- |
+| Histidine, neutral, protonated on ND1 | `HD1` | none | `CE1=NE2` |
+| Histidine, as wwPDB variant `HIS_LL_DHE2` | `HD1` | ND1 +1, NE2 −1 | `ND1=CE1` |
+| Histidine, neutral, protonated on NE2 | `HE2` | none | `ND1=CE1` |
+| Histidine, cation | `HD1`, `HE2` | NE2 +1 | `CE1=NE2` |
+| Arginine, neutral, without `HH12` | `HE`, `HH11`, `HH21`, `HH22` | none | `CZ=NH1` |
+| Arginine, neutral, without `HE` | `HH11`, `HH12`, `HH21`, `HH22` | none | `NE=CZ` |
+
+A missing formal charge counts as 0, so a histidine or arginine cation without its formal charge fits
+no structure and keeps the template bonds; check the formal charges as described in [Molecular
+input](../guide/input.md). A residue with an incomplete group, for example without `CB` or without a
+hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bond orders from mmCIF
+`_chem_comp_bond` rows take precedence over the template's.
 
 ## Charge output
 
