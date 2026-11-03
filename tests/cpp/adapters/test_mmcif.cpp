@@ -337,6 +337,19 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
     CHECK(explicit_molecule.bond(3).order() == chargefw::core::BondOrder::SINGLE);
     CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 4);
 
+    // An aromatic connection is read as a single bond, with a warning.
+    auto aromatic_connection_input = strategy_input;
+    aromatic_connection_input.replace(aromatic_connection_input.find(" doub\n"), 5, " arom");
+    std::istringstream aromatic_connection{aromatic_connection_input};
+    const auto aromatic_record =
+        mmcif::MmcifReader{
+            aromatic_connection, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
+            .next();
+    REQUIRE(aromatic_record.has_value());
+    CHECK(aromatic_record->molecule.bond(2).order() == chargefw::core::BondOrder::SINGLE);
+    REQUIRE(aromatic_record->diagnostics.size() == 1);
+    CHECK(aromatic_record->diagnostics[0].code == "aromatic_bonds_converted");
+
     // A connection to an atom of a symmetry-related copy is not a bond of this molecule.
     const auto read_connection = [](const std::string_view second_symmetry) {
         std::istringstream connection_input{atom_site_header("symmetry") + R"cif(
@@ -417,6 +430,19 @@ _chem_comp_bond.value_order
         chargefw::core::BondOrder::SINGLE);
     for (const auto value_order : {"DELO", "METAL", "1.5", ".", "?", "invalid"}) {
         CHECK(explicit_bond_count(value_order) == 0);
+    }
+
+    // The warning comes with the file's bonds, which templates do not read.
+    for (const auto strategy :
+         {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
+          gemmi_adapter::BondStrategy::hybrid}) {
+        std::istringstream aromatic{duplicate_input("ALA N CA arom")};
+        const auto record = mmcif::MmcifReader{aromatic, {}, {.bond_strategy = strategy}}.next();
+        REQUIRE(record.has_value());
+        const auto warned = std::ranges::any_of(record->diagnostics, [](const auto& diagnostic) {
+            return diagnostic.code == "aromatic_bonds_converted";
+        });
+        CHECK(warned == (strategy != gemmi_adapter::BondStrategy::templates));
     }
 }
 

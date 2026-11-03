@@ -215,7 +215,8 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     manual = chargefw.Molecule([1], source_name="manual")
     # Reader warnings are visible before calculation; molecules built in Python have none.
     assert [value.code for value in imported_molecule.import_diagnostics] == [
-        "partial_charges_ignored"
+        "partial_charges_ignored",
+        "aromatic_bonds_converted",
     ]
     assert manual.import_diagnostics == ()
     result = chargefw.calculate([manual, imported_molecule], method="formal")
@@ -227,7 +228,8 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     assert "atom_ids" not in imported_record["input"]
     assert len(imported_record["assignments"][0]["charges"]) == len(imported_molecule.atom_ids)
     assert [value["code"] for value in imported_record["diagnostics"]] == [
-        "partial_charges_ignored"
+        "partial_charges_ignored",
+        "aromatic_bonds_converted",
     ]
 
 

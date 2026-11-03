@@ -55,7 +55,8 @@ the atoms for drawing the structural formula on a page, and its bond lengths and
 those of a molecule. ChargeFW imports such a record without coordinates and attaches a
 `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a record not marked `2D` are kept.
 
-Query and wildcard atoms are rejected. Bond order 4 is imported as a single bond. V3000 coordinate bonds
+Query and wildcard atoms are rejected. Aromatic bond order 4 is imported as a single bond, and the record gets one
+`aromatic_bonds_converted` warning that counts these bonds. V3000 coordinate bonds
 (order 9) and hydrogen bonds (order 10) are left out, because ChargeFW's molecules have only single,
 double, and triple bonds; one warning per left-out order is attached to the record. Other trailing V3000 atom and bond
 attributes are accepted but not used.
@@ -72,18 +73,28 @@ name. A MOL or SDF record produces one conformer named `input`, or none for a 2D
 
 ## MOL2 input
 
-The MOL2 reader consumes `@<TRIPOS>MOLECULE` records and reads their `MOLECULE`, `ATOM`, and `BOND` data.
-Unrelated sections are skipped before the atom section. The declared atom and bond counts, positive unique
-atom IDs, bond references, coordinates, and required sections are validated.
+The MOL2 reader consumes `@<TRIPOS>MOLECULE` records and reads their `MOLECULE`, `ATOM`, `BOND`, and
+`UNITY_ATOM_ATTR` data, in any order; other sections are skipped. The declared atom and bond counts,
+positive unique atom IDs, bond references, coordinates, and required sections are validated.
 
 The element is taken from the prefix before `.` in a standard atom type, while the atom-name column is
 retained. Dummy, lone-pair, wildcard, halogen-group, hetero-group, and heavy-atom-group types are rejected.
 Numeric bond types 1, 2, and 3 are imported directly; numeric type 4, aromatic type `ar`, and amide type
-`am` become single bonds.
+`am` become single bonds. Aromatic bonds, types 4 and `ar`, give the record an `aromatic_bonds_converted`
+warning.
 
-MOL2 atom charges are partial charges, not formal charges. They are parsed for validity but are not used;
-all imported formal charges are zero. A record containing any nonzero input partial charge receives a
-`partial_charges_ignored` warning. Each record produces one conformer named `input`.
+Formal charges come from the `charge` attributes in `UNITY_ATOM_ATTR`, such as `charge -1` for atom 9:
+
+```text
+@<TRIPOS>UNITY_ATOM_ATTR
+9 1
+charge -1
+```
+
+Atoms without a `charge` attribute are neutral, and other attributes are ignored. The charge column of
+the atom records holds partial charges, not formal charges; it is parsed for validity but not used, and
+a record with any nonzero partial charge receives a `partial_charges_ignored` warning. Each record
+produces one conformer named `input`.
 
 MOL2 atom IDs are kept exactly as written, after checking that they are unique positive integers and that
 the bonds refer to them.
@@ -205,16 +216,42 @@ without bonds receives one `unbonded_residue_atoms` warning. It counts these ato
 names up to three residues, such as `MSE A 4 (N, CA, C, O, ...)`. Single-atom residues, such as ions,
 are not reported.
 
-Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
+Explicit structural aromatic bonds become single bonds, and the record gets an
+`aromatic_bonds_converted` warning. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
 links; they are not a complete Chemical Component Dictionary. No distance-based bond perception is performed.
 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
 N-terminal `N-H1` and `N-H3` bonds; `PRO` adds `N-H1`, `N-H2`, and `N-H3`. Only supplied atoms are
-connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
+connected, and only in a residue that the templates do not link to the previous residue by a peptide
+bond. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
+
 These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
-names, independently of the position in the chain, so the structure must be prepared consistently.
+names and, for the links between residues and the N-terminal hydrogens, by the order of residues in
+the chain; no geometry is used, so the structure must be prepared consistently.
+
+Histidine and arginine templates follow the residue's protonation state. The templates come from the
+Chemical Component Dictionary, which gives histidine a double bond `ND1=CE1` and arginine `CZ=NH2`.
+A residue whose hydrogens and formal charges do not fit those bonds gets the structure from the wwPDB
+protonation variants that fits: `CE1=NE2` for histidine, `CZ=NH1` or `NE=CZ` for arginine. A structure
+fits when, among the histidine ring atoms or the arginine `CD`, `NE`, `CZ`, `NH1`, and `NH2`, every carbon
+has bond orders summing to 4 and every nitrogen to 3 plus its formal charge. For example:
+
+| Residue | Hydrogens | Formal charges | Bond |
+| --- | --- | --- | --- |
+| Histidine, neutral, protonated on ND1 | `HD1` | none | `CE1=NE2` |
+| Histidine, as wwPDB variant `HIS_LL_DHE2` | `HD1` | ND1 +1, NE2 −1 | `ND1=CE1` |
+| Histidine, neutral, protonated on NE2 | `HE2` | none | `ND1=CE1` |
+| Histidine, cation | `HD1`, `HE2` | NE2 +1 | `CE1=NE2` |
+| Arginine, neutral, without `HH12` | `HE`, `HH11`, `HH21`, `HH22` | none | `CZ=NH1` |
+| Arginine, neutral, without `HE` | `HH11`, `HH12`, `HH21`, `HH22` | none | `NE=CZ` |
+
+A missing formal charge counts as 0, so a histidine or arginine cation without its formal charge fits
+no structure and keeps the template bonds; check the formal charges as described in [Molecular
+input](../guide/input.md). A residue with an incomplete group, for example without `CB` or without a
+hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bond orders from mmCIF
+`_chem_comp_bond` rows take precedence over the template's.
 
 ## Charge output
 
@@ -275,11 +312,20 @@ between two sulfur atoms as `disulf`, any other bond as `covale`.
 A record from SDF, MOL2, molecule JSON, or Python arrays is one residue, `UNL`, so all its bonds are in
 `_chem_comp_bond`. A molecule without bonds gets no bond categories.
 
-A `_chem_comp_bond` row applies to every residue with that name, so ChargeFW refuses to write a record
-when its bonds cannot be stated that way:
+A `_chem_comp_bond` row applies to every residue with that name. Histidines or arginines in different
+protonation states, such as one histidine protonated on ND1 and another on NE2, have their double bonds
+on different atoms (see [Connectivity](#connectivity)). ChargeFW writes the bonds whose order differs
+with the delocalized order `delo`: in histidine `ND1-CE1` and `CE1-NE2`, in arginine `NE-CZ`, `CZ-NH1`,
+or `CZ-NH2`. When you read the file with the
+`hybrid` bond strategy, the default, or with `templates`, ChargeFW gives each residue its bond orders
+again from its hydrogens and formal charges, so the charges you calculate from the file are the same.
+With `explicit`, these bonds are missing.
+
+ChargeFW refuses to write a record when its bonds cannot be stated per residue name:
 
 - an atom name occurs twice in one residue;
-- two residues with the same name have the same bond with different orders; or
+- two residues with the same name have the same bond with different orders, other than the histidine
+  and arginine bonds above; or
 - one residue has a bond that another residue with the same name and the same two atom names lacks.
 
 A bond between residues is also refused when a partner residue has neither an author nor a label

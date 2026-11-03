@@ -31,6 +31,8 @@ enum class ExplicitBondOrders : std::uint8_t { connectivity_only, from_source };
 struct ExplicitBonds {
     std::vector<core::Bond> bonds;
     std::size_t skipped_symmetry_connections = 0;
+    // Aromatic bonds, read as single bonds.
+    std::size_t aromatic_bonds = 0;
 };
 
 [[nodiscard]] auto explicit_pdb(const ::gemmi::Structure& structure,

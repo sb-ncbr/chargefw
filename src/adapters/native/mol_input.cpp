@@ -82,6 +82,7 @@ struct ParsedMolecule {
     std::vector<SourceAtomReference> atom_references;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
     std::vector<MoleculeRecordDiagnostic> diagnostics;
+    std::size_t aromatic_bonds = 0;
 };
 
 auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t& line)
@@ -138,6 +139,9 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         result.bonds.emplace_back(static_cast<std::size_t>(first - 1),
                                   static_cast<std::size_t>(second - 1),
                                   common::bond_order(order, BondFormat::mol));
+        if (order == "4") {
+            ++result.aromatic_bonds;
+        }
     }
 
     while (true) {
@@ -356,6 +360,9 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 
         result.bonds.emplace_back(first->second, second->second,
                                   core::bond_order_from_value(order == 4 ? 1 : order));
+        if (order == 4) {
+            ++result.aromatic_bonds;
+        }
     }
 
     if (v30_payload(read_v30_line(input, line)) != "END BOND" ||
@@ -380,6 +387,9 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
                                const bool drawing) -> ImportedMoleculeRecord {
     auto conformers = std::vector<core::Conformer>{};
     auto conformer_references = std::vector<SourceConformerReference>{};
+    if (parsed.aromatic_bonds > 0) {
+        parsed.diagnostics.push_back(common::aromatic_bonds_diagnostic(parsed.aromatic_bonds));
+    }
     if (drawing) {
         parsed.diagnostics.push_back(MoleculeRecordDiagnostic{
             .code = "coordinates_2d_ignored",

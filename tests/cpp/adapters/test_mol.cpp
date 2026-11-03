@@ -16,6 +16,8 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace adapters = chargefw::adapters;
 namespace mol = chargefw::adapters::native::mol_input;
@@ -327,6 +329,17 @@ TEST_CASE("native MOL and SDF input report ignored properties and bond orders",
         CHECK(hem_record.diagnostics[0].line == 164);
         CHECK_FALSE(reader.next().has_value());
     }
+
+    {
+        std::istringstream aromatic{
+            "aromatic\nchargefw\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+            "    0.0000    0.0000    0.0000 C   0  0\n"
+            "    1.4000    0.0000    0.0000 C   0  0\n  1  2  4\nM  END\n"};
+        const auto result = mol::parse_mol(aromatic, {});
+        CHECK(result.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
+        REQUIRE(result.diagnostics.size() == 1);
+        CHECK(result.diagnostics[0].code == "aromatic_bonds_converted");
+    }
 }
 
 TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapters][native]") {
@@ -342,20 +355,71 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
         CHECK(mol2_record.molecule.atom(0).formal_charge() == 0);
         CHECK(mol2_record.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
         CHECK(mol2_record.molecule.bond(1).order() == chargefw::core::BondOrder::DOUBLE);
-        CHECK(mol2_record.diagnostics.size() == 1);
+        REQUIRE(mol2_record.diagnostics.size() == 2);
+        CHECK(mol2_record.diagnostics[0].code == "partial_charges_ignored");
+        CHECK(mol2_record.diagnostics[1].code == "aromatic_bonds_converted");
         CHECK_FALSE(reader.next().has_value());
     }
 
-    {
-        auto input = std::istringstream{"@<TRIPOS>MOLECULE\namide\n3 2 0 0 0\nSMALL\nNO_CHARGES\n\n"
+    // Aromatic bond types are read as single bonds with a warning; an amide C-N bond is single.
+    for (const auto& [type, aromatic] :
+         std::vector<std::pair<std::string, bool>>{{"am", false}, {"ar", true}, {"4", true}}) {
+        auto input = std::istringstream{"@<TRIPOS>MOLECULE\nbonds\n3 2 0 0 0\nSMALL\nNO_CHARGES\n\n"
                                         "@<TRIPOS>ATOM\n1 C1 0 0 0 C.2\n2 O1 1.2 0 0 O.2\n"
                                         "3 N1 -1.3 0 0 N.am\n"
-                                        "@<TRIPOS>BOND\n1 1 2 2\n2 1 3 am\n"};
-        auto reader = mol2::Mol2Reader{input, "amide.mol2"};
+                                        "@<TRIPOS>BOND\n1 1 2 2\n2 1 3 " +
+                                        type + "\n"};
+        auto reader = mol2::Mol2Reader{input, "bonds.mol2"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         CHECK(result->molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
         CHECK(result->molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
+        REQUIRE(result->diagnostics.size() == (aromatic ? 1U : 0U));
+        if (aromatic) {
+            CHECK(result->diagnostics[0].code == "aromatic_bonds_converted");
+        }
+    }
+}
+
+TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapters][native]") {
+    // Open Babel writes UNITY_ATOM_ATTR between ATOM and BOND; the format allows any section order,
+    // and the second record has it after BOND, next to an attribute that is not a charge.
+    std::istringstream input{"@<TRIPOS>MOLECULE\nformate\n3 2 0 0 0\nSMALL\nNO_CHARGES\n\n"
+                             "@<TRIPOS>ATOM\n7 C1 0 0 0 C.2\n9 O1 1.2 0 0 O.co2\n"
+                             "11 O2 -1.2 0 0 O.co2\n"
+                             "@<TRIPOS>UNITY_ATOM_ATTR\n11 1\ncharge -1\n"
+                             "@<TRIPOS>BOND\n1 7 9 2\n2 7 11 1\n"
+                             "@<TRIPOS>SUBSTRUCTURE\n1 FOR 1\n"
+                             "@<TRIPOS>MOLECULE\nammonium\n1 0 0 0 0\nSMALL\nNO_CHARGES\n\n"
+                             "@<TRIPOS>ATOM\n1 N1 0 0 0 N.4\n@<TRIPOS>BOND\n"
+                             "@<TRIPOS>UNITY_ATOM_ATTR\n1 2\nS N\ncharge 1\n"};
+    auto reader = mol2::Mol2Reader{input, "charged.mol2"};
+
+    const auto formate = reader.next();
+    REQUIRE(formate.has_value());
+    CHECK(formate->molecule.atom(0).formal_charge() == 0);
+    CHECK(formate->molecule.atom(1).formal_charge() == 0);
+    CHECK(formate->molecule.atom(2).formal_charge() == -1);
+    CHECK(formate->molecule.bond_count() == 2);
+    CHECK(formate->diagnostics.empty());
+
+    const auto ammonium = reader.next();
+    REQUIRE(ammonium.has_value());
+    CHECK(ammonium->identity.record_id == "ammonium");
+    CHECK(ammonium->molecule.atom(0).formal_charge() == 1);
+    CHECK_FALSE(reader.next().has_value());
+
+    // An attribute count must match the attribute lines. A count of 6 would otherwise take the next
+    // record's header as attributes and its atoms as those of this record.
+    constexpr std::string_view ammonium_record =
+        "@<TRIPOS>MOLECULE\nammonium\n1 0 0 0 0\nSMALL\nNO_CHARGES\n\n"
+        "@<TRIPOS>ATOM\n1 N1 0 0 0 N.4\n@<TRIPOS>BOND\n";
+    for (const auto attributes : {"1 6\ncharge 1\n", "1 -1\n", "1 2\ncharge 1\n\n"}) {
+        CAPTURE(attributes);
+        std::istringstream malformed{std::string{ammonium_record} + "@<TRIPOS>UNITY_ATOM_ATTR\n" +
+                                     attributes + std::string{ammonium_record}};
+        auto malformed_reader = mol2::Mol2Reader{malformed, "malformed.mol2"};
+        CHECK_THROWS_AS(static_cast<void>(malformed_reader.next()), std::runtime_error);
     }
 }
 
