@@ -134,6 +134,7 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
 
     std::vector<core::Bond> bonds;
     bonds.reserve(static_cast<std::size_t>(bond_count));
+    auto aromatic_bonds = std::size_t{0};
 
     for (int index = 0; index < bond_count; ++index) {
         std::istringstream bond_line{common::read_line(input, line, "MOL2")};
@@ -157,6 +158,9 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
 
         bonds.emplace_back(first->second, second->second,
                            common::bond_order(type, BondFormat::mol2));
+        if (type == "ar" || type == "4") {
+            ++aromatic_bonds;
+        }
     }
 
     if (identity.record_id.empty()) {
@@ -171,6 +175,9 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
             .message = "MOL2 partial charges were ignored; they are not formal charges and "
                        "were not used for calculation.",
             .line = std::nullopt});
+    }
+    if (aromatic_bonds > 0) {
+        diagnostics.push_back(common::aromatic_bonds_diagnostic(aromatic_bonds));
     }
 
     auto sites = atom_references;

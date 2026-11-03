@@ -344,6 +344,7 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
         std::string first;
         std::string second;
         core::BondOrder order;
+        bool aromatic;
     };
 
     std::unordered_map<std::string, std::vector<ParsedComponentBond>> component_bonds;
@@ -355,16 +356,26 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
         auto second = row.str(2);
         const auto order_value = row.str(3);
         if (const auto order = bond_order(order_value)) {
-            component_bonds[std::move(component)].emplace_back(ParsedComponentBond{
-                .first = std::move(first), .second = std::move(second), .order = *order});
+            component_bonds[std::move(component)].emplace_back(
+                ParsedComponentBond{.first = std::move(first),
+                                    .second = std::move(second),
+                                    .order = *order,
+                                    .aromatic = ::gemmi::bond_type_from_string(order_value) ==
+                                                ::gemmi::BondType::Aromatic});
         }
     }
 
+    auto aromatic_bonds = std::size_t{0};
     for (const auto& residue : residues) {
         const auto component = residue.component();
         const auto found = component_bonds.find(std::string{component.name});
         if (found != component_bonds.end()) {
             add_component_bonds(result, component, found->second);
+            aromatic_bonds += static_cast<std::size_t>(
+                std::ranges::count_if(found->second, [&](const auto& bond) {
+                    return bond.aromatic && component.find_atom(bond.first).has_value() &&
+                           component.find_atom(bond.second).has_value();
+                }));
         }
     }
 
@@ -380,7 +391,9 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
     }
     const auto skipped = add_structure_connections(result, structure, model, connection_orders);
 
-    return {.bonds = result.take(), .skipped_symmetry_connections = skipped};
+    return {.bonds = result.take(),
+            .skipped_symmetry_connections = skipped,
+            .aromatic_bonds = aromatic_bonds};
 }
 
 auto symmetry_connections_diagnostic(const std::size_t count) -> MoleculeRecordDiagnostic {

@@ -1,5 +1,6 @@
 #include <chargefw/adapters/gemmi/mmcif_input.h>
 
+#include "adapters/native/common_input.h"
 #include "bonds.h"
 #include "mmcif_labels.h"
 #include "selection.h"
@@ -183,6 +184,11 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
             options_.selection, options_.bond_strategy, options_.conformers,
             std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
+        if (explicit_bonds.aromatic_bonds > 0) {
+            record.diagnostics.push_back(
+                ::chargefw::adapters::native::common_input::aromatic_bonds_diagnostic(
+                    explicit_bonds.aromatic_bonds));
+        }
         if (explicit_bonds.skipped_symmetry_connections > 0) {
             record.diagnostics.push_back(bonds::symmetry_connections_diagnostic(
                 explicit_bonds.skipped_symmetry_connections));

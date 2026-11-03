@@ -35,6 +35,9 @@ namespace chargefw::adapters::native::common_input {
 [[nodiscard]] auto bond_order(std::string_view value,
                               ::chargefw::adapters::native::BondFormat format) -> core::BondOrder;
 
+// The warning that a record's aromatic bonds were read as single bonds.
+[[nodiscard]] auto aromatic_bonds_diagnostic(std::size_t count) -> MoleculeRecordDiagnostic;
+
 [[nodiscard]] auto make_record(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds,
                                std::vector<core::Conformer> conformers,
                                MoleculeRecordIdentity identity, std::string name = {},

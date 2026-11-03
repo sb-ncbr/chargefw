@@ -16,6 +16,8 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace adapters = chargefw::adapters;
 namespace mol = chargefw::adapters::native::mol_input;
@@ -327,6 +329,17 @@ TEST_CASE("native MOL and SDF input report ignored properties and bond orders",
         CHECK(hem_record.diagnostics[0].line == 164);
         CHECK_FALSE(reader.next().has_value());
     }
+
+    {
+        std::istringstream aromatic{
+            "aromatic\nchargefw\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+            "    0.0000    0.0000    0.0000 C   0  0\n"
+            "    1.4000    0.0000    0.0000 C   0  0\n  1  2  4\nM  END\n"};
+        const auto result = mol::parse_mol(aromatic, {});
+        CHECK(result.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
+        REQUIRE(result.diagnostics.size() == 1);
+        CHECK(result.diagnostics[0].code == "aromatic_bonds_converted");
+    }
 }
 
 TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapters][native]") {
@@ -342,20 +355,29 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
         CHECK(mol2_record.molecule.atom(0).formal_charge() == 0);
         CHECK(mol2_record.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
         CHECK(mol2_record.molecule.bond(1).order() == chargefw::core::BondOrder::DOUBLE);
-        CHECK(mol2_record.diagnostics.size() == 1);
+        REQUIRE(mol2_record.diagnostics.size() == 2);
+        CHECK(mol2_record.diagnostics[0].code == "partial_charges_ignored");
+        CHECK(mol2_record.diagnostics[1].code == "aromatic_bonds_converted");
         CHECK_FALSE(reader.next().has_value());
     }
 
-    {
-        auto input = std::istringstream{"@<TRIPOS>MOLECULE\namide\n3 2 0 0 0\nSMALL\nNO_CHARGES\n\n"
+    // Aromatic bond types are read as single bonds with a warning; an amide C-N bond is single.
+    for (const auto& [type, aromatic] :
+         std::vector<std::pair<std::string, bool>>{{"am", false}, {"ar", true}, {"4", true}}) {
+        auto input = std::istringstream{"@<TRIPOS>MOLECULE\nbonds\n3 2 0 0 0\nSMALL\nNO_CHARGES\n\n"
                                         "@<TRIPOS>ATOM\n1 C1 0 0 0 C.2\n2 O1 1.2 0 0 O.2\n"
                                         "3 N1 -1.3 0 0 N.am\n"
-                                        "@<TRIPOS>BOND\n1 1 2 2\n2 1 3 am\n"};
-        auto reader = mol2::Mol2Reader{input, "amide.mol2"};
+                                        "@<TRIPOS>BOND\n1 1 2 2\n2 1 3 " +
+                                        type + "\n"};
+        auto reader = mol2::Mol2Reader{input, "bonds.mol2"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         CHECK(result->molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
         CHECK(result->molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
+        REQUIRE(result->diagnostics.size() == (aromatic ? 1U : 0U));
+        if (aromatic) {
+            CHECK(result->diagnostics[0].code == "aromatic_bonds_converted");
+        }
     }
 }
 

@@ -55,7 +55,8 @@ the atoms for drawing the structural formula on a page, and its bond lengths and
 those of a molecule. ChargeFW imports such a record without coordinates and attaches a
 `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a record not marked `2D` are kept.
 
-Query and wildcard atoms are rejected. Bond order 4 is imported as a single bond. V3000 coordinate bonds
+Query and wildcard atoms are rejected. Aromatic bond order 4 is imported as a single bond, and the record gets one
+`aromatic_bonds_converted` warning that counts these bonds. V3000 coordinate bonds
 (order 9) and hydrogen bonds (order 10) are left out, because ChargeFW's molecules have only single,
 double, and triple bonds; one warning per left-out order is attached to the record. Other trailing V3000 atom and bond
 attributes are accepted but not used.
@@ -79,7 +80,8 @@ atom IDs, bond references, coordinates, and required sections are validated.
 The element is taken from the prefix before `.` in a standard atom type, while the atom-name column is
 retained. Dummy, lone-pair, wildcard, halogen-group, hetero-group, and heavy-atom-group types are rejected.
 Numeric bond types 1, 2, and 3 are imported directly; numeric type 4, aromatic type `ar`, and amide type
-`am` become single bonds.
+`am` become single bonds. Aromatic bonds, types 4 and `ar`, give the record an `aromatic_bonds_converted`
+warning.
 
 MOL2 atom charges are partial charges, not formal charges. They are parsed for validity but are not used;
 all imported formal charges are zero. A record containing any nonzero input partial charge receives a
@@ -205,7 +207,8 @@ without bonds receives one `unbonded_residue_atoms` warning. It counts these ato
 names up to three residues, such as `MSE A 4 (N, CA, C, O, ...)`. Single-atom residues, such as ions,
 are not reported.
 
-Explicit structural aromatic bonds become single bonds. Delocalized (including `1.5`), metal,
+Explicit structural aromatic bonds become single bonds; aromatic `_chem_comp_bond` rows give the record an
+`aromatic_bonds_converted` warning. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
 links; they are not a complete Chemical Component Dictionary. No distance-based bond perception is performed.

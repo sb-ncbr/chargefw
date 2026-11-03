@@ -418,6 +418,19 @@ _chem_comp_bond.value_order
     for (const auto value_order : {"DELO", "METAL", "1.5", ".", "?", "invalid"}) {
         CHECK(explicit_bond_count(value_order) == 0);
     }
+
+    // The warning comes with the file's bonds, which templates do not read.
+    for (const auto strategy :
+         {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
+          gemmi_adapter::BondStrategy::hybrid}) {
+        std::istringstream aromatic{duplicate_input("ALA N CA arom")};
+        const auto record = mmcif::MmcifReader{aromatic, {}, {.bond_strategy = strategy}}.next();
+        REQUIRE(record.has_value());
+        const auto warned = std::ranges::any_of(record->diagnostics, [](const auto& diagnostic) {
+            return diagnostic.code == "aromatic_bonds_converted";
+        });
+        CHECK(warned == (strategy != gemmi_adapter::BondStrategy::templates));
+    }
 }
 
 TEST_CASE("mmCIF input restores source order across residues and models", "[adapters][mmcif]") {
