@@ -21,12 +21,35 @@ from ._payloads import (
     ExecutionIssuePayload,
     ExecutionPolicyPayload,
     FixedIonsPayload,
+    InputIssuePayload,
     PrerequisiteIssuePayload,
     RejectionPayload,
 )
-from ._types import ExecutionMode, ExecutionStatus, MethodOptionValue
+from ._types import ExecutionMode, ExecutionStatus, InputIssueKind, MethodOptionValue
 from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
+
+
+@dataclass(frozen=True, slots=True)
+class InputIssue:
+    """A caution about an input molecule, such as hydrogens that were probably not added."""
+
+    kind: InputIssueKind
+    message: str
+    molecule_index: int
+    conformer_index: int | None = None
+
+
+def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
+    return tuple(
+        InputIssue(
+            kind=issue["kind"],
+            message=issue["message"],
+            molecule_index=issue["molecule_index"],
+            conformer_index=issue["conformer_index"],
+        )
+        for issue in payload
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,6 +345,7 @@ class CalculationResult:
         "_assignments",
         "_assignments_by_molecule",
         "_rejections",
+        "_input_warnings",
         "_plan",
         "_failure_message",
         "_timings",
@@ -334,6 +358,7 @@ class CalculationResult:
     _assignments: tuple[ChargeAssignment, ...]
     _assignments_by_molecule: tuple[tuple[ChargeAssignment, ...], ...]
     _rejections: tuple[Rejection, ...]
+    _input_warnings: tuple[InputIssue, ...]
     _plan: ExecutedPlan | None
     _failure_message: str | None
     _timings: CalculationTimings
@@ -372,6 +397,7 @@ class CalculationResult:
         self._assignments = tuple(assignments)
         self._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
         self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
+        self._input_warnings = _input_issues(payload["input_warnings"])
         self._plan = _executed_plan(payload["effective"], methods, parameter_sets, molecules)
         self._failure_message = payload["failure_message"]
         self._timings = CalculationTimings(
@@ -450,6 +476,12 @@ class CalculationResult:
         if self._plan is None:
             return ()
         return self._plan.warnings
+
+    @property
+    def input_warnings(self) -> tuple[InputIssue, ...]:
+        """Cautions about the input molecules, such as hydrogens that were probably not added."""
+
+        return self._input_warnings
 
     @property
     def failure_message(self) -> str | None:

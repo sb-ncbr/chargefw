@@ -195,6 +195,7 @@ result = chargefw.calculate(
 | `molecules` | The input molecules |
 | `status` | `"success"`, or the reason for a failure |
 | `rejections`, `warnings` | Rejected methods and parameter sets with reasons, and warnings |
+| `input_warnings` | Cautions about the input molecules, such as [missing hydrogens](../guide/input.md) |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | Time spent selecting and calculating |
 
@@ -336,7 +337,7 @@ if assessment.default_plan is None:
 ```
 
 An `Assessment` has the possible `plans` in selection order, the `rejections`, the `default_plan`
-that `calculate()` would use, and the time taken in `seconds`. A `Plan` has its method, parameter
+that `calculate()` would use, the `input_warnings` of all molecules, and the time taken in `seconds`. A `Plan` has its method, parameter
 set, all option values, `execution` with the execution mode and radius, and warnings.
 `plan.parameter_set` is `None` for methods without parameter sets.
 

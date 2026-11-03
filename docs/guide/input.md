@@ -15,6 +15,11 @@ writes for every charged atom. ChargeFW reads an atom without such an entry as n
 column of the atom records holds partial charges, which ChargeFW does not use. The
 [format reference](../reference/formats.md) describes exactly what each reader imports.
 
+A molecule that contains carbon but no hydrogen atoms gets a `hydrogens_missing` warning, because its
+hydrogens were most likely not added: a crystal structure before protonation, or an RDKit molecule
+without `Chem.AddHs()`. ChargeFW still calculates its charges. Molecules such as CO₂ or CCl₄ get the
+warning as well; for them, ignore it. A molecule that lacks only some of its hydrogens gets no warning.
+
 Many SDF files, for example the default download from PubChem, contain a 2D layout: coordinates that
 only place the atoms for drawing the structural formula on a page. Their bond lengths and angles are
 not those of the molecule, so ChargeFW reads an SDF or MOL record marked 2D without coordinates and

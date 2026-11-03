@@ -189,7 +189,8 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
         .effective = effective,
         .failure_message = std::move(failure_message),
         .metrics = {.applicability_seconds = assessment.applicability_seconds_,
-                    .computation_seconds = computation_seconds}};
+                    .computation_seconds = computation_seconds},
+        .input_warnings = {assessment.input_warnings().begin(), assessment.input_warnings().end()}};
 }
 
 auto calculate(const AssessmentResult& assessment, const std::size_t max_threads,
@@ -202,7 +203,9 @@ auto calculate(const AssessmentResult& assessment, const std::size_t max_threads
             .rejections = {assessment.rejections_.begin(), assessment.rejections_.end()},
             .effective = std::nullopt,
             .failure_message = std::nullopt,
-            .metrics = {.applicability_seconds = assessment.applicability_seconds_}};
+            .metrics = {.applicability_seconds = assessment.applicability_seconds_},
+            .input_warnings = {assessment.input_warnings().begin(),
+                               assessment.input_warnings().end()}};
     }
     return calculate(assessment, *plan, max_threads, observer);
 }

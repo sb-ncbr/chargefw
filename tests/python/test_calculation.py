@@ -651,6 +651,18 @@ def test_automatic_thresholds_and_explicit_full_warnings() -> None:
     ]
 
 
+def test_molecules_without_hydrogens_are_reported() -> None:
+    # A molecule built without hydrogens, as from RDKit without AddHs(), next to water.
+    molecules = [chargefw.Molecule([6, 8], bonds=[[0, 1, 3]]), water()]
+    assessment = chargefw.assess(molecules, method="formal")
+    result = chargefw.calculate(molecules, method="formal")
+
+    for warnings in (assessment.input_warnings, result.input_warnings):
+        assert [
+            (issue.kind, issue.molecule_index, issue.conformer_index) for issue in warnings
+        ] == [("hydrogens_missing", 0, None)]
+
+
 def test_no_plan_result_and_typed_exception() -> None:
     molecule = chargefw.Molecule([8, 1, 1], bonds=[[0, 1, 1], [0, 2, 1]])
     assessment = chargefw.assess(

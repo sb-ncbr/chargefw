@@ -16,11 +16,13 @@ from ._calculation_values import (
     ExecutedPlan,
     Execution,
     FixedIons,
+    InputIssue,
     NoExecutablePlanError,
     NumericalFailureError,
     Plan,
     Rejection,
     ResourceEstimate,
+    _input_issues,
     _rejections,
 )
 from ._chargefw import calculation as _native_calculation
@@ -50,6 +52,7 @@ __all__ = [
     "FixedAtomCharge",
     "FixedIons",
     "Execution",
+    "InputIssue",
     "NoExecutablePlanError",
     "NumericalFailureError",
     "Plan",
@@ -172,7 +175,7 @@ def _as_collection(value: Molecule | MoleculeCollection | Iterable[Molecule]) ->
 class Assessment:
     """Priority-ordered runnable plans and rejected alternatives for immutable molecules."""
 
-    __slots__ = ("_native", "_requested", "_plans", "_rejections", "_seconds")
+    __slots__ = ("_native", "_requested", "_plans", "_rejections", "_input_warnings", "_seconds")
 
     def __init__(
         self,
@@ -187,6 +190,7 @@ class Assessment:
             Plan(plan, molecules, methods, parameter_sets, requested) for plan in native.plans()
         )
         self._rejections = _rejections(payload["rejections"], methods, parameter_sets)
+        self._input_warnings = _input_issues(payload["input_warnings"])
         self._seconds = payload["applicability_seconds"]
 
     @property
@@ -196,6 +200,12 @@ class Assessment:
     @property
     def rejections(self) -> tuple[Rejection, ...]:
         return self._rejections
+
+    @property
+    def input_warnings(self) -> tuple[InputIssue, ...]:
+        """Every input issue of the molecules, whichever plan is executed."""
+
+        return self._input_warnings
 
     @property
     def default_plan(self) -> Plan | None:

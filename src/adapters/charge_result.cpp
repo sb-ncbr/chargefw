@@ -111,6 +111,18 @@ auto validate_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
     }
 }
 
+// Record diagnostics find a molecule's input warnings by binary search.
+auto validate_input_warnings(const std::span<const ImportedMoleculeRecord> records,
+                             const calculation::ExecutionResult& execution) -> void {
+    const auto& warnings = execution.input_warnings;
+    if (!std::ranges::is_sorted(warnings, {}, &calculation::InputIssue::molecule_index)) {
+        throw std::invalid_argument{"input warnings are not in molecule order"};
+    }
+    if (!warnings.empty() && warnings.back().molecule_index >= records.size()) {
+        throw std::invalid_argument{"input warning molecule index is outside the input"};
+    }
+}
+
 auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
                           const calculation::ExecutionResult& result) -> void {
     if (result.effective.has_value()) {
@@ -247,6 +259,7 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     -> ChargeCalculationResult {
     validate_import_metadata(inputs);
     validate_assignments(inputs, execution);
+    validate_input_warnings(inputs, execution);
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
@@ -307,6 +320,17 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.molecule_index = molecule_index;
         imported.line = import_diagnostic.line;
         append_unique(diagnostics, seen, std::move(imported));
+    }
+    // Input warnings are in molecule order.
+    for (const auto& issue : std::ranges::equal_range(execution.input_warnings, molecule_index, {},
+                                                      &calculation::InputIssue::molecule_index)) {
+        auto diagnostic = ResultDiagnostic{};
+        diagnostic.severity = DiagnosticSeverity::warning;
+        diagnostic.code = calculation::to_string(issue.kind);
+        diagnostic.message = issue.message;
+        diagnostic.molecule_index = issue.molecule_index;
+        diagnostic.conformer_index = issue.conformer_index;
+        append_unique(diagnostics, seen, std::move(diagnostic));
     }
     if (const auto diagnostic = calculation_diagnostic(execution); diagnostic.has_value()) {
         append_unique(diagnostics, seen, *diagnostic);

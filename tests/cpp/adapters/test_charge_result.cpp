@@ -10,6 +10,9 @@
 
 #include <snitch/snitch.hpp>
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -47,6 +50,50 @@ TEST_CASE("result assembly validates fixed ion provenance", "[adapters][result]"
     for (std::size_t index = 0; index < invalid_cases.size(); ++index) {
         CAPTURE(index);
         CHECK_THROWS_AS(make_result(invalid_cases[index]), std::invalid_argument);
+    }
+}
+
+TEST_CASE("record diagnostics carry the input warnings of their own molecule",
+          "[adapters][result]") {
+    const auto records = std::vector(
+        3,
+        adapters::ImportedMoleculeRecord{.molecule = core::Molecule{std::vector{core::Atom{6}}}});
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::cancelled};
+    for (const auto molecule_index : {1U, 2U}) {
+        execution.input_warnings.push_back({.kind = calculation::InputIssueKind::hydrogens_missing,
+                                            .message = "no hydrogens",
+                                            .molecule_index = molecule_index});
+    }
+    const auto result = adapters::make_charge_calculation_result(records, {}, std::move(execution));
+
+    for (std::size_t molecule_index = 0; molecule_index < records.size(); ++molecule_index) {
+        CAPTURE(molecule_index);
+        auto warnings = std::vector<adapters::ResultDiagnostic>{};
+        std::ranges::copy_if(adapters::charge_record_diagnostics(result, molecule_index),
+                             std::back_inserter(warnings), [](const auto& diagnostic) {
+                                 return diagnostic.code == "hydrogens_missing";
+                             });
+        REQUIRE(warnings.size() == (molecule_index == 0 ? 0U : 1U));
+        if (!warnings.empty()) {
+            CHECK(warnings[0].severity == adapters::DiagnosticSeverity::warning);
+            CHECK(warnings[0].molecule_index == molecule_index);
+        }
+    }
+
+    // Warnings out of molecule order, or for a molecule outside the input, are refused.
+    for (const auto& molecule_indices :
+         {std::vector<std::size_t>{2, 1}, std::vector<std::size_t>{3}}) {
+        auto invalid =
+            calculation::ExecutionResult{.status = calculation::ExecutionStatus::cancelled};
+        for (const auto molecule_index : molecule_indices) {
+            invalid.input_warnings.push_back(
+                {.kind = calculation::InputIssueKind::hydrogens_missing,
+                 .message = "no hydrogens",
+                 .molecule_index = molecule_index});
+        }
+        CHECK_THROWS_AS(adapters::make_charge_calculation_result(records, {}, std::move(invalid)),
+                        std::invalid_argument);
     }
 }
 

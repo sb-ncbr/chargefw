@@ -145,6 +145,7 @@ molecule.
 | `molecules` | The input `MoleculeCollection` |
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `warnings` | Tuple of `ExecutionIssue`, such as full execution above the size limits |
+| `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
 
@@ -203,6 +204,7 @@ The arguments of a call as ChargeFW read them: `method` and `parameter_set` as I
 | `plans` | Tuple of `Plan` that can run, in selection order |
 | `default_plan` | The `Plan` that `calculate()` would use; `None` when none can run |
 | `rejections` | Tuple of `Rejection` |
+| `input_warnings` | Tuple of `InputIssue` |
 | `seconds` | Time taken |
 
 ### Plan
@@ -248,6 +250,18 @@ A reason why a method or parameter set does not apply to the molecules.
 A reason why an execution mode was not used, or a warning about the one that was. `kind` is
 `"resource_threshold_exceeded"` or `"unsupported_execution_mode"`; it also has a `message` and a
 `molecule_index` (or `None`).
+
+### InputIssue
+
+A caution about an input molecule, such as hydrogens that were probably not added; ChargeFW still
+calculates.
+
+| Attribute | Content |
+| --- | --- |
+| `kind` | `"hydrogens_missing"`: the molecule contains carbon but no hydrogen atoms; see [Preparing input](../guide/input.md) |
+| `message` | Description |
+| `molecule_index` | Index of the input molecule |
+| `conformer_index` | Index of the conformer the caution concerns; `None` when it concerns the whole molecule |
 
 ## Methods and parameter sets
 

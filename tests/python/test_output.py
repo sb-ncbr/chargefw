@@ -227,9 +227,11 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     assert imported_record["input"]["import"]["format"] == "mol2"
     assert "atom_ids" not in imported_record["input"]
     assert len(imported_record["assignments"][0]["charges"]) == len(imported_molecule.atom_ids)
+    # The fixture has no hydrogens, which the calculation adds to the reader's warnings.
     assert [value["code"] for value in imported_record["diagnostics"]] == [
         "partial_charges_ignored",
         "aromatic_bonds_converted",
+        "hydrogens_missing",
     ]
 
 

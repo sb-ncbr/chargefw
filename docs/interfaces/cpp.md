@@ -247,7 +247,7 @@ geometry then reject the molecule.
 
 Parameter-set IDs in one request must be unique. `calculation::assess()` returns an `AssessmentResult`
 with the `molecules()`, the possible `plans()` in selection order, the `rejections()` with reasons, the
-`default_plan()`, and the time taken. A plan has its method, parameter set, all option values, an
+`default_plan()`, the `input_warnings()`, and the time taken. A plan has its method, parameter set, all option values, an
 `ExecutionPolicy` with the mode and radius, and warnings.
 [Choosing a method](../guide/methods.md#choosing-a-method) and
 [Large structures](../guide/large-structures.md) explain selection and execution.
@@ -272,9 +272,14 @@ estimates](../guide/large-structures.md#threads-and-estimates) explains them.
 ## Results and errors
 
 `calculation::ExecutionResult` has an `ExecutionStatus`, an optional `charges::ChargeSet`, the
-rejections, the model that was used in `effective`, an optional failure message, and the time spent on
-assessment and calculation. The status is `success`, `invalid_input_or_request`, `no_executable_plan`,
+rejections, the model that was used in `effective`, an optional failure message, the time spent on
+assessment and calculation, and the `input_warnings`. The status is `success`, `invalid_input_or_request`, `no_executable_plan`,
 `numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
+
+An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),
+with its kind, a message, the molecule index, and an optional conformer index.
+`AssessmentResult::input_warnings()` and `ExecutionResult::input_warnings` list them in molecule
+order. They do not change which method is selected.
 
 A `ChargeSet` has the method ID, the optional parameter-set ID, and the assignments. Methods that use
 geometry give one assignment per conformer, the others one per molecule. Each `ChargeAssignment` has a

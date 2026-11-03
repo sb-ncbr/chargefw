@@ -14,6 +14,7 @@ from ._types import (
     ExecutionIssueKind,
     ExecutionMode,
     ExecutionStatus,
+    InputIssueKind,
     MethodOptionType,
     MethodOptionValue,
     PrerequisiteIssueKind,
@@ -46,6 +47,13 @@ class ExecutionIssuePayload(TypedDict):
     kind: ExecutionIssueKind
     message: str
     molecule_index: int | None
+
+
+class InputIssuePayload(TypedDict):
+    kind: InputIssueKind
+    message: str
+    molecule_index: int
+    conformer_index: int | None
 
 
 class ExecutionPolicyPayload(TypedDict):
@@ -106,6 +114,7 @@ class CalculationMetricsPayload(TypedDict):
 class ExecutionResultPayload(TypedDict):
     status: ExecutionStatus
     rejections: list[RejectionPayload]
+    input_warnings: list[InputIssuePayload]
     failure_message: str | None
     metrics: CalculationMetricsPayload
     effective: EffectiveCalculationPayload | None
@@ -114,6 +123,7 @@ class ExecutionResultPayload(TypedDict):
 
 class AssessmentReportPayload(TypedDict):
     rejections: list[RejectionPayload]
+    input_warnings: list[InputIssuePayload]
     applicability_seconds: float
 
 
