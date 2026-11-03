@@ -73,9 +73,9 @@ name. A MOL or SDF record produces one conformer named `input`, or none for a 2D
 
 ## MOL2 input
 
-The MOL2 reader consumes `@<TRIPOS>MOLECULE` records and reads their `MOLECULE`, `ATOM`, and `BOND` data.
-Unrelated sections are skipped before the atom section. The declared atom and bond counts, positive unique
-atom IDs, bond references, coordinates, and required sections are validated.
+The MOL2 reader consumes `@<TRIPOS>MOLECULE` records and reads their `MOLECULE`, `ATOM`, `BOND`, and
+`UNITY_ATOM_ATTR` data, in any order; other sections are skipped. The declared atom and bond counts,
+positive unique atom IDs, bond references, coordinates, and required sections are validated.
 
 The element is taken from the prefix before `.` in a standard atom type, while the atom-name column is
 retained. Dummy, lone-pair, wildcard, halogen-group, hetero-group, and heavy-atom-group types are rejected.
@@ -83,9 +83,18 @@ Numeric bond types 1, 2, and 3 are imported directly; numeric type 4, aromatic t
 `am` become single bonds. Aromatic bonds, types 4 and `ar`, give the record an `aromatic_bonds_converted`
 warning.
 
-MOL2 atom charges are partial charges, not formal charges. They are parsed for validity but are not used;
-all imported formal charges are zero. A record containing any nonzero input partial charge receives a
-`partial_charges_ignored` warning. Each record produces one conformer named `input`.
+Formal charges come from the `charge` attributes in `UNITY_ATOM_ATTR`, such as `charge -1` for atom 9:
+
+```text
+@<TRIPOS>UNITY_ATOM_ATTR
+9 1
+charge -1
+```
+
+Atoms without a `charge` attribute are neutral, and other attributes are ignored. The charge column of
+the atom records holds partial charges, not formal charges; it is parsed for validity but not used, and
+a record with any nonzero partial charge receives a `partial_charges_ignored` warning. Each record
+produces one conformer named `input`.
 
 MOL2 atom IDs are kept exactly as written, after checking that they are unique positive integers and that
 the bonds refer to them.

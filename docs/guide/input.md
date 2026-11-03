@@ -7,11 +7,12 @@ each molecule in the state you want charges for:
 | --- | --- | --- |
 | All atoms, including every hydrogen | Parameter sets were fitted to molecules with explicit hydrogens | Atom records of the file |
 | Bonds with their orders | Methods follow the bonds, and many parameter sets distinguish atoms by their highest bond order | SDF and MOL2 bond blocks; for PDB and mmCIF, residue templates and the bonds in the file |
-| Formal charges | They set the total charge of the molecule and where charge is located | SDF `M  CHG` lines, the PDB charge columns, mmCIF `pdbx_formal_charge`, molecule JSON |
+| Formal charges | They set the total charge of the molecule and where charge is located | SDF `M  CHG` lines, MOL2 `UNITY_ATOM_ATTR` sections, the PDB charge columns, mmCIF `pdbx_formal_charge`, molecule JSON |
 | 3D coordinates | Geometry-dependent methods need them | Atom coordinates; every model or conformer gets its own charges |
 
-MOL2 files have no field for formal charges, so ChargeFW reads every atom of a MOL2 file as neutral.
-Use SDF, mmCIF, or molecule JSON for charged molecules. The
+A MOL2 file states formal charges only in its optional `UNITY_ATOM_ATTR` section, which Open Babel
+writes for every charged atom. ChargeFW reads an atom without such an entry as neutral; the charge
+column of the atom records holds partial charges, which ChargeFW does not use. The
 [format reference](../reference/formats.md) describes exactly what each reader imports.
 
 Many SDF files, for example the default download from PubChem, contain a 2D layout: coordinates that

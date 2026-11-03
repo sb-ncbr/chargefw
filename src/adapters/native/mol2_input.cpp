@@ -27,6 +27,7 @@ namespace common = chargefw::adapters::native::common_input;
 constexpr std::string_view molecule_marker{"@<TRIPOS>MOLECULE"};
 constexpr std::string_view atom_marker{"@<TRIPOS>ATOM"};
 constexpr std::string_view bond_marker{"@<TRIPOS>BOND"};
+constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATTR"};
 
 [[nodiscard]] auto element_symbol(const std::string_view atom_type) -> std::string_view {
     const auto separator = atom_type.find('.');
@@ -40,50 +41,46 @@ constexpr std::string_view bond_marker{"@<TRIPOS>BOND"};
     return symbol;
 }
 
-auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
-    while (true) {
-        const auto section = common::read_line(input, line, "MOL2");
-        if (section == atom_marker) {
-            return;
-        }
-        if (section == molecule_marker) {
-            throw std::runtime_error{"missing MOL2 ATOM section"};
-        }
-        // Skip unrelated MOL2 sections: this adapter reads only MOLECULE, ATOM, and BOND data.
+// The next line of the record, or nothing at the end of the input.
+[[nodiscard]] auto next_line(std::istream& input, std::size_t& line) -> std::optional<std::string> {
+    auto result = std::string{};
+    if (!std::getline(input, result)) {
+        return std::nullopt;
     }
+    if (result.ends_with('\r')) {
+        result.pop_back();
+    }
+    ++line;
+    return result;
 }
 
-[[nodiscard]] auto parse_record(std::istream& input, MoleculeRecordIdentity identity)
-    -> ImportedMoleculeRecord {
-    std::size_t line = 1;
-
-    const auto name = common::read_line(input, line, "MOL2");
-    const auto counts_line = common::read_line(input, line, "MOL2");
-    std::istringstream counts{counts_line};
-    std::string atom_count_text;
-    std::string bond_count_text;
-
-    if (!(counts >> atom_count_text >> bond_count_text)) {
-        throw std::runtime_error{"invalid MOL2 counts"};
+// Skips the data lines of a section and returns the next record type indicator, or nothing at the
+// end of the input.
+[[nodiscard]] auto next_section(std::istream& input, std::size_t& line)
+    -> std::optional<std::string> {
+    while (auto text = next_line(input, line)) {
+        if (text->starts_with('@')) {
+            return text;
+        }
     }
+    return std::nullopt;
+}
 
-    const auto atom_count = common::parse_int(atom_count_text, "MOL2 atom count");
-    const auto bond_count = common::parse_int(bond_count_text, "MOL2 bond count");
-
-    if (atom_count <= 0 || bond_count < 0) {
-        throw std::runtime_error{"invalid MOL2 counts"};
-    }
-
-    read_to_atom_section(input, line);
-
+// The atoms of an ATOM section, all neutral; formal charges are applied from UNITY_ATOM_ATTR.
+struct AtomSection {
     std::vector<core::Atom> atoms;
     std::vector<core::Position> positions;
-    std::vector<SourceAtomReference> atom_references;
-    std::unordered_map<int, std::size_t> atom_indices;
+    std::vector<SourceAtomReference> references;
+    std::unordered_map<int, std::size_t> indices;
     bool has_partial_charges = false;
-    atoms.reserve(static_cast<std::size_t>(atom_count));
-    positions.reserve(static_cast<std::size_t>(atom_count));
-    atom_references.reserve(static_cast<std::size_t>(atom_count));
+};
+
+[[nodiscard]] auto read_atoms(std::istream& input, std::size_t& line, const int atom_count)
+    -> AtomSection {
+    auto result = AtomSection{};
+    result.atoms.reserve(static_cast<std::size_t>(atom_count));
+    result.positions.reserve(static_cast<std::size_t>(atom_count));
+    result.references.reserve(static_cast<std::size_t>(atom_count));
 
     for (int index = 0; index < atom_count; ++index) {
         std::istringstream atom_line{common::read_line(input, line, "MOL2")};
@@ -105,7 +102,7 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
         static_cast<void>(atom_line >> subst_id >> subst_name >> charge_text);
         const auto source_id = common::parse_int(source_id_text, "MOL2 atom id");
 
-        if (source_id <= 0 || atom_indices.contains(source_id)) {
+        if (source_id <= 0 || result.indices.contains(source_id)) {
             throw std::runtime_error{"duplicate or invalid MOL2 atom id"};
         }
 
@@ -113,28 +110,36 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
             const auto charge = common::parse_double(charge_text, "MOL2 atom charge");
 
             if (charge != 0.0) {
-                has_partial_charges = true;
+                result.has_partial_charges = true;
             }
         }
 
         const auto& element = core::periodic_table().element(element_symbol(atom_type));
-        atom_indices.emplace(source_id, atoms.size());
-        atoms.emplace_back(element.atomic_number, 0, std::move(atom_name));
-        atom_references.push_back(SourceAtomReference{.position = static_cast<std::size_t>(index),
-                                                      .id = std::move(source_id_text),
-                                                      .structural_labels = nullptr});
-        positions.push_back(core::Position{.x = common::parse_double(x_text, "MOL2 x coordinate"),
-                                           .y = common::parse_double(y_text, "MOL2 y coordinate"),
-                                           .z = common::parse_double(z_text, "MOL2 z coordinate")});
+        result.indices.emplace(source_id, result.atoms.size());
+        result.atoms.emplace_back(element.atomic_number, 0, std::move(atom_name));
+        result.references.push_back(SourceAtomReference{.position = static_cast<std::size_t>(index),
+                                                        .id = std::move(source_id_text),
+                                                        .structural_labels = nullptr});
+        result.positions.push_back(
+            core::Position{.x = common::parse_double(x_text, "MOL2 x coordinate"),
+                           .y = common::parse_double(y_text, "MOL2 y coordinate"),
+                           .z = common::parse_double(z_text, "MOL2 z coordinate")});
     }
 
-    if (common::read_line(input, line, "MOL2") != bond_marker) {
-        throw std::runtime_error{"expected MOL2 BOND section"};
-    }
+    return result;
+}
 
-    std::vector<core::Bond> bonds;
-    bonds.reserve(static_cast<std::size_t>(bond_count));
-    auto aromatic_bonds = std::size_t{0};
+// A bond of a BOND section, by source atom IDs.
+struct SourceBond {
+    int first;
+    int second;
+    std::string type;
+};
+
+[[nodiscard]] auto read_bonds(std::istream& input, std::size_t& line, const int bond_count)
+    -> std::vector<SourceBond> {
+    auto result = std::vector<SourceBond>{};
+    result.reserve(static_cast<std::size_t>(bond_count));
 
     for (int index = 0; index < bond_count; ++index) {
         std::istringstream bond_line{common::read_line(input, line, "MOL2")};
@@ -147,10 +152,124 @@ auto read_to_atom_section(std::istream& input, std::size_t& line) -> void {
             throw std::runtime_error{"invalid MOL2 bond record"};
         }
 
-        const auto first_source_id = common::parse_int(first_text, "MOL2 bond atom");
-        const auto second_source_id = common::parse_int(second_text, "MOL2 bond atom");
-        const auto first = atom_indices.find(first_source_id);
-        const auto second = atom_indices.find(second_source_id);
+        result.push_back(SourceBond{.first = common::parse_int(first_text, "MOL2 bond atom"),
+                                    .second = common::parse_int(second_text, "MOL2 bond atom"),
+                                    .type = std::move(type)});
+    }
+
+    return result;
+}
+
+// Reads the formal charges of a UNITY_ATOM_ATTR section by atom ID and returns the next record type
+// indicator. Each record is an atom ID and an attribute count, followed by one line per attribute
+// with its name and an optional value; "charge" is the formal charge.
+[[nodiscard]] auto read_formal_charges(std::istream& input, std::size_t& line,
+                                       std::unordered_map<int, int>& charges)
+    -> std::optional<std::string> {
+    while (auto text = next_line(input, line)) {
+        if (text->starts_with('@')) {
+            return text;
+        }
+        std::istringstream header{*text};
+        std::string atom_id_text;
+        std::string attribute_count_text;
+        if (text->starts_with('#') || !(header >> atom_id_text)) {
+            continue;
+        }
+        if (!(header >> attribute_count_text)) {
+            throw std::runtime_error{"invalid MOL2 UNITY_ATOM_ATTR record"};
+        }
+        const auto atom_id = common::parse_int(atom_id_text, "MOL2 UNITY_ATOM_ATTR atom");
+        const auto attribute_count =
+            common::parse_int(attribute_count_text, "MOL2 UNITY_ATOM_ATTR count");
+        if (attribute_count < 0) {
+            throw std::runtime_error{"invalid MOL2 UNITY_ATOM_ATTR record"};
+        }
+        for (int attribute = 0; attribute < attribute_count; ++attribute) {
+            const auto attribute_text = common::read_line(input, line, "MOL2");
+            std::istringstream attribute_line{attribute_text};
+            std::string attribute_name;
+            std::string value;
+            if (attribute_text.starts_with('@') || !(attribute_line >> attribute_name)) {
+                throw std::runtime_error{"MOL2 UNITY_ATOM_ATTR record has fewer attributes "
+                                         "than its count"};
+            }
+            attribute_line >> value;
+            if (attribute_name == "charge") {
+                charges[atom_id] = common::parse_int(value, "MOL2 UNITY_ATOM_ATTR charge");
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+// Reads one record. Its sections may come in any order; ChargeFW uses ATOM, BOND, and the formal
+// charges in UNITY_ATOM_ATTR, and skips the others. Sets next_record when the record ended at the
+// MOLECULE line of the next one.
+[[nodiscard]] auto parse_record(std::istream& input, MoleculeRecordIdentity identity,
+                                bool& next_record) -> ImportedMoleculeRecord {
+    std::size_t line = 1;
+
+    const auto name = common::read_line(input, line, "MOL2");
+    const auto counts_line = common::read_line(input, line, "MOL2");
+    std::istringstream counts{counts_line};
+    std::string atom_count_text;
+    std::string bond_count_text;
+
+    if (!(counts >> atom_count_text >> bond_count_text)) {
+        throw std::runtime_error{"invalid MOL2 counts"};
+    }
+
+    const auto atom_count = common::parse_int(atom_count_text, "MOL2 atom count");
+    const auto bond_count = common::parse_int(bond_count_text, "MOL2 bond count");
+
+    if (atom_count <= 0 || bond_count < 0) {
+        throw std::runtime_error{"invalid MOL2 counts"};
+    }
+
+    auto atom_section = std::optional<AtomSection>{};
+    auto source_bonds = std::optional<std::vector<SourceBond>>{};
+    auto formal_charges = std::unordered_map<int, int>{};
+    auto section = next_section(input, line);
+    while (section.has_value() && *section != molecule_marker) {
+        if (*section == atom_marker) {
+            atom_section = read_atoms(input, line, atom_count);
+            section = next_section(input, line);
+        } else if (*section == bond_marker) {
+            source_bonds = read_bonds(input, line, bond_count);
+            section = next_section(input, line);
+        } else if (*section == unity_atom_attributes_marker) {
+            section = read_formal_charges(input, line, formal_charges);
+        } else {
+            section = next_section(input, line);
+        }
+    }
+    next_record = section.has_value();
+
+    if (!atom_section.has_value()) {
+        throw std::runtime_error{"missing MOL2 ATOM section"};
+    }
+    if (!source_bonds.has_value()) {
+        throw std::runtime_error{"expected MOL2 BOND section"};
+    }
+    auto& [atoms, positions, atom_references, atom_indices, has_partial_charges] = *atom_section;
+
+    for (const auto& [atom_id, charge] : formal_charges) {
+        const auto index = atom_indices.find(atom_id);
+        if (index == atom_indices.end()) {
+            throw std::runtime_error{"MOL2 UNITY_ATOM_ATTR references an unknown atom"};
+        }
+        auto& atom = atoms[index->second];
+        atom = core::Atom{atom.atomic_number(), charge, std::string{atom.name()}};
+    }
+
+    std::vector<core::Bond> bonds;
+    bonds.reserve(source_bonds->size());
+    auto aromatic_bonds = std::size_t{0};
+
+    for (const auto& [first_id, second_id, type] : *source_bonds) {
+        const auto first = atom_indices.find(first_id);
+        const auto second = atom_indices.find(second_id);
 
         if (first == atom_indices.end() || second == atom_indices.end()) {
             throw std::runtime_error{"MOL2 bond references an unknown atom"};
@@ -205,19 +324,21 @@ Mol2Reader::Mol2Reader(std::istream& input, std::string source)
     : input_{std::addressof(input)}, source_{std::move(source)} {}
 
 auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
+    auto found = std::exchange(next_record_started_, false);
     std::string line;
-    while (std::getline(*input_, line)) {
+    while (!found && std::getline(*input_, line)) {
         if (line.ends_with('\r')) {
             line.pop_back();
         }
-        if (line == molecule_marker) {
-            return parse_record(*input_, MoleculeRecordIdentity{.source = source_,
-                                                                .record_index = record_index_++,
-                                                                .record_id = {}});
-        }
+        found = line == molecule_marker;
     }
-
-    return std::nullopt;
+    if (!found) {
+        return std::nullopt;
+    }
+    return parse_record(
+        *input_,
+        MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}},
+        next_record_started_);
 }
 
 } // namespace chargefw::adapters::native::mol2_input
