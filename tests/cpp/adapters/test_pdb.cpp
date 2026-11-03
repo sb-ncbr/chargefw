@@ -32,6 +32,25 @@ namespace {
     return std::move(*record);
 }
 
+// PDB atom lines of one residue from space-separated atom names, whose first letter is the element.
+[[nodiscard]] auto pdb_residue(const std::string_view residue, const std::string_view atoms,
+                               const std::map<std::string_view, int>& charges = {}) {
+    auto text = std::string{};
+    auto serial = 0;
+    for (const auto name_range : std::views::split(atoms, ' ')) {
+        const auto name = std::string{std::string_view{name_range}};
+        const auto charge = charges.contains(name) ? charges.at(name) : 0;
+        const auto charge_field =
+            charge == 0 ? "  " : std::format("{}{}", std::abs(charge), charge > 0 ? '+' : '-');
+        ++serial;
+        text += std::format("ATOM  {:>5} {:<4} {:>3} A   1    {:8.3f}   0.000   0.000  1.00 20.00"
+                            "          {:>2}{}\n",
+                            serial, name.size() == 4 ? name : " " + name, residue,
+                            static_cast<double>(serial), name.substr(0, 1), charge_field);
+    }
+    return text + "END\n";
+}
+
 } // namespace
 
 static_assert(!std::is_copy_constructible_v<pdb::PdbReader> &&
@@ -96,21 +115,7 @@ TEST_CASE("PDB templates follow the protonation state of histidine and arginine"
     };
 
     for (const auto& [residue, atoms, charges, double_bonds] : cases) {
-        auto text = std::string{};
-        auto serial = 0;
-        for (const auto name_range : std::views::split(atoms, ' ')) {
-            const auto name = std::string{std::string_view{name_range}};
-            const auto charge = charges.contains(name) ? charges.at(name) : 0;
-            const auto charge_field =
-                charge == 0 ? "  " : std::format("{}{}", std::abs(charge), charge > 0 ? '+' : '-');
-            ++serial;
-            text += std::format("ATOM  {:>5} {:<4} {} A   1    {:8.3f}   0.000   0.000  1.00 20.00"
-                                "          {:>2}{}\n",
-                                serial, name.size() == 4 ? name : " " + name, residue,
-                                static_cast<double>(serial), name.substr(0, 1), charge_field);
-        }
-        text += "END\n";
-
+        const auto text = pdb_residue(residue, atoms, charges);
         const auto record =
             read_first(text, {.bond_strategy = gemmi_adapter::BondStrategy::templates});
         const auto& molecule = record.molecule;
@@ -130,6 +135,18 @@ TEST_CASE("PDB templates follow the protonation state of histidine and arginine"
                   (charges.contains(atom.name()) ? charges.at(atom.name()) : 0));
         }
     }
+}
+
+TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
+    // Deoxyadenosine monophosphate: the sugar joins the phosphate and the base, so all 21 heavy
+    // atoms form one fragment with three rings.
+    const auto record =
+        read_first(pdb_residue("DA", "P OP1 OP2 O5' C5' C4' O4' C3' O3' C2' C1' N9 C8 N7 C5 C6 N6 "
+                                     "N1 C2 N3 C4"),
+                   {.bond_strategy = gemmi_adapter::BondStrategy::templates});
+    CHECK(record.molecule.atom_count() == 21);
+    CHECK(record.molecule.bond_count() == 23);
+    CHECK(record.diagnostics.empty());
 }
 
 TEST_CASE("structural input options share stable string conversion", "[adapters][options]") {
