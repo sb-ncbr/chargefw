@@ -298,11 +298,20 @@ between two sulfur atoms as `disulf`, any other bond as `covale`.
 A record from SDF, MOL2, molecule JSON, or Python arrays is one residue, `UNL`, so all its bonds are in
 `_chem_comp_bond`. A molecule without bonds gets no bond categories.
 
-A `_chem_comp_bond` row applies to every residue with that name, so ChargeFW refuses to write a record
-when its bonds cannot be stated that way:
+A `_chem_comp_bond` row applies to every residue with that name. Histidines or arginines in different
+protonation states, such as one histidine protonated on ND1 and another on NE2, have their double bonds
+on different atoms (see [Connectivity](#connectivity)). ChargeFW writes the bonds whose order differs
+with the delocalized order `delo`: in histidine `ND1-CE1` and `CE1-NE2`, in arginine `NE-CZ`, `CZ-NH1`,
+or `CZ-NH2`. When you read the file with the
+`hybrid` bond strategy, the default, or with `templates`, ChargeFW gives each residue its bond orders
+again from its hydrogens and formal charges, so the charges you calculate from the file are the same.
+With `explicit`, these bonds are missing.
+
+ChargeFW refuses to write a record when its bonds cannot be stated per residue name:
 
 - an atom name occurs twice in one residue;
-- two residues with the same name have the same bond with different orders; or
+- two residues with the same name have the same bond with different orders, other than the histidine
+  and arginine bonds above; or
 - one residue has a bond that another residue with the same name and the same two atom names lacks.
 
 A bond between residues is also refused when a partner residue has neither an author nor a label

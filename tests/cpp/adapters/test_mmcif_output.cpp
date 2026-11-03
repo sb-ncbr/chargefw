@@ -14,10 +14,12 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <format>
 #include <limits>
 #include <map>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <set>
 #include <sstream>
 #include <string>
@@ -257,6 +259,86 @@ TEST_CASE("mmCIF bonds between PDB residues read back unchanged", "[adapters][mm
             .next();
     REQUIRE(round_trip.has_value());
     CHECK(bond_set(round_trip->molecule) == expected);
+}
+
+TEST_CASE("mmCIF bonds of mixed protonation states read back and write again unchanged",
+          "[adapters][mmcif]") {
+    struct Residue {
+        std::string_view name;
+        std::string_view atoms;
+        std::map<std::string_view, int> charges;
+    };
+    // Histidines protonated on ND1, on NE2, and on both with +1 on NE2, and arginines with and
+    // without HH12, so that residues of one name have their double bonds on different atoms.
+    const auto residues = std::vector<Residue>{
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1", {}},
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HE2", {}},
+        {"HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1 HE2", {{"NE2", 1}}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH12 HH21 HH22", {{"NH2", 1}}},
+        {"ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HE HH11 HH21 HH22", {}},
+    };
+    auto pdb = std::string{};
+    auto serial = 0;
+    for (std::size_t residue_index = 0; residue_index < residues.size(); ++residue_index) {
+        const auto& [name, atoms, charges] = residues[residue_index];
+        for (const auto atom_range : std::views::split(atoms, ' ')) {
+            const auto atom = std::string{std::string_view{atom_range}};
+            const auto charge = charges.contains(atom) ? charges.at(atom) : 0;
+            ++serial;
+            pdb += std::format("ATOM  {:>5} {:<4} {} A{:>4}    {:8.3f}{:8.3f}   0.000  1.00 20.00"
+                               "          {:>2}{}\n",
+                               serial, atom.size() == 4 ? atom : " " + atom, name,
+                               2 * residue_index + 1, static_cast<double>(serial),
+                               static_cast<double>(residue_index), atom.substr(0, 1),
+                               charge == 0 ? "  " : "1+");
+        }
+    }
+    pdb += "END\n";
+
+    const auto write = [](adapters::ImportedMoleculeRecord record) {
+        const auto atom_count = record.molecule.atom_count();
+        auto output = std::ostringstream{};
+        mmcif_output::MmcifWriter{output}.write(
+            calculation_result({std::move(record)}, formal(atom_count)));
+        return output.str();
+    };
+    const auto read_mmcif = [](const std::string& text) {
+        auto input = std::istringstream{text};
+        auto record =
+            mmcif_input::MmcifReader{
+                input, {}, {.bond_strategy = adapters::gemmi::BondStrategy::hybrid}}
+                .next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+
+    auto pdb_input = std::istringstream{pdb};
+    const auto original =
+        pdb_input::PdbReader{
+            pdb_input, {}, {.bond_strategy = adapters::gemmi::BondStrategy::hybrid}}
+            .next();
+    REQUIRE(original.has_value());
+    const auto written = write(*original);
+
+    auto delocalized = std::set<std::string>{};
+    auto document = ::gemmi::cif::read_string(written);
+    for (const auto row : document.blocks.front().find(
+             "_chem_comp_bond.", {"comp_id", "atom_id_1", "atom_id_2", "value_order"})) {
+        if (row.str(3) == "delo") {
+            const auto [first, second] = std::minmax({row.str(1), row.str(2)});
+            delocalized.insert(std::format("{} {}-{}", row.str(0), first, second));
+        }
+    }
+    CHECK(delocalized ==
+          std::set<std::string>{"HIS CE1-ND1", "HIS CE1-NE2", "ARG CZ-NH1", "ARG CZ-NH2"});
+
+    const auto round_trip = read_mmcif(written);
+    CHECK(bond_set(round_trip.molecule) == bond_set(original->molecule));
+    for (std::size_t index = 0; index < original->molecule.atom_count(); ++index) {
+        CHECK(round_trip.molecule.atom(index).formal_charge() ==
+              original->molecule.atom(index).formal_charge());
+    }
+    CHECK(write(round_trip) == written);
 }
 
 TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot express",

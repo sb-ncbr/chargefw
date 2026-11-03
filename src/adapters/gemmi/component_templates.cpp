@@ -81,4 +81,89 @@ auto find(const std::string_view component) -> const ComponentTemplate* {
     return nullptr;
 }
 
+namespace {
+
+[[nodiscard]] auto find_bond(const std::span<const BondTemplate> bonds,
+                             const std::string_view first, const std::string_view second)
+    -> const BondTemplate* {
+    const auto found = std::ranges::find_if(bonds, [first, second](const auto& bond) {
+        return (bond.first == first && bond.second == second) ||
+               (bond.first == second && bond.second == first);
+    });
+    return found == bonds.end() ? nullptr : std::addressof(*found);
+}
+
+// The sum of bond orders that carbon and nitrogen atoms of a protonation motif have in a
+// closed-shell Lewis structure with the given formal charge.
+[[nodiscard]] auto motif_valence(const MotifAtom atom) -> std::optional<int> {
+    constexpr auto carbon = 6;
+    constexpr auto nitrogen = 7;
+    if (atom.atomic_number == carbon && atom.formal_charge == 0) {
+        return 4;
+    }
+    if (atom.atomic_number == nitrogen && atom.formal_charge >= -1 && atom.formal_charge <= 1) {
+        return 3 + atom.formal_charge;
+    }
+    return std::nullopt;
+}
+
+// Whether every motif atom has the valence its element and formal charge require when the template
+// bonds take the orders of the protonation bonds.
+[[nodiscard]] auto fits_motif(const ComponentTemplate& component_template,
+                              const MotifAtomLookup& atom,
+                              const std::span<const BondTemplate> protonation) -> bool {
+    return std::ranges::all_of(component_template.motif->atoms, [&](const auto name) {
+        const auto motif_atom = atom(name);
+        if (!motif_atom.has_value()) {
+            return false;
+        }
+        auto sum = 0;
+        for (const auto& bond : component_template.bonds) {
+            const auto partner = bond.first == name    ? bond.second
+                                 : bond.second == name ? bond.first
+                                                       : std::string_view{};
+            if (!partner.empty() && atom(partner).has_value()) {
+                sum += core::bond_order_value(
+                    *bond_order(component_template, protonation, bond.first, bond.second));
+            }
+        }
+        return motif_valence(*motif_atom) == sum;
+    });
+}
+
+} // namespace
+
+auto protonation_bonds(const ComponentTemplate& component_template, const MotifAtomLookup& atom)
+    -> std::span<const BondTemplate> {
+    if (component_template.motif == nullptr || fits_motif(component_template, atom, {})) {
+        return {};
+    }
+    const auto alternatives = component_template.motif->alternatives;
+    const auto fitting = std::ranges::find_if(alternatives, [&](const auto alternative) {
+        return fits_motif(component_template, atom, alternative);
+    });
+    return fitting == alternatives.end() ? std::span<const BondTemplate>{} : *fitting;
+}
+
+auto varies_with_protonation(const ComponentTemplate& component_template,
+                             const std::string_view first, const std::string_view second) -> bool {
+    return component_template.motif != nullptr &&
+           std::ranges::any_of(component_template.motif->alternatives,
+                               [first, second](const auto alternative) {
+                                   return find_bond(alternative, first, second) != nullptr;
+                               });
+}
+
+auto bond_order(const ComponentTemplate& component_template,
+                const std::span<const BondTemplate> protonation, const std::string_view first,
+                const std::string_view second) -> std::optional<core::BondOrder> {
+    if (const auto* const bond = find_bond(protonation, first, second)) {
+        return bond->order;
+    }
+    if (const auto* const bond = find_bond(component_template.bonds, first, second)) {
+        return bond->order;
+    }
+    return std::nullopt;
+}
+
 } // namespace chargefw::adapters::gemmi::component_templates

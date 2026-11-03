@@ -1,6 +1,7 @@
 #include <chargefw/adapters/gemmi/mmcif_output.h>
 
 #include "adapters/component.h"
+#include "adapters/gemmi/component_templates.h"
 #include "adapters/gemmi/mmcif_attachment.h"
 #include "adapters/gemmi/mmcif_labels.h"
 #include "adapters/record_assignments.h"
@@ -17,6 +18,7 @@
 #include <cmath>
 #include <cstddef>
 #include <format>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
@@ -383,8 +385,8 @@ using AtomNamePair = std::pair<std::string, std::string>;
 struct ResidueBonds {
     std::string component;
     std::string description;
-    std::set<std::string> atom_names;
-    std::set<AtomNamePair> bonds;
+    std::map<std::string, std::size_t, std::less<>> atoms;
+    std::map<AtomNamePair, core::BondOrder> bonds;
 };
 
 struct ComponentBond {
@@ -392,6 +394,7 @@ struct ComponentBond {
     std::string first_atom;
     std::string second_atom;
     core::BondOrder order;
+    bool delocalized = false;
 };
 
 struct RecordBonds {
@@ -399,9 +402,44 @@ struct RecordBonds {
     std::vector<const core::Bond*> connections;
 };
 
+// Whether every residue with the bond's name has the order that ChargeFW's template gives the bond
+// for the residue's hydrogens and formal charges, as for the double bond of the histidine ring.
+[[nodiscard]] auto follows_protonation(const core::Molecule& molecule,
+                                       const std::vector<ResidueBonds>& residues,
+                                       const ComponentBond& bond) -> bool {
+    const auto* const component_template = component_templates::find(bond.component);
+    if (component_template == nullptr ||
+        !component_templates::varies_with_protonation(*component_template, bond.first_atom,
+                                                      bond.second_atom)) {
+        return false;
+    }
+    const auto key = bond_key(bond.first_atom, bond.second_atom);
+    return std::ranges::all_of(residues, [&](const ResidueBonds& residue) {
+        const auto order = residue.bonds.find(key);
+        if (residue.component != bond.component || order == residue.bonds.end()) {
+            return true;
+        }
+        const auto atom =
+            [&](const std::string_view name) -> std::optional<component_templates::MotifAtom> {
+            const auto found = residue.atoms.find(name);
+            if (found == residue.atoms.end()) {
+                return std::nullopt;
+            }
+            const auto& source = molecule.atom(found->second);
+            return component_templates::MotifAtom{.atomic_number = source.atomic_number(),
+                                                  .formal_charge = source.formal_charge()};
+        };
+        const auto protonation = component_templates::protonation_bonds(*component_template, atom);
+        return component_templates::bond_order(*component_template, protonation, bond.first_atom,
+                                               bond.second_atom) == order->second;
+    });
+}
+
 // Splits the bonds into component bonds, written per residue name, and connections between
 // residues. A component bond applies to every residue with that name, so all such residues must
-// have the same bonds between the atoms they share.
+// have the same bonds between the atoms they share. Residues may differ only in the order of a bond
+// that follows their protonation state; that bond is written as delocalized, and ChargeFW's
+// templates give each residue its order again when the file is read.
 [[nodiscard]] auto record_bonds(const core::Molecule& molecule,
                                 const std::vector<OutputSiteLabels>& labels,
                                 const std::vector<std::size_t>& residue_of) -> RecordBonds {
@@ -410,18 +448,20 @@ struct RecordBonds {
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto& site = labels[atom_index];
         auto& residue = residues[residue_of[atom_index]];
-        if (residue.atom_names.empty()) {
+        if (residue.atoms.empty()) {
             residue.component = site.label_residue;
             residue.description = residue_description(site);
         }
-        if (!residue.atom_names.insert(site.label_atom).second) {
+        if (!residue.atoms.emplace(site.label_atom, atom_index).second) {
             throw std::invalid_argument{std::format(
                 "mmCIF bond output requires unique atom names, but {} has atom '{}' more than once",
                 residue.description, site.label_atom)};
         }
     }
 
-    auto definitions = std::map<std::string, std::map<AtomNamePair, core::BondOrder>>{};
+    // The index of each component bond, and the first residue whose order differs from it.
+    auto definitions = std::map<std::string, std::map<AtomNamePair, std::size_t>>{};
+    auto differing = std::map<std::size_t, std::string>{};
     for (const auto& bond : molecule.bonds()) {
         const auto residue_index = residue_of[bond.first_atom_index()];
         if (residue_index != residue_of[bond.second_atom_index()]) {
@@ -432,26 +472,59 @@ struct RecordBonds {
         const auto& first = labels[bond.first_atom_index()].label_atom;
         const auto& second = labels[bond.second_atom_index()].label_atom;
         const auto key = bond_key(first, second);
-        residue.bonds.insert(key);
+        residue.bonds.emplace(key, bond.order());
         const auto [definition, inserted] =
-            definitions[residue.component].try_emplace(key, bond.order());
+            definitions[residue.component].try_emplace(key, result.component_bonds.size());
         if (inserted) {
             result.component_bonds.push_back({.component = residue.component,
                                               .first_atom = first,
                                               .second_atom = second,
                                               .order = bond.order()});
-        } else if (definition->second != bond.order()) {
-            throw std::invalid_argument{std::format(
-                "mmCIF bond output cannot write bond {}-{} of {}: another {} residue has a "
-                "different bond order",
-                first, second, residue.description, residue.component)};
+        } else if (result.component_bonds[definition->second].order != bond.order()) {
+            differing.try_emplace(definition->second, residue.description);
         }
     }
 
+    for (const auto& [index, description] : differing) {
+        auto& bond = result.component_bonds[index];
+        if (!follows_protonation(molecule, residues, bond)) {
+            throw std::invalid_argument{std::format(
+                "mmCIF bond output cannot write bond {}-{} of {}: another {} residue has a "
+                "different bond order",
+                bond.first_atom, bond.second_atom, description, bond.component)};
+        }
+        bond.delocalized = true;
+    }
+
+    // Rows of a residue name follow its template where it has one, because reading the file back
+    // puts the bonds the file states before those the template adds, such as delocalized ones.
+    auto component_rank = std::map<std::string, std::size_t, std::less<>>{};
+    for (const auto& bond : result.component_bonds) {
+        component_rank.try_emplace(bond.component, component_rank.size());
+    }
+    const auto template_position = [](const ComponentBond& bond) {
+        constexpr auto untemplated = std::numeric_limits<std::size_t>::max();
+        const auto* const component_template = component_templates::find(bond.component);
+        if (component_template == nullptr) {
+            return untemplated;
+        }
+        const auto found =
+            std::ranges::find_if(component_template->bonds, [&bond](const auto& row) {
+                return bond_key(std::string{row.first}, std::string{row.second}) ==
+                       bond_key(bond.first_atom, bond.second_atom);
+            });
+        return found == component_template->bonds.end()
+                   ? untemplated
+                   : static_cast<std::size_t>(found - component_template->bonds.begin());
+    };
+    std::ranges::stable_sort(result.component_bonds, {}, [&](const ComponentBond& bond) {
+        return std::pair{component_rank.find(bond.component)->second, template_position(bond)};
+    });
+
     // A residue without a bond that its component defines would gain that bond in readers.
     for (const auto& residue : residues) {
-        for (const auto& [key, order] : definitions[residue.component]) {
-            if (residue.atom_names.contains(key.first) && residue.atom_names.contains(key.second) &&
+        for (const auto& key : std::views::keys(definitions[residue.component])) {
+            if (residue.atoms.contains(key.first) && residue.atoms.contains(key.second) &&
                 !residue.bonds.contains(key)) {
                 throw std::invalid_argument{std::format(
                     "mmCIF bond output cannot write bond {}-{} of {}: {} has both atoms but no "
@@ -476,7 +549,8 @@ auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds
     auto ordinal = std::size_t{1};
     for (const auto& bond : bonds.component_bonds) {
         rows.append_row({quote(bond.component), quote(bond.first_atom), quote(bond.second_atom),
-                         std::string{mmcif_bond_order(bond.order)}, std::to_string(ordinal++)});
+                         std::string{bond.delocalized ? "delo" : mmcif_bond_order(bond.order)},
+                         std::to_string(ordinal++)});
     }
 }
 
