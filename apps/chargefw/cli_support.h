@@ -8,7 +8,9 @@
 
 #include <chrono>
 #include <optional>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace chargefw::cli {
@@ -54,6 +56,8 @@ struct OutputArguments {
 struct CalculationRun {
     adapters::ExecutionMetrics metrics;
     std::chrono::steady_clock::time_point started;
+    // Diagnostics already printed, by code and message, so that they are not printed again.
+    std::set<std::pair<std::string, std::string>> reported;
 };
 
 [[nodiscard]] auto utc_timestamp() -> std::string;

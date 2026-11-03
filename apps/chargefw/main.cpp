@@ -1,5 +1,7 @@
 #include "cli_support.h"
 
+#include <chargefw/methods/method_applicability.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -225,8 +227,12 @@ auto run(std::span<char*> arguments) -> int {
                 return chargefw::calculation::calculate(assessment, max_threads,
                                                         interruptible_observer);
             }
+            // Warned before a possibly long calculation, and not again with the diagnostics.
             for (const auto& warning : plan->warnings()) {
-                std::println(std::cerr, "Warning: {}", warning.message);
+                const auto code = std::string{chargefw::methods::to_string(warning.kind)};
+                if (run.reported.emplace(code, warning.message).second) {
+                    std::println(std::cerr, "Warning: {}", warning.message);
+                }
             }
             return chargefw::calculation::calculate(assessment, *plan, max_threads,
                                                     interruptible_observer);

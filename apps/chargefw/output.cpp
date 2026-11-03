@@ -16,8 +16,8 @@
 namespace chargefw::cli {
 namespace {
 
-void report_diagnostics(const adapters::ChargeCalculationResult& result) {
-    auto reported = std::set<std::pair<std::string, std::string>>{};
+void report_diagnostics(const adapters::ChargeCalculationResult& result,
+                        std::set<std::pair<std::string, std::string>>& reported) {
     const auto report = [&reported](const adapters::ResultDiagnostic& diagnostic) {
         if (!reported.emplace(diagnostic.code, diagnostic.message).second) {
             return;
@@ -156,7 +156,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         run.metrics.runtime_seconds =
             std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
         write_json(prefix.string() + ".json", owned_result, run.metrics);
-        report_diagnostics(owned_result);
+        report_diagnostics(owned_result, run.reported);
         switch (owned_result.status()) {
         case adapters::ResultStatus::invalid_request:
             return 2;
@@ -177,7 +177,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
     const auto json_path = std::filesystem::path{prefix.string() + ".json"};
     write_json(json_path, owned_result, run.metrics);
-    report_diagnostics(owned_result);
+    report_diagnostics(owned_result, run.reported);
     std::println("Wrote {}", json_path.string());
 
     try {

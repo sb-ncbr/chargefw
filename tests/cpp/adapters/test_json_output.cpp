@@ -167,7 +167,10 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
 
     CHECK(result.at("schema_version") == "1.0");
     CHECK(result.at("status") == "success");
-    CHECK(result.at("diagnostics").empty());
+    // The plan's warning without a molecule belongs to the document, with its code.
+    REQUIRE(result.at("diagnostics").size() == 1);
+    CHECK(result.at("diagnostics").at(0).at("severity") == "warning");
+    CHECK(result.at("diagnostics").at(0).at("code") == "resource_threshold_exceeded");
     CHECK(result.at("generator").at("name") == "ChargeFW");
     REQUIRE(result.at("results").size() == 1);
     const auto& provenance = result.at("calculation_provenance");

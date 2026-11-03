@@ -114,6 +114,38 @@ auto validate_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
     }
 }
 
+// The warnings of the plan that ran. Record diagnostics find a molecule's warnings by binary
+// search.
+[[nodiscard]] auto plan_warnings(const calculation::ExecutionResult& execution)
+    -> std::span<const methods::ExecutionIssue> {
+    if (!execution.effective.has_value()) {
+        return {};
+    }
+    return execution.effective->execution_issues;
+}
+
+auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> records,
+                            const calculation::ExecutionResult& execution) -> void {
+    const auto warnings = plan_warnings(execution);
+    if (!std::ranges::is_sorted(warnings, {}, &methods::ExecutionIssue::molecule_index)) {
+        throw std::invalid_argument{"plan warnings are not in molecule order"};
+    }
+    if (!warnings.empty() && warnings.back().molecule_index.has_value() &&
+        *warnings.back().molecule_index >= records.size()) {
+        throw std::invalid_argument{"plan warning molecule index is outside the input"};
+    }
+}
+
+[[nodiscard]] auto plan_warning_diagnostic(const methods::ExecutionIssue& issue)
+    -> ResultDiagnostic {
+    auto diagnostic = ResultDiagnostic{};
+    diagnostic.severity = DiagnosticSeverity::warning;
+    diagnostic.code = methods::to_string(issue.kind);
+    diagnostic.message = issue.message;
+    diagnostic.molecule_index = issue.molecule_index;
+    return diagnostic;
+}
+
 // Record diagnostics find a molecule's input warnings by binary search.
 auto validate_input_warnings(const std::span<const ImportedMoleculeRecord> records,
                              const calculation::ExecutionResult& execution) -> void {
@@ -268,6 +300,7 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     validate_import_metadata(inputs);
     validate_assignments(inputs, execution);
     validate_input_warnings(inputs, execution);
+    validate_plan_warnings(inputs, execution);
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
@@ -365,8 +398,19 @@ auto ChargeCalculationResult::charges() const noexcept -> const charges::ChargeS
 
 auto charge_result_diagnostics(const ChargeCalculationResult& result)
     -> std::vector<ResultDiagnostic> {
-    const auto diagnostic = status_diagnostic(result);
-    return diagnostic.has_value() ? std::vector{*diagnostic} : std::vector<ResultDiagnostic>{};
+    auto diagnostics = std::vector<ResultDiagnostic>{};
+    if (const auto* execution = result.execution()) {
+        // Warnings without a molecule come first in molecule order.
+        for (const auto& issue :
+             std::ranges::equal_range(plan_warnings(*execution), std::optional<std::size_t>{}, {},
+                                      &methods::ExecutionIssue::molecule_index)) {
+            diagnostics.push_back(plan_warning_diagnostic(issue));
+        }
+    }
+    if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
+        diagnostics.push_back(*diagnostic);
+    }
+    return diagnostics;
 }
 
 auto charge_record_diagnostics(const ChargeCalculationResult& result,
@@ -401,6 +445,13 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         diagnostic.molecule_index = issue.molecule_index;
         diagnostic.conformer_index = issue.conformer_index;
         append_unique(diagnostics, seen, std::move(diagnostic));
+    }
+    if (execution != nullptr) {
+        for (const auto& issue :
+             std::ranges::equal_range(plan_warnings(*execution), std::optional{molecule_index}, {},
+                                      &methods::ExecutionIssue::molecule_index)) {
+            append_unique(diagnostics, seen, plan_warning_diagnostic(issue));
+        }
     }
     if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
         append_unique(diagnostics, seen, *diagnostic);
