@@ -193,44 +193,50 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
     return skipped;
 }
 
+// Whether two residues can be linked in a polymer of the given kind: both have templates of that
+// kind, are in one chain, and have consecutive sequence numbers or insertion codes.
+[[nodiscard]] auto sequentially_adjacent(const selection::SelectedResidue& previous,
+                                         const selection::SelectedResidue& current,
+                                         const component_templates::ComponentKind kind) -> bool {
+    const auto* const previous_template = component_templates::find(previous.component().name);
+    const auto* const current_template = component_templates::find(current.component().name);
+    if (previous_template == nullptr || current_template == nullptr ||
+        previous_template->kind != kind || current_template->kind != kind ||
+        previous.chain_name != current.chain_name) {
+        return false;
+    }
+
+    const auto& previous_id = previous.residue->seqid;
+    const auto& current_id = current.residue->seqid;
+    // Normal peptide/nucleotide progression increments the residue sequence number.
+    if (previous_id.num.value + 1 == current_id.num.value) {
+        return true;
+    }
+    // An insertion-code chain keeps the parent sequence number and progresses from the
+    // unmarked base residue through consecutive codes (for example, 82, 82A, 82B).
+    if (previous_id.num.value != current_id.num.value) {
+        return false;
+    }
+    if (previous_id.icode == ' ') {
+        return current_id.icode == 'A';
+    }
+    return current_id.icode == static_cast<char>(previous_id.icode + 1);
+}
+
 void add_sequential_bonds(BondAccumulator& bonds,
                           const std::span<const selection::SelectedResidue> residues,
                           const component_templates::ComponentKind kind,
                           const std::string_view previous_atom,
                           const std::string_view current_atom) {
-    const auto sequentially_adjacent = [](const ::gemmi::Residue& previous,
-                                          const ::gemmi::Residue& current) -> bool {
-        // Normal peptide/nucleotide progression increments the residue sequence number.
-        if (previous.seqid.num.value + 1 == current.seqid.num.value) {
-            return true;
-        }
-        // An insertion-code chain keeps the parent sequence number and progresses from the
-        // unmarked base residue through consecutive codes (for example, 82, 82A, 82B).
-        if (previous.seqid.num.value != current.seqid.num.value) {
-            return false;
-        }
-        if (previous.seqid.icode == ' ') {
-            return current.seqid.icode == 'A';
-        }
-        return current.seqid.icode == static_cast<char>(previous.seqid.icode + 1);
-    };
-
     for (std::size_t index = 1; index < residues.size(); ++index) {
         const auto& previous = residues[index - 1];
         const auto& current = residues[index];
-        const auto previous_component = previous.component();
-        const auto current_component = current.component();
-        const auto* const previous_template = component_templates::find(previous_component.name);
-        const auto* const current_template = component_templates::find(current_component.name);
-        if (previous_template == nullptr || current_template == nullptr ||
-            previous_template->kind != kind || current_template->kind != kind ||
-            previous.chain_name != current.chain_name ||
-            !sequentially_adjacent(*previous.residue, *current.residue)) {
+        if (!sequentially_adjacent(previous, current, kind)) {
             continue;
         }
 
-        const auto first = previous_component.find_atom(previous_atom);
-        const auto second = current_component.find_atom(current_atom);
+        const auto first = previous.component().find_atom(previous_atom);
+        const auto second = current.component().find_atom(current_atom);
         if (first.has_value() && second.has_value()) {
             bonds.add(*first, *second, core::BondOrder::SINGLE);
         }
@@ -276,7 +282,8 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
     BondAccumulator result;
     const auto& residues = model.residues();
 
-    for (const auto& residue : residues) {
+    for (std::size_t residue_index = 0; residue_index < residues.size(); ++residue_index) {
+        const auto& residue = residues[residue_index];
         const auto component = residue.component();
         const auto* const component_template = component_templates::find(component.name);
         if (component_template == nullptr) {
@@ -297,7 +304,18 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
         add_component_bonds(result, component,
                             component_templates::protonation_bonds(*component_template, atom));
         add_component_bonds(result, component, component_template->bonds);
-        if (component_template->kind == component_templates::ComponentKind::amino_acid) {
+        // Only an amino acid that the templates do not link to a previous residue is an N-terminus,
+        // as add_sequential_bonds() decides below. Hydride also names H1 a hydrogen on the carboxyl
+        // carbon of a C-terminal residue without OXT.
+        const auto peptide_linked =
+            residue_index > 0 &&
+            sequentially_adjacent(residues[residue_index - 1], residue,
+                                  component_templates::ComponentKind::amino_acid) &&
+            residues[residue_index - 1].component().find_atom("C").has_value();
+        const auto n_terminal =
+            component_template->kind == component_templates::ComponentKind::amino_acid &&
+            !peptide_linked;
+        if (n_terminal) {
             if (const auto nitrogen = component.find_atom("N")) {
                 // Supplement the base template with the remaining terminal hydrogen names. Hydride
                 // names the second hydrogen of an N-terminal proline H1 rather than H2 or H3.

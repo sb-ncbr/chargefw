@@ -4,6 +4,7 @@
 #include <chargefw/core/bond.h>
 #include <snitch/snitch.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
@@ -80,6 +81,41 @@ END
             CHECK(bond.order() == chargefw::core::BondOrder::SINGLE);
         }
     }
+
+    // Hydride names H1 the hydrogen it puts on the carboxyl carbon of a C-terminal residue without
+    // OXT. Only the first residue of the peptide is an N-terminus, so H1 is not bonded to its N.
+    const auto record = read_first(
+        R"pdb(ATOM      1  N   GLY A   1       0.000   0.000   0.000  1.00 20.00           N
+ATOM      2  CA  GLY A   1       1.450   0.000   0.000  1.00 20.00           C
+ATOM      3  C   GLY A   1       2.000   1.400   0.000  1.00 20.00           C
+ATOM      4  O   GLY A   1       1.300   2.400   0.000  1.00 20.00           O
+ATOM      5  N   GLY A   2       3.300   1.500   0.000  1.00 20.00           N
+ATOM      6  CA  GLY A   2       3.900   2.800   0.000  1.00 20.00           C
+ATOM      7  C   GLY A   2       5.400   2.800   0.000  1.00 20.00           C
+ATOM      8  O   GLY A   2       6.000   1.700   0.000  1.00 20.00           O
+ATOM      9  H1  GLY A   2       5.900   3.800   0.000  1.00 20.00           H
+END
+)pdb",
+        {.bond_strategy = Strategy::templates});
+    for (const auto& bond : record.molecule.bonds()) {
+        CHECK(bond.first_atom_index() != 8);
+        CHECK(bond.second_atom_index() != 8);
+    }
+
+    // Without the C of the first residue there is no peptide bond, so the second residue is an
+    // N-terminus and its H1 is bonded to its N.
+    const auto unlinked = read_first(
+        R"pdb(ATOM      1  N   GLY A   1       0.000   0.000   0.000  1.00 20.00           N
+ATOM      2  CA  GLY A   1       1.450   0.000   0.000  1.00 20.00           C
+ATOM      3  N   GLY A   2       3.300   1.500   0.000  1.00 20.00           N
+ATOM      4  CA  GLY A   2       3.900   2.800   0.000  1.00 20.00           C
+ATOM      5  H1  GLY A   2       2.900   0.600   0.000  1.00 20.00           H
+END
+)pdb",
+        {.bond_strategy = Strategy::templates});
+    CHECK(std::ranges::any_of(unlinked.molecule.bonds(), [](const auto& bond) {
+        return bond.first_atom_index() == 2 && bond.second_atom_index() == 4;
+    }));
 }
 
 TEST_CASE("PDB templates follow the protonation state of histidine and arginine",

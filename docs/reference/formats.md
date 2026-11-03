@@ -224,10 +224,12 @@ links; they are not a complete Chemical Component Dictionary. No distance-based 
 
 For standard amino-acid residue names, `templates` and `hybrid` supplement the base templates with
 N-terminal `N-H1` and `N-H3` bonds; `PRO` adds `N-H1`, `N-H2`, and `N-H3`. Only supplied atoms are
-connected. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
+connected, and only in a residue that the templates do not link to the previous residue by a peptide
+bond. Existing `H/H2`-only patterns (`H` for `PRO`) retain their base-template behavior.
 
 These bonds do not change atoms, names, order, or formal charges. They are assigned by residue and atom
-names, independently of the position in the chain, so the structure must be prepared consistently.
+names and, for the links between residues and the N-terminal hydrogens, by the order of residues in
+the chain; no geometry is used, so the structure must be prepared consistently.
 
 Histidine and arginine templates follow the residue's protonation state. The templates come from the
 Chemical Component Dictionary, which gives histidine a double bond `ND1=CE1` and arginine `CZ=NH2`.
