@@ -233,16 +233,13 @@ auto run(std::span<char*> arguments) -> int {
         } catch (const std::invalid_argument& error) {
             failure_message = error.what();
             return std::nullopt;
-        } catch (const std::logic_error& error) {
-            return chargefw::calculation::ExecutionResult{
-                .status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                .charges = std::nullopt,
-                .failure_message = error.what()};
-        } catch (const std::runtime_error& error) {
-            return chargefw::calculation::ExecutionResult{
-                .status = chargefw::calculation::ExecutionStatus::numerical_failure,
-                .charges = std::nullopt,
-                .failure_message = error.what()};
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception& error) {
+            // calculate() reports failures of the calculation in its result, so any other
+            // exception is a bug in ChargeFW. A plain std::logic_error is what main() reports as
+            // an internal error; std::runtime_error and std::out_of_range would read as bad input.
+            throw std::logic_error{error.what()};
         }
     }();
     auto result = [&] {
