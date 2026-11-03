@@ -337,6 +337,19 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
     CHECK(explicit_molecule.bond(3).order() == chargefw::core::BondOrder::SINGLE);
     CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 4);
 
+    // An aromatic connection is read as a single bond, with a warning.
+    auto aromatic_connection_input = strategy_input;
+    aromatic_connection_input.replace(aromatic_connection_input.find(" doub\n"), 5, " arom");
+    std::istringstream aromatic_connection{aromatic_connection_input};
+    const auto aromatic_record =
+        mmcif::MmcifReader{
+            aromatic_connection, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
+            .next();
+    REQUIRE(aromatic_record.has_value());
+    CHECK(aromatic_record->molecule.bond(2).order() == chargefw::core::BondOrder::SINGLE);
+    REQUIRE(aromatic_record->diagnostics.size() == 1);
+    CHECK(aromatic_record->diagnostics[0].code == "aromatic_bonds_converted");
+
     // A connection to an atom of a symmetry-related copy is not a bond of this molecule.
     const auto read_connection = [](const std::string_view second_symmetry) {
         std::istringstream connection_input{atom_site_header("symmetry") + R"cif(

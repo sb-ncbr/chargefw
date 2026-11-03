@@ -26,9 +26,20 @@
 namespace chargefw::adapters::gemmi::bonds {
 namespace {
 
+// A bond order read from a file. Aromatic bonds are read as single bonds.
+struct SourceOrder {
+    core::BondOrder order;
+    bool aromatic = false;
+};
+
 class BondAccumulator {
   public:
     void add(const std::size_t first, const std::size_t second, const core::BondOrder order) {
+        add(first, second, SourceOrder{.order = order});
+    }
+
+    // The first order given for a pair is kept.
+    void add(const std::size_t first, const std::size_t second, const SourceOrder order) {
         if (first == second) {
             return;
         }
@@ -36,8 +47,15 @@ class BondAccumulator {
         const auto key =
             BondKey{.first = std::min(first, second), .second = std::max(first, second)};
         if (seen_.insert(key).second) {
-            bonds_.emplace_back(first, second, order);
+            bonds_.emplace_back(first, second, order.order);
+            if (order.aromatic) {
+                ++aromatic_bonds_;
+            }
         }
+    }
+
+    [[nodiscard]] auto aromatic_bonds() const -> std::size_t {
+        return aromatic_bonds_;
     }
 
     [[nodiscard]] auto take() -> std::vector<core::Bond> {
@@ -61,6 +79,7 @@ class BondAccumulator {
 
     std::vector<core::Bond> bonds_;
     std::unordered_set<BondKey, BondKeyHash> seen_;
+    std::size_t aromatic_bonds_ = 0;
 };
 
 // Residues of a model by chain name and sequence ID, in model order, so that each connection
@@ -132,7 +151,7 @@ class ResidueIndex {
 }
 
 // Connection bond orders by _struct_conn.id; a connection without one is a single bond.
-using ConnectionOrders = std::unordered_map<std::string, core::BondOrder>;
+using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
 
 // Adds covalent and disulfide connections between selected atoms and returns how many were skipped
 // because their partners are in different symmetry images. The second partner of such a connection
@@ -167,7 +186,9 @@ using ConnectionOrders = std::unordered_map<std::string, core::BondOrder>;
             continue;
         }
         const auto order = orders.find(connection.name);
-        bonds.add(*first, *second, order == orders.end() ? core::BondOrder::SINGLE : order->second);
+        bonds.add(*first, *second,
+                  order == orders.end() ? SourceOrder{.order = core::BondOrder::SINGLE}
+                                        : order->second);
     }
     return skipped;
 }
@@ -216,17 +237,17 @@ void add_sequential_bonds(BondAccumulator& bonds,
     }
 }
 
-[[nodiscard]] auto bond_order(const std::string& value) -> std::optional<core::BondOrder> {
+[[nodiscard]] auto bond_order(const std::string& value) -> std::optional<SourceOrder> {
     try {
         switch (::gemmi::bond_type_from_string(value)) {
         case ::gemmi::BondType::Single:
-            return core::BondOrder::SINGLE;
+            return SourceOrder{.order = core::BondOrder::SINGLE};
         case ::gemmi::BondType::Double:
-            return core::BondOrder::DOUBLE;
+            return SourceOrder{.order = core::BondOrder::DOUBLE};
         case ::gemmi::BondType::Triple:
-            return core::BondOrder::TRIPLE;
+            return SourceOrder{.order = core::BondOrder::TRIPLE};
         case ::gemmi::BondType::Aromatic:
-            return core::BondOrder::SINGLE;
+            return SourceOrder{.order = core::BondOrder::SINGLE, .aromatic = true};
         case ::gemmi::BondType::Deloc:
         case ::gemmi::BondType::Metal:
         case ::gemmi::BondType::Unspec:
@@ -343,8 +364,7 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
     struct ParsedComponentBond {
         std::string first;
         std::string second;
-        core::BondOrder order;
-        bool aromatic;
+        SourceOrder order;
     };
 
     std::unordered_map<std::string, std::vector<ParsedComponentBond>> component_bonds;
@@ -356,26 +376,16 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
         auto second = row.str(2);
         const auto order_value = row.str(3);
         if (const auto order = bond_order(order_value)) {
-            component_bonds[std::move(component)].emplace_back(
-                ParsedComponentBond{.first = std::move(first),
-                                    .second = std::move(second),
-                                    .order = *order,
-                                    .aromatic = ::gemmi::bond_type_from_string(order_value) ==
-                                                ::gemmi::BondType::Aromatic});
+            component_bonds[std::move(component)].emplace_back(ParsedComponentBond{
+                .first = std::move(first), .second = std::move(second), .order = *order});
         }
     }
 
-    auto aromatic_bonds = std::size_t{0};
     for (const auto& residue : residues) {
         const auto component = residue.component();
         const auto found = component_bonds.find(std::string{component.name});
         if (found != component_bonds.end()) {
             add_component_bonds(result, component, found->second);
-            aromatic_bonds += static_cast<std::size_t>(
-                std::ranges::count_if(found->second, [&](const auto& bond) {
-                    return bond.aromatic && component.find_atom(bond.first).has_value() &&
-                           component.find_atom(bond.second).has_value();
-                }));
         }
     }
 
@@ -393,7 +403,7 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
 
     return {.bonds = result.take(),
             .skipped_symmetry_connections = skipped,
-            .aromatic_bonds = aromatic_bonds};
+            .aromatic_bonds = result.aromatic_bonds()};
 }
 
 auto symmetry_connections_diagnostic(const std::size_t count) -> MoleculeRecordDiagnostic {

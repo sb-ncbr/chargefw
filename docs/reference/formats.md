@@ -207,7 +207,7 @@ without bonds receives one `unbonded_residue_atoms` warning. It counts these ato
 names up to three residues, such as `MSE A 4 (N, CA, C, O, ...)`. Single-atom residues, such as ions,
 are not reported.
 
-Explicit structural aromatic bonds become single bonds; aromatic `_chem_comp_bond` rows give the record an
+Explicit structural aromatic bonds become single bonds, and the record gets an
 `aromatic_bonds_converted` warning. Delocalized (including `1.5`), metal,
 unspecified/null, and malformed component bond orders are skipped, because ChargeFW's molecules have only
 single, double, and triple bonds. Templates cover common amino acids, nucleotides, water, and basic sequential peptide and nucleotide
