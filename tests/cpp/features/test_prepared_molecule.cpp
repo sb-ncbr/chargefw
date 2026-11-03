@@ -1,10 +1,16 @@
 #include "support/test_molecules.h"
 
+#include <chargefw/core/atom.h>
+#include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/core/position.h>
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 
+#include <cstddef>
+#include <limits>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <snitch/snitch.hpp>
@@ -13,6 +19,11 @@ namespace core = chargefw::core;
 namespace features = chargefw::features;
 
 static_assert(!std::is_constructible_v<features::PreparedMolecule, core::Molecule&&>);
+static_assert(std::is_copy_constructible_v<features::PreparedMolecule> &&
+              std::is_copy_assignable_v<features::PreparedMolecule> &&
+              std::is_nothrow_move_constructible_v<features::PreparedMolecule> &&
+              std::is_nothrow_move_assignable_v<features::PreparedMolecule>);
+static_assert(std::is_copy_constructible_v<features::PreparedMoleculeCollection>);
 static_assert(
     !std::is_constructible_v<features::PreparedMoleculeCollection, core::MoleculeCollection&&>);
 
@@ -23,6 +34,44 @@ TEST_CASE("prepared molecules retain source identity and cached topology", "[fea
     CHECK(&prepared.molecule() == &water);
     CHECK(&prepared.topology().molecule() == &water);
     CHECK(prepared.topology().degree(0) == 2);
+}
+
+TEST_CASE("prepared molecules find geometry defects once per conformer", "[features][prepared]") {
+    const auto infinity = std::numeric_limits<double>::infinity();
+    const core::Molecule molecule{
+        std::vector{core::Atom{1}, core::Atom{1}, core::Atom{1}},
+        {},
+        std::vector{
+            core::Conformer{{core::Position{}, core::Position{.x = 1.0}, core::Position{.x = 1.0}},
+                            "coincident"},
+            core::Conformer{
+                {core::Position{}, core::Position{.x = infinity}, core::Position{.x = 2.0}},
+                "nonfinite"},
+            // Identical positions are not looked for when a coordinate is not finite.
+            core::Conformer{{core::Position{}, core::Position{}, core::Position{.x = infinity}},
+                            "both"}}};
+    const features::PreparedMolecule prepared{molecule};
+
+    const auto defects = prepared.geometry_defects();
+    REQUIRE(defects.size() == 3);
+    CHECK_FALSE(defects[0].nonfinite_atom.has_value());
+    CHECK(defects[0].coincident_atoms == std::pair<std::size_t, std::size_t>{1, 2});
+    CHECK(defects[1].nonfinite_atom == 1);
+    CHECK_FALSE(defects[1].coincident_atoms.has_value());
+    CHECK(defects[2].nonfinite_atom == 2);
+    CHECK_FALSE(defects[2].coincident_atoms.has_value());
+    CHECK(prepared.geometry_defects().data() == defects.data());
+
+    // Copies share the defects, and geometry queries remain valid on a moved-from object.
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization): the copy is under test.
+    const auto copy = prepared;
+    CHECK(&copy.molecule() == &molecule);
+    CHECK(copy.geometry_defects().data() == defects.data());
+    auto source = features::PreparedMolecule{molecule};
+    const auto moved = std::move(source);
+    CHECK(moved.geometry_defects().size() == 3);
+    // NOLINTNEXTLINE(bugprone-use-after-move): the moved-from source is under test.
+    CHECK(source.geometry_defects().size() == 3);
 }
 
 TEST_CASE("prepared molecule collection retains each source molecule", "[features][prepared]") {

@@ -2,7 +2,7 @@
 
 #include "core/diagnostic_description.h"
 
-#include <chargefw/features/conformer_features.h>
+#include <chargefw/features/prepared_molecule.h>
 
 #include <exception>
 #include <stdexcept>
@@ -16,13 +16,15 @@ auto add_invalid_options_issue(PrerequisiteResult& result, const std::exception&
         PrerequisiteIssue{.kind = PrerequisiteIssueKind::invalid_options, .message = error.what()});
 }
 
-auto add_coordinate_prerequisite_issues(const Method& method, const core::Molecule& molecule,
+auto add_coordinate_prerequisite_issues(const Method& method,
+                                        const features::PreparedMolecule& prepared,
                                         PrerequisiteResult& result) -> void {
-    for (std::size_t conformer_index = 0; conformer_index < molecule.conformer_count();
-         ++conformer_index) {
-        const features::ConformerFeatures geometry{molecule, conformer_index};
+    const auto& molecule = prepared.molecule();
+    const auto defects = prepared.geometry_defects();
+    for (std::size_t conformer_index = 0; conformer_index < defects.size(); ++conformer_index) {
+        const auto& [nonfinite_atom, coincident] = defects[conformer_index];
 
-        if (const auto nonfinite_atom = geometry.first_nonfinite_atom_index()) {
+        if (nonfinite_atom.has_value()) {
             result.add(PrerequisiteIssue{
                 .kind = PrerequisiteIssueKind::invalid_geometry,
                 .message = "method '" + std::string{method.id()} + "', conformer " +
@@ -34,7 +36,7 @@ auto add_coordinate_prerequisite_issues(const Method& method, const core::Molecu
             continue;
         }
 
-        if (const auto coincident = geometry.coincident_atom_indices()) {
+        if (coincident.has_value()) {
             result.add(PrerequisiteIssue{
                 .kind = PrerequisiteIssueKind::invalid_geometry,
                 .message = "method '" + std::string{method.id()} + "', conformer " +
@@ -101,7 +103,7 @@ auto Method::check_method_prerequisites(const MethodPrerequisiteInput& input) co
                                                 "' requires coordinates"});
     }
     if (method_requirements.coordinates && molecule.has_coordinates()) {
-        add_coordinate_prerequisite_issues(*this, molecule, result);
+        add_coordinate_prerequisite_issues(*this, input.prepared_molecule, result);
     }
     if (method_requirements.bonds && molecule.atom_count() > 1 && molecule.bond_count() == 0) {
         result.add(PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_feature,
