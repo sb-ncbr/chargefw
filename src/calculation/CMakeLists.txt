@@ -7,11 +7,13 @@ target_sources(chargefw_core_objects
         estimate.cpp
         fixed_charge_partition.cpp
         full_execution.cpp
+        input_issues.cpp
         execution_policy.cpp
         reduced_execution.cpp
         cover_execution.h
         fixed_charge_partition.h
         full_execution.h
+        input_checks.h
         observer_notifications.h
         parallel_for.h
         reduced_execution.h
@@ -24,5 +26,6 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/calculation.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/assessment.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_policy.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/input_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/observer.h
 )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chargefw/calculation/execution_policy.h>
+#include <chargefw/calculation/input_issues.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method_applicability.h>
@@ -130,6 +131,8 @@ class AssessmentResult {
 
     [[nodiscard]] auto plans() const noexcept -> std::span<const ExecutionPlan>;
     [[nodiscard]] auto rejections() const noexcept -> std::span<const Rejection>;
+    // Every input issue of the molecules, whichever plan is executed.
+    [[nodiscard]] auto input_warnings() const noexcept -> std::span<const InputIssue>;
     [[nodiscard]] auto default_plan() const noexcept -> const ExecutionPlan*;
 
   private:
@@ -164,6 +167,7 @@ class AssessmentResult {
     std::shared_ptr<const PlanIdentity> plan_identity_;
     std::vector<ExecutionPlan> plans_;
     std::vector<Rejection> rejections_;
+    std::vector<InputIssue> input_warnings_;
     double applicability_seconds_ = 0.0;
     std::unique_ptr<core::MoleculeCollection> molecules_;
     std::unique_ptr<detail::FixedChargePartition> fixed_charge_partition_;

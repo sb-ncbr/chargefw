@@ -1,6 +1,7 @@
 #include <chargefw/calculation/assessment.h>
 
 #include "fixed_charge_partition.h"
+#include "input_checks.h"
 
 #include "core/diagnostic_description.h"
 
@@ -420,6 +421,10 @@ auto AssessmentResult::rejections() const noexcept -> std::span<const Rejection>
     return rejections_;
 }
 
+auto AssessmentResult::input_warnings() const noexcept -> std::span<const InputIssue> {
+    return input_warnings_;
+}
+
 auto AssessmentResult::default_plan() const noexcept -> const ExecutionPlan* {
     return plans_.empty() ? nullptr : &plans_.front();
 }
@@ -446,6 +451,7 @@ auto AssessmentResult::assess_owned(AssessmentRequest request) -> AssessmentResu
     auto method_options = std::move(request.method_options);
     auto result = AssessmentResult{std::move(request.molecules), std::move(request.parameter_sets),
                                    std::move(fixed_charge_partition)};
+    result.input_warnings_ = detail::find_input_issues(*result.molecules_);
     result.assess_prepared(selected_methods, classification_options, resource_policy,
                            method_options, execution_selection);
     result.applicability_seconds_ =

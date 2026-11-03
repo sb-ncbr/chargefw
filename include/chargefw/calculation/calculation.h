@@ -66,6 +66,8 @@ struct ExecutionResult {
     std::optional<EffectiveCalculation> effective;
     std::optional<std::string> failure_message;
     CalculationMetrics metrics;
+    // The input issues of the assessment, in molecule order.
+    std::vector<InputIssue> input_warnings;
 
     [[nodiscard]] auto calculated() const noexcept -> bool {
         return status == ExecutionStatus::success && charges.has_value();

@@ -9,6 +9,7 @@
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/calculation/execution_policy.h>
+#include <chargefw/calculation/input_issues.h>
 #include <chargefw/calculation/observer.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/methods/method.h>
@@ -116,6 +117,19 @@ auto execution_issue(const methods::ExecutionIssue& issue) -> nb::dict {
     return result;
 }
 
+auto input_issues(const std::span<const calculation::InputIssue> issues) -> nb::list {
+    auto result = nb::list{};
+    for (const auto& issue : issues) {
+        auto value = nb::dict{};
+        value["kind"] = std::string{calculation::to_string(issue.kind)};
+        value["message"] = issue.message;
+        value["molecule_index"] = issue.molecule_index;
+        value["conformer_index"] = issue.conformer_index;
+        result.append(std::move(value));
+    }
+    return result;
+}
+
 auto execution_policy(const calculation::ExecutionPolicy& policy) -> nb::dict {
     auto result = nb::dict{};
     result["mode"] = std::string{calculation::to_string(policy.mode())};
@@ -203,6 +217,7 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
         rejections.append(rejection(rejected));
     }
     result["rejections"] = std::move(rejections);
+    result["input_warnings"] = input_issues(value.input_warnings);
     result["failure_message"] = value.failure_message;
     auto metrics = nb::dict{};
     metrics["applicability_seconds"] = value.metrics.applicability_seconds;
@@ -382,6 +397,7 @@ class NativeAssessment {
             rejections.append(rejection(rejected));
         }
         result["rejections"] = std::move(rejections);
+        result["input_warnings"] = input_issues(state_->assessment_.input_warnings());
         result["applicability_seconds"] = state_->assessment_.applicability_seconds();
         return result;
     }

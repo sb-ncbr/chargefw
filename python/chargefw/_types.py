@@ -18,6 +18,7 @@ type CalculationPhase = Literal[
     "fragment_progress",
 ]
 type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_execution_mode"]
+type InputIssueKind = Literal["hydrogens_missing"]
 type PrerequisiteIssueKind = Literal[
     "invalid_options",
     "missing_feature",

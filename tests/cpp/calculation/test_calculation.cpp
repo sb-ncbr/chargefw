@@ -25,6 +25,7 @@
 #include <snitch/snitch.hpp>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -295,6 +296,31 @@ TEST_CASE("explicit no-plan assessment reports rejected scientific prerequisites
     const auto result = calculation::calculate(assessment);
     CHECK(result.status == calculation::ExecutionStatus::no_executable_plan);
     CHECK_FALSE(result.calculated());
+}
+
+TEST_CASE("assessment warns about molecules with carbon but no hydrogen",
+          "[calculation][calculation]") {
+    // Only carbon monoxide lacks hydrogen. The result of a plan and of a failed assessment both
+    // carry the warning, because every method assumes explicit hydrogens.
+    const auto carbon_monoxide =
+        core::Molecule{std::vector{core::Atom{6}, core::Atom{8}},
+                       std::vector{core::Bond{0, 1, core::BondOrder::TRIPLE}}};
+    for (const auto* method_id : {"formal", "smpqeq"}) {
+        CAPTURE(method_id);
+        const auto assessment = calculation::assess(
+            calculation::AssessmentRequest{.molecules = core::MoleculeCollection{std::vector{
+                                               chargefw::test::make_water(), carbon_monoxide}},
+                                           .method_id = std::string{method_id}});
+        REQUIRE(assessment.input_warnings().size() == 1);
+        const auto& issue = assessment.input_warnings()[0];
+        CHECK(issue.kind == calculation::InputIssueKind::hydrogens_missing);
+        CHECK(issue.molecule_index == 1);
+        CHECK_FALSE(issue.conformer_index.has_value());
+
+        const auto result = calculation::calculate(assessment);
+        REQUIRE(result.input_warnings.size() == 1);
+        CHECK(result.input_warnings[0].molecule_index == 1);
+    }
 }
 
 TEST_CASE("explicit full execution reports its plan and effective provenance",
