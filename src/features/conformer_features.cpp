@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <map>
 #include <stdexcept>
 
 namespace chargefw::features {
@@ -48,22 +47,6 @@ auto ConformerFeatures::first_nonfinite_atom_index() const noexcept -> std::opti
         return std::nullopt;
     }
     return static_cast<std::size_t>(found - positions.begin());
-}
-
-auto ConformerFeatures::coincident_atom_indices() const
-    -> std::optional<std::pair<std::size_t, std::size_t>> {
-    const auto positions = molecule_->conformer(conformer_index_).positions();
-    std::map<core::Position, std::size_t> first_atom_by_position;
-
-    for (std::size_t atom_index = 0; atom_index < positions.size(); ++atom_index) {
-        const auto [found, inserted] =
-            first_atom_by_position.emplace(positions[atom_index], atom_index);
-        if (!inserted) {
-            return std::pair{found->second, atom_index};
-        }
-    }
-
-    return std::nullopt;
 }
 
 auto ConformerFeatures::validate_conformer_index() const -> void {

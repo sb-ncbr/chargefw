@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <optional>
-#include <utility>
 
 namespace chargefw::features {
 
@@ -29,11 +28,6 @@ class ConformerFeatures {
         -> double;
 
     [[nodiscard]] auto first_nonfinite_atom_index() const noexcept -> std::optional<std::size_t>;
-
-    // Returns a pair of atoms at identical positions, if any. Requires finite coordinates; check
-    // first_nonfinite_atom_index() first.
-    [[nodiscard]] auto coincident_atom_indices() const
-        -> std::optional<std::pair<std::size_t, std::size_t>>;
 
   private:
     auto validate_conformer_index() const -> void;

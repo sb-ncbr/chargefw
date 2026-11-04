@@ -3,6 +3,7 @@ target_sources(chargefw_core_objects
         topology_features.cpp
         conformer_features.cpp
         spatial_fragment.cpp
+        spatial_index.h
         prepared_molecule.cpp
         prepared_molecule_collection.cpp
         topology_helpers.h

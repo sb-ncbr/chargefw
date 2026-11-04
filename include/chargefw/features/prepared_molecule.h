@@ -13,12 +13,29 @@
 
 namespace chargefw::features {
 
-// Defects of one conformer's geometry with which methods using coordinates cannot calculate.
+// Atoms are too close when their distance is below this fraction of the sum of their covalent
+// radii. Bonds in clean structures stay above 0.78 of it.
+inline constexpr double close_atom_factor = 0.7;
+
+// The pairs of atoms of one conformer that are too close, but not at identical positions.
+struct CloseAtoms {
+    // The pair with the smallest distance relative to the sum of its covalent radii.
+    std::pair<std::size_t, std::size_t> closest;
+    double distance = 0.0; // Å
+    std::size_t pair_count = 0;
+};
+
+// Defects of one conformer's geometry that matter to methods using coordinates.
 struct ConformerGeometryDefects {
-    // The first atom with a non-finite coordinate.
+    // The first atom with a non-finite coordinate. Methods using coordinates cannot calculate.
     std::optional<std::size_t> nonfinite_atom;
-    // Two atoms at identical positions; looked for only when every coordinate is finite.
+    // Two atoms at identical positions, the later atom being the first one in atom order that
+    // has an earlier atom at its position. Methods using coordinates cannot calculate. Looked for
+    // only when every coordinate is finite.
     std::optional<std::pair<std::size_t, std::size_t>> coincident_atoms = std::nullopt;
+    // Methods using coordinates can calculate, but their charges may be wrong. Looked for only
+    // when there is no defect above.
+    std::optional<CloseAtoms> close_atoms = std::nullopt;
 };
 
 class PreparedMolecule {
