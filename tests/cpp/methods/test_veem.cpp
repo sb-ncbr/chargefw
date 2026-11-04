@@ -20,5 +20,5 @@ TEST_CASE("VEEM rejects unsupported elements", "[methods][veem]") {
     REQUIRE(prerequisite_result.issues().size() == 1);
     CHECK(prerequisite_result.issues()[0].kind ==
           methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(prerequisite_result.issues()[0].atom_index == 0);
+    CHECK(prerequisite_result.issues()[0].location.atom_index == 0);
 }

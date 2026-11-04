@@ -234,6 +234,7 @@ A reason why a method or parameter set does not apply to the molecules.
 | `kind` | One of the kinds below |
 | `message` | Description, such as `molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom 1 (...)`; numbers in messages count from one |
 | `molecule_index`, `atom_index`, `bond_index`, `conformer_index` | Where the problem is; `None` where it does not apply |
+| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of every atom and bond the problem concerns; `atom_index` and `bond_index` are the ones the message names |
 
 | Kind | Meaning |
 | --- | --- |

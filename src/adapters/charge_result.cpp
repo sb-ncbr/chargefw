@@ -176,11 +176,7 @@ template <typename Issue>
     diagnostic.code = calculation::to_string(issue.kind);
     diagnostic.message = issue.message;
     diagnostic.molecule_index = issue.molecule_index;
-    diagnostic.conformer_index = issue.conformer_index;
-    diagnostic.atom_index = issue.atom_index;
-    if constexpr (requires { issue.atom_indices; }) {
-        diagnostic.atom_indices = issue.atom_indices;
-    }
+    diagnostic.location = issue.location;
     return diagnostic;
 }
 
@@ -499,9 +495,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             diagnostic.code = prerequisite_code(issue->kind);
             diagnostic.message = candidate + ": " + issue->message;
             diagnostic.molecule_index = issue->molecule_index;
-            diagnostic.atom_index = issue->atom_index;
-            diagnostic.bond_index = issue->bond_index;
-            diagnostic.conformer_index = issue->conformer_index;
+            diagnostic.location = issue->location;
             append_unique(diagnostics, seen, std::move(diagnostic));
         } else {
             const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);

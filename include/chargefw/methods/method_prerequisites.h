@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chargefw/core/issue_location.h>
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method_options.h>
@@ -32,9 +33,7 @@ struct PrerequisiteIssue {
     std::string message;
     // Structured indices are zero-based. Human-readable messages use one-based numbering.
     std::optional<std::size_t> molecule_index = std::nullopt;
-    std::optional<std::size_t> atom_index = std::nullopt;
-    std::optional<std::size_t> bond_index = std::nullopt;
-    std::optional<std::size_t> conformer_index = std::nullopt;
+    core::IssueLocation location = {};
 };
 
 class PrerequisiteResult {

@@ -315,7 +315,7 @@ TEST_CASE("assessment warns about molecules with carbon but no hydrogen",
         const auto& issue = assessment.input_warnings()[0];
         CHECK(issue.kind == calculation::InputIssueKind::hydrogens_missing);
         CHECK(issue.molecule_index == 1);
-        CHECK_FALSE(issue.conformer_index.has_value());
+        CHECK_FALSE(issue.location.conformer_index.has_value());
 
         const auto result = calculation::calculate(assessment);
         REQUIRE(result.input_warnings.size() == 1);
@@ -358,9 +358,9 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
                         calculation::InputIssueKind::atoms_too_close});
     const auto& close = result.input_warnings[1];
     CHECK(close.molecule_index == 1);
-    CHECK(close.conformer_index == 0);
-    CHECK(close.atom_index == 1);
-    CHECK(close.atom_indices == std::vector<std::size_t>{0, 1});
+    CHECK(close.location.conformer_index == 0);
+    CHECK(close.location.atom_index == 1);
+    CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
 }
 
 TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",
@@ -376,10 +376,10 @@ TEST_CASE("charges far from their formal charges are reported, except those of f
     const auto& issue = dummy.charge_warnings[0];
     CHECK(issue.kind == calculation::ChargeIssueKind::charge_out_of_range);
     CHECK(issue.molecule_index == 1);
-    CHECK_FALSE(issue.conformer_index.has_value());
+    CHECK_FALSE(issue.location.conformer_index.has_value());
     // Exactly 6 e away is still in range.
-    CHECK(issue.atom_indices == std::vector<std::size_t>{0, 2});
-    CHECK(issue.atom_index == 0);
+    CHECK(issue.location.atom_indices == std::vector<std::size_t>{0, 2});
+    CHECK(issue.location.atom_index == 0);
 
     // A fixed ion keeps its prescribed charge, however far from its formal charge.
     const auto with_ion =
@@ -418,7 +418,7 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
         calculate(close_ion, {{.molecule_index = 0, .atom_index = 1, .charge = 2.0}});
     REQUIRE(close_result.input_warnings.size() == 1);
     CHECK(close_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
-    CHECK(close_result.input_warnings[0].atom_index == 2);
+    CHECK(close_result.input_warnings[0].location.atom_index == 2);
 
     // Two fixed ions may share a position; they are a close pair at 0 Å rather than hiding the
     // others.
@@ -431,9 +431,10 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
                                     {.molecule_index = 0, .atom_index = 3, .charge = 2.0}});
     REQUIRE(coincident_result.input_warnings.size() == 1);
     CHECK(coincident_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
-    CHECK(coincident_result.input_warnings[0].atom_index == 3);
+    CHECK(coincident_result.input_warnings[0].location.atom_index == 3);
     // Both ions are close to the oxygen as well.
-    CHECK(coincident_result.input_warnings[0].atom_indices == std::vector<std::size_t>{1, 2, 3});
+    CHECK(coincident_result.input_warnings[0].location.atom_indices ==
+          std::vector<std::size_t>{1, 2, 3});
 }
 
 TEST_CASE("explicit full execution reports its plan and effective provenance",

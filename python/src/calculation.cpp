@@ -98,14 +98,27 @@ auto method_options(const nb::dict& values)
     return result;
 }
 
-auto prerequisite_issue(const methods::PrerequisiteIssue& issue) -> nb::dict {
+// An issue with its location, as the Python issue types read it. Prerequisite, input, and charge
+// issues share the shape; each Python type keeps the fields it has.
+template <typename Issue> auto issue_payload(const Issue& issue) -> nb::dict {
     auto result = nb::dict{};
-    result["kind"] = std::string{methods::to_string(issue.kind)};
+    result["kind"] = std::string{to_string(issue.kind)};
     result["message"] = issue.message;
     result["molecule_index"] = issue.molecule_index;
-    result["atom_index"] = issue.atom_index;
-    result["bond_index"] = issue.bond_index;
-    result["conformer_index"] = issue.conformer_index;
+    const auto& location = issue.location;
+    result["conformer_index"] = location.conformer_index;
+    result["atom_index"] = location.atom_index;
+    result["bond_index"] = location.bond_index;
+    result["atom_indices"] = location.atom_indices;
+    result["bond_indices"] = location.bond_indices;
+    return result;
+}
+
+template <typename Issue> auto issue_payloads(const std::span<const Issue> issues) -> nb::list {
+    auto result = nb::list{};
+    for (const auto& issue : issues) {
+        result.append(issue_payload(issue));
+    }
     return result;
 }
 
@@ -114,36 +127,6 @@ auto execution_issue(const methods::ExecutionIssue& issue) -> nb::dict {
     result["kind"] = std::string{methods::to_string(issue.kind)};
     result["message"] = issue.message;
     result["molecule_index"] = issue.molecule_index;
-    return result;
-}
-
-auto input_issues(const std::span<const calculation::InputIssue> issues) -> nb::list {
-    auto result = nb::list{};
-    for (const auto& issue : issues) {
-        auto value = nb::dict{};
-        value["kind"] = std::string{calculation::to_string(issue.kind)};
-        value["message"] = issue.message;
-        value["molecule_index"] = issue.molecule_index;
-        value["conformer_index"] = issue.conformer_index;
-        value["atom_index"] = issue.atom_index;
-        value["atom_indices"] = issue.atom_indices;
-        result.append(std::move(value));
-    }
-    return result;
-}
-
-auto charge_issues(const std::span<const calculation::ChargeIssue> issues) -> nb::list {
-    auto result = nb::list{};
-    for (const auto& issue : issues) {
-        auto value = nb::dict{};
-        value["kind"] = std::string{calculation::to_string(issue.kind)};
-        value["message"] = issue.message;
-        value["molecule_index"] = issue.molecule_index;
-        value["conformer_index"] = issue.conformer_index;
-        value["atom_index"] = issue.atom_index;
-        value["atom_indices"] = issue.atom_indices;
-        result.append(std::move(value));
-    }
     return result;
 }
 
@@ -216,7 +199,7 @@ auto rejection(const calculation::Rejection& rejected) -> nb::dict {
     auto execution_issues = nb::list{};
     for (const auto& issue : rejected.issues) {
         if (const auto* prerequisite = std::get_if<methods::PrerequisiteIssue>(&issue)) {
-            prerequisite_issues.append(prerequisite_issue(*prerequisite));
+            prerequisite_issues.append(issue_payload(*prerequisite));
         } else {
             execution_issues.append(execution_issue(std::get<methods::ExecutionIssue>(issue)));
         }
@@ -234,8 +217,8 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
         rejections.append(rejection(rejected));
     }
     result["rejections"] = std::move(rejections);
-    result["input_warnings"] = input_issues(value.input_warnings);
-    result["charge_warnings"] = charge_issues(value.charge_warnings);
+    result["input_warnings"] = issue_payloads(std::span{value.input_warnings});
+    result["charge_warnings"] = issue_payloads(std::span{value.charge_warnings});
     result["failure_message"] = value.failure_message;
     auto metrics = nb::dict{};
     metrics["applicability_seconds"] = value.metrics.applicability_seconds;
@@ -415,7 +398,7 @@ class NativeAssessment {
             rejections.append(rejection(rejected));
         }
         result["rejections"] = std::move(rejections);
-        result["input_warnings"] = input_issues(state_->assessment_.input_warnings());
+        result["input_warnings"] = issue_payloads(state_->assessment_.input_warnings());
         result["applicability_seconds"] = state_->assessment_.applicability_seconds();
         return result;
     }

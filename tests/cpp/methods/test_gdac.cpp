@@ -39,5 +39,5 @@ TEST_CASE("GDAC rejects missing features and unsupported elements", "[methods][g
     REQUIRE(rubidium_prerequisite_result.issues().size() == 1);
     CHECK(rubidium_prerequisite_result.issues()[0].kind ==
           methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(rubidium_prerequisite_result.issues()[0].atom_index == 0);
+    CHECK(rubidium_prerequisite_result.issues()[0].location.atom_index == 0);
 }

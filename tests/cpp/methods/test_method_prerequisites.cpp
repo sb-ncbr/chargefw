@@ -148,8 +148,9 @@ TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
     for (std::size_t conformer_index = 0; conformer_index < 2; ++conformer_index) {
         const auto& issue = result.issues()[conformer_index];
         CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
-        CHECK(issue.atom_index == 1);
-        CHECK(issue.conformer_index == conformer_index);
+        CHECK(issue.location.atom_index == 1);
+        CHECK(issue.location.atom_indices == std::vector<std::size_t>{0, 1});
+        CHECK(issue.location.conformer_index == conformer_index);
         CHECK(issue.message.contains("conformer " + std::to_string(conformer_index + 1)));
     }
     CHECK(result.issues()[0].message.contains("atom 1 (H, formal charge 0)"));
@@ -171,8 +172,8 @@ TEST_CASE("coordinate requirements reject non-finite coordinates",
     REQUIRE(result.issues().size() == 1);
     const auto& issue = result.issues()[0];
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
-    CHECK(issue.atom_index == 0);
-    CHECK(issue.conformer_index == 0);
+    CHECK(issue.location.atom_index == 0);
+    CHECK(issue.location.conformer_index == 0);
     CHECK(issue.message.contains("method 'coordinates-test'"));
     CHECK(issue.message.contains("atom 1 (H, formal charge 0)"));
 }
@@ -204,6 +205,6 @@ TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-
     CHECK(!result);
     REQUIRE(result.issues().size() == 1);
     CHECK(result.issues()[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(result.issues()[0].atom_index == 0);
+    CHECK(result.issues()[0].location.atom_index == 0);
     CHECK(result.issues()[0].message.contains("atom 1 (Bk, formal charge 0)"));
 }

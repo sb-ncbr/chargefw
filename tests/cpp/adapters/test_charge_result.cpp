@@ -96,8 +96,7 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
     execution.input_warnings.push_back({.kind = calculation::InputIssueKind::atoms_too_close,
                                         .message = "atoms too close",
                                         .molecule_index = 2,
-                                        .conformer_index = 0,
-                                        .atom_index = 0});
+                                        .location = {.conformer_index = 0, .atom_index = 0}});
     const auto result = adapters::make_charge_calculation_result(records, {}, std::move(execution));
 
     for (std::size_t molecule_index = 0; molecule_index < records.size(); ++molecule_index) {
@@ -115,8 +114,8 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
         }
     }
     const auto close = adapters::charge_record_diagnostics(result, 2).front();
-    CHECK(close.conformer_index == 0);
-    CHECK(close.atom_index == 0);
+    CHECK(close.location.conformer_index == 0);
+    CHECK(close.location.atom_index == 0);
 
     // Warnings out of molecule order, or for a molecule outside the input, are refused.
     for (const auto& molecule_indices :
@@ -152,15 +151,13 @@ TEST_CASE("record diagnostics carry the charge warnings with all their atoms",
             {.kind = calculation::ChargeIssueKind::charge_out_of_range,
              .message = "charges out of range",
              .molecule_index = 1,
-             .atom_index = 1,
-             .atom_indices = {0, 1}});
+             .location = {.atom_index = 1, .atom_indices = {0, 1}}});
         // The same text for other atoms is another finding.
         execution.charge_warnings.push_back(
             {.kind = calculation::ChargeIssueKind::charge_out_of_range,
              .message = "charges out of range",
              .molecule_index = 1,
-             .atom_index = 0,
-             .atom_indices = {0}});
+             .location = {.atom_index = 0, .atom_indices = {0}}});
         return execution;
     };
     const auto result = adapters::make_charge_calculation_result(
@@ -171,9 +168,9 @@ TEST_CASE("record diagnostics carry the charge warnings with all their atoms",
     REQUIRE(diagnostics.size() == 2);
     CHECK(diagnostics[0].code == "charge_out_of_range");
     CHECK(diagnostics[0].severity == adapters::DiagnosticSeverity::warning);
-    CHECK(diagnostics[0].atom_index == 1);
-    CHECK(diagnostics[0].atom_indices == std::vector<std::size_t>{0, 1});
-    CHECK(diagnostics[1].atom_indices == std::vector<std::size_t>{0});
+    CHECK(diagnostics[0].location.atom_index == 1);
+    CHECK(diagnostics[0].location.atom_indices == std::vector<std::size_t>{0, 1});
+    CHECK(diagnostics[1].location.atom_indices == std::vector<std::size_t>{0});
 
     // Charge warnings without charges are refused.
     CHECK_THROWS_AS(adapters::make_charge_calculation_result(

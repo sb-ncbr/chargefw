@@ -85,11 +85,13 @@ auto add_classification_issues(ParameterPrerequisiteResult& result,
 
         switch (issue.kind) {
         case parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER:
-            prerequisite_issue.atom_index = issue.object_index;
+            prerequisite_issue.location.atom_index = issue.object_index;
+            prerequisite_issue.location.atom_indices = {issue.object_index};
             break;
 
         case parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER:
-            prerequisite_issue.bond_index = issue.object_index;
+            prerequisite_issue.location.bond_index = issue.object_index;
+            prerequisite_issue.location.bond_indices = {issue.object_index};
             break;
         }
 
@@ -164,9 +166,7 @@ auto check_parameter_prerequisites(const Method& method,
                                    molecules[molecule_index].molecule(), molecule_index) +
                                ": " + issue.message,
                     .molecule_index = molecule_index,
-                    .atom_index = issue.atom_index,
-                    .bond_index = issue.bond_index,
-                    .conformer_index = issue.conformer_index});
+                    .location = issue.location});
             }
 
             continue;

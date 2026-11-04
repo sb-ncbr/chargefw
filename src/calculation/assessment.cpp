@@ -186,15 +186,23 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
 
     const auto molecule_index = *issue.molecule_index;
     const auto& target = partition.targets.at(molecule_index);
-    const auto active_atom_index = issue.atom_index;
-    const auto active_bond_index = issue.bond_index;
+    const auto active_atom_index = issue.location.atom_index;
+    const auto active_bond_index = issue.location.bond_index;
     const auto& original_molecule = original_molecules[molecule_index];
 
+    auto& location = issue.location;
     if (active_atom_index.has_value()) {
-        issue.atom_index = target.active_atom_indices.at(*active_atom_index);
+        location.atom_index = target.active_atom_indices.at(*active_atom_index);
     }
     if (active_bond_index.has_value()) {
-        issue.bond_index = target.active_bond_indices.at(*active_bond_index);
+        location.bond_index = target.active_bond_indices.at(*active_bond_index);
+    }
+    // Active indices are in the order of the original ones, so the lists stay sorted.
+    for (auto& atom_index : location.atom_indices) {
+        atom_index = target.active_atom_indices.at(atom_index);
+    }
+    for (auto& bond_index : location.bond_indices) {
+        bond_index = target.active_bond_indices.at(bond_index);
     }
 
     if (issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed &&

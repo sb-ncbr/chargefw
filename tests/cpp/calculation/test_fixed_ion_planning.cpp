@@ -636,7 +636,9 @@ TEST_CASE("fixed-charge parameter rejections use original atom indices and descr
     const auto& issue = std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]);
     CHECK(issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed);
     CHECK(issue.molecule_index == 0);
-    CHECK(issue.atom_index == 2);
+    CHECK(issue.location.atom_index == 2);
+    // The list is mapped to original indices as well.
+    CHECK(issue.location.atom_indices == std::vector<std::size_t>{2});
     CHECK(issue.message.contains("atom 3 (source name 'active-O', O, formal charge 0)"));
 }
 
@@ -655,7 +657,7 @@ TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numberi
     REQUIRE(assessment.rejections()[0].issues.size() == 1);
     const auto& issue = std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]);
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
-    CHECK(issue.atom_index == 2);
+    CHECK(issue.location.atom_index == 2);
     CHECK(issue.message.contains("active-subsystem atom numbering"));
 }
 

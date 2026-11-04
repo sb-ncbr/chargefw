@@ -43,7 +43,8 @@
 - Writing results of rejected large structures takes linear instead of quadratic time.
 - mmCIF output accepts charges from −10 to +10, the range of version 1.1 of the charge dictionary.
   Before, charges outside [−5, 5] were refused, which excluded fixed ions such as W⁶⁺.
-- A result JSON diagnostic about several atoms lists all of them in `atom_indices`.
+- A result JSON diagnostic about several atoms or bonds lists all of them in `atom_indices` or
+  `bond_indices`.
 
 ### Python
 
@@ -80,8 +81,11 @@
 - `calculation::InputIssue`, `AssessmentResult::input_warnings()`, and
   `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
 - `calculation::ChargeIssue` and `ExecutionResult::charge_warnings` report cautions about calculated
-  charges. They, `InputIssue`, and `adapters::ResultDiagnostic` list every atom they concern in
-  `atom_indices`; `features::CloseAtoms::atoms` lists the atoms of close pairs.
+  charges. `features::CloseAtoms::atoms` lists the atoms of close pairs.
+- `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`, and
+  `adapters::ResultDiagnostic` give their conformer, atom, and bond indices in one
+  `core::IssueLocation location`, which also lists every atom and bond they concern in
+  `atom_indices` and `bond_indices`.
 - `features::PreparedMolecule` finds the geometry defects of its conformers once, in
   `geometry_defects()`, and copies share them. The defects include atoms that are too close, in
   `close_atoms`; `features::find_close_atoms()` finds those for one conformer without caching.

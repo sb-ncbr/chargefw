@@ -4,9 +4,11 @@
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
 #include <chargefw/core/atom.h>
+#include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/methods/method_prerequisites.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
@@ -18,6 +20,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -32,6 +35,7 @@ namespace charges = chargefw::charges;
 namespace core = chargefw::core;
 namespace mmcif_input = chargefw::adapters::gemmi::mmcif_input;
 namespace json_output = chargefw::adapters::native::json_output;
+namespace methods = chargefw::methods;
 
 using chargefw::test::full_effective;
 
@@ -417,6 +421,36 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[a
             CHECK_FALSE(effective.contains("fixed_ions"));
         }
     }
+}
+
+TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[adapters][json]") {
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    execution.rejections.push_back(
+        {.method_id = "sqeqp",
+         .parameter_set_id = "test",
+         .issues = {methods::PrerequisiteIssue{
+             .kind = methods::PrerequisiteIssueKind::parameter_classification_failed,
+             .message = "no bond parameters",
+             .molecule_index = 0,
+             .location = {.bond_index = 1, .bond_indices = {0, 1}}}}});
+    const auto result = adapters::make_charge_calculation_result(
+        {{.molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}},
+                                     std::vector{core::Bond{0, 1}, core::Bond{1, 2}}},
+          .identity = {.source = "propane.sdf", .record_index = 0}}},
+        {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    json_output::JsonWriter{output}.write(result, "test");
+    const auto document = nlohmann::json::parse(output.str());
+
+    const auto& diagnostics = document.at("results").at(0).at("diagnostics");
+    const auto rejection = std::ranges::find(diagnostics, "parameter_classification_failed",
+                                             [](const auto& value) { return value.at("code"); });
+    REQUIRE(rejection != diagnostics.end());
+    CHECK(rejection->at("bond_index") == 1);
+    CHECK(rejection->at("bond_indices") == nlohmann::json::array({0, 1}));
+    CHECK_FALSE(rejection->contains("atom_indices"));
 }
 
 TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[adapters][json]") {

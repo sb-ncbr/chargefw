@@ -136,3 +136,8 @@ def as_ids(value: Iterable[PortableId] | None, count: int, field: str) -> tuple[
 def immutable_array[ScalarT: np.generic](array: NDArray[ScalarT]) -> NDArray[ScalarT]:
     """Copy an array into C-contiguous storage that cannot be made writable."""
     return np.frombuffer(array.tobytes(), dtype=array.dtype).reshape(array.shape)
+
+
+def index_array(values: Iterable[int] = ()) -> NDArray[np.int64]:
+    """Indices of atoms or bonds an issue concerns, as an array that cannot be made writable."""
+    return immutable_array(np.asarray(list(values), dtype=np.int64))

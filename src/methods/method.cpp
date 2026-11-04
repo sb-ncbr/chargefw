@@ -32,8 +32,9 @@ auto add_coordinate_prerequisite_issues(const Method& method,
                            std::to_string(conformer_index + 1) + ": " +
                            core::detail::atom_description(molecule, *nonfinite_atom) +
                            " has non-finite coordinates",
-                .atom_index = nonfinite_atom,
-                .conformer_index = conformer_index});
+                .location = {.conformer_index = conformer_index,
+                             .atom_index = nonfinite_atom,
+                             .atom_indices = {*nonfinite_atom}}});
             continue;
         }
 
@@ -45,8 +46,9 @@ auto add_coordinate_prerequisite_issues(const Method& method,
                            core::detail::atom_description(molecule, coincident->first) + " and " +
                            core::detail::atom_description(molecule, coincident->second) +
                            " have identical coordinates",
-                .atom_index = coincident->second,
-                .conformer_index = conformer_index});
+                .location = {.conformer_index = conformer_index,
+                             .atom_index = coincident->second,
+                             .atom_indices = {coincident->first, coincident->second}}});
         }
     }
 }

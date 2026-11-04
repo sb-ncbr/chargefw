@@ -364,8 +364,9 @@ A new kind follows these rules:
 - **Bounded count.** One issue per kind and scope: record, molecule, or conformer, never one per atom.
 - **Message for people.** It counts what was found and names one example, the most severe;
   `atom_index` is that atom.
-- **Locations for programs.** An issue about atoms lists every one of them in `atom_indices`, in atom
-  order, so that a viewer can select them. The message is never the only place a location appears. The
-  list holds at most the atoms of its scope, so it needs no limit.
+- **Locations for programs.** An issue's `core::IssueLocation` lists every atom and bond it concerns in
+  `atom_indices` and `bond_indices`, in index order, so that a viewer can select them. The message is
+  never the only place a location appears. The lists hold at most the atoms and bonds of their scope,
+  so they need no limit.
 - **Stage.** Findings that do not depend on the method belong to assessment; those about the executed
   method to execution; those about charges exist only when charges do.

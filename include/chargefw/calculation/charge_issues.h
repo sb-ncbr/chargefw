@@ -1,11 +1,11 @@
 #pragma once
 
+#include <chargefw/core/issue_location.h>
+
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace chargefw::calculation {
 
@@ -27,12 +27,9 @@ struct ChargeIssue {
     ChargeIssueKind kind;
     std::string message;
     std::size_t molecule_index; // Zero-based in the supplied molecule collection.
-    // The conformer of the charges; empty for methods that do not use coordinates.
-    std::optional<std::size_t> conformer_index = std::nullopt;
-    // The atom the message names: for charge_out_of_range, the one furthest from its formal charge.
-    std::optional<std::size_t> atom_index = std::nullopt;
-    // Every atom the issue concerns, in atom order.
-    std::vector<std::size_t> atom_indices = {};
+    // The conformer of the charges, empty for methods that do not use coordinates; the atom the
+    // message names, the one furthest from its formal charge; and every affected atom.
+    core::IssueLocation location = {};
 };
 
 } // namespace chargefw::calculation

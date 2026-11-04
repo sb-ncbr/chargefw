@@ -57,11 +57,11 @@ auto add_element_prerequisite_issues(const MethodPrerequisiteInput& input,
         const auto atomic_number = molecule.atom(atom_index).atomic_number();
 
         if (!table.contains(atomic_number) || !element_supported(table.element(atomic_number))) {
-            result.add(
-                PrerequisiteIssue{.kind = PrerequisiteIssueKind::unsupported_molecule,
-                                  .message = std::string{requirement} + ": " +
-                                             core::detail::atom_description(molecule, atom_index),
-                                  .atom_index = atom_index});
+            result.add(PrerequisiteIssue{
+                .kind = PrerequisiteIssueKind::unsupported_molecule,
+                .message = std::string{requirement} + ": " +
+                           core::detail::atom_description(molecule, atom_index),
+                .location = {.atom_index = atom_index, .atom_indices = {atom_index}}});
         }
     }
 }

@@ -17,9 +17,7 @@ namespace {
                                  core::detail::molecule_description(molecule, molecule_index) +
                                  ": " + issue.message,
                              .molecule_index = molecule_index,
-                             .atom_index = issue.atom_index,
-                             .bond_index = issue.bond_index,
-                             .conformer_index = issue.conformer_index};
+                             .location = issue.location};
 }
 
 } // namespace

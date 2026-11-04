@@ -228,7 +228,7 @@ TEST_CASE("applicability pairs methods with compatible parameter sets",
     CHECK(result.rejected[0].issues[0].kind ==
           methods::PrerequisiteIssueKind::parameter_classification_failed);
     CHECK(result.rejected[0].issues[0].molecule_index == 1);
-    CHECK(result.rejected[0].issues[0].atom_index == 0);
+    CHECK(result.rejected[0].issues[0].location.atom_index == 0);
     CHECK(result.rejected[0].issues[0].message.contains("molecule 2"));
     CHECK(result.rejected[0].issues[0].message.contains(
         "atom 1 (source name 'N', N, formal charge +1)"));
