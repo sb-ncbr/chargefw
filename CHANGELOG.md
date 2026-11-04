@@ -90,6 +90,9 @@
   was reported as a numerical failure, exit status 4, with result JSON.
 - Each warning of the executed plan, such as a full calculation above the size limit, is printed once,
   before the calculation. Before, it was printed once per molecule.
+- A warning about a molecule names it, such as `Warning: molecule 1 ('1CRN'): …`. Several molecules
+  with the same warning give one line with their number and the first of them. Before, the line did
+  not say which molecule it concerned.
 
 ### C++
 
