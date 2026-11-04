@@ -1,9 +1,12 @@
 #include "cli_support.h"
+#include "core/diagnostic_description.h"
 #include "platform/peak_memory.h"
 
 #include <chargefw/config.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -12,28 +15,72 @@
 #include <random>
 #include <set>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace chargefw::cli {
 namespace {
 
 void report_diagnostics(const adapters::ChargeCalculationResult& result,
                         std::set<std::pair<std::string, std::string>>& reported) {
-    const auto report = [&reported](const adapters::ResultDiagnostic& diagnostic) {
-        if (!reported.emplace(diagnostic.code, diagnostic.message).second) {
-            return;
-        }
+    const auto print = [](const adapters::ResultDiagnostic& diagnostic,
+                          const std::string_view message) {
         const auto label = diagnostic.severity == adapters::DiagnosticSeverity::warning ? "Warning"
                            : diagnostic.severity == adapters::DiagnosticSeverity::info  ? "Info"
                                                                                         : "Error";
-        std::println(std::cerr, "{}: {}", label, diagnostic.message);
+        std::println(std::cerr, "{}: {}", label, message);
+    };
+    const auto report = [&](const adapters::ResultDiagnostic& diagnostic) {
+        if (reported.emplace(diagnostic.code, diagnostic.message).second) {
+            print(diagnostic, diagnostic.message);
+        }
     };
     for (const auto& diagnostic : adapters::charge_result_diagnostics(result)) {
         report(diagnostic);
     }
-    for (std::size_t index = 0; index < result.inputs().size(); ++index) {
-        for (const auto& diagnostic : adapters::charge_record_diagnostics(result, index)) {
-            report(diagnostic);
+
+    // Warnings about molecules name the molecule and are grouped by code, so that a file of many
+    // records gives one line per kind: the first molecule, or the count with the first example.
+    struct WarningGroup {
+        adapters::ResultDiagnostic first;
+        std::set<std::size_t> molecules;
+    };
+    auto groups = std::vector<WarningGroup>{};
+    auto errors = std::vector<adapters::ResultDiagnostic>{};
+    const auto records = result.inputs();
+    for (std::size_t index = 0; index < records.size(); ++index) {
+        for (auto& diagnostic : adapters::charge_record_diagnostics(result, index)) {
+            if (diagnostic.severity != adapters::DiagnosticSeverity::warning ||
+                !diagnostic.molecule_index.has_value()) {
+                errors.push_back(std::move(diagnostic));
+                continue;
+            }
+            if (reported.contains({diagnostic.code, diagnostic.message})) {
+                continue;
+            }
+            const auto group = std::ranges::find(
+                groups, diagnostic.code, [](const auto& value) { return value.first.code; });
+            if (group == groups.end()) {
+                groups.push_back({.first = diagnostic, .molecules = {index}});
+            } else {
+                group->molecules.insert(index);
+            }
         }
+    }
+    for (const auto& [first, molecules] : groups) {
+        const auto molecule_index = *first.molecule_index;
+        const auto example =
+            core::detail::molecule_description(records[molecule_index].molecule, molecule_index) +
+            ": " + first.message;
+        print(first, molecules.size() == 1
+                         ? example
+                         : std::format("{} of {} molecules: {}, for example {}", molecules.size(),
+                                       records.size(), first.code, example));
+    }
+    for (const auto& diagnostic : errors) {
+        report(diagnostic);
     }
 }
 

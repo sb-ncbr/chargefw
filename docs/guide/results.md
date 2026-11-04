@@ -77,14 +77,18 @@ ChargeFW calculates charges also when it finds a problem with the input or with 
 reports the problem as a warning. Read the warnings: some of them mean that the charges are probably
 wrong.
 
-On the command line, each warning is printed on standard error; warnings alone do not change the
-exit status:
+On the command line, each warning is printed on standard error with the molecule it concerns;
+warnings alone do not change the exit status:
 
 ```console
 $ chargefw calculate --method eem 1CRN.cif output
-Warning: the molecule contains carbon but no hydrogen atoms; if its hydrogens were not added, add them before calculating
+Warning: molecule 1 ('1CRN'): the molecule contains carbon but no hydrogen atoms; if its hydrogens were not added, add them before calculating
 Wrote output/1CRN.chargefw.json
 ```
+
+When several molecules of a file get the same warning, it is printed once, with their number and the
+first of them, such as `Warning: 2 of 3 molecules: hydrogens_missing, for example molecule 1 …`; the
+result JSON lists each one.
 
 Result JSON records each warning with its code in the `diagnostics` of the molecule's record, or of
 the document when it concerns no single molecule. In Python, the warnings that can make the charges

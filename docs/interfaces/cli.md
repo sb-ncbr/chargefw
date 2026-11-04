@@ -46,10 +46,9 @@ threshold is found only when ChargeFW assesses the calculation, so it is reporte
 with status `invalid_input_or_request`. The exit status is 2 in all these cases.
 
 Problems that do not stop the calculation are printed on standard error as warnings, such as
-`Warning: the molecule contains carbon but no hydrogen atoms; …`, and recorded in the result JSON;
-warnings alone do not change the exit status. Read them: some mean that the charges are probably
-wrong.
-[Warnings](../guide/results.md#warnings) lists them.
+`Warning: molecule 1 ('1CRN'): the molecule contains carbon but no hydrogen atoms; …`, and recorded
+in the result JSON; warnings alone do not change the exit status. Read them: some mean that the
+charges are probably wrong. [Warnings](../guide/results.md#warnings) lists them.
 
 On request, ChargeFW also writes the molecules with their charges:
 
