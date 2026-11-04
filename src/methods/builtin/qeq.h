@@ -39,10 +39,10 @@ class QEqMethod final : public Method {
             .id = "overlap_term",
             .description = "QEq empirical two-center Coulomb term",
             .type = MethodOptionType::string,
-            .default_value = std::string{"DasGupta-Huzinaga"},
+            .default_value = std::string{"Nishimoto-Mataga"},
             .choices = {std::string{"Nishimoto-Mataga"}, std::string{"Nishimoto-Mataga-Weiss"},
                         std::string{"Ohno"}, std::string{"Ohno-Klopman"},
-                        std::string{"DasGupta-Huzinaga"}, std::string{"Louwen-Vogt"}}}};
+                        std::string{"DasGupta-Huzinaga"}}}};
 
         return {option_schema.data(), option_schema.size()};
     }

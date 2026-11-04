@@ -54,13 +54,6 @@ using OverlapTerm = double (*)(double distance, double hardness_i, double hardne
                                                     hardness_j / 2.0 * std::exp(k * distance)));
         };
     }
-    if (type == "Louwen-Vogt") {
-        return [](const double distance, const double hardness_i, const double hardness_j) {
-            const auto gamma = std::sqrt(hardness_i * hardness_j);
-            return coulomb / std::cbrt(std::pow(coulomb / gamma, 3.0) + std::pow(distance, 3.0));
-        };
-    }
-
     throw std::logic_error{"Unsupported QEq overlap term '" + type + "'"};
 }
 

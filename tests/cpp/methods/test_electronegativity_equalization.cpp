@@ -206,7 +206,7 @@ TEST_CASE("EEM fixed-source validation requires geometry for its active molecule
                              "fixed-source geometry does not belong to the active molecule"});
 }
 
-TEST_CASE("QEq defaults to DasGupta-Huzinaga", "[methods][qeq]") {
+TEST_CASE("QEq defaults to Nishimoto-Mataga", "[methods][qeq]") {
     const auto charge_set =
         chargefw::test::calculate_method(chargefw::test::make_two_conformer_water(), "qeq",
                                          {chargefw::test::make_qeq_ho_parameters()});
@@ -221,7 +221,7 @@ TEST_CASE("QEq defaults to DasGupta-Huzinaga", "[methods][qeq]") {
     CHECK(std::abs(second_charges.total()) < 1.0e-10);
 
     auto options = chargefw::methods::MethodOptions{};
-    options.set("overlap_term", std::string{"DasGupta-Huzinaga"});
+    options.set("overlap_term", std::string{"Nishimoto-Mataga"});
     const auto explicit_charge_set =
         chargefw::test::calculate_method(chargefw::test::make_two_conformer_water(), "qeq",
                                          {chargefw::test::make_qeq_ho_parameters()}, &options);
@@ -239,7 +239,6 @@ TEST_CASE("QEq empirical Coulomb terms calculate neutral water", "[methods][qeq]
         std::string_view{"Ohno"},
         std::string_view{"Ohno-Klopman"},
         std::string_view{"DasGupta-Huzinaga"},
-        std::string_view{"Louwen-Vogt"},
     };
 
     for (const auto term : terms) {
