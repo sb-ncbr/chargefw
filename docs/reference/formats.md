@@ -271,13 +271,35 @@ charges are written only to their selected conformer. Record names use the recor
 molecule name, or a generated name, with a conformer suffix when needed.
 
 Atom and bond IDs are generated one-based values. Known atom names are retained when representable;
-otherwise names are generated from the element and atom position. Atom types are element symbols, bond
-types are numeric single/double/triple orders, and the generated substructure fields are `1 UNL` because
-ChargeFW does not infer Tripos atom types or chemical substructures. The writer declares the generated
-`UNL` substructure, but its element-only atom types are deliberately generic and may not suit consumers
-that require fully classified SYBYL types.
+otherwise names are generated from the element and atom position. Bond types are numeric
+single/double/triple orders, and every atom is in one generated substructure, `1 UNL`.
+
+Atom types are SYBYL types derived from the elements, bonds, bond orders, and formal charges:
+
+| Element | Types |
+| --- | --- |
+| C | `C.1` (triple bond or two double bonds), `C.2` (double bond), `C.cat` (amidinium and guanidinium carbon), `C.3` |
+| N | `N.1` (triple bond), `N.2` (double bond), `N.pl3` (charged or pentavalent with a double bond, as in nitro; or bonded to a carbon or nitrogen with a multiple bond, as in anilines), `N.am` (amide), `N.4` (four bonds and charge +1), `N.3` |
+| O | `O.co2` (carboxylate or phosphate oxygens: one double-bonded, the others single-bonded with charge −1), `O.2` (double bond), `O.3` |
+| S | `S.O2` (two oxygens bonded to sulfur only, by a double bond or as S⁺–O⁻), `S.O` (one such oxygen), `S.2` (double bond), `S.3` |
+| P | `P.3` |
+| Others | Element symbol, such as `H`, `Cl`, `Na`, or `Zn` |
+
+An aromatic ring is written in the Kekulé form ChargeFW holds, with types such as `C.2` and bond orders
+1 and 2; the types `C.ar` and `N.ar` and the bond type `ar` are not written. RDKit perceives the ring as
+aromatic when it reads the file. Other programs may keep the Kekulé form.
+
+Atoms with a nonzero formal charge are listed in the `UNITY_ATOM_ATTR` section with two attributes
+holding the charge, `charge`, which Open Babel and ChargeFW read, and `AtomExpr`, which RDKit reads:
+
+```text
+@<TRIPOS>UNITY_ATOM_ATTR
+9 2
+charge -1
+AtomExpr -1
+```
 Output rejects unsuccessful results, empty molecules, and missing or non-finite coordinates before writing.
-It does not preserve source MOL2 fields, typing, substructures, comments, IDs, or lexical format.
+It does not preserve source MOL2 fields, atom types, substructures, comments, IDs, or lexical format.
 
 ### mmCIF
 

@@ -1,5 +1,6 @@
 #include <chargefw/adapters/native/mol2_output.h>
 
+#include "adapters/native/mol2_atom_types.h"
 #include "adapters/record_assignments.h"
 
 #include <chargefw/core/periodic_table.h>
@@ -131,12 +132,25 @@ auto write_record(std::ostream& output, const ImportedMoleculeRecord& record,
     }
     std::println(output);
     std::println(output, "@<TRIPOS>ATOM");
+    const auto atom_types = detail::sybyl_atom_types(molecule);
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto& atom = molecule.atom(atom_index);
         const auto& position = conformer[atom_index];
         std::println(output, "{} {} {} {} {} {} 1 UNL {:.4f}", atom_index + 1,
                      atom_name(atom, atom_index), position.x, position.y, position.z,
-                     core::element_symbol(atom.atomic_number()), assignment.charges[atom_index]);
+                     atom_types[atom_index], assignment.charges[atom_index]);
+    }
+    // Formal charges, twice: `charge` is read by Open Babel and ChargeFW, `AtomExpr` by RDKit,
+    // which without it guesses charges from the atom types and refuses some charged atoms.
+    if (std::ranges::any_of(molecule.atoms(),
+                            [](const core::Atom& atom) { return atom.formal_charge() != 0; })) {
+        std::println(output, "@<TRIPOS>UNITY_ATOM_ATTR");
+        for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
+            if (const auto charge = molecule.atom(atom_index).formal_charge(); charge != 0) {
+                std::println(output, "{} 2\ncharge {}\nAtomExpr {}", atom_index + 1, charge,
+                             charge);
+            }
+        }
     }
 
     std::println(output, "@<TRIPOS>BOND");
