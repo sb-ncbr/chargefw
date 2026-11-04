@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+import numpy as np
+from numpy.typing import NDArray
+
+from ._arrays import index_array
 from ._catalog import _Catalog
 from ._chargefw import methods as _native_methods
 from ._parameters import ParameterSetCatalog
@@ -15,7 +19,7 @@ from ._types import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class PrerequisiteIssue:
     kind: PrerequisiteIssueKind
     message: str
@@ -23,6 +27,10 @@ class PrerequisiteIssue:
     atom_index: int | None = None
     bond_index: int | None = None
     conformer_index: int | None = None
+    # Every atom and bond the issue concerns, in index order; atom_index and bond_index are the
+    # ones the message names.
+    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
+    bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 @dataclass(frozen=True, slots=True)

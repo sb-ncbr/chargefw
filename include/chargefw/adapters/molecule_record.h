@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chargefw/core/issue_location.h>
 #include <chargefw/core/molecule.h>
 
 #include <cstddef>
@@ -186,6 +187,9 @@ struct ImportIssue {
     ImportIssueKind kind;
     std::string message;
     std::optional<std::size_t> line; // One-based line in the source file.
+    // The atoms or bonds of the record the issue concerns, such as the aromatic bonds read as
+    // single.
+    core::IssueLocation location = {};
 
     [[nodiscard]] auto operator==(const ImportIssue&) const -> bool = default;
 };

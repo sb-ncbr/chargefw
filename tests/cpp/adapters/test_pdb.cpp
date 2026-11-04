@@ -429,6 +429,11 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     };
 
     CHECK(read_codes("", Strategy::hybrid) == std::vector<std::string>{"unbonded_residue_atoms"});
+    // The warning lists the ligand's atoms, not the ion.
+    const auto unbonded = read_first(atoms + "END\n", {.bond_strategy = Strategy::hybrid});
+    REQUIRE(unbonded.issues.size() == 1);
+    CHECK(unbonded.issues[0].location.atom_index == 0);
+    CHECK(unbonded.issues[0].location.atom_indices == std::vector<std::size_t>{0, 1});
     CHECK(read_codes("CONECT    1    2\n", Strategy::hybrid).empty());
     CHECK(read_codes("", Strategy::none).empty());
 }

@@ -10,6 +10,7 @@ from types import MappingProxyType
 import numpy as np
 from numpy.typing import NDArray
 
+from ._arrays import index_array
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
 from ._methods import (
@@ -40,12 +41,6 @@ from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
 
 
-def _atom_indices(values: Iterable[int] = ()) -> NDArray[np.int64]:
-    result = np.asarray(list(values), dtype=np.int64)
-    result.flags.writeable = False
-    return result
-
-
 @dataclass(frozen=True, slots=True, eq=False)
 class InputIssue:
     """A caution about an input molecule, such as hydrogens that were probably not added."""
@@ -56,7 +51,7 @@ class InputIssue:
     conformer_index: int | None = None
     atom_index: int | None = None
     # Every atom the issue concerns, in atom order; atom_index is the one the message names.
-    atom_indices: NDArray[np.int64] = field(default_factory=_atom_indices)
+    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -67,7 +62,7 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
-            atom_indices=_atom_indices(issue["atom_indices"]),
+            atom_indices=index_array(issue["atom_indices"]),
         )
         for issue in payload
     )
@@ -94,7 +89,7 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
-            atom_indices=_atom_indices(issue["atom_indices"]),
+            atom_indices=index_array(issue["atom_indices"]),
         )
         for issue in payload
     )
@@ -247,6 +242,8 @@ def _prerequisite_issue(value: PrerequisiteIssuePayload) -> PrerequisiteIssue:
         atom_index=value["atom_index"],
         bond_index=value["bond_index"],
         conformer_index=value["conformer_index"],
+        atom_indices=index_array(value["atom_indices"]),
+        bond_indices=index_array(value["bond_indices"]),
     )
 
 

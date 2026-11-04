@@ -49,12 +49,12 @@ class BondAccumulator {
         if (seen_.insert(key).second) {
             bonds_.emplace_back(first, second, order.order);
             if (order.aromatic) {
-                ++aromatic_bonds_;
+                aromatic_bonds_.push_back(bonds_.size() - 1);
             }
         }
     }
 
-    [[nodiscard]] auto aromatic_bonds() const -> std::size_t {
+    [[nodiscard]] auto aromatic_bonds() const -> const std::vector<std::size_t>& {
         return aromatic_bonds_;
     }
 
@@ -79,7 +79,7 @@ class BondAccumulator {
 
     std::vector<core::Bond> bonds_;
     std::unordered_set<BondKey, BondKeyHash> seen_;
-    std::size_t aromatic_bonds_ = 0;
+    std::vector<std::size_t> aromatic_bonds_; // Indices in bonds_.
 };
 
 // Residues of a model by chain name and sequence ID, in model order, so that each connection

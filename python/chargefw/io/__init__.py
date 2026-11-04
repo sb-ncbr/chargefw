@@ -7,6 +7,7 @@ from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from .._arrays import index_array
 from .._chargefw import adapters as _native_adapters
 from ..core import (
     ImportIssue,
@@ -121,7 +122,10 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
     object.__setattr__(
         result,
         "_import_issues",
-        tuple(ImportIssue(kind, message, line) for kind, message, line in payload["import_issues"]),
+        tuple(
+            ImportIssue(kind, message, line, index_array(atoms), index_array(bonds))
+            for kind, message, line, atoms, bonds in payload["import_issues"]
+        ),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
     return result

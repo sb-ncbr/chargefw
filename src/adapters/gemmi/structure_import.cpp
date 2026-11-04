@@ -247,9 +247,9 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         bonded[bond.second_atom_index()] = true;
     }
 
-    std::size_t atom_count = 0;
     std::size_t residue_count = 0;
     std::vector<std::string> examples;
+    auto all_unbonded = std::vector<std::size_t>{};
     for (const auto& component : components) {
         if (component.atom_indices.size() < 2) {
             continue;
@@ -260,15 +260,19 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         if (unbonded.empty()) {
             continue;
         }
-        atom_count += unbonded.size();
+        all_unbonded.insert(all_unbonded.end(), unbonded.begin(), unbonded.end());
         ++residue_count;
         if (examples.size() < listed_residue_limit) {
             examples.push_back(describe_residue(component, unbonded, atoms));
         }
     }
-    if (atom_count == 0) {
+    if (all_unbonded.empty()) {
         return std::nullopt;
     }
+    const auto atom_count = all_unbonded.size();
+    // The first atom of the first residue the message lists.
+    const auto named_atom = all_unbonded.front();
+    std::ranges::sort(all_unbonded);
 
     auto message =
         std::format("{} {} in {} {} {} no bonds, for example ", atom_count,
@@ -278,9 +282,11 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         message += (index == 0 ? "" : ", ") + examples[index];
     }
     message += ": neither the bonds read from the file nor the residue templates cover them.";
-    return ImportIssue{.kind = ImportIssueKind::unbonded_residue_atoms,
-                       .message = std::move(message),
-                       .line = std::nullopt};
+    return ImportIssue{
+        .kind = ImportIssueKind::unbonded_residue_atoms,
+        .message = std::move(message),
+        .line = std::nullopt,
+        .location = {.atom_index = named_atom, .atom_indices = std::move(all_unbonded)}};
 }
 
 } // namespace

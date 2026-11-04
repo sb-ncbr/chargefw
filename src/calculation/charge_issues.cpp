@@ -82,9 +82,9 @@ auto find_charge_issues(const core::MoleculeCollection& molecules,
                                                   : std::string{},
                             finding),
             .molecule_index = molecule_index,
-            .conformer_index = conformer,
-            .atom_index = furthest,
-            .atom_indices = std::move(atoms)});
+            .location = {.conformer_index = conformer,
+                         .atom_index = furthest,
+                         .atom_indices = std::move(atoms)}});
     }
     return result;
 }

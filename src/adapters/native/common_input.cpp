@@ -99,7 +99,9 @@ auto bond_order(const std::string_view value, const ::chargefw::adapters::native
     return core::bond_order_from_value(numeric_value == 4 ? 1 : numeric_value);
 }
 
-auto aromatic_bonds_issue(const std::size_t count) -> ImportIssue {
+auto aromatic_bonds_issue(std::vector<std::size_t> bonds) -> ImportIssue {
+    const auto count = bonds.size();
+    const auto first = bonds.front();
     return ImportIssue{
         .kind = ImportIssueKind::aromatic_bonds_converted,
         .message = std::to_string(count) +
@@ -107,7 +109,8 @@ auto aromatic_bonds_issue(const std::size_t count) -> ImportIssue {
                    " read as single bonds; methods that use bond orders then give other charges "
                    "than for the Kekulé structure. Write the file with Kekulé bonds to avoid "
                    "this.",
-        .line = std::nullopt};
+        .line = std::nullopt,
+        .location = {.bond_index = first, .bond_indices = std::move(bonds)}};
 }
 
 auto make_record(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds,

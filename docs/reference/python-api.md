@@ -80,6 +80,7 @@ assessed with, which includes having the same `name`.
 | `kind` | Kind of caution, such as `"partial_charges_ignored"` or `"coordinates_2d_ignored"`; the same code appears in result JSON |
 | `message` | Description |
 | `line` | Line in the file, or `None` |
+| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of the atoms and bonds the caution concerns, such as the atoms of `"unbonded_residue_atoms"` and the bonds of `"aromatic_bonds_converted"`; empty for cautions about the file |
 
 ### SourceMapping
 
@@ -234,14 +235,15 @@ A reason why a method or parameter set does not apply to the molecules.
 | `kind` | One of the kinds below |
 | `message` | Description, such as `molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom 1 (...)`; numbers in messages count from one |
 | `molecule_index`, `atom_index`, `bond_index`, `conformer_index` | Where the problem is; `None` where it does not apply |
+| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of every atom and bond the problem concerns; `atom_index` and `bond_index` are the ones the message names |
 
 | Kind | Meaning |
 | --- | --- |
-| `parameter_classification_failed` | The parameter set has no entry matching an atom or bond; [permissive matching](parameter-format.md#strict-and-permissive-matching) may help |
+| `parameter_classification_failed` | The parameter set has no entry matching some atoms or bonds of the molecule; one issue lists all such atoms, another all such bonds. [Permissive matching](parameter-format.md#strict-and-permissive-matching) may help |
 | `missing_parameters` | The parameter set lacks values the method needs for every molecule, or no parameter set was available |
 | `missing_feature` | The method needs coordinates and the molecule has none |
 | `invalid_geometry` | Coordinates that are not finite, or two atoms at the same position |
-| `unsupported_molecule` | The method does not handle this molecule, for example a charged component where it needs neutral ones |
+| `unsupported_molecule` | The method does not handle this molecule, for example a charged component where it needs neutral ones, or elements it has no values for; one issue lists all such atoms |
 | `invalid_options` | A method option has a value the method does not accept |
 | `unsupported_fixed_ions` | The method does not support fixed ions |
 

@@ -3,8 +3,13 @@
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <map>
+#include <span>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace chargefw::core::detail {
 
@@ -47,6 +52,26 @@ namespace chargefw::core::detail {
     auto description = "molecule " + std::to_string(molecule_index + 1);
     if (!molecule.name().empty()) {
         description += " ('" + std::string{molecule.name()} + "')";
+    }
+    return description;
+}
+
+// The atoms per element, most frequent first, such as "C: 2860, O: 797".
+[[nodiscard]] inline auto element_counts_description(const Molecule& molecule,
+                                                     const std::span<const std::size_t> atoms)
+    -> std::string {
+    auto counts = std::map<int, std::size_t>{};
+    for (const auto atom_index : atoms) {
+        ++counts[molecule.atom(atom_index).atomic_number()];
+    }
+    auto ordered = std::vector<std::pair<int, std::size_t>>{counts.begin(), counts.end()};
+    std::ranges::stable_sort(ordered, std::ranges::greater{}, &std::pair<int, std::size_t>::second);
+    auto description = std::string{};
+    for (const auto& [atomic_number, count] : ordered) {
+        if (!description.empty()) {
+            description += ", ";
+        }
+        description += std::string{element_symbol(atomic_number)} + ": " + std::to_string(count);
     }
     return description;
 }

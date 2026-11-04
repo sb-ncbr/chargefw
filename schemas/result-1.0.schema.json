@@ -231,6 +231,13 @@
           "uniqueItems": true,
           "items": { "type": "integer", "minimum": 0 },
           "description": "Every atom the diagnostic concerns, in atom order; atom_index is the one its message names."
+        },
+        "bond_indices": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "Every bond the diagnostic concerns, in bond order; bond_index is the one its message names."
         }
       }
     },

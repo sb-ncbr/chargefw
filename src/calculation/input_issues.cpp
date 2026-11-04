@@ -92,9 +92,10 @@ auto add_close_atom_issues(const std::span<const InputIssue> assessment_warnings
                                        "calculated from them may be wrong",
                                        conformer + 1, finding),
                 .molecule_index = index,
-                .conformer_index = conformer,
-                .atom_index = second,
-                .atom_indices = close->atoms});
+                .location = {.conformer_index = conformer,
+                             .atom_index = second,
+                             .other_atom_index = first,
+                             .atom_indices = close->atoms}});
         }
     }
     return result;

@@ -1,5 +1,6 @@
 #include <chargefw/adapters/charge_result.h>
 
+#include "adapters/component.h"
 #include "adapters/record_assignments.h"
 
 #include <chargefw/calculation/calculation.h>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <format>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -176,11 +178,7 @@ template <typename Issue>
     diagnostic.code = calculation::to_string(issue.kind);
     diagnostic.message = issue.message;
     diagnostic.molecule_index = issue.molecule_index;
-    diagnostic.conformer_index = issue.conformer_index;
-    diagnostic.atom_index = issue.atom_index;
-    if constexpr (requires { issue.atom_indices; }) {
-        diagnostic.atom_indices = issue.atom_indices;
-    }
+    diagnostic.location = issue.location;
     return diagnostic;
 }
 
@@ -439,6 +437,73 @@ auto charge_result_diagnostics(const ChargeCalculationResult& result)
     return diagnostics;
 }
 
+namespace {
+
+// The residue of an atom read from a structure, as PDB files and viewers name it.
+[[nodiscard]] auto atom_residue(const ImportedMoleculeRecord& record, const std::size_t atom_index)
+    -> std::optional<std::string> {
+    if (!record.import_metadata.has_value() || atom_index >= record.import_metadata->atoms.size()) {
+        return std::nullopt;
+    }
+    const auto* labels = record.import_metadata->atoms[atom_index].structural_labels.get();
+    if (labels == nullptr) {
+        return std::nullopt;
+    }
+    return detail::residue_description(
+        detail::first_known_label(labels->author.residue, labels->label.residue, "?"),
+        detail::first_known_label(labels->author.chain, labels->label.chain, "?"),
+        detail::first_known_label(labels->author.sequence, labels->label.sequence, "?"),
+        labels->insertion_code.value_or(""));
+}
+
+// Where the atoms a diagnostic points to are in the structure: its atom, the other atom of a pair,
+// and both atoms of its bond, in atom order. Messages describe atoms by number only, because the
+// calculation does not know residues.
+[[nodiscard]] auto residue_clause(const ImportedMoleculeRecord& record,
+                                  const core::IssueLocation& location) -> std::string {
+    auto atoms = std::vector<std::size_t>{};
+    for (const auto atom : {location.atom_index, location.other_atom_index}) {
+        if (atom.has_value()) {
+            atoms.push_back(*atom);
+        }
+    }
+    if (location.bond_index.has_value() && *location.bond_index < record.molecule.bond_count()) {
+        const auto& bond = record.molecule.bond(*location.bond_index);
+        atoms.push_back(bond.first_atom_index());
+        atoms.push_back(bond.second_atom_index());
+    }
+    std::ranges::sort(atoms);
+    const auto [duplicates, end] = std::ranges::unique(atoms);
+    atoms.erase(duplicates, end);
+    auto residues = std::vector<std::string>{};
+    for (const auto atom : atoms) {
+        auto residue = atom_residue(record, atom);
+        if (!residue.has_value()) {
+            return {};
+        }
+        residues.push_back(std::move(*residue));
+    }
+    if (residues.empty()) {
+        return {};
+    }
+    if (std::ranges::all_of(residues, [&](const auto& value) { return value == residues[0]; })) {
+        auto numbers = std::string{};
+        for (std::size_t index = 0; index < atoms.size(); ++index) {
+            numbers += (index == 0 ? "" : " and ") + std::to_string(atoms[index] + 1);
+        }
+        return std::format("; {} {} {} in {}", atoms.size() == 1 ? "atom" : "atoms", numbers,
+                           atoms.size() == 1 ? "is" : "are", residues[0]);
+    }
+    auto clause = std::string{};
+    for (std::size_t index = 0; index < atoms.size(); ++index) {
+        clause += std::format("{} atom {} is in {}", index == 0 ? ";" : ", and", atoms[index] + 1,
+                              residues[index]);
+    }
+    return clause;
+}
+
+} // namespace
+
 auto charge_record_diagnostics(const ChargeCalculationResult& result,
                                const std::size_t molecule_index) -> std::vector<ResultDiagnostic> {
     const auto records = result.inputs();
@@ -448,6 +513,12 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     const auto* execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
     auto seen = SeenDiagnostics{};
+    const auto with_residues = [&] {
+        for (auto& diagnostic : diagnostics) {
+            diagnostic.message += residue_clause(records[molecule_index], diagnostic.location);
+        }
+        return std::move(diagnostics);
+    };
     for (const auto& issue : records[molecule_index].issues) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
@@ -455,6 +526,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.message = issue.message;
         imported.molecule_index = molecule_index;
         imported.line = issue.line;
+        imported.location = issue.location;
         append_unique(diagnostics, seen, std::move(imported));
     }
     // Each warning is one finding, so two with the same text, such as for different atoms of a
@@ -481,7 +553,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         append_unique(diagnostics, seen, *diagnostic);
     }
     if (result.status() != ResultStatus::no_executable_plan) {
-        return diagnostics;
+        return with_residues();
     }
     auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
     std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,
@@ -499,9 +571,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             diagnostic.code = prerequisite_code(issue->kind);
             diagnostic.message = candidate + ": " + issue->message;
             diagnostic.molecule_index = issue->molecule_index;
-            diagnostic.atom_index = issue->atom_index;
-            diagnostic.bond_index = issue->bond_index;
-            diagnostic.conformer_index = issue->conformer_index;
+            diagnostic.location = issue->location;
             append_unique(diagnostics, seen, std::move(diagnostic));
         } else {
             const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);
@@ -513,7 +583,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             append_unique(diagnostics, seen, std::move(diagnostic));
         }
     }
-    return diagnostics;
+    return with_residues();
 }
 
 auto record_assignments(const ChargeCalculationResult& result, const std::size_t record_index)

@@ -2,6 +2,7 @@
 #include "support/test_molecules.h"
 
 #include <chargefw/core/atom.h>
+#include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/core/position.h>
@@ -148,8 +149,10 @@ TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
     for (std::size_t conformer_index = 0; conformer_index < 2; ++conformer_index) {
         const auto& issue = result.issues()[conformer_index];
         CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
-        CHECK(issue.atom_index == 1);
-        CHECK(issue.conformer_index == conformer_index);
+        CHECK(issue.location.atom_index == 1);
+        CHECK(issue.location.other_atom_index == 0);
+        CHECK(issue.location.atom_indices == std::vector<std::size_t>{0, 1});
+        CHECK(issue.location.conformer_index == conformer_index);
         CHECK(issue.message.contains("conformer " + std::to_string(conformer_index + 1)));
     }
     CHECK(result.issues()[0].message.contains("atom 1 (H, formal charge 0)"));
@@ -171,8 +174,8 @@ TEST_CASE("coordinate requirements reject non-finite coordinates",
     REQUIRE(result.issues().size() == 1);
     const auto& issue = result.issues()[0];
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
-    CHECK(issue.atom_index == 0);
-    CHECK(issue.conformer_index == 0);
+    CHECK(issue.location.atom_index == 0);
+    CHECK(issue.location.conformer_index == 0);
     CHECK(issue.message.contains("method 'coordinates-test'"));
     CHECK(issue.message.contains("atom 1 (H, formal charge 0)"));
 }
@@ -195,15 +198,21 @@ TEST_CASE("resource requirements do not restrict prerequisites",
 TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-prerequisites]") {
     const auto* abeem = methods::method_registry().find("abeem");
     REQUIRE(abeem != nullptr);
-    const core::Molecule berkelium_molecule{
-        std::vector{core::Atom{97}}, {}, std::vector{core::Conformer{{core::Position{}}}}};
-    const features::PreparedMolecule prepared_berkelium{berkelium_molecule};
+    // Berkelium and californium have no covalent radius; one issue lists all three atoms.
+    const core::Molecule actinides{
+        std::vector{core::Atom{1}, core::Atom{97}, core::Atom{97}, core::Atom{98}},
+        std::vector{core::Bond{0, 1}, core::Bond{1, 2}, core::Bond{2, 3}},
+        std::vector{core::Conformer{{core::Position{}, core::Position{.x = 2.0},
+                                     core::Position{.x = 4.0}, core::Position{.x = 6.0}}}}};
+    const features::PreparedMolecule prepared_actinides{actinides};
 
     const auto result = abeem->check_method_prerequisites(
-        {.prepared_molecule = prepared_berkelium, .method_options = methods::MethodOptions{}});
+        {.prepared_molecule = prepared_actinides, .method_options = methods::MethodOptions{}});
     CHECK(!result);
     REQUIRE(result.issues().size() == 1);
     CHECK(result.issues()[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(result.issues()[0].atom_index == 0);
-    CHECK(result.issues()[0].message.contains("atom 1 (Bk, formal charge 0)"));
+    CHECK(result.issues()[0].location.atom_index == 1);
+    CHECK(result.issues()[0].location.atom_indices == std::vector<std::size_t>{1, 2, 3});
+    CHECK(result.issues()[0].message.contains("3 of 4 atoms do not meet it (Bk: 2, Cf: 1)"));
+    CHECK(result.issues()[0].message.contains("atom 2 (Bk, formal charge 0)"));
 }

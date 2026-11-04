@@ -18,6 +18,7 @@ target_sources(chargefw_core_objects
         ../../include/chargefw/core/atom.h
         ../../include/chargefw/core/bond.h
         ../../include/chargefw/core/conformer.h
+        ../../include/chargefw/core/issue_location.h
         ../../include/chargefw/core/molecule.h
         ../../include/chargefw/core/molecule_collection.h
         ../../include/chargefw/core/position.h

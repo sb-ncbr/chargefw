@@ -315,7 +315,7 @@ TEST_CASE("assessment warns about molecules with carbon but no hydrogen",
         const auto& issue = assessment.input_warnings()[0];
         CHECK(issue.kind == calculation::InputIssueKind::hydrogens_missing);
         CHECK(issue.molecule_index == 1);
-        CHECK_FALSE(issue.conformer_index.has_value());
+        CHECK_FALSE(issue.location.conformer_index.has_value());
 
         const auto result = calculation::calculate(assessment);
         REQUIRE(result.input_warnings.size() == 1);
@@ -358,9 +358,55 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
                         calculation::InputIssueKind::atoms_too_close});
     const auto& close = result.input_warnings[1];
     CHECK(close.molecule_index == 1);
-    CHECK(close.conformer_index == 0);
-    CHECK(close.atom_index == 1);
-    CHECK(close.atom_indices == std::vector<std::size_t>{0, 1});
+    CHECK(close.location.conformer_index == 0);
+    CHECK(close.location.atom_index == 1);
+    CHECK(close.location.other_atom_index == 0);
+    CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
+}
+
+TEST_CASE("missing parameters give one issue for the atoms and one for the bonds",
+          "[calculation][calculation]") {
+    const auto only_issue = [](const calculation::AssessmentResult& assessment) {
+        REQUIRE(assessment.rejections().size() == 1);
+        REQUIRE(assessment.rejections()[0].issues.size() == 1);
+        return std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]);
+    };
+
+    // The parameters cover only H and O, so both carbons and the nitrogen lack them.
+    const auto atoms = core::Molecule{
+        std::vector{core::Atom{6}, core::Atom{1}, core::Atom{7}, core::Atom{6}, core::Atom{8}},
+        {},
+        {core::Conformer{{{0.0, 0.0, 0.0},
+                          {2.0, 0.0, 0.0},
+                          {4.0, 0.0, 0.0},
+                          {6.0, 0.0, 0.0},
+                          {8.0, 0.0, 0.0}}}}};
+    const auto atom_issue = only_issue(calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{atoms}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+        .method_id = "eem"}));
+    CHECK(atom_issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed);
+    CHECK(atom_issue.location.atom_index == 0);
+    CHECK(atom_issue.location.atom_indices == std::vector<std::size_t>{0, 2, 3});
+    CHECK(atom_issue.message.contains("3 of 5 atoms (C: 2, N: 1)"));
+
+    // The parameters have only the H-O bond, so both O-O bonds lack them.
+    const auto bonds = core::Molecule{
+        std::vector{core::Atom{1}, core::Atom{8}, core::Atom{8}, core::Atom{8}, core::Atom{1}},
+        std::vector{core::Bond{0, 1}, core::Bond{1, 2}, core::Bond{2, 3}, core::Bond{3, 4}},
+        {core::Conformer{{{0.0, 0.0, 0.0},
+                          {1.0, 0.0, 0.0},
+                          {2.5, 0.0, 0.0},
+                          {4.0, 0.0, 0.0},
+                          {5.0, 0.0, 0.0}}}}};
+    const auto bond_issue = only_issue(calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{bonds}},
+        .parameter_sets = {chargefw::test::make_sqe_ho_parameters("sqe")},
+        .method_id = "sqe"}));
+    CHECK(bond_issue.location.bond_index == 1);
+    CHECK(bond_issue.location.bond_indices == std::vector<std::size_t>{1, 2});
+    CHECK(bond_issue.location.atom_indices.empty());
+    CHECK(bond_issue.message.contains("2 of 4 bonds"));
 }
 
 TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",
@@ -376,10 +422,10 @@ TEST_CASE("charges far from their formal charges are reported, except those of f
     const auto& issue = dummy.charge_warnings[0];
     CHECK(issue.kind == calculation::ChargeIssueKind::charge_out_of_range);
     CHECK(issue.molecule_index == 1);
-    CHECK_FALSE(issue.conformer_index.has_value());
+    CHECK_FALSE(issue.location.conformer_index.has_value());
     // Exactly 6 e away is still in range.
-    CHECK(issue.atom_indices == std::vector<std::size_t>{0, 2});
-    CHECK(issue.atom_index == 0);
+    CHECK(issue.location.atom_indices == std::vector<std::size_t>{0, 2});
+    CHECK(issue.location.atom_index == 0);
 
     // A fixed ion keeps its prescribed charge, however far from its formal charge.
     const auto with_ion =
@@ -418,7 +464,7 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
         calculate(close_ion, {{.molecule_index = 0, .atom_index = 1, .charge = 2.0}});
     REQUIRE(close_result.input_warnings.size() == 1);
     CHECK(close_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
-    CHECK(close_result.input_warnings[0].atom_index == 2);
+    CHECK(close_result.input_warnings[0].location.atom_index == 2);
 
     // Two fixed ions may share a position; they are a close pair at 0 Å rather than hiding the
     // others.
@@ -431,9 +477,10 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
                                     {.molecule_index = 0, .atom_index = 3, .charge = 2.0}});
     REQUIRE(coincident_result.input_warnings.size() == 1);
     CHECK(coincident_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
-    CHECK(coincident_result.input_warnings[0].atom_index == 3);
+    CHECK(coincident_result.input_warnings[0].location.atom_index == 3);
     // Both ions are close to the oxygen as well.
-    CHECK(coincident_result.input_warnings[0].atom_indices == std::vector<std::size_t>{1, 2, 3});
+    CHECK(coincident_result.input_warnings[0].location.atom_indices ==
+          std::vector<std::size_t>{1, 2, 3});
 }
 
 TEST_CASE("explicit full execution reports its plan and effective provenance",

@@ -30,6 +30,10 @@
 - A calculated charge more than 6 e away from its atom's formal charge gives a
   `charge_out_of_range` warning, one per molecule or conformer, which names the furthest atom. Fixed
   ions are not checked.
+- A parameter set without values for some atoms or bonds of a molecule is rejected with one issue for
+  the atoms, which counts them by element, and one for the bonds, each listing all of them, instead of
+  one issue per atom or bond. A method that does not support some elements gives one issue for all such
+  atoms. A crystal structure without hydrogens gave tens of thousands of issues; it now gives a few.
 - Fixed ions in large systems are checked against the other atoms much faster.
 
 ### Output
@@ -43,13 +47,17 @@
 - Writing results of rejected large structures takes linear instead of quadratic time.
 - mmCIF output accepts charges from −10 to +10, the range of version 1.1 of the charge dictionary.
   Before, charges outside [−5, 5] were refused, which excluded fixed ions such as W⁶⁺.
-- A result JSON diagnostic about several atoms lists all of them in `atom_indices`.
+- A result JSON diagnostic about several atoms or bonds lists all of them in `atom_indices` or
+  `bond_indices`.
+- For PDB and mmCIF input, result JSON and command-line messages name the residue and chain of the
+  atoms a diagnostic points to, such as `atoms 3707 and 3708 are in PRO D 58`.
 
 ### Python
 
 - `molecule.import_diagnostics` is renamed to `molecule.import_issues`, and its values from
   `chargefw.ImportDiagnostic` to `chargefw.ImportIssue`, with a `kind` instead of a `code`. The kinds
-  are the same strings, such as `"partial_charges_ignored"`.
+  are the same strings, such as `"partial_charges_ignored"`. An `ImportIssue` lists the atoms and
+  bonds it concerns in `atom_indices` and `bond_indices`.
 - `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
   plan was recorded.
 - `Assessment.input_warnings` and `CalculationResult.input_warnings` list `chargefw.InputIssue`
@@ -80,8 +88,11 @@
 - `calculation::InputIssue`, `AssessmentResult::input_warnings()`, and
   `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
 - `calculation::ChargeIssue` and `ExecutionResult::charge_warnings` report cautions about calculated
-  charges. They, `InputIssue`, and `adapters::ResultDiagnostic` list every atom they concern in
-  `atom_indices`; `features::CloseAtoms::atoms` lists the atoms of close pairs.
+  charges. `features::CloseAtoms::atoms` lists the atoms of close pairs.
+- `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`,
+  `adapters::ImportIssue`, and `adapters::ResultDiagnostic` give their conformer, atom, and bond
+  indices in one `core::IssueLocation location`, which also lists every atom and bond they concern
+  in `atom_indices` and `bond_indices`.
 - `features::PreparedMolecule` finds the geometry defects of its conformers once, in
   `geometry_defects()`, and copies share them. The defects include atoms that are too close, in
   `close_atoms`; `features::find_close_atoms()` finds those for one conformer without caching.
