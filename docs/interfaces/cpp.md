@@ -327,14 +327,15 @@ not count toward the charge of the calculated atoms. A successful result contain
 their atoms, and `ExecutionResult::effective` records the sources.
 
 Code that calls a method directly, through `Method::calculate()`, passes fixed charges as a
-`std::span<const methods::FixedPointSource>` at the end of `methods::CalculationInput`; each source has a
-position and a charge. The input refers to the sources without copying them, so the source elements
-and their storage must stay valid for every call that uses the input; the span object itself need
-not. Such
-code must check `MethodRequirements::supports_fixed_point_sources` itself and pass an empty span to other
-methods, set the target charge to the charge of the calculated atoms, supply finite charges and
-coordinates with no source at an atom's position, and assemble the results; the method calculates only
-the atoms it is given.
+`std::span<const methods::FixedPointSource>` after the parameter view in
+`methods::CalculationInput`; each source has a position and a charge. The input refers to the
+sources without copying them, so the source elements and their storage must stay valid for every
+call that uses the input; the span object itself need not. Such code must check
+`MethodRequirements::supports_fixed_point_sources` itself and pass an empty span to other methods,
+set the target charge to the charge of the calculated atoms, supply finite charges and coordinates
+with no source at an atom's position, and assemble the results; the method calculates only the atoms
+it is given. The last argument, reference charges, is used by ChargeFW's cutoff and cover execution;
+leave it empty.
 
 ## Methods and parameter sets
 

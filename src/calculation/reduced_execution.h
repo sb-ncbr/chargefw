@@ -19,6 +19,9 @@ namespace chargefw::calculation::detail {
 struct ReducedChargeContext {
     std::vector<double> reference_charges;
     std::vector<std::vector<std::size_t>> conservation_groups;
+    // The method starts from the reference charges, so each fragment receives those of its atoms
+    // and starts where full execution would.
+    bool fragments_start_from_references = false;
 };
 
 // Projects whole-molecule parameter entry indices to an induced fragment without reclassification.

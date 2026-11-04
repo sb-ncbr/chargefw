@@ -350,6 +350,16 @@ The application-facing charge result owns those ordered imported records togethe
 execution result. Output adapters consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
 
+### Departures from method publications
+
+Where a method's publication does not cover an input, ChargeFW follows the method's construction and
+says so in the method's "In ChargeFW" paragraph in `docs/guide/methods.md`. SQE+qp is the example:
+Schindler et al. normalize the parameterized reference charges over all atoms of the molecule, and their
+data sets had one connected component per molecule. Because SQE moves charge only along bonds, a single
+normalization over several components would fix each component's total at a value set by the sizes and
+parameters of the others. ChargeFW normalizes each component to its formal charge instead, as SQE+q0
+does, which gives the published result for a single component.
+
 ### Issues and diagnostics
 
 Each stage reports what it finds as its own issue type, with a kind enum and only the fields that

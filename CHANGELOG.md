@@ -39,6 +39,11 @@
   change. Set `overlap_term` to `DasGupta-Huzinaga` for the previous results.
 - The QEq `overlap_term` choice `Louwen-Vogt` is removed. It used the hardness in place of the
   Coulomb integral at zero distance, which made charges diverge.
+- SQE+qp normalizes its parameterized charges in each connected component, so that every protein
+  chain, ligand, and water molecule keeps its formal charge. Before, one normalization over the whole
+  structure gave each component a total that depended on the others: in a crystal structure, each
+  water got about +0.07 e and protein chains were off by several electrons, and a ligand with charge −2
+  came out near −0.1. Results for molecules with one component do not change.
 
 ### Output
 

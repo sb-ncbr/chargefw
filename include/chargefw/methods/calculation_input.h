@@ -19,22 +19,30 @@ struct FixedPointSource {
 
 class CalculationInput {
   public:
-    // fixed_sources is borrowed and must outlive every call using this input.
+    // fixed_sources and reference_charges are borrowed and must outlive every call using this
+    // input.
+    //
+    // reference_charges is empty or has one value per atom. A method that starts from per-atom
+    // reference charges uses these values as they are, instead of deriving and normalizing its
+    // own, and its result keeps their sum instead of target_charge. Methods without reference
+    // charges ignore them. Reduced execution passes each fragment the values of its atoms
+    // computed for the whole molecule; they need not sum to the fragment's formal charge.
     CalculationInput(const features::PreparedMolecule& prepared_molecule,
                      const MethodOptions& method_options, double target_charge,
                      const features::ConformerFeatures* geometry = nullptr,
                      const parameters::ParameterView* parameters = nullptr,
-                     std::span<const FixedPointSource> fixed_sources = {});
+                     std::span<const FixedPointSource> fixed_sources = {},
+                     std::span<const double> reference_charges = {});
 
     CalculationInput(features::PreparedMolecule&&, const MethodOptions&, double,
                      const features::ConformerFeatures* = nullptr,
                      const parameters::ParameterView* = nullptr,
-                     std::span<const FixedPointSource> = {}) = delete;
+                     std::span<const FixedPointSource> = {}, std::span<const double> = {}) = delete;
 
     CalculationInput(const features::PreparedMolecule&, MethodOptions&&, double,
                      const features::ConformerFeatures* = nullptr,
                      const parameters::ParameterView* = nullptr,
-                     std::span<const FixedPointSource> = {}) = delete;
+                     std::span<const FixedPointSource> = {}, std::span<const double> = {}) = delete;
 
     [[nodiscard]] auto prepared_molecule() const noexcept -> const features::PreparedMolecule&;
 
@@ -47,6 +55,8 @@ class CalculationInput {
     [[nodiscard]] auto target_charge() const noexcept -> double;
 
     [[nodiscard]] auto fixed_sources() const noexcept -> std::span<const FixedPointSource>;
+
+    [[nodiscard]] auto reference_charges() const noexcept -> std::span<const double>;
 
     [[nodiscard]] auto has_geometry() const noexcept -> bool;
 
@@ -67,6 +77,7 @@ class CalculationInput {
     const features::ConformerFeatures* geometry_ = nullptr;
     const parameters::ParameterView* parameters_ = nullptr;
     std::span<const FixedPointSource> fixed_sources_;
+    std::span<const double> reference_charges_;
 };
 
 } // namespace chargefw::methods

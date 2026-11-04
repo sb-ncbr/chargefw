@@ -1,5 +1,6 @@
 #include "calculation/reduced_execution.h"
 #include "features/topology_helpers.h"
+#include "methods/reference_charges.h"
 
 #include <chargefw/features/conformer_features.h>
 #include <chargefw/features/prepared_molecule.h>
@@ -122,17 +123,10 @@ auto prepare_reduced_charge_context(
         for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
             context.reference_charges[atom_index] = q0[atom_index];
         }
-        if (!context.reference_charges.empty()) {
-            auto raw_total = CompensatedSum{};
-            for (const auto reference : context.reference_charges) {
-                raw_total.add(reference);
-            }
-            const auto offset = (core::total_formal_charge(molecule) - raw_total.value()) /
-                                static_cast<double>(context.reference_charges.size());
-            for (auto& reference : context.reference_charges) {
-                reference += offset;
-            }
-        }
+        context.reference_charges = methods::detail::component_normalized_charges(
+            molecule, source.topology(), std::move(context.reference_charges),
+            core::total_formal_charge(molecule));
+        context.fragments_start_from_references = true;
         break;
     }
     case methods::ReducedChargePolicy::unsupported:
@@ -197,13 +191,22 @@ auto calculate_fragment_charges(const methods::ApplicableMethod& selected,
             : std::optional<parameters::ParameterView>{std::in_place, *selected.parameter_set,
                                                        projected_classification};
 
+    auto references = std::vector<double>{};
+    if (charge_context.fragments_start_from_references) {
+        references.reserve(fragment.molecule().atom_count());
+        for (const auto source_atom_index : fragment.local_to_source_atom_indices()) {
+            references.push_back(charge_context.reference_charges.at(source_atom_index));
+        }
+    }
+
     const methods::CalculationInput input{prepared_fragment,
                                           selected.method_options,
                                           target_charge,
                                           &geometry,
                                           parameter_view ? std::addressof(*parameter_view)
                                                          : nullptr,
-                                          fixed_sources};
+                                          fixed_sources,
+                                          references};
     const auto charges = selected.method->calculate(input);
     if (charges.size() != fragment.molecule().atom_count()) {
         throw std::runtime_error{"method '" + std::string{selected.method->id()} + "' produced " +

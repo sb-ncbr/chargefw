@@ -164,21 +164,57 @@ TEST_CASE("SQE+qp subtracts the Gaussian-to-point source field before bond proje
     }
 }
 
-TEST_CASE("SQE+qp keeps global seed normalization across disconnected components",
-          "[methods][sqeqp]") {
+TEST_CASE("SQE+qp keeps each disconnected component at its formal charge", "[methods][sqeqp]") {
+    // Two bonded pairs 3 Å apart, with formal charges +1 and -1, polarized by a fixed source.
     const auto molecule = core::Molecule{
-        std::vector{core::Atom{1}, core::Atom{8}, core::Atom{6}, core::Atom{7}},
+        std::vector{core::Atom{1}, core::Atom{8, 1}, core::Atom{6, -1}, core::Atom{7}},
         {core::Bond{0, 1}, core::Bond{2, 3}},
         {core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {4.0, 0.0, 0.0}, {5.0, 0.0, 0.0}}}},
         "two-components"};
     const auto parameter_set = make_disconnected_parameters();
     const auto sources = std::array{methods::FixedPointSource{{0.0, 2.0, 0.0}, 0.3}};
-    const auto result_charges =
-        calculate_sqeqp(molecule, parameter_set, 0.8, sources, {0, 1, 2, 3}, {0, 1});
 
-    CHECK(std::abs((result_charges[0] + result_charges[1]) - 0.6) < 1.0e-12);
-    CHECK(std::abs((result_charges[2] + result_charges[3]) - 0.2) < 1.0e-12);
-    CHECK(std::abs(result_charges.total() - 0.8) < 1.0e-12);
+    for (const auto& fixed_sources : {std::span<const methods::FixedPointSource>{},
+                                      std::span<const methods::FixedPointSource>{sources}}) {
+        CAPTURE(fixed_sources.size());
+        const auto charges =
+            calculate_sqeqp(molecule, parameter_set, 0.0, fixed_sources, {0, 1, 2, 3}, {0, 1});
+        CHECK(std::abs((charges[0] + charges[1]) - 1.0) < 1.0e-12);
+        CHECK(std::abs((charges[2] + charges[3]) + 1.0) < 1.0e-12);
+    }
+
+    // A total charge other than the formal charges is spread over all atoms.
+    const auto shifted = calculate_sqeqp(molecule, parameter_set, 0.8, {}, {0, 1, 2, 3}, {0, 1});
+    CHECK(std::abs((shifted[0] + shifted[1]) - 1.4) < 1.0e-12);
+    CHECK(std::abs((shifted[2] + shifted[3]) + 0.6) < 1.0e-12);
+}
+
+TEST_CASE("SQE+qp starts from given reference charges as they are", "[methods][sqeqp]") {
+    const auto molecule = core::Molecule{std::vector{core::Atom{1}, core::Atom{8}},
+                                         {core::Bond{0, 1}},
+                                         {core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}}}},
+                                         "bonded-pair"};
+    const auto parameter_set = make_parameter_set();
+    const features::PreparedMolecule prepared{molecule};
+    const features::ConformerFeatures geometry{molecule, 0};
+    const parameters::ParameterClassification classification{
+        parameters::AtomParameterClassification{{0, 1}},
+        parameters::BondParameterClassification{{0}}};
+    const parameters::ParameterView parameter_view{parameter_set, classification};
+    const auto* method = methods::method_registry().find("sqeqp");
+    REQUIRE(method != nullptr);
+    const auto options = methods::make_default_options(method->option_schema());
+
+    // The result keeps the sum of the reference charges, not the target charge.
+    const auto references = std::array{0.4, -0.1};
+    const methods::CalculationInput input{prepared,        options, 0.0,       &geometry,
+                                          &parameter_view, {},      references};
+    CHECK(std::abs(method->calculate(input).total() - 0.3) < 1.0e-12);
+
+    const auto too_few = std::array{0.0};
+    CHECK_THROWS_AS((methods::CalculationInput{
+                        prepared, options, 0.0, &geometry, &parameter_view, {}, too_few}),
+                    std::invalid_argument);
 }
 
 TEST_CASE("SQE+qp validates sources before the no-bond return", "[methods][sqeqp]") {
@@ -210,7 +246,9 @@ TEST_CASE("SQE+qp validates sources before the no-bond return", "[methods][sqeqp
     const auto no_field = calculate_sqeqp(molecule, parameter_set, 0.7, empty_sources, {0, 1}, {});
     const auto with_source =
         calculate_sqeqp(molecule, parameter_set, 0.7, valid_source, {0, 1}, {});
-    CHECK(std::abs(no_field[0] - 0.725) < 1.0e-12);
-    CHECK(std::abs(no_field[1] + 0.025) < 1.0e-12);
+    // Unbonded atoms are separate components at their formal charges, 0; the rest of the total
+    // charge is spread evenly.
+    CHECK(std::abs(no_field[0] - 0.35) < 1.0e-12);
+    CHECK(std::abs(no_field[1] - 0.35) < 1.0e-12);
     CHECK(std::ranges::equal(no_field.values(), with_source.values()));
 }
