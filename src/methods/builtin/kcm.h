@@ -7,14 +7,13 @@ namespace chargefw::methods::builtin {
 class KCMMethod final : public Method {
   public:
     [[nodiscard]] auto metadata() const noexcept -> const MethodMetadata& override {
-        static constexpr MethodMetadata metadata{.id = "kcm",
-                                                 .name = "KCM",
-                                                 .full_name = "Kirchhoff Charge Model",
-                                                 .publication = "10.1002/jcc.20892",
-                                                 .notes =
-                                                     "Every connected component must be formally "
-                                                     "neutral.",
-                                                 .priority = 60};
+        static constexpr MethodMetadata metadata{
+            .id = "kcm",
+            .name = "KCM",
+            .full_name = "Kirchhoff Charge Model",
+            .publication = "10.1002/jcc.20892",
+            .notes = "The formal charges of every bonded part must add up to zero.",
+            .priority = 60};
 
         return metadata;
     }

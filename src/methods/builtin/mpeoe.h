@@ -14,11 +14,9 @@ class MPEOEMethod final : public Method {
             .name = "MPEOE",
             .full_name = "Modified Partial Equalization of Orbital Electronegativity",
             .publication = "10.1021/j100374a066",
-            .notes =
-                "With the default zero-charge initialization, every connected component must be "
-                "formally neutral. "
-                "initial_charges=formal is a ChargeFW extension that preserves supplied formal "
-                "charges.",
+            .notes = "With the default initial_charges=zero, the formal charges of every bonded "
+                     "part must add up to zero. initial_charges=formal, added by ChargeFW, starts "
+                     "from the formal charges and allows charged molecules.",
             .priority = 110};
 
         return metadata;

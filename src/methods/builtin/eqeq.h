@@ -22,9 +22,8 @@ class EQeqMethod final : public Method {
             .name = "EQeq",
             .full_name = "Extended Charge Equilibration Method",
             .publication = "10.1021/jz3008485",
-            .notes = "Implements the finite, non-periodic EQeq variant "
-                     "using neutral atomic reference-charge centers "
-                     "only.",
+            .notes = "Calculates the molecule on its own, without periodic copies, with neutral "
+                     "charge centers.",
             .priority = 150};
 
         return metadata;

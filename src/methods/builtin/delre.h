@@ -7,15 +7,14 @@ namespace chargefw::methods::builtin {
 class DelReMethod final : public Method {
   public:
     [[nodiscard]] auto metadata() const noexcept -> const MethodMetadata& override {
-        static constexpr MethodMetadata metadata{.id = "delre",
-                                                 .name = "DelRe",
-                                                 .full_name = "Method of Del Re",
-                                                 .publication = "10.1039/JR9580004031",
-                                                 .notes =
-                                                     "Every connected component must be formally "
-                                                     "neutral.",
-                                                 .priority = 130,
-                                                 .recommended = false};
+        static constexpr MethodMetadata metadata{
+            .id = "delre",
+            .name = "DelRe",
+            .full_name = "Method of Del Re",
+            .publication = "10.1039/JR9580004031",
+            .notes = "The formal charges of every bonded part must add up to zero.",
+            .priority = 130,
+            .recommended = false};
 
         return metadata;
     }

@@ -39,7 +39,8 @@ inline auto add_component_neutrality_prerequisite_issue(const MethodPrerequisite
             result.add(PrerequisiteIssue{
                 .kind = PrerequisiteIssueKind::unsupported_molecule,
                 .message = std::string{method_name} +
-                           " supports only molecules with neutral connected components" +
+                           " supports only molecules in which every bonded part has zero total "
+                           "formal charge" +
                            (reason.empty() ? std::string{} : " because " + std::string{reason})});
             return;
         }

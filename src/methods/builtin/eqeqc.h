@@ -12,9 +12,8 @@ class EQeqCMethod final : public Method {
             .name = "EQeq+C",
             .full_name = "Bond-Order-Corrected Extended Charge Equilibration Method",
             .publication = "10.1021/acs.jctc.5b00037",
-            .notes =
-                "The correction uses a geometry-derived all-pairs bond-order term; input bonds "
-                "and bond orders are not used.",
+            .notes = "The correction depends on the distances between atoms; the bonds of the "
+                     "input are not used.",
             .priority = 140};
 
         return metadata;

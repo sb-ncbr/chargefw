@@ -67,9 +67,9 @@ or `cutoff_threshold` and `cover_threshold` in Python. `unlimited` on the comman
 Python, removes a limit. The cover limit must not be lower than the cutoff limit, and removing the
 cutoff limit requires removing the cover limit too.
 
-Before a long calculation, `chargefw applicability` estimates the working memory and the number of
-operations of every possible plan. For the Trp-cage miniprotein {download}`1l2y-h.cif` (304 atoms) and
-SQE+qp:
+Before a long calculation, `chargefw applicability` estimates the memory and the number of
+operations of every plan: each combination of method, parameter set, and execution mode that
+applies. For the Trp-cage miniprotein {download}`1l2y-h.cif` (304 atoms) and SQE+qp:
 
 ```console
 $ chargefw applicability --method sqeqp --parameter-set SQEqp_Schindler2021_CCD_gen 1l2y-h.cif
@@ -129,7 +129,7 @@ in full and with the approximation, and compare.
 ChargeFW uses all available processor cores. Full execution calculates several molecules in parallel;
 cutoff and cover calculate one molecule at a time and its fragments in parallel.
 
-The estimates count the working memory of the calculation itself, not the memory of the loaded
-structure, and the operations of the method; they compare plans and do not predict seconds. Fragment
-sizes are estimated for the atom density of packed proteins with hydrogens, about 0.1 atoms per Å³, so
-the estimates are most accurate for compact structures.
+The estimates count the memory of the calculation itself, not that of the loaded structure, and the
+operations of the method; they compare plans and do not predict seconds. Fragment sizes are
+estimated for the atom density of packed proteins with hydrogens, about 0.1 atoms per Å³, so the
+estimates are most accurate for compact structures.

@@ -12,8 +12,7 @@ class FormalMethod final : public Method {
             .name = "Formal",
             .full_name = "Formal atomic charges",
             .publication = std::nullopt,
-            .notes = "Copies input atomic formal charges unchanged; "
-                     "not an empirical charge model.",
+            .notes = "Returns the formal charges of the input unchanged; not a charge model.",
             .priority = 10,
             .recommended = false};
 

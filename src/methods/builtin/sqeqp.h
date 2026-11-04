@@ -12,8 +12,8 @@ class SQEqpMethod final : public Method {
             .name = "SQE+qp",
             .full_name = "Split-charge Equilibration with Parameterized Initial Charges",
             .publication = "10.1186/s13321-021-00528-w",
-            .notes = "Parameterized reference charges are normalized within each connected "
-                     "component to its formal charge before equilibration.",
+            .notes = "The parameterized starting charges are shifted within every bonded part to "
+                     "add up to its formal charge.",
             .priority = 210};
 
         return metadata;

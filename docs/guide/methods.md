@@ -43,8 +43,9 @@ To see why a method or parameter set was not used, without calculating anything:
 chargefw applicability molecule.sdf
 ```
 
-In Python, `chargefw.assess()` returns the runnable plans and, in `rejections`, the reasons for every
-rejected candidate; see [Python](../interfaces/python.md#assessing-before-calculating).
+In Python, `chargefw.assess()` returns the combinations of method and parameter set that apply, and
+in `rejections` the reason for each one that does not; see
+[Python](../interfaces/python.md#assessing-before-calculating).
 
 When a parameter set is rejected because a few atoms of a large structure have no matching entry, for
 example the oxygen of a water molecule without its hydrogens,
@@ -111,6 +112,10 @@ command line, or `options={"iters": 8}` in Python; see
 
 The symbols used throughout: $q_i$ stands for the charge on the $i$th atom, $Q$ is the total charge of
 the molecule, $N$ is the number of atoms, and $R_{i,j}$ is the distance between atoms $i$ and $j$ in Å.
+
+A bonded part is a group of atoms joined by bonds that has no bond to the rest of the input, such as
+each ion of a salt, or a protein chain, a ligand, or a water molecule in a structure. Several
+methods move charge only along bonds, so each bonded part keeps its total charge.
 
 Each description explains the method as published. **When to use** follows for methods whose charges
 are not recommended for general use, and **In ChargeFW** gives the options, what the molecule must
@@ -188,9 +193,9 @@ $$
 \delta_i = \delta_i^0 + \sum_j \gamma_{i \leftarrow j}\,\delta_j
 $$
 
-where $j$ iterates over atoms bonded to $i$, $\delta_i^0$ is an atom parameter, and $\gamma$ is a bond
-parameter with a separate value for each direction of the bond. Solving for $\delta$ gives the bond
-charges:
+where $j$ runs over the atoms bonded to $i$, $\delta_i^0$ is an atom parameter, and $\gamma$ is a
+bond parameter with a separate value for each direction of the bond. Solving for $\delta$ gives the
+bond charges:
 
 $$
 q_{i,j} = \frac{\delta_i - \delta_j}{2\varepsilon_{i,j}}
@@ -203,10 +208,11 @@ it; the charge on each atom is the sum over its bonds.
 development of empirical charges. Its bundled parameters cover only bonds of carbon to H, C, N, O, F,
 and Cl and of N–H and O–H, and its charges are not recommended for general use.
 
-**In ChargeFW.** Every connected component must be formally neutral. The publication gives the two
-directions of $\gamma$ for each pair of elements; ChargeFW orients a bond by the elements of the
-parameter entry it matches. For a bond between two atoms of the same element, the bundled parameters
-give both directions the same value.
+**In ChargeFW.** The formal charges of every bonded part must add up to zero. Each parameter entry
+names two elements and gives $\gamma$ for both directions: for a C–H entry, first
+$\gamma_{\mathrm{C} \leftarrow \mathrm{H}}$, then $\gamma_{\mathrm{H} \leftarrow \mathrm{C}}$. For
+bonds between two atoms of the same element, the bundled parameters give both directions the same
+value.
 
 (peoe)=
 #### PEOE
@@ -233,8 +239,8 @@ transferred. For hydrogen, the denominator is a hydrogen-specific value. The fin
 charges plus the transfers of all iterations.
 
 **In ChargeFW.** `iters` sets the number of iterations (default 6). With the default
-`initial_charges=zero`, every connected component must be formally neutral; `initial_charges=formal`
-starts from the formal charges and allows charged molecules.
+`initial_charges=zero`, the formal charges of every bonded part must add up to zero;
+`initial_charges=formal` starts from the formal charges and allows charged molecules.
 
 (mpeoe)=
 #### MPEOE
@@ -276,15 +282,16 @@ the backbone and side chains of proteins.
 recommended for general use: outside the molecules it was fitted to, the iteration can move charges of
 many electrons, and ChargeFW's atom types make this happen for amides (see below).
 
-**In ChargeFW.** `iters` sets the number of iterations (default 7); the publication iterates until the
-charges converge. The publication starts charged molecules from assigned initial charges; ChargeFW
-does not, so every connected component must be formally neutral.
+**In ChargeFW.** `iters` sets the number of iterations (default 7); the publication iterates until
+the charges converge. The publication starts charged molecules from assigned initial charges;
+ChargeFW does not, so the formal charges of every bonded part must add up to zero.
 
-The bundled parameter set types atoms by their highest bond order and has the publication's values
-for H, C, N, O, and S with single or double bonds. The publication types the nitrogen of amides as
-sp2, but by bond order it has only single bonds and gets the sp3 values. Their negative charge
-coefficient lets the charges of amides and peptides grow to tens or hundreds of electrons. The
-publication's types for aromatic rings, arginine, histidine, and charged groups are not included.
+The bundled parameter set tells atoms apart by element and highest bond order, and has the
+publication's values for H, C, N, O, and S with single or double bonds. The publication treats the
+nitrogen of an amide as sp2. Its bonds are all single, however, so ChargeFW gives it the sp3 values,
+whose $B$ is negative (−2.47). This lets the charges of amides and peptides grow to tens or hundreds
+of electrons. The publication's values for aromatic rings, arginine, histidine, and charged groups
+are not included.
 
 ChargeFW uses the van der Waals radii of Bondi (C 1.70, N 1.55, O 1.52 Å); the publication used those
 of Rowland and Taylor (C 1.77, N 1.64, O 1.58 Å).
@@ -323,7 +330,7 @@ where $P^0$ and $q^0$ are atom parameters and $\alpha$ is a common parameter.
 are not recommended for general use.
 
 **In ChargeFW.** The iteration stops when no charge changes by more than $10^{-5}$, or after `iters`
-iterations (default 10). Every connected component must be formally neutral.
+iterations (default 10). The formal charges of every bonded part must add up to zero.
 
 (mgc)=
 #### MGC
@@ -351,7 +358,7 @@ $$
 \mathbf{q} = \frac{\boldsymbol{\chi} - \boldsymbol{\chi}^0}{\chi_M}
 $$
 
-**In ChargeFW.** Every connected component must be formally neutral.
+**In ChargeFW.** The formal charges of every bonded part must add up to zero.
 
 (kcm)=
 #### KCM
@@ -372,10 +379,10 @@ $$
 
 where $\boldsymbol{\chi}^0$ is the vector of atom electronegativities.
 
-**In ChargeFW.** Every connected component must be formally neutral. The publication distinguishes 49
-atom types derived from MMFF94, including aromatic and resonance types. The bundled parameter sets
-type atoms by element and highest bond order and contain 8 of them; nitrogen has values only with
-single bonds.
+**In ChargeFW.** The formal charges of every bonded part must add up to zero. The publication
+distinguishes 49 atom types derived from MMFF94, including aromatic and resonance types. The bundled
+parameter sets tell atoms apart only by element and highest bond order and have values for 8 such
+types; nitrogen has values only with single bonds.
 
 (denr)=
 #### DENR
@@ -393,7 +400,7 @@ of atom hardnesses, $\boldsymbol{\chi}^0$ is the vector of atom electronegativit
 $\mathbf{q}^{(0)} = \mathbf{0}$.
 
 **In ChargeFW.** `step` sets $\Delta t$ (default 0.1) and `iters` the number of steps (default 3).
-Every connected component must be formally neutral.
+The formal charges of every bonded part must add up to zero.
 
 (tsef)=
 #### TSEF
@@ -414,7 +421,7 @@ where $\chi^0$ and $\eta$ are atom parameters, $\mathrm{MDP}$ is the minimal dis
 minimal number of bonds between two atoms, and $K$ is 0.556, 0.778, 1.000, 1.053, 1.087, and 1.091 for
 paths of 1 to 6 bonds and 1.091 for longer paths.
 
-**In ChargeFW.** The molecular graph must be connected.
+**In ChargeFW.** All atoms must be joined by bonds into one bonded part.
 
 (veem)=
 #### VEEM
@@ -603,9 +610,10 @@ O_{i,j} = e^{-a^2 R_{i,j}^2} \left(2a - a^2 R_{i,j} - \frac{1}{R_{i,j}}\right), 
 a = \frac{\sqrt{J_i J_j}}{k}
 $$
 
-**In ChargeFW.** Only this case is implemented. The publication also treats periodic crystals, such as
-metal–organic frameworks, with Ewald sums, and charge centers other than zero. A unit cell calculated
-in ChargeFW is treated as an isolated cluster, so its charges are not those of the crystal.
+**In ChargeFW.** ChargeFW calculates only this case. The publication also treats periodic crystals,
+such as metal–organic frameworks, with Ewald sums, and charge centers other than zero. A unit cell
+calculated in ChargeFW is treated as an isolated cluster, so its charges are not those of the
+crystal.
 
 (eqeqc)=
 #### EQeq+C
@@ -630,9 +638,10 @@ runs over all atom pairs; the bonds of the input are not used.
 (sqe)=
 #### SQE
 
-Split-charge Equilibration ([Nistor 2006](https://doi.org/10.1063/1.2346671)) is based on electronegativity
-equalization. Unlike EEM or QEq, it works in the bond domain with split charges, i.e., charges located on
-the bonds. The split charges $\mathbf{p}$ and the atomic charges $\mathbf{q}$ are:
+Split-charge Equilibration ([Nistor 2006](https://doi.org/10.1063/1.2346671)) is based on
+electronegativity equalization. Unlike EEM or QEq, it calculates split charges: charges that move
+across the bonds, from which the atomic charges follow. The split charges $\mathbf{p}$ and the
+atomic charges $\mathbf{q}$ are:
 
 $$
 \left(\mathbf{T} \mathbf{H} \mathbf{T}^{\mathsf T} + \operatorname{diag}(\boldsymbol{\kappa})\right) \mathbf{p}
@@ -651,14 +660,14 @@ $$
 
 where $w$ is an atom parameter for the charge width.
 
-**In ChargeFW.** Every connected component must be formally neutral; use [SQE+q0](#sqeq0) for charged
-molecules. SQE supports [fixed ions](fixed-ions.md#what-the-approximation-does).
+**In ChargeFW.** The formal charges of every bonded part must add up to zero; use [SQE+q0](#sqeq0)
+for charged molecules. SQE supports [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 (sqeq0)=
 #### SQE+q0
 
-SQE+q0 ([Verstraelen 2012](https://doi.org/10.1021/ct200512e)) extends [SQE](#sqe) by using the formal
-charges $\mathbf{q}_0$ as initial seeds:
+SQE+q0 ([Verstraelen 2012](https://doi.org/10.1021/ct200512e)) extends [SQE](#sqe) by using the
+formal charges $\mathbf{q}_0$ as starting charges:
 
 $$
 \left(\mathbf{T} \mathbf{H} \mathbf{T}^{\mathsf T} + \operatorname{diag}(\boldsymbol{\kappa})\right) \mathbf{p}
@@ -667,8 +676,8 @@ $$
 \mathbf{q} = \mathbf{T}^{\mathsf T} \mathbf{p} + \mathbf{q}_0
 $$
 
-where $\boldsymbol{\eta}$ is the vector of atomic hardnesses and $*$ is the element-wise product. Each
-connected component keeps the sum of its formal charges.
+where $\boldsymbol{\eta}$ is the vector of atomic hardnesses and $*$ is the element-wise product.
+Each bonded part keeps the sum of its formal charges.
 
 **In ChargeFW.** SQE+q0 supports charged molecules and
 [fixed ions](fixed-ions.md#what-the-approximation-does).
@@ -688,23 +697,22 @@ where $\mathbf{1}^{\mathsf T}$ is a row vector of ones, $N$ the number of atoms,
 charge. The rest of the procedure is the same as in [SQE+q0](#sqeq0), with $\mathbf{q}_{pn}$ in place
 of $\mathbf{q}_0$.
 
-**In ChargeFW.** The normalization is applied to each connected component, the atoms joined by bonds,
-with its own $N$ and its formal charge as $Q$. Charge moves only along bonds, so each component, such as
-a protein chain, a ligand, or a water molecule, keeps its formal charge, as in SQE+q0. For a molecule
-with one component this is the published formula. The publication normalizes over all atoms of the
-molecule, which, for a structure with several components, gives each one a total that depends on the
+**In ChargeFW.** The normalization is applied to each bonded part, with its own $N$ and its formal
+charge as $Q$. Charge moves only along bonds, so each bonded part, such as a protein chain, a
+ligand, or a water molecule, keeps its formal charge, as in SQE+q0. For a molecule that is one
+bonded part, this is the published formula. The publication normalizes over all atoms of the
+molecule, which, for a structure of several bonded parts, gives each one a total that depends on the
 size and parameters of the others. SQE+qp supports charged molecules and
 [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 ## Calculation cost
 
-The **Time** column above and the memory reported by `chargefw methods` describe how the cost of one
-full calculation grows with the number of atoms $n$ and bonds $m$. Memory counts the method's working
-storage, not the molecule itself. These terms show how a method scales; they do not predict seconds or
-bytes.
+The **Time** column above, and the memory that `chargefw methods` reports, show how the cost of one
+full calculation grows with the number of atoms $n$ and bonds $m$: $O(n^3)$ means that twice as many
+atoms take about eight times as long. Memory is what the method needs on top of the molecule itself.
+These terms compare methods; they do not give seconds or bytes.
 
-Before calculating, ChargeFW also estimates the working memory and the number of operations of each
-plan for your molecules. Dense linear algebra is counted in floating-point operations and other loops
-per atom, bond, or atom pair; iterative methods are counted at their maximum number of iterations.
-Use the estimates to compare plans, not to predict run time;
-[resource estimates](large-structures.md#threads-and-estimates) describes what they include.
+For your molecules, ChargeFW also estimates the memory and the amount of work of each method and
+parameter set before calculating, counting iterative methods at their maximum number of iterations.
+Use the estimates to compare the possibilities, not to predict the run time;
+[Threads and estimates](large-structures.md#threads-and-estimates) explains them.

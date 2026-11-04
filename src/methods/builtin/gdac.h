@@ -17,9 +17,9 @@ class GDACMethod final : public Method {
             .name = "GDAC",
             .full_name = "Geometry-Dependent Net Atomic Charges",
             .publication = "10.1021/jp0023213",
-            .notes = "This implementation omits charged-species "
-                     "initialization; every connected component must be "
-                     "formally neutral.",
+            .notes =
+                "Starts from zero charges, so the formal charges of every bonded part must add up "
+                "to zero.",
             .priority = 100,
             .recommended = false};
 

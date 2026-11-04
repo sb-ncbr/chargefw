@@ -259,7 +259,7 @@ with its first reason:
 
 ```text
 no method and parameter set apply to the molecules:
-  method 'peoe': molecule 1 ('1L2Y'): PEOE supports only molecules with neutral connected components
+  method 'peoe': molecule 1 ('1L2Y'): PEOE supports only molecules in which every bonded part has zero total formal charge
 ```
 
 The exception's `result` holds the complete result, with every reason; it can still be written as

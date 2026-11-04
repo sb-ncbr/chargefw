@@ -9,8 +9,8 @@ Methods that use 3D coordinates give each conformer of a molecule its own charge
 or mmCIF file, the conformers of an RDKit molecule, and the conformers in molecule JSON all count as
 conformers. Methods that use only the molecular graph give one set of charges per molecule.
 
-Each set of charges is an assignment. Here ethanol gets three RDKit conformers; the RDKit integration
-needs `pip install --pre "chargefw[rdkit]"`:
+ChargeFW calls each set of charges an assignment. Here ethanol gets three RDKit conformers; the
+RDKit integration needs `pip install --pre "chargefw[rdkit]"`:
 
 ```python
 from rdkit import Chem
@@ -55,11 +55,11 @@ input file, or of the RDKit molecule or arrays you passed in. For PDB and mmCIF 
 that pass the [structural selection](../reference/formats.md#structural-selection) are included, still
 in file order.
 
-`assignment.atom_ids` holds one ID per atom: its ID in the input file, or its position in the file when
-the format has no atom IDs. For PDB and mmCIF files with several models, these IDs are those of the
-first model. The atom sites of the model that a conformer came from are in
-`molecule.source_mapping.conformers[assignment.conformer_index].sites`, each with its `id`. mmCIF
-output and attaching charges to a Gemmi document use this mapping for you.
+`assignment.atom_ids` holds one ID per atom: its ID in the input file, or its position in the file
+when the format has no atom IDs. For PDB and mmCIF files with several models, these IDs are those of
+the first model; the atoms of the other models are listed, with their IDs, in
+`molecule.source_mapping.conformers[assignment.conformer_index].sites`. mmCIF output and
+`attach_charges()` for Gemmi documents put each charge on the right atom of every model for you.
 
 ## What the result records
 
@@ -71,6 +71,41 @@ exactly, or to report it.
 Result JSON also records what you requested, any warnings, the time each step took, and the peak memory.
 The [result JSON reference](../reference/formats.md#chargefw-result-json-10) lists every field.
 
+## Warnings
+
+ChargeFW calculates charges also when it finds a problem with the input or with the charges, and
+reports the problem as a warning. Read the warnings: some of them mean that the charges are probably
+wrong.
+
+On the command line, each warning is printed on standard error; warnings alone do not change the
+exit status:
+
+```console
+$ chargefw calculate --method eem 1CRN.cif output
+Warning: the molecule contains carbon but no hydrogen atoms; if its hydrogens were not added, add them before calculating
+Wrote output/1CRN.chargefw.json
+```
+
+Result JSON records each warning with its code in the `diagnostics` of the molecule's record, or of
+the document when it concerns no single molecule. In Python, the warnings that can make the charges
+wrong are also [Python warnings](../interfaces/python.md#warnings), which Python prints when your
+script runs; every warning is recorded in `molecule.import_issues`, `result.input_warnings`,
+`result.charge_warnings`, or `result.plan.warnings`.
+
+| Code | Meaning | What to do | Python warning |
+| --- | --- | --- | --- |
+| `charge_out_of_range` | Charges are more than 6 e away from the formal charges; they are probably wrong ([below](#charges-that-are-probably-wrong)) | Check the input, or use another method or parameter set | `ChargeWarning` |
+| `atoms_too_close` | Atoms of a conformer overlap, which makes the charges of methods that use coordinates wrong ([Preparing input](input.md)) | Check the coordinates of the named atoms | `InputWarning` |
+| `hydrogens_missing` | The molecule contains carbon but no hydrogen atoms | Check whether hydrogens are missing; add them if needed | `InputWarning` |
+| `unbonded_residue_atoms` | Atoms of a residue in a PDB or mmCIF file have no bonds | Add their bonds to the file | `InputWarning` |
+| `symmetry_connections_ignored` | Bonds to symmetry copies of atoms in a crystal structure were left out | If the copies belong to your molecule, build them before calculating | `InputWarning` |
+| `aromatic_bonds_converted` | Aromatic bonds were read as single bonds, which changes the charges of methods that use bond orders | Write the file with Kekulé bonds |  |
+| `coordinates_2d_ignored` | A 2D drawing was read without coordinates | For methods that use coordinates, generate 3D coordinates |  |
+| `partial_charges_ignored` | The file contains partial charges, which ChargeFW does not use | Nothing |  |
+| `v2000_property_ignored` | A property line of a MOL or SDF file, such as `M  ISO`, was not used | Usually nothing |  |
+| `v3000_bond_order_ignored` | Coordinate or hydrogen bonds of a V3000 record were left out | Usually nothing |  |
+| `resource_threshold_exceeded` | You requested full execution of a structure above the [size limit](large-structures.md) | Nothing; expect a long calculation |  |
+
 ## Charges that are probably wrong
 
 ChargeFW compares every calculated charge with the formal charge of its atom. When a charge is more
@@ -78,13 +113,15 @@ than 6 e away from it, the molecule gets a `charge_out_of_range` warning, or the
 methods that use coordinates. Recommended methods give charges within about 5 e of the formal charges
 for correctly prepared molecules, the phosphorus of phosphates included. Larger charges come from
 atoms that overlap, from structures with errors, or from a method that does not work for the
-molecule, such as QEq for compounds of silicon. ChargeFW still returns the charges. Check the input,
+molecule, such as {ref}`GDAC <gdac>` for amides and peptides. ChargeFW still returns the
+charges. Check the input,
 as described in [Preparing input](input.md), or use another method or parameter set.
 
 The warning names the atom furthest from its formal charge and says how many atoms are affected. In
-Python, `result.charge_warnings` lists the warnings, and the `atom_indices` of each has every affected
-atom. In result JSON, the record's diagnostic has the same `atom_indices`, so that a viewer can select
-those atoms. [Fixed ions](fixed-ions.md) are not checked, because their charge is set.
+Python, `result.charge_warnings` lists the warnings, and the `atom_indices` of each has every
+affected atom. In result JSON, the warning in the molecule's record has the same `atom_indices`, so
+that a viewer can select those atoms. [Fixed ions](fixed-ions.md) are not checked, because their
+charge is set.
 
 ## When a calculation fails
 

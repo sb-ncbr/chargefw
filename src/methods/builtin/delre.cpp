@@ -18,8 +18,7 @@ auto DelReMethod::add_method_specific_prerequisite_issues(const MethodPrerequisi
                                                           PrerequisiteResult& result) const
     -> void {
     detail::add_component_neutrality_prerequisite_issue(
-        input, result, "DelRe",
-        "its bond-charge construction conserves zero total charge within each component");
+        input, result, "DelRe", "it moves charge only along bonds, starting from zero charges");
 }
 
 auto DelReMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {

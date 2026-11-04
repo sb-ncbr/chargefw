@@ -54,15 +54,14 @@ the atoms and bonds that need parameters to entries in the set, as described bel
 }
 ```
 
-`metadata.id` and `metadata.method` are required. The non-empty ID is the parameter set's stable identity
-and must be unique within a loaded catalog; it does not depend on the source filename. `name`,
-`publication`, `notes`, and `priority` are optional. Higher priorities are selected before lower priorities;
-equal priorities use the stable ID as the tie-breaker. `priority` must be an integer from `0` through
-`65535`.
+`metadata.id` and `metadata.method` are required. The non-empty ID names the parameter set, not the
+file name, and no two loaded parameter sets may share it. `name`, `publication`, `notes`, and
+`priority` are optional. `priority` is an integer from `0` to `65535`; automatic selection tries
+sets with a higher priority first, and orders sets with equal priority by their ID.
 
-`common`, `atom`, and `bond` are optional. Each section has a `names` array. Its names define the
-order of that section's numeric `values`; every values array must contain exactly one finite number
-per name. A name may appear only once in its section.
+`common`, `atom`, and `bond` are optional. Each has a `names` array that gives the order of its
+`values`: every `values` array has one finite number for each name, in that order. A name may appear
+only once in its section.
 
 Members not described on this page are ignored.
 
@@ -100,13 +99,12 @@ Each `bond.data` entry uses two atom keys and one bond key:
 }
 ```
 
-`atoms` must contain exactly two atom-key objects. Bond matching is unordered: either molecular bond
-endpoint may match either object. The `bond` object requires `classifier` and `type` fields and determines
-the bond property to match.
+`atoms` has exactly two atom keys, and a bond matches the entry with its atoms in either order.
+`bond` needs `classifier` and `type`, which describe the bond itself.
 
-Some methods use bond parameters that belong to one endpoint. ABEEM applies `D` to the endpoint
-with the higher atomic number, or the lower atom index for equal elements, and `C` to the other endpoint,
-independent of key order.
+Some bond parameters belong to one of the two atoms. ABEEM applies `D` to the atom with the higher
+atomic number, or with the lower atom index when both are the same element, and `C` to the other
+one, whatever the order of the keys.
 
 ## Classifiers
 
@@ -115,8 +113,8 @@ Atom keys support these classifiers:
 | Classifier | Derived type | Example |
 | --- | --- | --- |
 | `plain` | Always `"*"` | `{"element": "O", "classifier": "plain", "type": "*"}` |
-| `hbo` | Highest bond order among bonds incident to the atom, as a decimal string; `"0"` for an atom without bonds | An atom incident to a double bond has type `"2"` |
-| `bonded` | Concatenation of neighboring element symbols, sorted lexically; `""` for an atom without bonds | Carbon bonded to C, N, and O has type `"CNO"` |
+| `hbo` | The highest order of the atom's bonds, as a string; `"0"` for an atom without bonds | An atom with a double bond has type `"2"` |
+| `bonded` | The element symbols of the bonded atoms, one per bond, in alphabetical order; `""` for an atom without bonds | Carbon bonded to C, N, and O has type `"CNO"`; a methyl carbon bonded to another carbon `"CHHH"` |
 
 Bond keys support these classifiers:
 
@@ -125,21 +123,19 @@ Bond keys support these classifiers:
 | `plain` | Always `"*"` | `{"classifier": "plain", "type": "*"}` |
 | `bo` | Bond order as `"1"`, `"2"`, or `"3"` | A double bond has type `"2"` |
 
-`plain` keys therefore use `"*"` as their type; loading reports any other type as an invalid key.
-`bonded` ignores bond order and formal charge; it uses only the sorted immediate-neighbor element
-symbols.
+A `plain` key must have the type `"*"`; any other type is an error when the file is loaded. `bonded`
+uses only the elements of the bonded atoms, not bond orders or formal charges.
 
 ## Entry selection
 
-ChargeFW evaluates entries in their `data` order and selects the first matching entry. Parameter files can
-therefore express precedence by placing a more specific key before a broader key. Duplicate or overlapping
-keys are accepted; later matching entries are not used.
+ChargeFW goes through the entries in the order of `data` and uses the first one that matches. Put a
+more specific key before a broader one to give it precedence. Repeated or overlapping keys are
+allowed; a later entry that also matches is not used.
 
 ## Strict and permissive matching
 
-Strict classification is the default. With permissive classification (`--permissive-types` in the CLI or
-`parameter_matching="permissive"` in Python), `hbo` and `bo` lower a derived order above one by one before
-matching. For example, a double-bond order/type may match `"1"` and a triple-bond order/type may match
-`"2"`. An atom without bonds, `hbo` type `"0"`, may match `"1"`. `plain` and `bonded` matching do not
-change. ChargeFW tries strict matching first and tries
-permissive matching only when no strict entry matches.
+Strict matching is the default. With permissive matching (`--permissive-types` on the command line,
+`parameter_matching="permissive"` in Python), an atom or bond that no entry matches tries again with
+its `hbo` or `bo` type lowered by one: an atom with a double bond, type `"2"`, can then use an entry
+for `"1"`, and a triple bond an entry for `"2"`. An atom without bonds, type `"0"`, can use an entry
+for `"1"`. `plain` and `bonded` keys match the same way in both modes.
