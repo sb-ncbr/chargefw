@@ -67,6 +67,11 @@
 
 ### Python
 
+- Problems that can make the charges wrong raise Python warnings: `chargefw.InputWarning` for
+  missing hydrogens, atoms too close, and missing bonds in a structure file, and
+  `chargefw.ChargeWarning` for charges far from the formal charges. One warning per kind and call
+  counts the molecules. Before, they were only recorded in the result, where a script that did not
+  look missed them.
 - `molecule.import_diagnostics` is renamed to `molecule.import_issues`, and its values from
   `chargefw.ImportDiagnostic` to `chargefw.ImportIssue`, with a `kind` instead of a `code`. The kinds
   are the same strings, such as `"partial_charges_ignored"`. An `ImportIssue` lists the atoms and

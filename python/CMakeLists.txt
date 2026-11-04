@@ -85,6 +85,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _payloads.py
     _cli.py
     _types.py
+    _warnings.py
     calculation.py
     charges.py
     core.py

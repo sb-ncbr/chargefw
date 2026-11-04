@@ -243,7 +243,8 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
 def test_charge_warnings_list_their_atoms() -> None:
     # Dummy charges are zero, so the first and third atoms are 7 e from their formal charges.
     molecule = chargefw.Molecule([7, 1, 6, 1], formal_charges=[7, 0, -7, 0])
-    result = chargefw.calculate(molecule, method="dummy")
+    with pytest.warns(chargefw.ChargeWarning, match=r"\(charge_out_of_range; "):
+        result = chargefw.calculate(molecule, method="dummy")
 
     (warning,) = result.charge_warnings
     assert (warning.kind, warning.molecule_index, warning.conformer_index, warning.atom_index) == (

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING, Literal
 
 from .._arrays import index_array
 from .._chargefw import adapters as _native_adapters
+from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 from ..core import (
     ImportIssue,
     Molecule,
@@ -168,6 +170,21 @@ def parse(
 ) -> MoleculeCollection:
     """Parse molecular text using an explicitly selected native reader."""
 
+    collection = _parse(contents, format, source_name, selection, bonds, conformers)
+    # Raised here rather than in a helper, so that the traceback ends at this function.
+    for message, category in _import_warnings(collection):
+        warnings.warn(message, category, stacklevel=2)
+    return collection
+
+
+def _parse(
+    contents: str,
+    format: InputFormat,
+    source_name: str,
+    selection: RecordSelection,
+    bonds: BondStrategy | None,
+    conformers: ConformerSelection,
+) -> MoleculeCollection:
     if not isinstance(contents, str):
         raise TypeError("contents must be a string")
     if not isinstance(source_name, str):
@@ -177,6 +194,29 @@ def parse(
         contents, source_name, format, selection, "hybrid" if bonds is None else bonds, conformers
     )
     return _collection(payloads, source_name)
+
+
+def _import_warnings(
+    collection: MoleculeCollection,
+) -> list[tuple[str, type[ChargeFWWarning]]]:
+    def describe(index: int) -> str:
+        molecule = collection[index]
+        name = f" ({molecule.name!r})" if molecule.name else ""
+        source = f"{collection.name}: " if collection.name else ""
+        return f"{source}record {index + 1}{name}"
+
+    return issue_warnings(
+        (
+            (index, issue)
+            for index, molecule in enumerate(collection)
+            for issue in molecule.import_issues
+        ),
+        kinds=IMPORT_WARNING_KINDS,
+        category=InputWarning,
+        molecule_count=len(collection),
+        describe=describe,
+        attribute="molecule.import_issues",
+    )
 
 
 def read(
@@ -192,14 +232,18 @@ def read(
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
-    return parse(
+    collection = _parse(
         source_path.read_text(encoding="utf-8"),
-        format=format,
-        source_name=str(source_path),
-        selection=selection,
-        bonds=bonds,
-        conformers=conformers,
+        format,
+        str(source_path),
+        selection,
+        bonds,
+        conformers,
     )
+    # Raised here rather than in a helper, so that the traceback ends at this function.
+    for message, category in _import_warnings(collection):
+        warnings.warn(message, category, stacklevel=2)
+    return collection
 
 
 def _native_results(

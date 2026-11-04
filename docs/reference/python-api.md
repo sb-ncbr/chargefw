@@ -284,6 +284,14 @@ A caution about calculated charges: ChargeFW returns them, but they are probably
 | `atom_index` | Index of the atom the message names, the one furthest from its formal charge |
 | `atom_indices` | Read-only NumPy `int64` array of every affected atom, in atom order |
 
+### ChargeFWWarning, InputWarning, and ChargeWarning
+
+Python warnings for cautions that can make the charges wrong; see
+[Warnings](../interfaces/python.md#warnings). `ChargeFWWarning` derives from `UserWarning`, and
+`InputWarning` and `ChargeWarning` from `ChargeFWWarning`. `InputWarning` is raised for the
+`ImportIssue` kinds `"unbonded_residue_atoms"` and `"symmetry_connections_ignored"` and for every
+`InputIssue`; `ChargeWarning` for every `ChargeIssue`.
+
 ## Methods and parameter sets
 
 ### Method

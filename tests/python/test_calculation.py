@@ -1,6 +1,7 @@
 """Focused calculation facade and result-model checks."""
 
 import gc
+import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
@@ -655,12 +656,13 @@ def test_molecules_without_hydrogens_are_reported() -> None:
     # A molecule built without hydrogens, as from RDKit without AddHs(), next to water.
     molecules = [chargefw.Molecule([6, 8], bonds=[[0, 1, 3]]), water()]
     assessment = chargefw.assess(molecules, method="formal")
-    result = chargefw.calculate(molecules, method="formal")
+    with pytest.warns(chargefw.InputWarning, match=r"^molecule 1: .*\(hydrogens_missing; "):
+        result = chargefw.calculate(molecules, method="formal")
 
-    for warnings in (assessment.input_warnings, result.input_warnings):
-        assert [
-            (issue.kind, issue.molecule_index, issue.conformer_index) for issue in warnings
-        ] == [("hydrogens_missing", 0, None)]
+    for issues in (assessment.input_warnings, result.input_warnings):
+        assert [(issue.kind, issue.molecule_index, issue.conformer_index) for issue in issues] == [
+            ("hydrogens_missing", 0, None)
+        ]
 
 
 def test_close_atoms_are_reported_with_their_atom() -> None:
@@ -671,13 +673,47 @@ def test_close_atoms_are_reported_with_their_atom() -> None:
         coordinates=[[0.0, 0.0, 0.0], [0.3, 0.0, 0.0], [-0.24, 0.93, 0.0]],
     )
     assert chargefw.assess(molecule, method="eqeq").input_warnings == ()
-    result = chargefw.calculate(molecule, method="eqeq")
+    with pytest.warns(chargefw.InputWarning, match=r"\(atoms_too_close; "):
+        result = chargefw.calculate(molecule, method="eqeq")
 
     assert [
         (issue.kind, issue.molecule_index, issue.conformer_index, issue.atom_index)
         for issue in result.input_warnings
     ] == [("atoms_too_close", 0, 0, 1)]
     assert result.input_warnings[0].atom_indices.tolist() == [0, 1]
+
+
+def test_issues_that_can_make_charges_wrong_raise_python_warnings() -> None:
+    def chargefw_warnings(call: Any) -> list[warnings.WarningMessage]:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            call()
+        return [item for item in caught if issubclass(item.category, chargefw.ChargeFWWarning)]
+
+    # Only issues that can make the charges wrong warn; reading warns where the caller reads.
+    (unbonded,) = chargefw_warnings(
+        lambda: chargefw.io.parse(FIXED_IONS_MMCIF, format="mmcif", bonds="explicit")
+    )
+    assert unbonded.category is chargefw.InputWarning
+    assert "(unbonded_residue_atoms; see molecule.import_issues)" in str(unbonded.message)
+    assert unbonded.filename == __file__
+    assert chargefw_warnings(lambda: calculate_formal(water())) == []
+    assert chargefw_warnings(lambda: chargefw.assess(chargefw.Molecule([6]))) == []
+
+    # A batch gets one warning per kind, which counts the molecules.
+    carbon_monoxide = chargefw.Molecule([6, 8], bonds=[[0, 1, 3]])
+    (batch,) = chargefw_warnings(
+        lambda: calculate_formal([carbon_monoxide, water(), carbon_monoxide])
+    )
+    assert str(batch.message).startswith("2 of 3 molecules: hydrogens_missing, for example")
+
+    # A calculation that fails raises its own error, also when warnings are errors; the issues are
+    # in its result.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", chargefw.ChargeFWWarning)
+        with pytest.raises(chargefw.NoExecutablePlanError) as context:
+            chargefw.calculate(carbon_monoxide, method="qeq", execution="full")
+    assert [issue.kind for issue in context.value.result.input_warnings] == ["hydrogens_missing"]
 
 
 def test_no_plan_result_and_typed_exception() -> None:
