@@ -26,7 +26,10 @@
   hydrogens were most likely not added.
 - With a method that uses coordinates, a conformer whose atoms are closer than 0.7 times the sum of
   their covalent radii gets an `atoms_too_close` warning, which names the pair closest relative to
-  that sum.
+  that sum and lists every atom of a close pair.
+- A calculated charge more than 6 e away from its atom's formal charge gives a
+  `charge_out_of_range` warning, one per molecule or conformer, which names the furthest atom. Fixed
+  ions are not checked.
 - Fixed ions in large systems are checked against the other atoms much faster.
 
 ### Output
@@ -38,6 +41,9 @@
   code, such as `resource_threshold_exceeded`: in the record of the molecule they concern, or in the
   document's diagnostics. `effective.warnings` still lists them as text.
 - Writing results of rejected large structures takes linear instead of quadratic time.
+- mmCIF output accepts charges from −10 to +10, the range of version 1.1 of the charge dictionary.
+  Before, charges outside [−5, 5] were refused, which excluded fixed ions such as W⁶⁺.
+- A result JSON diagnostic about several atoms lists all of them in `atom_indices`.
 
 ### Python
 
@@ -47,7 +53,10 @@
 - `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
   plan was recorded.
 - `Assessment.input_warnings` and `CalculationResult.input_warnings` list `chargefw.InputIssue`
-  values, such as missing hydrogens. An `InputIssue` has an `atom_index` for issues about atoms.
+  values, such as missing hydrogens. An `InputIssue` about atoms has the `atom_index` its message
+  names and the `atom_indices` it concerns.
+- `CalculationResult.charge_warnings` lists `chargefw.ChargeIssue` values, cautions about the
+  calculated charges, each with the `atom_indices` it concerns.
 
 ### Command line
 
@@ -70,6 +79,9 @@
   instead of editing it.
 - `calculation::InputIssue`, `AssessmentResult::input_warnings()`, and
   `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
+- `calculation::ChargeIssue` and `ExecutionResult::charge_warnings` report cautions about calculated
+  charges. They, `InputIssue`, and `adapters::ResultDiagnostic` list every atom they concern in
+  `atom_indices`; `features::CloseAtoms::atoms` lists the atoms of close pairs.
 - `features::PreparedMolecule` finds the geometry defects of its conformers once, in
   `geometry_defects()`, and copies share them. The defects include atoms that are too close, in
   `close_atoms`; `features::find_close_atoms()` finds those for one conformer without caching.

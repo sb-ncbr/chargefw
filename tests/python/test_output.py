@@ -235,6 +235,28 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     ]
 
 
+def test_charge_warnings_list_their_atoms() -> None:
+    # Dummy charges are zero, so the first and third atoms are 7 e from their formal charges.
+    molecule = chargefw.Molecule([7, 1, 6, 1], formal_charges=[7, 0, -7, 0])
+    result = chargefw.calculate(molecule, method="dummy")
+
+    (warning,) = result.charge_warnings
+    assert (warning.kind, warning.molecule_index, warning.conformer_index, warning.atom_index) == (
+        "charge_out_of_range",
+        0,
+        None,
+        0,
+    )
+    assert warning.atom_indices.tolist() == [0, 2]
+    assert not warning.atom_indices.flags.writeable
+    (diagnostic,) = result_json(result)["results"][0]["diagnostics"]
+    assert (diagnostic["code"], diagnostic["atom_index"], diagnostic["atom_indices"]) == (
+        "charge_out_of_range",
+        0,
+        [0, 2],
+    )
+
+
 def test_coordinate_free_result_json_is_molecule_scoped() -> None:
     molecules = chargefw.io.parse(
         """{

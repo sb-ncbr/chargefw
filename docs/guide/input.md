@@ -34,7 +34,9 @@ coordinates, a conformer gets an `atoms_too_close` warning if two of its atoms a
 times the sum of their covalent radii: for example, two carbon atoms closer than 1.06 Å, or carbon
 and hydrogen closer than 0.75 Å. Real bonds, including triple bonds, are longer. The warning says how
 many pairs there are and names the pair that is closest relative to the sum of its radii, which is
-not always the pair with the shortest distance; check the coordinates of those atoms. These methods
+not always the pair with the shortest distance; check the coordinates of those atoms. Its
+`atom_indices`, in Python and in result JSON, lists every atom of a close pair, so that a viewer can
+select them. These methods
 do not calculate a conformer in which two atoms are at identical positions, unless both are
 [fixed ions](fixed-ions.md); two fixed ions at one position get the warning instead.
 

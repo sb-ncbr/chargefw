@@ -126,6 +126,22 @@ auto input_issues(const std::span<const calculation::InputIssue> issues) -> nb::
         value["molecule_index"] = issue.molecule_index;
         value["conformer_index"] = issue.conformer_index;
         value["atom_index"] = issue.atom_index;
+        value["atom_indices"] = issue.atom_indices;
+        result.append(std::move(value));
+    }
+    return result;
+}
+
+auto charge_issues(const std::span<const calculation::ChargeIssue> issues) -> nb::list {
+    auto result = nb::list{};
+    for (const auto& issue : issues) {
+        auto value = nb::dict{};
+        value["kind"] = std::string{calculation::to_string(issue.kind)};
+        value["message"] = issue.message;
+        value["molecule_index"] = issue.molecule_index;
+        value["conformer_index"] = issue.conformer_index;
+        value["atom_index"] = issue.atom_index;
+        value["atom_indices"] = issue.atom_indices;
         result.append(std::move(value));
     }
     return result;
@@ -219,6 +235,7 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
     }
     result["rejections"] = std::move(rejections);
     result["input_warnings"] = input_issues(value.input_warnings);
+    result["charge_warnings"] = charge_issues(value.charge_warnings);
     result["failure_message"] = value.failure_message;
     auto metrics = nb::dict{};
     metrics["applicability_seconds"] = value.metrics.applicability_seconds;

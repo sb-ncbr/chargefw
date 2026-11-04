@@ -59,6 +59,9 @@ auto count_close_atoms(const ConformerFeatures& geometry,
     auto close = CloseAtoms{};
     auto closest_ratio = 0.0;
     auto neighbors = std::vector<std::size_t>{};
+    // Allocated at the first pair; marks rather than a list keep many pairs of one atom from
+    // growing it beyond the atom count.
+    auto in_pair = std::vector<bool>{};
     for (std::size_t atom = 0; atom < radii.size(); ++atom) {
         index.neighbor_indices_within(geometry.position(atom),
                                       2.0 * close_atom_factor * radii[atom], neighbors);
@@ -87,6 +90,14 @@ auto count_close_atoms(const ConformerFeatures& geometry,
                 closest_ratio = ratio;
             }
             ++close.pair_count;
+            in_pair.resize(radii.size());
+            in_pair[atom] = true;
+            in_pair[other] = true;
+        }
+    }
+    for (std::size_t atom = 0; atom < in_pair.size(); ++atom) {
+        if (in_pair[atom]) {
+            close.atoms.push_back(atom);
         }
     }
     return close;

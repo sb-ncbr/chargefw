@@ -19,6 +19,7 @@ type CalculationPhase = Literal[
 ]
 type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_execution_mode"]
 type InputIssueKind = Literal["hydrogens_missing", "atoms_too_close"]
+type ChargeIssueKind = Literal["charge_out_of_range"]
 type ImportIssueKind = Literal[
     "partial_charges_ignored",
     "coordinates_2d_ignored",

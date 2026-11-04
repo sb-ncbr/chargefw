@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from operator import index as as_index
 from types import MappingProxyType
+
+import numpy as np
+from numpy.typing import NDArray
 
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
@@ -17,6 +20,7 @@ from ._methods import (
 )
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._payloads import (
+    ChargeIssuePayload,
     EffectiveCalculationPayload,
     ExecutionIssuePayload,
     ExecutionPolicyPayload,
@@ -25,12 +29,24 @@ from ._payloads import (
     PrerequisiteIssuePayload,
     RejectionPayload,
 )
-from ._types import ExecutionMode, ExecutionStatus, InputIssueKind, MethodOptionValue
+from ._types import (
+    ChargeIssueKind,
+    ExecutionMode,
+    ExecutionStatus,
+    InputIssueKind,
+    MethodOptionValue,
+)
 from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
 
 
-@dataclass(frozen=True, slots=True)
+def _atom_indices(values: Iterable[int] = ()) -> NDArray[np.int64]:
+    result = np.asarray(list(values), dtype=np.int64)
+    result.flags.writeable = False
+    return result
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class InputIssue:
     """A caution about an input molecule, such as hydrogens that were probably not added."""
 
@@ -39,6 +55,8 @@ class InputIssue:
     molecule_index: int
     conformer_index: int | None = None
     atom_index: int | None = None
+    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
+    atom_indices: NDArray[np.int64] = field(default_factory=_atom_indices)
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -49,6 +67,34 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
+            atom_indices=_atom_indices(issue["atom_indices"]),
+        )
+        for issue in payload
+    )
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class ChargeIssue:
+    """A caution about calculated charges: they exist, but are probably wrong."""
+
+    kind: ChargeIssueKind
+    message: str
+    molecule_index: int
+    conformer_index: int | None
+    atom_index: int | None
+    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
+    atom_indices: NDArray[np.int64]
+
+
+def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]:
+    return tuple(
+        ChargeIssue(
+            kind=issue["kind"],
+            message=issue["message"],
+            molecule_index=issue["molecule_index"],
+            conformer_index=issue["conformer_index"],
+            atom_index=issue["atom_index"],
+            atom_indices=_atom_indices(issue["atom_indices"]),
         )
         for issue in payload
     )
@@ -348,6 +394,7 @@ class CalculationResult:
         "_assignments_by_molecule",
         "_rejections",
         "_input_warnings",
+        "_charge_warnings",
         "_plan",
         "_failure_message",
         "_timings",
@@ -361,6 +408,7 @@ class CalculationResult:
     _assignments_by_molecule: tuple[tuple[ChargeAssignment, ...], ...]
     _rejections: tuple[Rejection, ...]
     _input_warnings: tuple[InputIssue, ...]
+    _charge_warnings: tuple[ChargeIssue, ...]
     _plan: ExecutedPlan | None
     _failure_message: str | None
     _timings: CalculationTimings
@@ -400,6 +448,7 @@ class CalculationResult:
         self._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
         self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
         self._input_warnings = _input_issues(payload["input_warnings"])
+        self._charge_warnings = _charge_issues(payload["charge_warnings"])
         self._plan = _executed_plan(payload["effective"], methods, parameter_sets, molecules)
         self._failure_message = payload["failure_message"]
         self._timings = CalculationTimings(
@@ -478,6 +527,12 @@ class CalculationResult:
         """Cautions about the input molecules, such as hydrogens that were probably not added."""
 
         return self._input_warnings
+
+    @property
+    def charge_warnings(self) -> tuple[ChargeIssue, ...]:
+        """Cautions about the calculated charges, such as charges far from the formal charges."""
+
+        return self._charge_warnings
 
     @property
     def failure_message(self) -> str | None:

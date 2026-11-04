@@ -122,7 +122,7 @@ file(REMOVE_RECURSE "${coordinate_free_directory}")
 
 set(range_input "${CMAKE_CURRENT_BINARY_DIR}/out_of_range_charge.json")
 file(WRITE "${range_input}" [=[
-{"schema_version":"1.0","molecules":[{"atoms":[{"atomic_number":1,"formal_charge":6}],"conformers":[{"coordinates":[[0,0,0]]}]}]}
+{"schema_version":"1.0","molecules":[{"atoms":[{"atomic_number":1,"formal_charge":11}],"conformers":[{"coordinates":[[0,0,0]]}]}]}
 ]=])
 fresh_output_directory(range_directory out_of_range_charge)
 set(range_prefix "${range_directory}/out_of_range_charge.chargefw")

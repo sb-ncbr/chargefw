@@ -360,6 +360,41 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.molecule_index == 1);
     CHECK(close.conformer_index == 0);
     CHECK(close.atom_index == 1);
+    CHECK(close.atom_indices == std::vector<std::size_t>{0, 1});
+}
+
+TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",
+          "[calculation][calculation]") {
+    // Dummy charges are zero, so they are as far from each atom as its formal charge.
+    const auto charged = core::Molecule{
+        std::vector{core::Atom{7, 7}, core::Atom{1, 0}, core::Atom{6, -7}, core::Atom{1, 6}}};
+    const auto dummy = calculate_application(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water(), charged}},
+        .method_id = "dummy"});
+    REQUIRE(dummy.calculated());
+    REQUIRE(dummy.charge_warnings.size() == 1);
+    const auto& issue = dummy.charge_warnings[0];
+    CHECK(issue.kind == calculation::ChargeIssueKind::charge_out_of_range);
+    CHECK(issue.molecule_index == 1);
+    CHECK_FALSE(issue.conformer_index.has_value());
+    // Exactly 6 e away is still in range.
+    CHECK(issue.atom_indices == std::vector<std::size_t>{0, 2});
+    CHECK(issue.atom_index == 0);
+
+    // A fixed ion keeps its prescribed charge, however far from its formal charge.
+    const auto with_ion =
+        core::Molecule{std::vector{core::Atom{1, 0}, core::Atom{8, 0}, core::Atom{12, 0}},
+                       {},
+                       {core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {10.0, 0.0, 0.0}}}}};
+    const auto fixed = calculate_application(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{with_ion}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+        .method_id = "eem",
+        .fixed_ions = calculation::FixedIons{
+            .sources = {{.molecule_index = 0, .atom_index = 2, .charge = 7.0}}}});
+    REQUIRE(fixed.calculated());
+    CHECK(fixed.charges->assignments()[0].charges.values()[2] == 7.0);
+    CHECK(fixed.charge_warnings.empty());
 }
 
 TEST_CASE("close atoms include fixed ions and keep the original atom indices",
@@ -397,6 +432,8 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
     REQUIRE(coincident_result.input_warnings.size() == 1);
     CHECK(coincident_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
     CHECK(coincident_result.input_warnings[0].atom_index == 3);
+    // Both ions are close to the oxygen as well.
+    CHECK(coincident_result.input_warnings[0].atom_indices == std::vector<std::size_t>{1, 2, 3});
 }
 
 TEST_CASE("explicit full execution reports its plan and effective provenance",

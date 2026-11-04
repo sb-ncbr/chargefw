@@ -303,7 +303,7 @@ generated atom names, `UNL`, chain `A`, and entity `1`. Output site IDs and mode
 generated per block, and each charge row refers to the generated `_atom_site.id` for its site.
 Molecule-scoped charges cover every conformer and conformer-scoped charges never broadcast. Output
 rejects missing or non-finite coordinates, empty records, unsuccessful results, and charges outside the
-dictionary's inclusive `[-5, 5]` range before serializing the document.
+dictionary's inclusive `[-10, 10]` range before serializing the document.
 
 The bonds used in the calculation are written with their orders (`sing`, `doub`, or `trip`), which
 viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named
@@ -388,7 +388,9 @@ the zero-based molecule index and, for conformer-specific calculations, the zero
 Its `charges` array follows the atom order of the molecule, at full precision, together with the
 `total_charge`. Failed or cancelled records omit assignments. Diagnostics have stable severity, code, and
 message fields and may include zero-based molecule, atom, bond, or conformer indices and a one-based
-source line number.
+source line number. A diagnostic about several atoms, such as `atoms_too_close` or
+`charge_out_of_range`, lists all of them in `atom_indices`, in atom order; its `atom_index` is the atom
+its message names. A viewer can select the listed atoms to show where the problem is.
 
 For imported molecules, `input.import` records the source format, connectivity summary, and record-local
 import policy. Charges follow the atom order of the molecule. For structural inputs, generated mmCIF associates

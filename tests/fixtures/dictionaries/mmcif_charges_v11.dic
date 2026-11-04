@@ -106,6 +106,6 @@ save__sb_ncbr_partial_atomic_charges.charge
     _item_type.code                 float
     _item_units.code                e
 
-    _item_range.minimum   -5.0
-    _item_range.maximum    5.0
+    _item_range.minimum   -10.0
+    _item_range.maximum    10.0
 save_

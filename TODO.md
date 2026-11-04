@@ -27,6 +27,15 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
+## Issue reporting
+
+- [ ] Report parameter classification failures as one issue per parameter set and molecule with
+  `atom_indices` and `bond_indices`, instead of one issue per atom or bond, following the rules in
+  [DEVELOPMENT.md](DEVELOPMENT.md#issues-and-diagnostics); add `bond_indices` to diagnostics and a shared
+  location type for the issues.
+- [ ] Give `unbonded_residue_atoms` its `atom_indices` and `aromatic_bonds_converted` its
+  `bond_indices`.
+
 ## Project infrastructure
 
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel

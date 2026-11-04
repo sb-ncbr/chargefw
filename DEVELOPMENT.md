@@ -349,3 +349,23 @@ snapshots, or per-bond provenance.
 The application-facing charge result owns those ordered imported records together with the toolkit-neutral
 execution result. Output adapters consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
+
+### Issues and diagnostics
+
+Each stage reports what it finds as its own issue type, with a kind enum and only the fields that
+kind needs: `ImportIssue` from readers, `InputIssue` from assessment (and from execution for those that
+concern only the executed method, such as `atoms_too_close`), `PrerequisiteIssue` and `ExecutionIssue`
+from applicability, and `ChargeIssue` for calculated charges. `ResultDiagnostic` is the adapters'
+projection of all of them into one shape, with a string code and a severity, for result JSON and the
+command line. Cautions never exclude a method; a finding that does is a `PrerequisiteIssue`.
+
+A new kind follows these rules:
+
+- **Bounded count.** One issue per kind and scope: record, molecule, or conformer, never one per atom.
+- **Message for people.** It counts what was found and names one example, the most severe;
+  `atom_index` is that atom.
+- **Locations for programs.** An issue about atoms lists every one of them in `atom_indices`, in atom
+  order, so that a viewer can select them. The message is never the only place a location appears. The
+  list holds at most the atoms of its scope, so it needs no limit.
+- **Stage.** Findings that do not depend on the method belong to assessment; those about the executed
+  method to execution; those about charges exist only when charges do.

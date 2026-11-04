@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chargefw/calculation/assessment.h>
+#include <chargefw/calculation/charge_issues.h>
 #include <chargefw/calculation/observer.h>
 #include <chargefw/charges/charge_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
@@ -67,6 +68,8 @@ struct ExecutionResult {
     CalculationMetrics metrics;
     // The input issues of the assessment, in molecule order.
     std::vector<InputIssue> input_warnings;
+    // Cautions about the calculated charges, in assignment order; empty without charges.
+    std::vector<ChargeIssue> charge_warnings;
 
     [[nodiscard]] auto calculated() const noexcept -> bool {
         return status == ExecutionStatus::success && charges.has_value();
