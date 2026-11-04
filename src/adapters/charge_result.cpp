@@ -146,16 +146,42 @@ auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> record
     return diagnostic;
 }
 
-// Record diagnostics find a molecule's input warnings by binary search.
-auto validate_input_warnings(const std::span<const ImportedMoleculeRecord> records,
-                             const calculation::ExecutionResult& execution) -> void {
-    const auto& warnings = execution.input_warnings;
-    if (!std::ranges::is_sorted(warnings, {}, &calculation::InputIssue::molecule_index)) {
-        throw std::invalid_argument{"input warnings are not in molecule order"};
+// Input and charge warnings become record diagnostics alike. A record finds its own warnings by
+// binary search, so they must be in molecule order.
+template <typename Issue>
+auto validate_warnings(const std::span<const ImportedMoleculeRecord> records,
+                       const std::span<const Issue> warnings, const std::string_view name) -> void {
+    if (!std::ranges::is_sorted(warnings, {}, &Issue::molecule_index)) {
+        throw std::invalid_argument{std::string{name} + " warnings are not in molecule order"};
     }
     if (!warnings.empty() && warnings.back().molecule_index >= records.size()) {
-        throw std::invalid_argument{"input warning molecule index is outside the input"};
+        throw std::invalid_argument{std::string{name} +
+                                    " warning molecule index is outside the input"};
     }
+}
+
+auto validate_warnings(const std::span<const ImportedMoleculeRecord> records,
+                       const calculation::ExecutionResult& execution) -> void {
+    if (!execution.charge_warnings.empty() && !execution.calculated()) {
+        throw std::invalid_argument{"charge warnings require calculated charges"};
+    }
+    validate_warnings(records, std::span{execution.input_warnings}, "input");
+    validate_warnings(records, std::span{execution.charge_warnings}, "charge");
+}
+
+template <typename Issue>
+[[nodiscard]] auto warning_diagnostic(const Issue& issue) -> ResultDiagnostic {
+    auto diagnostic = ResultDiagnostic{};
+    diagnostic.severity = DiagnosticSeverity::warning;
+    diagnostic.code = calculation::to_string(issue.kind);
+    diagnostic.message = issue.message;
+    diagnostic.molecule_index = issue.molecule_index;
+    diagnostic.conformer_index = issue.conformer_index;
+    diagnostic.atom_index = issue.atom_index;
+    if constexpr (requires { issue.atom_indices; }) {
+        diagnostic.atom_indices = issue.atom_indices;
+    }
+    return diagnostic;
 }
 
 auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
@@ -299,7 +325,7 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     -> ChargeCalculationResult {
     validate_import_metadata(inputs);
     validate_assignments(inputs, execution);
-    validate_input_warnings(inputs, execution);
+    validate_warnings(inputs, execution);
     validate_plan_warnings(inputs, execution);
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
@@ -431,21 +457,18 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.line = issue.line;
         append_unique(diagnostics, seen, std::move(imported));
     }
+    // Each warning is one finding, so two with the same text, such as for different atoms of a
+    // result built by the caller, are both kept.
+    const auto append_warnings = [&]<typename Issue>(const std::vector<Issue>& warnings) {
+        for (const auto& issue :
+             std::ranges::equal_range(warnings, molecule_index, {}, &Issue::molecule_index)) {
+            diagnostics.push_back(warning_diagnostic(issue));
+        }
+    };
     // A request that failed has no execution result, so only its status follows.
-    const auto input_warnings =
-        execution != nullptr ? std::span<const calculation::InputIssue>{execution->input_warnings}
-                             : std::span<const calculation::InputIssue>{};
-    // Input warnings are in molecule order.
-    for (const auto& issue : std::ranges::equal_range(input_warnings, molecule_index, {},
-                                                      &calculation::InputIssue::molecule_index)) {
-        auto diagnostic = ResultDiagnostic{};
-        diagnostic.severity = DiagnosticSeverity::warning;
-        diagnostic.code = calculation::to_string(issue.kind);
-        diagnostic.message = issue.message;
-        diagnostic.molecule_index = issue.molecule_index;
-        diagnostic.conformer_index = issue.conformer_index;
-        diagnostic.atom_index = issue.atom_index;
-        append_unique(diagnostics, seen, std::move(diagnostic));
+    if (execution != nullptr) {
+        append_warnings(execution->input_warnings);
+        append_warnings(execution->charge_warnings);
     }
     if (execution != nullptr) {
         for (const auto& issue :

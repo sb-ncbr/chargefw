@@ -71,6 +71,21 @@ exactly, or to report it.
 Result JSON also records what you requested, any warnings, the time each step took, and the peak memory.
 The [result JSON reference](../reference/formats.md#chargefw-result-json-10) lists every field.
 
+## Charges that are probably wrong
+
+ChargeFW compares every calculated charge with the formal charge of its atom. When a charge is more
+than 6 e away from it, the molecule gets a `charge_out_of_range` warning, or the conformer does for
+methods that use coordinates. Recommended methods give charges within about 5 e of the formal charges
+for correctly prepared molecules, the phosphorus of phosphates included. Larger charges come from
+atoms that overlap, from structures with errors, or from a method that does not work for the
+molecule, such as QEq for compounds of silicon. ChargeFW still returns the charges. Check the input,
+as described in [Preparing input](input.md), or use another method or parameter set.
+
+The warning names the atom furthest from its formal charge and says how many atoms are affected. In
+Python, `result.charge_warnings` lists the warnings, and the `atom_indices` of each has every affected
+atom. In result JSON, the record's diagnostic has the same `atom_indices`, so that a viewer can select
+those atoms. [Fixed ions](fixed-ions.md) are not checked, because their charge is set.
+
 ## When a calculation fails
 
 A calculation fails without charges when no method and parameter set apply to your molecules, when the

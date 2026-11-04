@@ -43,6 +43,8 @@ struct ResultDiagnostic {
     std::optional<std::size_t> bond_index;
     std::optional<std::size_t> conformer_index;
     std::optional<std::size_t> line;
+    // Every atom the diagnostic concerns, in atom order; atom_index is the one its message names.
+    std::vector<std::size_t> atom_indices;
 };
 
 // Invocation-wide calculation provenance. The JSON writer serializes requested and effective

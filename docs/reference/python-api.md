@@ -145,6 +145,7 @@ molecule.
 | `molecules` | The input `MoleculeCollection` |
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
+| `charge_warnings` | Tuple of `ChargeIssue`: cautions about the calculated charges |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
 
@@ -265,6 +266,20 @@ calculates.
 
 `"atoms_too_close"` appears only in the results of methods that use coordinates, not in
 `Assessment.input_warnings`.
+
+### ChargeIssue
+
+A caution about calculated charges: ChargeFW returns them, but they are probably wrong; see
+[Results](../guide/results.md#charges-that-are-probably-wrong).
+
+| Attribute | Content |
+| --- | --- |
+| `kind` | `"charge_out_of_range"`: charges are more than 6 e away from the formal charges of their atoms |
+| `message` | Description |
+| `molecule_index` | Index of the input molecule |
+| `conformer_index` | Index of the conformer of the charges; `None` for methods that do not use coordinates |
+| `atom_index` | Index of the atom the message names, the one furthest from its formal charge |
+| `atom_indices` | Read-only NumPy `int64` array of every affected atom, in atom order |
 
 ## Methods and parameter sets
 

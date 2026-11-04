@@ -52,6 +52,9 @@ constexpr auto metric_scale = 1000.0;
         add_index("bond_index", diagnostic.bond_index);
         add_index("conformer_index", diagnostic.conformer_index);
         add_index("line", diagnostic.line);
+        if (!diagnostic.atom_indices.empty()) {
+            encoded["atom_indices"] = diagnostic.atom_indices;
+        }
         result.push_back(std::move(encoded));
     }
     return result;

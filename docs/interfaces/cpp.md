@@ -288,6 +288,11 @@ with its kind, a message, the molecule index, and an optional conformer and atom
 order. They do not change which method is selected. `atoms_too_close` appears only in
 `ExecutionResult::input_warnings`, when the executed method uses coordinates.
 
+`ExecutionResult::charge_warnings` lists `ChargeIssue` values, cautions about the calculated charges,
+such as [charges far from the formal charges](../guide/results.md#charges-that-are-probably-wrong). A
+`ChargeIssue` has its kind, a message, the molecule index, an optional conformer index, the atom index
+its message names, and `atom_indices` with every affected atom.
+
 A `ChargeSet` has the method ID, the optional parameter-set ID, and the assignments. Methods that use
 geometry give one assignment per conformer, the others one per molecule. Each `ChargeAssignment` has a
 molecule index, an optional conformer index, and the charges in atom order.

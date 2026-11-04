@@ -388,7 +388,9 @@ the zero-based molecule index and, for conformer-specific calculations, the zero
 Its `charges` array follows the atom order of the molecule, at full precision, together with the
 `total_charge`. Failed or cancelled records omit assignments. Diagnostics have stable severity, code, and
 message fields and may include zero-based molecule, atom, bond, or conformer indices and a one-based
-source line number.
+source line number. A diagnostic about several atoms, such as `charge_out_of_range`, lists all of them
+in `atom_indices`, in atom order; its `atom_index` is the atom its message names. A viewer can select
+the listed atoms to show where the problem is.
 
 For imported molecules, `input.import` records the source format, connectivity summary, and record-local
 import policy. Charges follow the atom order of the molecule. For structural inputs, generated mmCIF associates

@@ -134,6 +134,53 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
     }
 }
 
+TEST_CASE("record diagnostics carry the charge warnings with all their atoms",
+          "[adapters][result]") {
+    const auto records =
+        std::vector(2, adapters::ImportedMoleculeRecord{
+                           .molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{8}}}});
+    const auto make_execution = [](const calculation::ExecutionStatus status) {
+        auto execution = calculation::ExecutionResult{.status = status};
+        if (status == calculation::ExecutionStatus::success) {
+            execution.charges = charges::ChargeSet{
+                "dummy",
+                {{.target = {.molecule_index = 0}, .charges = charges::AtomicCharges{{0.0, 0.0}}},
+                 {.target = {.molecule_index = 1}, .charges = charges::AtomicCharges{{0.0, 0.0}}}}};
+            execution.effective = full_effective("dummy");
+        }
+        execution.charge_warnings.push_back(
+            {.kind = calculation::ChargeIssueKind::charge_out_of_range,
+             .message = "charges out of range",
+             .molecule_index = 1,
+             .atom_index = 1,
+             .atom_indices = {0, 1}});
+        // The same text for other atoms is another finding.
+        execution.charge_warnings.push_back(
+            {.kind = calculation::ChargeIssueKind::charge_out_of_range,
+             .message = "charges out of range",
+             .molecule_index = 1,
+             .atom_index = 0,
+             .atom_indices = {0}});
+        return execution;
+    };
+    const auto result = adapters::make_charge_calculation_result(
+        records, {}, make_execution(calculation::ExecutionStatus::success));
+
+    CHECK(adapters::charge_record_diagnostics(result, 0).empty());
+    const auto diagnostics = adapters::charge_record_diagnostics(result, 1);
+    REQUIRE(diagnostics.size() == 2);
+    CHECK(diagnostics[0].code == "charge_out_of_range");
+    CHECK(diagnostics[0].severity == adapters::DiagnosticSeverity::warning);
+    CHECK(diagnostics[0].atom_index == 1);
+    CHECK(diagnostics[0].atom_indices == std::vector<std::size_t>{0, 1});
+    CHECK(diagnostics[1].atom_indices == std::vector<std::size_t>{0});
+
+    // Charge warnings without charges are refused.
+    CHECK_THROWS_AS(adapters::make_charge_calculation_result(
+                        records, {}, make_execution(calculation::ExecutionStatus::cancelled)),
+                    std::invalid_argument);
+}
+
 TEST_CASE("plan warnings go to their molecule's record or to the document", "[adapters][result]") {
     const auto records = std::vector(
         2,

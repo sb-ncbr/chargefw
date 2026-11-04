@@ -2,6 +2,7 @@ target_sources(chargefw_core_objects
         PRIVATE
         assessment.cpp
         calculation.cpp
+        charge_issues.cpp
         cover_execution.cpp
         cutoff_execution.cpp
         estimate.cpp
@@ -10,6 +11,7 @@ target_sources(chargefw_core_objects
         input_issues.cpp
         execution_policy.cpp
         reduced_execution.cpp
+        charge_checks.h
         cover_execution.h
         fixed_charge_partition.h
         full_execution.h
@@ -24,6 +26,7 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/calculation.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/charge_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/assessment.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_policy.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/input_issues.h

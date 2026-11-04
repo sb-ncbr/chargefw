@@ -1,5 +1,6 @@
 #include <chargefw/calculation/calculation.h>
 
+#include "calculation/charge_checks.h"
 #include "calculation/cover_execution.h"
 #include "calculation/cutoff_execution.h"
 #include "calculation/fixed_charge_partition.h"
@@ -192,6 +193,11 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
     }
     // Anything else, such as std::bad_alloc, is not a failure of the calculation and propagates.
 
+    auto charge_warnings =
+        calculated_charges.has_value()
+            ? detail::find_charge_issues(assessment.molecules(), *calculated_charges,
+                                         fixed_charge_partition)
+            : std::vector<ChargeIssue>{};
     // Searching molecules with fixed ions anew is part of the computation time.
     auto input_warnings =
         execution_input_warnings(assessment, *selected.method, status,
@@ -207,7 +213,8 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
         .failure_message = std::move(failure_message),
         .metrics = {.applicability_seconds = assessment.applicability_seconds_,
                     .computation_seconds = computation_seconds},
-        .input_warnings = std::move(input_warnings)};
+        .input_warnings = std::move(input_warnings),
+        .charge_warnings = std::move(charge_warnings)};
 }
 
 auto calculate(const AssessmentResult& assessment, const std::size_t max_threads,
@@ -222,7 +229,8 @@ auto calculate(const AssessmentResult& assessment, const std::size_t max_threads
             .failure_message = std::nullopt,
             .metrics = {.applicability_seconds = assessment.applicability_seconds_},
             .input_warnings = {assessment.input_warnings().begin(),
-                               assessment.input_warnings().end()}};
+                               assessment.input_warnings().end()},
+            .charge_warnings = {}};
     }
     return calculate(assessment, *plan, max_threads, observer);
 }

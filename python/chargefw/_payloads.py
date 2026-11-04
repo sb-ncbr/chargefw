@@ -11,6 +11,7 @@ from ._types import (
     AtomClassifier,
     BondClassifier,
     CalculationPhase,
+    ChargeIssueKind,
     ExecutionIssueKind,
     ExecutionMode,
     ExecutionStatus,
@@ -107,6 +108,15 @@ class ChargeSetPayload(TypedDict):
     assignments: list[ChargeAssignmentPayload]
 
 
+class ChargeIssuePayload(TypedDict):
+    kind: ChargeIssueKind
+    message: str
+    molecule_index: int
+    conformer_index: int | None
+    atom_index: int | None
+    atom_indices: list[int]
+
+
 class CalculationMetricsPayload(TypedDict):
     applicability_seconds: float
     computation_seconds: float
@@ -116,6 +126,7 @@ class ExecutionResultPayload(TypedDict):
     status: ExecutionStatus
     rejections: list[RejectionPayload]
     input_warnings: list[InputIssuePayload]
+    charge_warnings: list[ChargeIssuePayload]
     failure_message: str | None
     metrics: CalculationMetricsPayload
     effective: EffectiveCalculationPayload | None
