@@ -43,8 +43,15 @@ also when the calculation fails or is cancelled, with the reasons. Errors before
 malformed input file or an invalid option value, are reported on standard error and leave no result
 file. An unknown method, a parameter set of another method, or a cover threshold below the cutoff
 threshold is found only when ChargeFW assesses the calculation, so it is reported in the result JSON
-with status `invalid_input_or_request`. The exit status is 2 in all these cases. On request, ChargeFW
-also writes the molecules with their charges:
+with status `invalid_input_or_request`. The exit status is 2 in all these cases.
+
+Problems that do not stop the calculation are printed on standard error as warnings, such as
+`Warning: the molecule contains carbon but no hydrogen atoms; …`, and recorded in the result JSON;
+warnings alone do not change the exit status. Read them: some mean that the charges are probably
+wrong.
+[Warnings](../guide/results.md#warnings) lists them.
+
+On request, ChargeFW also writes the molecules with their charges:
 
 ```bash
 chargefw calculate --output-mol2 molecule.sdf output    # output/molecule.chargefw.mol2

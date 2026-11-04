@@ -58,8 +58,8 @@ bonds; the record gets a warning for each of the two kinds. Other V3000 atom and
 read but not used.
 
 V2000 property lines other than `M  CHG`, such as `M  ISO`, are not used. The record gets one
-warning for each kind of property line, and one for each kind of left-out bond, with the line number
-of the first one.
+`v2000_property_ignored` warning for each kind of property line, and one `v3000_bond_order_ignored`
+warning for each kind of left-out bond, with the line number of the first one.
 
 V3000 atom IDs are kept exactly as written, including leading zeros. V2000 has no atom IDs; an
 atom's ID is its position in the record, counted from zero.
