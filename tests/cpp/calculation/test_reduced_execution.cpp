@@ -2,6 +2,7 @@
 #include "calculation/cutoff_execution.h"
 #include "calculation/fixed_charge_partition.h"
 #include "calculation/reduced_execution.h"
+#include "features/topology_helpers.h"
 #include "support/test_calculation.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
@@ -437,13 +438,8 @@ TEST_CASE("SQE reduced execution preserves original component charge budgets",
                               {chargefw::test::make_sqe_ho_parameters(
                                   "sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5})},
                               mode);
-        constexpr auto atom_count = chain_atom_count + 1;
-        constexpr auto raw_total = -1.25;
-        constexpr auto offset = (1.0 - raw_total) / static_cast<double>(atom_count);
-        constexpr auto chain_reference_total = -1.5 + chain_atom_count * offset;
-        constexpr auto isolated_reference_total = 0.25 + offset;
-        check_component_total(sqeqp, 0, chain_atom_count, chain_reference_total);
-        check_component_total(sqeqp, chain_atom_count, atom_count, isolated_reference_total);
+        check_component_total(sqeqp, 0, chain_atom_count, 0.0);
+        check_component_total(sqeqp, chain_atom_count, chain_atom_count + 1, 1.0);
     }
 }
 
@@ -574,8 +570,7 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
     const auto sources = std::array{source};
 
     const auto exercise = [&](const std::string_view method_id,
-                              const parameters::ParameterSet& parameter_set,
-                              const bool expect_global_seed_target) {
+                              const parameters::ParameterSet& parameter_set) {
         const features::PreparedMolecule prepared{molecule};
         const features::ConformerFeatures geometry{molecule, 0};
         const auto classification =
@@ -597,10 +592,6 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
 
         const auto fragment_target =
             calculation::detail::fragment_target_charge(charge_context, fragment);
-        if (expect_global_seed_target) {
-            CHECK(std::abs(fragment_target - core::total_formal_charge(fragment.molecule())) >
-                  1.0e-6);
-        }
 
         const auto no_source_fragment = calculation::detail::calculate_fragment_charges(
             selected, &classification, fragment, charge_context);
@@ -646,11 +637,72 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
         }
     };
 
-    exercise("eem", chargefw::test::make_eem_parameters(), false);
-    exercise(
-        "sqeqp",
-        chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5}),
-        true);
+    exercise("eem", chargefw::test::make_eem_parameters());
+    exercise("sqeqp", chargefw::test::make_sqe_ho_parameters(
+                          "sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5}));
+}
+
+TEST_CASE("SQE+qp fragments start pieces of a split component from its reference charges",
+          "[calculation][reduced-execution][sqeqp]") {
+    // A U-shaped O-H chain whose arms run 2.5 Å apart and a separate H+: a 3 Å fragment around atom
+    // 0 holds two unconnected pieces of the chain, atoms 0-2 and 18-19, and the H+.
+    constexpr auto chain_atom_count = std::size_t{20};
+    auto atoms = std::vector<core::Atom>{};
+    auto bonds = std::vector<core::Bond>{};
+    auto positions = std::vector<core::Position>{};
+    for (std::size_t atom_index = 0; atom_index < chain_atom_count; ++atom_index) {
+        atoms.emplace_back(atom_index % 2 == 0 ? 8 : 1, 0);
+        const auto arm_index = atom_index < 10 ? atom_index : chain_atom_count - 1 - atom_index;
+        positions.push_back(
+            {.x = 1.4 * static_cast<double>(arm_index), .y = atom_index < 10 ? 0.0 : 2.5});
+        if (atom_index != 0) {
+            bonds.emplace_back(atom_index - 1, atom_index);
+        }
+    }
+    atoms.emplace_back(1, 1);
+    positions.push_back({.x = 1.0, .y = -2.0});
+    const auto molecule = core::Molecule{
+        std::move(atoms), std::move(bonds), {core::Conformer{std::move(positions)}}, "split-chain"};
+
+    const auto parameter_set =
+        chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5});
+    const features::PreparedMolecule prepared{molecule};
+    const features::ConformerFeatures geometry{molecule, 0};
+    const auto classification =
+        parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+    const auto* method = methods::method_registry().find("sqeqp");
+    REQUIRE(method != nullptr);
+    const auto options = methods::make_default_options(method->option_schema());
+    const methods::ApplicableMethod selected{.method = method,
+                                             .parameter_set = &parameter_set,
+                                             .method_options = options,
+                                             .classifications = {classification}};
+    const auto context =
+        calculation::detail::prepare_reduced_charge_context(selected, prepared, &classification);
+    const auto fragment = features::SpatialFragmentBuilder{prepared, geometry}.build(0, 3.0);
+    const auto charges = calculation::detail::calculate_fragment_charges(selected, &classification,
+                                                                         fragment, context);
+
+    const auto source_indices = fragment.local_to_source_atom_indices();
+    const auto pieces = features::connected_components(
+        features::PreparedMolecule{fragment.molecule()}.topology().adjacency());
+    REQUIRE(pieces.size() == 3);
+    auto budget_differs_from_formal_charge = false;
+    for (const auto& piece : pieces) {
+        auto reference = 0.0;
+        auto formal = 0.0;
+        auto calculated = 0.0;
+        for (const auto local_index : piece) {
+            reference += context.reference_charges.at(source_indices[local_index]);
+            formal += fragment.molecule().atom(local_index).formal_charge();
+            calculated += charges[local_index];
+        }
+        CAPTURE(source_indices[piece.front()], reference, formal);
+        CHECK(std::abs(calculated - reference) < 1.0e-12);
+        budget_differs_from_formal_charge |= std::abs(reference - formal) > 0.1;
+    }
+    // Normalizing the pieces in the fragment would give them their formal charges instead.
+    CHECK(budget_differs_from_formal_charge);
 }
 
 TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to original atoms",

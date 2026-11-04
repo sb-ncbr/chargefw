@@ -1,13 +1,13 @@
 #include "methods/builtin/sqeqp.h"
 
 #include "methods/builtin/sqe.h"
+#include "methods/reference_charges.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
-#include <Eigen/Core>
-
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace chargefw::methods::builtin {
@@ -22,20 +22,19 @@ auto SQEqpMethod::calculate(const CalculationInput& input) const -> charges::Ato
         return charges::AtomicCharges{sqe_core::calculate(input)};
     }
 
-    const auto initial_charge_parameter = parameters.atom("q0");
-
-    const auto n = static_cast<Eigen::Index>(atom_count);
-    Eigen::VectorXd initial_charges = Eigen::VectorXd::Zero(n);
-
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        initial_charges(static_cast<Eigen::Index>(atom_index)) =
-            initial_charge_parameter[atom_index];
+    if (const auto references = input.reference_charges(); !references.empty()) {
+        return charges::AtomicCharges{sqe_core::calculate(input, references)};
     }
 
-    initial_charges.array() -=
-        (initial_charges.sum() - input.target_charge()) / static_cast<double>(atom_count);
+    const auto initial_charge_parameter = parameters.atom("q0");
+    auto initial_charges = std::vector<double>(atom_count);
+    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
+        initial_charges[atom_index] = initial_charge_parameter[atom_index];
+    }
+    initial_charges = methods::detail::component_normalized_charges(
+        molecule, input.topology(), std::move(initial_charges), input.target_charge());
 
-    return charges::AtomicCharges{sqe_core::calculate(input, {initial_charges.data(), atom_count})};
+    return charges::AtomicCharges{sqe_core::calculate(input, initial_charges)};
 }
 
 auto SQEqpMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const

@@ -684,12 +684,16 @@ $$
 \mathbf{q}_{pn} = \mathbf{q}_p - \frac{1}{N}\left(\mathbf{1}^{\mathsf T} \mathbf{q}_p - Q\right)
 $$
 
-where $\mathbf{1}^{\mathsf T}$ is a row vector of ones. The rest of the procedure is the same as in
-[SQE+q0](#sqeq0), with $\mathbf{q}_{pn}$ in place of $\mathbf{q}_0$. The normalization applies to the
-whole molecule, so the parameterized charges of one connected component need not sum to its formal
-charge.
+where $\mathbf{1}^{\mathsf T}$ is a row vector of ones, $N$ the number of atoms, and $Q$ the total
+charge. The rest of the procedure is the same as in [SQE+q0](#sqeq0), with $\mathbf{q}_{pn}$ in place
+of $\mathbf{q}_0$.
 
-**In ChargeFW.** SQE+qp supports charged molecules and
+**In ChargeFW.** The normalization is applied to each connected component, the atoms joined by bonds,
+with its own $N$ and its formal charge as $Q$. Charge moves only along bonds, so each component, such as
+a protein chain, a ligand, or a water molecule, keeps its formal charge, as in SQE+q0. For a molecule
+with one component this is the published formula. The publication normalizes over all atoms of the
+molecule, which, for a structure with several components, gives each one a total that depends on the
+size and parameters of the others. SQE+qp supports charged molecules and
 [fixed ions](fixed-ions.md#what-the-approximation-does).
 
 ## Calculation cost

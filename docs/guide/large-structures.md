@@ -109,11 +109,11 @@ charges:
 | EEM, QEq, ABEEM, SFKEEM, EQeq, EQeq+C | Total formal charge divided by the number of atoms | The whole molecule |
 | SQE | Zero | Each bonded part of the molecule |
 | SQE+q0 | Its formal charge | Each bonded part of the molecule |
-| SQE+qp | Its parameterized charge, shifted so that all of them add up to the total formal charge | Each bonded part of the molecule |
+| SQE+qp | Its parameterized charge, shifted so that each bonded part adds up to its formal charge | Each bonded part of the molecule |
 
-For SQE+qp, the total kept for a bonded part can therefore differ from the part's formal charge, as in a
-full SQE+qp calculation. The size of the correction depends on how well the fragments represent the
-molecule; it is not guaranteed to be small.
+Each fragment of an SQE+qp calculation starts from these reference charges, as the full calculation
+does. The size of the correction depends on how well the fragments represent the molecule; it is not
+guaranteed to be small.
 
 Both approximations leave out what lies beyond the radius: bonds cut at the edge of a fragment and atoms
 farther away. [Fixed ions](fixed-ions.md) are the exception: they never become fragment centers, every

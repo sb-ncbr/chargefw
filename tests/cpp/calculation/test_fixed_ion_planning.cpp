@@ -555,7 +555,7 @@ TEST_CASE("fixed sources reach cutoff and cover over active fragments",
     exercise("sqeqp", make_sqeqp_fixed_ions_parameters(), -1);
 }
 
-TEST_CASE("reduced SQE+qp keeps disconnected normalized reference component totals",
+TEST_CASE("reduced SQE+qp keeps disconnected components at their formal charges",
           "[calculation][fixed-ions][reduced][sqeqp]") {
     const auto molecule = make_disconnected_qp_source_molecule();
     const auto source_atom_index = molecule.atom_count() - 1;
@@ -589,8 +589,8 @@ TEST_CASE("reduced SQE+qp keeps disconnected normalized reference component tota
         full_chain_total += full_values[atom_index];
     }
     const auto full_isolated_total = full_values[12];
-    CHECK(std::abs(full_chain_total) > 1.0e-6);
-    CHECK(std::abs(full_isolated_total - 1.0) > 1.0e-6);
+    CHECK(std::abs(full_chain_total) < 1.0e-11);
+    CHECK(std::abs(full_isolated_total - 1.0) < 1.0e-11);
 
     for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionKind::cutoff,
                                                     calculation::ExecutionMode::cutoff},
