@@ -54,6 +54,7 @@ class InputIssuePayload(TypedDict):
     message: str
     molecule_index: int
     conformer_index: int | None
+    atom_index: int | None
 
 
 class ExecutionPolicyPayload(TypedDict):

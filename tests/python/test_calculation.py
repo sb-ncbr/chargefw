@@ -663,6 +663,22 @@ def test_molecules_without_hydrogens_are_reported() -> None:
         ] == [("hydrogens_missing", 0, None)]
 
 
+def test_close_atoms_are_reported_with_their_atom() -> None:
+    # The first hydrogen is 0.3 Å from the oxygen; EQeq uses coordinates.
+    molecule = chargefw.Molecule(
+        [8, 1, 1],
+        bonds=[[0, 1, 1], [0, 2, 1]],
+        coordinates=[[0.0, 0.0, 0.0], [0.3, 0.0, 0.0], [-0.24, 0.93, 0.0]],
+    )
+    assert chargefw.assess(molecule, method="eqeq").input_warnings == ()
+    result = chargefw.calculate(molecule, method="eqeq")
+
+    assert [
+        (issue.kind, issue.molecule_index, issue.conformer_index, issue.atom_index)
+        for issue in result.input_warnings
+    ] == [("atoms_too_close", 0, 0, 1)]
+
+
 def test_no_plan_result_and_typed_exception() -> None:
     molecule = chargefw.Molecule([8, 1, 1], bonds=[[0, 1, 1], [0, 2, 1]])
     assessment = chargefw.assess(

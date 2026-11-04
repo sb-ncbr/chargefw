@@ -90,11 +90,14 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
         adapters::ImportedMoleculeRecord{.molecule = core::Molecule{std::vector{core::Atom{6}}}});
     auto execution =
         calculation::ExecutionResult{.status = calculation::ExecutionStatus::cancelled};
-    for (const auto molecule_index : {1U, 2U}) {
-        execution.input_warnings.push_back({.kind = calculation::InputIssueKind::hydrogens_missing,
-                                            .message = "no hydrogens",
-                                            .molecule_index = molecule_index});
-    }
+    execution.input_warnings.push_back({.kind = calculation::InputIssueKind::hydrogens_missing,
+                                        .message = "no hydrogens",
+                                        .molecule_index = 1});
+    execution.input_warnings.push_back({.kind = calculation::InputIssueKind::atoms_too_close,
+                                        .message = "atoms too close",
+                                        .molecule_index = 2,
+                                        .conformer_index = 0,
+                                        .atom_index = 0});
     const auto result = adapters::make_charge_calculation_result(records, {}, std::move(execution));
 
     for (std::size_t molecule_index = 0; molecule_index < records.size(); ++molecule_index) {
@@ -102,7 +105,8 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
         auto warnings = std::vector<adapters::ResultDiagnostic>{};
         std::ranges::copy_if(adapters::charge_record_diagnostics(result, molecule_index),
                              std::back_inserter(warnings), [](const auto& diagnostic) {
-                                 return diagnostic.code == "hydrogens_missing";
+                                 return diagnostic.code == "hydrogens_missing" ||
+                                        diagnostic.code == "atoms_too_close";
                              });
         REQUIRE(warnings.size() == (molecule_index == 0 ? 0U : 1U));
         if (!warnings.empty()) {
@@ -110,6 +114,9 @@ TEST_CASE("record diagnostics carry the input warnings of their own molecule",
             CHECK(warnings[0].molecule_index == molecule_index);
         }
     }
+    const auto close = adapters::charge_record_diagnostics(result, 2).front();
+    CHECK(close.conformer_index == 0);
+    CHECK(close.atom_index == 0);
 
     // Warnings out of molecule order, or for a molecule outside the input, are refused.
     for (const auto& molecule_indices :

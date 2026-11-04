@@ -125,6 +125,7 @@ auto input_issues(const std::span<const calculation::InputIssue> issues) -> nb::
         value["message"] = issue.message;
         value["molecule_index"] = issue.molecule_index;
         value["conformer_index"] = issue.conformer_index;
+        value["atom_index"] = issue.atom_index;
         result.append(std::move(value));
     }
     return result;

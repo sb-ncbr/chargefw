@@ -38,6 +38,7 @@ class InputIssue:
     message: str
     molecule_index: int
     conformer_index: int | None = None
+    atom_index: int | None = None
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -47,6 +48,7 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             message=issue["message"],
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
+            atom_index=issue["atom_index"],
         )
         for issue in payload
     )

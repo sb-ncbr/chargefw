@@ -283,9 +283,10 @@ assessment and calculation, and the `input_warnings`. The status is `success`, `
 `numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),
-with its kind, a message, the molecule index, and an optional conformer index.
+with its kind, a message, the molecule index, and an optional conformer and atom index.
 `AssessmentResult::input_warnings()` and `ExecutionResult::input_warnings` list them in molecule
-order. They do not change which method is selected.
+order. They do not change which method is selected. `atoms_too_close` appears only in
+`ExecutionResult::input_warnings`, when the executed method uses coordinates.
 
 A `ChargeSet` has the method ID, the optional parameter-set ID, and the assignments. Methods that use
 geometry give one assignment per conformer, the others one per molecule. Each `ChargeAssignment` has a

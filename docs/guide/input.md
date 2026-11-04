@@ -27,6 +27,17 @@ warns with `coordinates_2d_ignored`. Methods that need no geometry still apply t
 for the others, download or generate 3D coordinates. A flat 3D molecule, such as water with all z = 0,
 is not affected.
 
+Methods that use coordinates calculate charges from atom distances, so atoms that overlap give
+charges that can be off by tens of elementary charges. This happens in deposited structures with
+errors and when RDKit embeds the ions of a salt on top of each other. When the method uses
+coordinates, a conformer gets an `atoms_too_close` warning if two of its atoms are closer than 0.7
+times the sum of their covalent radii: for example, two carbon atoms closer than 1.06 Å, or carbon
+and hydrogen closer than 0.75 Å. Real bonds, including triple bonds, are longer. The warning says how
+many pairs there are and names the pair that is closest relative to the sum of its radii, which is
+not always the pair with the shortest distance; check the coordinates of those atoms. These methods
+do not calculate a conformer in which two atoms are at identical positions, unless both are
+[fixed ions](fixed-ions.md); two fixed ions at one position get the warning instead.
+
 ## Small molecules
 
 Use RDKit, or another cheminformatics toolkit, to build the molecule. Write the SMILES or structure in the

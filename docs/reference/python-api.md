@@ -257,10 +257,14 @@ calculates.
 
 | Attribute | Content |
 | --- | --- |
-| `kind` | `"hydrogens_missing"`: the molecule contains carbon but no hydrogen atoms; see [Preparing input](../guide/input.md) |
+| `kind` | `"hydrogens_missing"`: the molecule contains carbon but no hydrogen atoms; `"atoms_too_close"`: atoms of a conformer overlap. See [Preparing input](../guide/input.md) |
 | `message` | Description |
 | `molecule_index` | Index of the input molecule |
 | `conformer_index` | Index of the conformer the caution concerns; `None` when it concerns the whole molecule |
+| `atom_index` | Index of an atom the caution points to, for `"atoms_too_close"` the second atom of the closest pair; otherwise `None` |
+
+`"atoms_too_close"` appears only in the results of methods that use coordinates, not in
+`Assessment.input_warnings`.
 
 ## Methods and parameter sets
 

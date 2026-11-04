@@ -52,24 +52,16 @@ TEST_CASE("conformer features reject invalid conformer and atom indices", "[feat
     CHECK_THROWS_AS(geometry.position(3), std::out_of_range);
 }
 
-TEST_CASE("conformer features detect coincident and non-finite coordinates",
-          "[features][conformer]") {
-    const core::Molecule geometric_edge_cases{
+TEST_CASE("conformer features find non-finite coordinates", "[features][conformer]") {
+    const core::Molecule molecule{
         std::vector{core::Atom{1}, core::Atom{1}},
         {},
-        std::vector{core::Conformer{{core::Position{}, core::Position{-0.0}}, "duplicate"},
+        std::vector{core::Conformer{{core::Position{}, core::Position{.x = 1.0}}, "finite"},
                     core::Conformer{{core::Position{},
                                      core::Position{.x = std::numeric_limits<double>::infinity()}},
                                     "nonfinite"}}};
 
-    const features::ConformerFeatures duplicate{geometric_edge_cases, 0};
-    CHECK_FALSE(duplicate.first_nonfinite_atom_index().has_value());
-    const auto coincident = duplicate.coincident_atom_indices();
-    REQUIRE(coincident.has_value());
-    CHECK(coincident->first == 0);
-    CHECK(coincident->second == 1);
-
-    const features::ConformerFeatures nonfinite{geometric_edge_cases, 1};
-    CHECK(nonfinite.first_nonfinite_atom_index() == 1);
-    CHECK_FALSE(nonfinite.coincident_atom_indices().has_value());
+    CHECK_FALSE(
+        (features::ConformerFeatures{molecule, 0}.first_nonfinite_atom_index().has_value()));
+    CHECK(features::ConformerFeatures{molecule, 1}.first_nonfinite_atom_index() == 1);
 }

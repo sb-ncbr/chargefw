@@ -22,7 +22,8 @@ auto add_coordinate_prerequisite_issues(const Method& method,
     const auto& molecule = prepared.molecule();
     const auto defects = prepared.geometry_defects();
     for (std::size_t conformer_index = 0; conformer_index < defects.size(); ++conformer_index) {
-        const auto& [nonfinite_atom, coincident] = defects[conformer_index];
+        const auto& nonfinite_atom = defects[conformer_index].nonfinite_atom;
+        const auto& coincident = defects[conformer_index].coincident_atoms;
 
         if (nonfinite_atom.has_value()) {
             result.add(PrerequisiteIssue{
