@@ -12,8 +12,7 @@ class DummyMethod final : public Method {
             .name = "Dummy method",
             .full_name = "Dummy zero charges",
             .publication = std::nullopt,
-            .notes = "Always returns zero charges regardless of input "
-                     "formal charges; not an empirical charge model.",
+            .notes = "Returns zero for every atom; not a charge model.",
             .priority = 0,
             .recommended = false};
 

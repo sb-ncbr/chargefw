@@ -37,9 +37,7 @@ namespace {
 auto SQEMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result) const -> void {
     detail::add_component_neutrality_prerequisite_issue(
-        input, result, "SQE",
-        "its split-charge construction has no initial charges and conserves zero total charge "
-        "within each component");
+        input, result, "SQE", "it moves charge only along bonds, starting from zero charges");
 }
 
 auto sqe_core::estimate(const TargetSize& target, const bool initial_charges) -> ResourceEstimate {

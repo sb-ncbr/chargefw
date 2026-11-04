@@ -293,7 +293,7 @@ TEST_CASE("neutral-only methods reject ammonium with bundled parameters",
         REQUIRE(applicability.rejected[0].issues.size() == 1);
         const auto& issue = applicability.rejected[0].issues[0];
         CHECK(issue.kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-        CHECK(issue.message.contains("neutral"));
+        CHECK(issue.message.contains("zero total formal charge"));
     }
 }
 
@@ -313,7 +313,7 @@ TEST_CASE("zero-initialized methods reject a cancelling disconnected ion pair",
 
     CHECK(chargefw::core::total_formal_charge(molecule) == 0.0);
     check_neutrality_prerequisites(molecule, component_neutral_method_ids,
-                                   "neutral connected components");
+                                   "every bonded part has zero total formal charge");
 }
 
 TEST_CASE("zero-initialized methods accept neutral disconnected components",
@@ -345,7 +345,7 @@ TEST_CASE("neutral-only methods reject a cation", "[methods][builtin-methods]") 
         make_component_test_molecule({chargefw::core::Atom{1, 1, "H"}}, {}, "cation");
 
     check_neutrality_prerequisites(cation, component_neutral_method_ids,
-                                   "neutral connected components");
+                                   "every bonded part has zero total formal charge");
     check_neutrality_prerequisites(cation, std::array{std::string_view{"veem"}},
                                    "neutral molecules");
 }

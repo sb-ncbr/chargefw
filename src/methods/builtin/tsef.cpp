@@ -37,8 +37,9 @@ constexpr auto alpha = 14.4;
 auto TSEFMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
     if (!features::is_connected(input.prepared_molecule.topology().adjacency())) {
-        result.add(PrerequisiteIssue{.kind = PrerequisiteIssueKind::unsupported_molecule,
-                                     .message = "TSEF requires a connected molecular bond graph"});
+        result.add(PrerequisiteIssue{
+            .kind = PrerequisiteIssueKind::unsupported_molecule,
+            .message = "TSEF requires all atoms to be joined by bonds into one bonded part"});
     }
 }
 

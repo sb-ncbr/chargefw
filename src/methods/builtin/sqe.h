@@ -20,15 +20,15 @@ namespace sqe_core {
 class SQEMethod final : public Method {
   public:
     [[nodiscard]] auto metadata() const noexcept -> const MethodMetadata& override {
-        static constexpr MethodMetadata metadata{.id = "sqe",
-                                                 .name = "SQE",
-                                                 .full_name = "Split-charge Equilibration",
-                                                 .publication = "10.1063/1.2346671",
-                                                 .notes =
-                                                     "Every connected component must be formally "
-                                                     "neutral. Use SQE+q0 when formal-charge "
-                                                     "localization matters.",
-                                                 .priority = 90};
+        static constexpr MethodMetadata metadata{
+            .id = "sqe",
+            .name = "SQE",
+            .full_name = "Split-charge Equilibration",
+            .publication = "10.1063/1.2346671",
+            .notes = "The formal charges of every bonded part must add up to zero, and SQE does "
+                     "not use which atoms carry them; use SQE+q0 for charged molecules and for "
+                     "neutral ones with charged groups.",
+            .priority = 90};
 
         return metadata;
     }

@@ -12,8 +12,8 @@ class TSEFMethod final : public Method {
             .name = "TSEF",
             .full_name = "Topologically Symmetrical Energy Function",
             .publication = "10.1080/10629360701844142",
-            .notes = "Requires a connected molecular bond graph because "
-                     "every atom pair needs a finite bond-path distance.",
+            .notes = "All atoms must be joined by bonds into one bonded part, because the method "
+                     "uses the number of bonds on the shortest path between each pair of atoms.",
             .priority = 55};
 
         return metadata;

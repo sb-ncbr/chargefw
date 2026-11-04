@@ -12,8 +12,8 @@ class SQEq0Method final : public Method {
             .name = "SQE+q0",
             .full_name = "Split-charge Equilibration with Initial Formal Charges",
             .publication = "10.1021/ct200512e",
-            .notes = "In full execution, atomic formal charges define the reference state and each "
-                     "connected component preserves its formal-charge total.",
+            .notes = "Starts from the formal charges, so every bonded part keeps its total formal "
+                     "charge.",
             .priority = 80};
 
         return metadata;

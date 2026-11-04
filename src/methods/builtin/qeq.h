@@ -14,8 +14,8 @@ class QEqMethod final : public Method {
             .name = "QEq",
             .full_name = "Charge Equilibration",
             .publication = "10.1021/j100161a070",
-            .notes = "Uses fixed atom parameters in a single constrained solve with a selectable "
-                     "empirical two-center Coulomb term; hydrogen is not iterated.",
+            .notes = "The hardness of hydrogen does not depend on its charge, so the equations are "
+                     "solved once; overlap_term selects an empirical Coulomb term.",
             .priority = 170};
 
         return metadata;

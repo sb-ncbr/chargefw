@@ -12,7 +12,8 @@ class SMPQEqMethod final : public Method {
             .name = "SMP/QEq",
             .full_name = "Self-Consistent Charge Equilibration Method",
             .publication = "10.1021/jp8063273",
-            .notes = "Iterates charge-dependent hardness to convergence.",
+            .notes = "Repeats the calculation with charge-dependent hardness until the charges "
+                     "converge.",
             .priority = 160,
             .recommended = false};
 
