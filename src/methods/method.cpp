@@ -48,6 +48,7 @@ auto add_coordinate_prerequisite_issues(const Method& method,
                            " have identical coordinates",
                 .location = {.conformer_index = conformer_index,
                              .atom_index = coincident->second,
+                             .other_atom_index = coincident->first,
                              .atom_indices = {coincident->first, coincident->second}}});
         }
     }

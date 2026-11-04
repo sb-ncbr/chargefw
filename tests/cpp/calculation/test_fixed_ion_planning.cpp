@@ -658,6 +658,7 @@ TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numberi
     const auto& issue = std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]);
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
     CHECK(issue.location.atom_index == 2);
+    CHECK(issue.location.other_atom_index == 0);
     CHECK(issue.message.contains("active-subsystem atom numbering"));
 }
 

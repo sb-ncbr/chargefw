@@ -283,8 +283,8 @@ assessment and calculation, and the `input_warnings`. The status is `success`, `
 `numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
 
 Issues give where they are in a `core::IssueLocation`: an optional conformer index, the atom and bond
-index the message names, and `atom_indices` and `bond_indices` with every atom and bond the issue
-concerns. `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`, and
+index the message names, the other atom of a pair it names, such as two atoms too close, and
+`atom_indices` and `bond_indices` with every atom and bond the issue concerns. `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`, and
 `adapters::ResultDiagnostic` hold one in `location`, next to the molecule index.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),

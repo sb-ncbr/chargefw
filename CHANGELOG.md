@@ -49,6 +49,8 @@
   Before, charges outside [−5, 5] were refused, which excluded fixed ions such as W⁶⁺.
 - A result JSON diagnostic about several atoms or bonds lists all of them in `atom_indices` or
   `bond_indices`.
+- For PDB and mmCIF input, result JSON and command-line messages name the residue and chain of the
+  atoms a diagnostic points to, such as `atoms 3707 and 3708 are in PRO D 58`.
 
 ### Python
 

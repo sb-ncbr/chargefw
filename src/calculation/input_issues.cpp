@@ -94,6 +94,7 @@ auto add_close_atom_issues(const std::span<const InputIssue> assessment_warnings
                 .molecule_index = index,
                 .location = {.conformer_index = conformer,
                              .atom_index = second,
+                             .other_atom_index = first,
                              .atom_indices = close->atoms}});
         }
     }

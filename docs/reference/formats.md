@@ -391,7 +391,9 @@ message fields and may include zero-based molecule, atom, bond, or conformer ind
 source line number. A diagnostic about several atoms or bonds, such as `atoms_too_close` or
 `charge_out_of_range`, lists all of them in `atom_indices` or `bond_indices`, in index order; its
 `atom_index` and `bond_index` are the ones its message names. A viewer can select the listed atoms and
-bonds to show where the problem is.
+bonds to show where the problem is. For PDB and mmCIF input, the message also names the residue of the
+atom it points to, of both atoms of a pair such as two atoms too close, or of both atoms of its bond,
+as PDB files and viewers do, for example `atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages.
 
 For imported molecules, `input.import` records the source format, connectivity summary, and record-local
 import policy. Charges follow the atom order of the molecule. For structural inputs, generated mmCIF associates

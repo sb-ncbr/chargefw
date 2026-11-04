@@ -360,6 +360,7 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.molecule_index == 1);
     CHECK(close.location.conformer_index == 0);
     CHECK(close.location.atom_index == 1);
+    CHECK(close.location.other_atom_index == 0);
     CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
 }
 

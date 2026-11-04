@@ -193,6 +193,9 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
     if (location.atom_index.has_value()) {
         location.atom_index = target.active_atom_indices.at(*location.atom_index);
     }
+    if (location.other_atom_index.has_value()) {
+        location.other_atom_index = target.active_atom_indices.at(*location.other_atom_index);
+    }
     if (location.bond_index.has_value()) {
         location.bond_index = target.active_bond_indices.at(*location.bond_index);
     }

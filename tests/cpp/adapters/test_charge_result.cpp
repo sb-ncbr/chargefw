@@ -5,9 +5,11 @@
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
 #include <chargefw/core/atom.h>
+#include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/methods/method_applicability.h>
+#include <chargefw/methods/method_prerequisites.h>
 
 #include <snitch/snitch.hpp>
 
@@ -15,6 +17,7 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -25,6 +28,7 @@ namespace adapters = chargefw::adapters;
 namespace calculation = chargefw::calculation;
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
+namespace methods = chargefw::methods;
 
 using chargefw::test::full_effective;
 
@@ -176,6 +180,85 @@ TEST_CASE("record diagnostics carry the charge warnings with all their atoms",
     CHECK_THROWS_AS(adapters::make_charge_calculation_result(
                         records, {}, make_execution(calculation::ExecutionStatus::cancelled)),
                     std::invalid_argument);
+}
+
+TEST_CASE("record diagnostics name the residues of the atoms they point to", "[adapters][result]") {
+    const auto labels = [](std::string residue, std::string chain, std::string sequence) {
+        auto value = adapters::SourceStructuralLabels{};
+        value.author = {.residue = std::move(residue),
+                        .chain = std::move(chain),
+                        .sequence = std::move(sequence)};
+        value.insertion_code = "?";
+        return std::make_shared<const adapters::SourceStructuralLabels>(std::move(value));
+    };
+    const auto molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{8}, core::Atom{8}},
+                                         std::vector{core::Bond{0, 1}, core::Bond{1, 2}}};
+    auto structure = adapters::ImportedMoleculeRecord{.molecule = molecule};
+    structure.import_metadata = adapters::MoleculeImportMetadata{
+        .format = adapters::MolecularSourceFormat::mmcif,
+        .atoms = {{.position = 0, .structural_labels = labels("ALA", "A", "5")},
+                  {.position = 1, .structural_labels = labels("HOH", "A", "1203")},
+                  {.position = 2, .structural_labels = labels("HOH", "A", "1203")}}};
+    // A molecule built in code has no residues, so its diagnostics keep the plain message.
+    const auto records =
+        std::vector{structure, adapters::ImportedMoleculeRecord{.molecule = molecule}};
+
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    for (const auto molecule_index : {0U, 1U}) {
+        execution.rejections.push_back(
+            {.method_id = "sqe",
+             .issues = {methods::PrerequisiteIssue{
+                            .kind = methods::PrerequisiteIssueKind::parameter_classification_failed,
+                            .message = "no atom parameters",
+                            .molecule_index = molecule_index,
+                            .location = {.atom_index = 1, .atom_indices = {1, 2}}},
+                        methods::PrerequisiteIssue{
+                            .kind = methods::PrerequisiteIssueKind::parameter_classification_failed,
+                            .message = "no bond parameters",
+                            .molecule_index = molecule_index,
+                            .location = {.bond_index = 0, .bond_indices = {0}}},
+                        methods::PrerequisiteIssue{
+                            .kind = methods::PrerequisiteIssueKind::invalid_geometry,
+                            .message = "identical coordinates",
+                            .molecule_index = molecule_index,
+                            .location = {.atom_index = 2, .other_atom_index = 1}}}});
+    }
+    const auto result = adapters::make_charge_calculation_result(records, {}, std::move(execution));
+
+    const auto messages = [&result](const std::size_t molecule_index) {
+        auto values = std::vector<std::string>{};
+        for (const auto& diagnostic : adapters::charge_record_diagnostics(result, molecule_index)) {
+            if (diagnostic.severity == adapters::DiagnosticSeverity::error &&
+                diagnostic.code != "no_executable_plan") {
+                values.push_back(diagnostic.message);
+            }
+        }
+        return values;
+    };
+    // Residues are only added: each message starts with the one for the molecule without them.
+    const auto plain = messages(1);
+    const auto enriched = messages(0);
+    REQUIRE(plain.size() == 3);
+    REQUIRE(enriched.size() == 3);
+    auto added = std::vector<std::string>{};
+    for (std::size_t index = 0; index < plain.size(); ++index) {
+        CAPTURE(plain[index], enriched[index]);
+        CHECK_FALSE(plain[index].contains("HOH"));
+        REQUIRE(enriched[index].starts_with(plain[index]));
+        added.push_back(enriched[index].substr(plain[index].size()));
+        // The placeholder insertion code is left out.
+        CHECK_FALSE(added.back().contains('?'));
+    }
+    // The atom, both atoms of the bond, and both atoms of the pair, with their residues.
+    CHECK(added[0].contains("atom 2"));
+    CHECK(added[0].contains("HOH A 1203"));
+    CHECK_FALSE(added[0].contains("ALA"));
+    CHECK(added[1].contains("ALA A 5"));
+    CHECK(added[1].contains("HOH A 1203"));
+    CHECK(added[2].contains('2'));
+    CHECK(added[2].contains('3'));
+    CHECK(added[2].contains("HOH A 1203"));
 }
 
 TEST_CASE("plan warnings go to their molecule's record or to the document", "[adapters][result]") {
