@@ -7,6 +7,7 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 ## 3.0.0 release
 
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
+- [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
   READMEs and the documentation, show the Docker image as plain `sbncbr/chargefw`, and remove the image
   tag update from `utils/release/01-prepare.sh` and RELEASING.md.
