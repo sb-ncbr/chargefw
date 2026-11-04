@@ -64,10 +64,11 @@ file when the file gives an ion another charge than its catalog entry.
 
 ## What the approximation does
 
-A fixed ion is a point charge that does not change. Its electric field can redistribute the charges of
-the other atoms within the charge constraints of the method. The ion itself is not polarized, and no
-charge moves to or from it. This approximation has not been validated for quantitative predictions of
-metal coordination.
+A fixed ion is a point charge that does not change. Its electric field can move charge between the
+other atoms, as far as the method allows: in EEM anywhere in the structure, in the SQE methods only
+within each [bonded part](methods.md#method-descriptions). The ion itself is not polarized, and no
+charge moves to or from it. This approximation has not been validated for quantitative predictions
+of metal coordination.
 
 In EEM, the potential of the fixed ions enters the electronegativity of every calculated atom $i$:
 

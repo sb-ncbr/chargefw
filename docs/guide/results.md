@@ -9,8 +9,8 @@ Methods that use 3D coordinates give each conformer of a molecule its own charge
 or mmCIF file, the conformers of an RDKit molecule, and the conformers in molecule JSON all count as
 conformers. Methods that use only the molecular graph give one set of charges per molecule.
 
-Each set of charges is an assignment. Here ethanol gets three RDKit conformers; the RDKit integration
-needs `pip install --pre "chargefw[rdkit]"`:
+ChargeFW calls each set of charges an assignment. Here ethanol gets three RDKit conformers; the
+RDKit integration needs `pip install --pre "chargefw[rdkit]"`:
 
 ```python
 from rdkit import Chem
@@ -55,11 +55,11 @@ input file, or of the RDKit molecule or arrays you passed in. For PDB and mmCIF 
 that pass the [structural selection](../reference/formats.md#structural-selection) are included, still
 in file order.
 
-`assignment.atom_ids` holds one ID per atom: its ID in the input file, or its position in the file when
-the format has no atom IDs. For PDB and mmCIF files with several models, these IDs are those of the
-first model. The atom sites of the model that a conformer came from are in
-`molecule.source_mapping.conformers[assignment.conformer_index].sites`, each with its `id`. mmCIF
-output and attaching charges to a Gemmi document use this mapping for you.
+`assignment.atom_ids` holds one ID per atom: its ID in the input file, or its position in the file
+when the format has no atom IDs. For PDB and mmCIF files with several models, these IDs are those of
+the first model; the atoms of the other models are listed, with their IDs, in
+`molecule.source_mapping.conformers[assignment.conformer_index].sites`. mmCIF output and
+`attach_charges()` for Gemmi documents put each charge on the right atom of every model for you.
 
 ## What the result records
 
@@ -82,9 +82,10 @@ molecule, such as QEq for compounds of silicon. ChargeFW still returns the charg
 as described in [Preparing input](input.md), or use another method or parameter set.
 
 The warning names the atom furthest from its formal charge and says how many atoms are affected. In
-Python, `result.charge_warnings` lists the warnings, and the `atom_indices` of each has every affected
-atom. In result JSON, the record's diagnostic has the same `atom_indices`, so that a viewer can select
-those atoms. [Fixed ions](fixed-ions.md) are not checked, because their charge is set.
+Python, `result.charge_warnings` lists the warnings, and the `atom_indices` of each has every
+affected atom. In result JSON, the warning in the molecule's record has the same `atom_indices`, so
+that a viewer can select those atoms. [Fixed ions](fixed-ions.md) are not checked, because their
+charge is set.
 
 ## When a calculation fails
 

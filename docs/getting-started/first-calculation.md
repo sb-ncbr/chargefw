@@ -46,9 +46,9 @@ The charges are in the last column of the MOL2 atom records, rounded to four dec
 
 ```text
 @<TRIPOS>ATOM
-1 C -3.6645 -0.5774 -0.0163 C 1 UNL -0.6159
-2 C -2.2115 -0.8955 -0.2688 C 1 UNL 0.5291
-3 O -1.8819 -1.9716 -0.7542 O 1 UNL -0.6475
+1 C1 -3.6645 -0.5774 -0.0163 C.3 1 UNL -0.6159
+2 C2 -2.2115 -0.8955 -0.2688 C.2 1 UNL 0.5291
+3 O3 -1.8819 -1.9716 -0.7542 O.2 1 UNL -0.6475
 ```
 
 ## Python
