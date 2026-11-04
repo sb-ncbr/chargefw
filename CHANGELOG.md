@@ -24,6 +24,9 @@
 
 - A molecule with carbon but no hydrogen atoms gets a `hydrogens_missing` warning, because its
   hydrogens were most likely not added.
+- With a method that uses coordinates, a conformer whose atoms are closer than 0.7 times the sum of
+  their covalent radii gets an `atoms_too_close` warning, which names the pair closest relative to
+  that sum.
 - Fixed ions in large systems are checked against the other atoms much faster.
 
 ### Output
@@ -44,7 +47,7 @@
 - `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
   plan was recorded.
 - `Assessment.input_warnings` and `CalculationResult.input_warnings` list `chargefw.InputIssue`
-  values, such as missing hydrogens.
+  values, such as missing hydrogens. An `InputIssue` has an `atom_index` for issues about atoms.
 
 ### Command line
 
@@ -68,7 +71,9 @@
 - `calculation::InputIssue`, `AssessmentResult::input_warnings()`, and
   `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
 - `features::PreparedMolecule` finds the geometry defects of its conformers once, in
-  `geometry_defects()`, and copies share them.
+  `geometry_defects()`, and copies share them. The defects include atoms that are too close, in
+  `close_atoms`; `features::find_close_atoms()` finds those for one conformer without caching.
+  `ConformerFeatures::coincident_atom_indices()` is removed.
 - `core::Position` has a lexicographic three-way comparison.
 
 ## 3.0.0rc2

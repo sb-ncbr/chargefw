@@ -40,13 +40,15 @@ auto find_coincident_atoms(const ConformerFeatures& geometry,
     return std::nullopt;
 }
 
-// Finds identical positions and atoms that are too close with one radius search per atom. Each
-// atom searches within close_atom_factor times twice its own covalent radius, so a pair is always
-// found from its atom with the larger radius and counted only from there. An element without a
-// covalent radius counts as radius 0. At the first identical positions, the search stops and
-// find_coincident_atoms() names the pair. Requires finite coordinates.
-auto add_spatial_defects(const ConformerFeatures& geometry, ConformerGeometryDefects& defects)
-    -> void {
+// Counts the atoms that are too close with one radius search per atom. Each atom searches within
+// close_atom_factor times twice its own covalent radius, so a pair is always found from its atom
+// with the larger radius and counted only from there. An element without a covalent radius counts
+// as radius 0. Atoms at identical positions count as a pair at distance 0, unless
+// stop_at_identical_positions, which returns std::nullopt at the first of them instead. Requires
+// finite coordinates.
+auto count_close_atoms(const ConformerFeatures& geometry,
+                       const detail::ConformerSpatialIndex& index,
+                       const bool stop_at_identical_positions) -> std::optional<CloseAtoms> {
     const auto& table = core::periodic_table();
     auto radii = std::vector<double>{};
     radii.reserve(geometry.molecule().atom_count());
@@ -54,7 +56,6 @@ auto add_spatial_defects(const ConformerFeatures& geometry, ConformerGeometryDef
         radii.push_back(table.element(atom.atomic_number()).covalent_radius);
     }
 
-    const auto index = detail::ConformerSpatialIndex{geometry};
     auto close = CloseAtoms{};
     auto closest_ratio = 0.0;
     auto neighbors = std::vector<std::size_t>{};
@@ -65,9 +66,9 @@ auto add_spatial_defects(const ConformerFeatures& geometry, ConformerGeometryDef
             if (other == atom) {
                 continue;
             }
-            if (geometry.position(other) == geometry.position(atom)) {
-                defects.coincident_atoms = find_coincident_atoms(geometry, index);
-                return;
+            if (stop_at_identical_positions &&
+                geometry.position(other) == geometry.position(atom)) {
+                return std::nullopt;
             }
             if (radii[other] > radii[atom] || (radii[other] == radii[atom] && other < atom)) {
                 continue;
@@ -88,12 +89,32 @@ auto add_spatial_defects(const ConformerFeatures& geometry, ConformerGeometryDef
             ++close.pair_count;
         }
     }
-    if (close.pair_count > 0) {
+    return close;
+}
+
+auto find_geometry_defects(const ConformerFeatures& geometry) -> ConformerGeometryDefects {
+    auto defects =
+        ConformerGeometryDefects{.nonfinite_atom = geometry.first_nonfinite_atom_index()};
+    if (defects.nonfinite_atom.has_value()) {
+        return defects;
+    }
+    const auto index = detail::ConformerSpatialIndex{geometry};
+    const auto close = count_close_atoms(geometry, index, true);
+    if (!close.has_value()) {
+        defects.coincident_atoms = find_coincident_atoms(geometry, index);
+    } else if (close->pair_count > 0) {
         defects.close_atoms = close;
     }
+    return defects;
 }
 
 } // namespace
+
+auto find_close_atoms(const ConformerFeatures& geometry) -> std::optional<CloseAtoms> {
+    const auto index = detail::ConformerSpatialIndex{geometry};
+    const auto close = count_close_atoms(geometry, index, false);
+    return close->pair_count > 0 ? close : std::nullopt;
+}
 
 auto PreparedMolecule::molecule() const noexcept -> const core::Molecule& {
     return topology_.molecule();
@@ -110,13 +131,7 @@ auto PreparedMolecule::geometry_defects() const -> std::span<const ConformerGeom
         auto conformers = std::vector<ConformerGeometryDefects>{};
         conformers.reserve(source.conformer_count());
         for (std::size_t conformer = 0; conformer < source.conformer_count(); ++conformer) {
-            const auto geometry = ConformerFeatures{source, conformer};
-            auto defects =
-                ConformerGeometryDefects{.nonfinite_atom = geometry.first_nonfinite_atom_index()};
-            if (!defects.nonfinite_atom.has_value()) {
-                add_spatial_defects(geometry, defects);
-            }
-            conformers.push_back(defects);
+            conformers.push_back(find_geometry_defects(ConformerFeatures{source, conformer}));
         }
         geometry_->conformers = std::move(conformers);
     });

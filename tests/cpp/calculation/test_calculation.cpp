@@ -323,6 +323,82 @@ TEST_CASE("assessment warns about molecules with carbon but no hydrogen",
     }
 }
 
+TEST_CASE("execution warns about close atoms only for methods using coordinates",
+          "[calculation][calculation]") {
+    // A hydrogen 0.3 Å from the oxygen, below 0.7 times the sum of their radii, 0.68 Å.
+    const auto close_water =
+        core::Molecule{std::vector{core::Atom{8}, core::Atom{1}, core::Atom{1}},
+                       std::vector{core::Bond{0, 1}, core::Bond{0, 2}},
+                       {core::Conformer{{{0.0, 0.0, 0.0}, {0.3, 0.0, 0.0}, {-0.24, 0.93, 0.0}}}}};
+    const auto carbon_monoxide =
+        core::Molecule{std::vector{core::Atom{6}, core::Atom{8}},
+                       std::vector{core::Bond{0, 1, core::BondOrder::TRIPLE}},
+                       {core::Conformer{{{0.0, 0.0, 0.0}, {1.13, 0.0, 0.0}}}}};
+    const auto molecules = core::MoleculeCollection{std::vector{carbon_monoxide, close_water}};
+    const auto kinds = [](const std::span<const calculation::InputIssue> issues) {
+        auto result = std::vector<calculation::InputIssueKind>{};
+        for (const auto& issue : issues) {
+            result.push_back(issue.kind);
+        }
+        return result;
+    };
+
+    const auto topological = calculation::assess(
+        calculation::AssessmentRequest{.molecules = molecules, .method_id = "formal"});
+    CHECK(kinds(calculation::calculate(topological).input_warnings) ==
+          std::vector{calculation::InputIssueKind::hydrogens_missing});
+
+    const auto geometric = calculation::assess(
+        calculation::AssessmentRequest{.molecules = molecules, .method_id = "eqeq"});
+    CHECK(kinds(geometric.input_warnings()) ==
+          std::vector{calculation::InputIssueKind::hydrogens_missing});
+    const auto result = calculation::calculate(geometric);
+    REQUIRE(kinds(result.input_warnings) ==
+            std::vector{calculation::InputIssueKind::hydrogens_missing,
+                        calculation::InputIssueKind::atoms_too_close});
+    const auto& close = result.input_warnings[1];
+    CHECK(close.molecule_index == 1);
+    CHECK(close.conformer_index == 0);
+    CHECK(close.atom_index == 1);
+}
+
+TEST_CASE("close atoms include fixed ions and keep the original atom indices",
+          "[calculation][calculation]") {
+    const auto calculate = [](const core::Molecule& molecule,
+                              std::vector<calculation::FixedAtomCharge> sources) {
+        return calculation::calculate(calculation::assess(calculation::AssessmentRequest{
+            .molecules = core::MoleculeCollection{std::vector{molecule}},
+            .parameter_sets = {make_singular_eem_parameter_set()},
+            .method_id = "eem",
+            .parameter_set_id = "singular-eem",
+            .fixed_ions = calculation::FixedIons{.sources = std::move(sources)}}));
+    };
+
+    // The fixed magnesium is 1.0 Å from the oxygen, below 0.7 times the sum of their radii, 1.45 Å.
+    const auto close_ion =
+        core::Molecule{std::vector{core::Atom{1, 0}, core::Atom{12, 2}, core::Atom{8, 0}},
+                       {},
+                       {core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 1.0, 0.0}, {1.0, 0.0, 0.0}}}}};
+    const auto close_result =
+        calculate(close_ion, {{.molecule_index = 0, .atom_index = 1, .charge = 2.0}});
+    REQUIRE(close_result.input_warnings.size() == 1);
+    CHECK(close_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
+    CHECK(close_result.input_warnings[0].atom_index == 2);
+
+    // Two fixed ions may share a position; they are a close pair at 0 Å rather than hiding the
+    // others.
+    const auto coincident_ions = core::Molecule{
+        std::vector{core::Atom{1, 0}, core::Atom{12, 2}, core::Atom{8, 0}, core::Atom{12, 2}},
+        {},
+        {core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {1.0, 1.0, 0.0}}}}};
+    const auto coincident_result =
+        calculate(coincident_ions, {{.molecule_index = 0, .atom_index = 1, .charge = 2.0},
+                                    {.molecule_index = 0, .atom_index = 3, .charge = 2.0}});
+    REQUIRE(coincident_result.input_warnings.size() == 1);
+    CHECK(coincident_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
+    CHECK(coincident_result.input_warnings[0].atom_index == 3);
+}
+
 TEST_CASE("explicit full execution reports its plan and effective provenance",
           "[calculation][calculation]") {
     const auto assessment = calculation::assess(calculation::AssessmentRequest{

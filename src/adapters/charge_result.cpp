@@ -444,6 +444,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         diagnostic.message = issue.message;
         diagnostic.molecule_index = issue.molecule_index;
         diagnostic.conformer_index = issue.conformer_index;
+        diagnostic.atom_index = issue.atom_index;
         append_unique(diagnostics, seen, std::move(diagnostic));
     }
     if (execution != nullptr) {

@@ -347,10 +347,12 @@ TEST_CASE("cancellation produces a terminal observer event", "[calculation][obse
 
 TEST_CASE("fixed-charge cancellation retains provenance and permits plan reuse",
           "[calculation][observer]") {
+    // The oxygen is 0.5 Å from the fixed magnesium: a completed calculation warns about it, while a
+    // cancelled one does not search for close atoms.
     const auto molecule =
         core::Molecule{std::vector{core::Atom{1, 0}, core::Atom{12, 2}, core::Atom{8, 0}},
                        {},
-                       {core::Conformer{{{0.0, 0.0, 0.0}, {0.0, 3.0, 0.0}, {5.0, 0.0, 0.0}}}},
+                       {core::Conformer{{{0.0, 0.0, 0.0}, {0.0, 3.0, 0.0}, {0.0, 3.5, 0.0}}}},
                        "cancelled-fixed-charge-eem"};
     for (const auto mode : all_modes) {
         CAPTURE(calculation::to_string(mode));
@@ -377,6 +379,7 @@ TEST_CASE("fixed-charge cancellation retains provenance and permits plan reuse",
         const auto& provenance = *result.effective->fixed_ions;
         CHECK(provenance.sources.size() == 1);
         CHECK(provenance.sources[0].charge == 0.4);
+        CHECK(result.input_warnings.empty());
 
         const auto events = observer.events();
         assert_computation_boundary(events, mode);
@@ -400,6 +403,8 @@ TEST_CASE("fixed-charge cancellation retains provenance and permits plan reuse",
         REQUIRE(repeated.calculated());
         REQUIRE(repeated.effective->fixed_ions.has_value());
         CHECK(repeated.effective->fixed_ions->sources[0].charge == 0.4);
+        REQUIRE(repeated.input_warnings.size() == 1);
+        CHECK(repeated.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
     }
 }
 

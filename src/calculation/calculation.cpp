@@ -4,6 +4,7 @@
 #include "calculation/cutoff_execution.h"
 #include "calculation/fixed_charge_partition.h"
 #include "calculation/full_execution.h"
+#include "calculation/input_checks.h"
 #include "calculation/observer_notifications.h"
 
 #include <chargefw/methods/method.h>
@@ -104,6 +105,20 @@ calculate_request(const CalculationRequest& request,
     throw std::invalid_argument{"unknown execution policy"};
 }
 
+// Close atoms matter only to a method using coordinates. A cancelled calculation reports only the
+// assessment warnings, so that it does not start a search.
+auto execution_input_warnings(const AssessmentResult& assessment, const methods::Method& method,
+                              const ExecutionStatus status,
+                              const features::PreparedMoleculeCollection& prepared,
+                              const detail::FixedChargePartition* fixed_charge_partition)
+    -> std::vector<InputIssue> {
+    if (!method.requirements().coordinates || status == ExecutionStatus::cancelled) {
+        return {assessment.input_warnings().begin(), assessment.input_warnings().end()};
+    }
+    return detail::add_close_atom_issues(assessment.input_warnings(), assessment.molecules(),
+                                         prepared, fixed_charge_partition);
+}
+
 } // namespace
 
 auto to_string(const ExecutionStatus value) -> std::string_view {
@@ -177,6 +192,10 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
     }
     // Anything else, such as std::bad_alloc, is not a failure of the calculation and propagates.
 
+    // Searching molecules with fixed ions anew is part of the computation time.
+    auto input_warnings =
+        execution_input_warnings(assessment, *selected.method, status,
+                                 assessment.prepared_molecules(), fixed_charge_partition);
     const auto computation_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - computation_started}
             .count();
@@ -188,7 +207,7 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
         .failure_message = std::move(failure_message),
         .metrics = {.applicability_seconds = assessment.applicability_seconds_,
                     .computation_seconds = computation_seconds},
-        .input_warnings = {assessment.input_warnings().begin(), assessment.input_warnings().end()}};
+        .input_warnings = std::move(input_warnings)};
 }
 
 auto calculate(const AssessmentResult& assessment, const std::size_t max_threads,
