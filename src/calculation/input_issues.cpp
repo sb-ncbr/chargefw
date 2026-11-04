@@ -93,7 +93,8 @@ auto add_close_atom_issues(const std::span<const InputIssue> assessment_warnings
                                        conformer + 1, finding),
                 .molecule_index = index,
                 .conformer_index = conformer,
-                .atom_index = second});
+                .atom_index = second,
+                .atom_indices = close->atoms});
         }
     }
     return result;

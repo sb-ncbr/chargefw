@@ -360,6 +360,7 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.molecule_index == 1);
     CHECK(close.conformer_index == 0);
     CHECK(close.atom_index == 1);
+    CHECK(close.atom_indices == std::vector<std::size_t>{0, 1});
 }
 
 TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",
@@ -431,6 +432,8 @@ TEST_CASE("close atoms include fixed ions and keep the original atom indices",
     REQUIRE(coincident_result.input_warnings.size() == 1);
     CHECK(coincident_result.input_warnings[0].kind == calculation::InputIssueKind::atoms_too_close);
     CHECK(coincident_result.input_warnings[0].atom_index == 3);
+    // Both ions are close to the oxygen as well.
+    CHECK(coincident_result.input_warnings[0].atom_indices == std::vector<std::size_t>{1, 2, 3});
 }
 
 TEST_CASE("explicit full execution reports its plan and effective provenance",

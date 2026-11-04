@@ -677,6 +677,7 @@ def test_close_atoms_are_reported_with_their_atom() -> None:
         (issue.kind, issue.molecule_index, issue.conformer_index, issue.atom_index)
         for issue in result.input_warnings
     ] == [("atoms_too_close", 0, 0, 1)]
+    assert result.input_warnings[0].atom_indices.tolist() == [0, 1]
 
 
 def test_no_plan_result_and_typed_exception() -> None:

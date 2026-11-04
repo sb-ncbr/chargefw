@@ -56,6 +56,7 @@ class InputIssuePayload(TypedDict):
     molecule_index: int
     conformer_index: int | None
     atom_index: int | None
+    atom_indices: list[int]
 
 
 class ExecutionPolicyPayload(TypedDict):

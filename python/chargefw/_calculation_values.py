@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from operator import index as as_index
 from types import MappingProxyType
 
@@ -40,7 +40,13 @@ from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
 
 
-@dataclass(frozen=True, slots=True)
+def _atom_indices(values: Iterable[int] = ()) -> NDArray[np.int64]:
+    result = np.asarray(list(values), dtype=np.int64)
+    result.flags.writeable = False
+    return result
+
+
+@dataclass(frozen=True, slots=True, eq=False)
 class InputIssue:
     """A caution about an input molecule, such as hydrogens that were probably not added."""
 
@@ -49,6 +55,8 @@ class InputIssue:
     molecule_index: int
     conformer_index: int | None = None
     atom_index: int | None = None
+    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
+    atom_indices: NDArray[np.int64] = field(default_factory=_atom_indices)
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -59,6 +67,7 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
+            atom_indices=_atom_indices(issue["atom_indices"]),
         )
         for issue in payload
     )
@@ -78,21 +87,17 @@ class ChargeIssue:
 
 
 def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]:
-    result = []
-    for issue in payload:
-        atom_indices = np.asarray(issue["atom_indices"], dtype=np.int64)
-        atom_indices.flags.writeable = False
-        result.append(
-            ChargeIssue(
-                kind=issue["kind"],
-                message=issue["message"],
-                molecule_index=issue["molecule_index"],
-                conformer_index=issue["conformer_index"],
-                atom_index=issue["atom_index"],
-                atom_indices=atom_indices,
-            )
+    return tuple(
+        ChargeIssue(
+            kind=issue["kind"],
+            message=issue["message"],
+            molecule_index=issue["molecule_index"],
+            conformer_index=issue["conformer_index"],
+            atom_index=issue["atom_index"],
+            atom_indices=_atom_indices(issue["atom_indices"]),
         )
-    return tuple(result)
+        for issue in payload
+    )
 
 
 @dataclass(frozen=True, slots=True)

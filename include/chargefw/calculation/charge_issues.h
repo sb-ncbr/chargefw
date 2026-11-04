@@ -32,7 +32,7 @@ struct ChargeIssue {
     // The atom the message names: for charge_out_of_range, the one furthest from its formal charge.
     std::optional<std::size_t> atom_index = std::nullopt;
     // Every atom the issue concerns, in atom order.
-    std::vector<std::size_t> atom_indices;
+    std::vector<std::size_t> atom_indices = {};
 };
 
 } // namespace chargefw::calculation

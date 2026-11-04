@@ -25,6 +25,8 @@ struct CloseAtoms {
     std::pair<std::size_t, std::size_t> closest;
     double distance = 0.0; // Å
     std::size_t pair_count = 0;
+    // Every atom in at least one of the pairs, in atom order.
+    std::vector<std::size_t> atoms;
 };
 
 // Defects of one conformer's geometry that matter to methods using coordinates.

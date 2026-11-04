@@ -75,6 +75,7 @@ TEST_CASE("prepared molecules find geometry defects once per conformer", "[featu
     CHECK(defects[3].close_atoms->closest == std::pair<std::size_t, std::size_t>{0, 2});
     CHECK(defects[3].close_atoms->distance == 1.0);
     CHECK(defects[3].close_atoms->pair_count == 1);
+    CHECK(defects[3].close_atoms->atoms == std::vector<std::size_t>{0, 2});
     CHECK(defects[4].coincident_atoms == std::pair<std::size_t, std::size_t>{0, 1});
     CHECK_FALSE(defects[4].close_atoms.has_value());
     CHECK(prepared.geometry_defects().data() == defects.data());

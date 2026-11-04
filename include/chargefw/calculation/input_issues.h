@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace chargefw::calculation {
 
@@ -30,6 +31,8 @@ struct InputIssue {
     // The atom the issue points to, if it concerns atoms: for atoms_too_close, the second atom of
     // the closest pair. The message names both.
     std::optional<std::size_t> atom_index = std::nullopt;
+    // Every atom the issue concerns, in atom order: for atoms_too_close, each atom of a close pair.
+    std::vector<std::size_t> atom_indices = {};
 };
 
 } // namespace chargefw::calculation

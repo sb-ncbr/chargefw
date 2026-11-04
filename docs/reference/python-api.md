@@ -263,6 +263,7 @@ calculates.
 | `molecule_index` | Index of the input molecule |
 | `conformer_index` | Index of the conformer the caution concerns; `None` when it concerns the whole molecule |
 | `atom_index` | Index of an atom the caution points to, for `"atoms_too_close"` the second atom of the closest pair; otherwise `None` |
+| `atom_indices` | Read-only NumPy `int64` array of every atom the caution concerns, for `"atoms_too_close"` each atom of a close pair; empty for cautions about the whole molecule |
 
 `"atoms_too_close"` appears only in the results of methods that use coordinates, not in
 `Assessment.input_warnings`.
