@@ -539,7 +539,7 @@ class CalculationResult:
     def timings(self) -> CalculationTimings:
         return self._timings
 
-    def _raise_for_status(self) -> None:
+    def _status_error(self) -> ChargeFWError | None:
         exception_types = {
             "no_executable_plan": NoExecutablePlanError,
             "numerical_failure": NumericalFailureError,
@@ -547,7 +547,7 @@ class CalculationResult:
         }
         exception_type = exception_types.get(self.status)
         if exception_type is None:
-            return
+            return None
         if self.status == "no_executable_plan":
-            raise exception_type(_no_executable_plan_message(self.rejections), self)
-        raise exception_type(self.failure_message or self.status, self)
+            return exception_type(_no_executable_plan_message(self.rejections), self)
+        return exception_type(self.failure_message or self.status, self)

@@ -196,6 +196,7 @@ result = chargefw.calculate(
 | `status` | `"success"`, or the reason for a failure |
 | `rejections` | Rejected methods and parameter sets with reasons |
 | `input_warnings` | Cautions about the input molecules, such as [missing hydrogens](../guide/input.md) |
+| `charge_warnings` | Cautions about the calculated charges, such as [charges far from the formal charges](../guide/results.md#charges-that-are-probably-wrong) |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | Time spent selecting and calculating |
 
@@ -210,6 +211,38 @@ assignments, conformers, and atom order.
 With fixed ions, `result.requested.fixed_ions` holds the names you passed and
 `result.plan.fixed_ions.sources` the ions that were fixed, each with its residue name in
 `component_id`, its molecule and atom index, and its charge.
+
+### Warnings
+
+ChargeFW returns charges also when it finds a problem that can make them wrong. `calculate()`, and
+for problems in the file `chargefw.io.read()` and `chargefw.io.parse()`, then raise a Python
+warning, which Python prints with the line of your code that called ChargeFW:
+
+```text
+script.py:4: InputWarning: molecule 1 ('1CRN'): the molecule contains carbon but no hydrogen atoms; if its hydrogens were not added, add them before calculating (hydrogens_missing; see result.input_warnings)
+  result = chargefw.calculate(molecules, method="eem")
+```
+
+| Warning | Raised for |
+| --- | --- |
+| `chargefw.InputWarning` | `hydrogens_missing` and `atoms_too_close` by `calculate()`; `unbonded_residue_atoms` and `symmetry_connections_ignored` by reading |
+| `chargefw.ChargeWarning` | `charge_out_of_range` by `calculate()`: the charges are probably wrong |
+
+Both derive from `chargefw.ChargeFWWarning`. A call that finds the same problem in several molecules
+raises one warning that counts them. Other cautions, such as partial charges in the file that
+ChargeFW does not use, raise no warning. Every caution, with the atoms it concerns, is recorded in
+`molecule.import_issues`, `result.input_warnings`, `result.charge_warnings`, and
+`result.plan.warnings`. A calculation that fails raises its [error](#errors) instead of warnings;
+the cautions are in the error's `result`.
+
+Python's warning filters hide a warning or turn it into an exception:
+
+```python
+import warnings
+
+warnings.simplefilter("ignore", chargefw.InputWarning)
+warnings.simplefilter("error", chargefw.ChargeWarning)
+```
 
 ### Errors
 

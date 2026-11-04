@@ -380,3 +380,8 @@ A new kind follows these rules:
   so they need no limit.
 - **Stage.** Findings that do not depend on the method belong to assessment; those about the executed
   method to execution; those about charges exist only when charges do.
+- **Python warning.** A kind also raises a Python warning (`InputWarning` or `ChargeWarning`, in
+  `python/chargefw/_warnings.py`) when it can make the charges wrong and the user can act on it, by
+  fixing the input or choosing another method. A kind that only notes data ChargeFW did not need,
+  something the user requested, or a problem ChargeFW already refuses with a reason stays in its
+  attribute.

@@ -8,6 +8,7 @@ from ._chargefw.calculation import _fixed_ion_names
 from ._elements import Element, PeriodicTable, periodic_table
 from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
 from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet
+from ._warnings import ChargeFWWarning, ChargeWarning, InputWarning
 from .calculation import (
     Assessment,
     CalculationCancelledError,
@@ -87,6 +88,9 @@ __all__ = [
     "ExecutionIssue",
     "InputIssue",
     "ChargeIssue",
+    "ChargeFWWarning",
+    "InputWarning",
+    "ChargeWarning",
     "Execution",
     "Plan",
     "Rejection",

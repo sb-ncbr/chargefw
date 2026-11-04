@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from threading import Lock
@@ -38,6 +39,14 @@ from ._types import (
     MethodScope,
     ParameterMatching,
     RequestedExecution,
+)
+from ._warnings import (
+    CHARGE_WARNING_KINDS,
+    INPUT_WARNING_KINDS,
+    ChargeFWWarning,
+    ChargeWarning,
+    InputWarning,
+    issue_warnings,
 )
 from .core import Molecule, MoleculeCollection
 
@@ -362,30 +371,46 @@ def calculate(
                 parameter_sets,
                 assessment.rejections,
             )
-            result._raise_for_status()
-            return result
-        return calculate(collection, assessment.default_plan, threads=threads, observer=observer)
+        else:
+            result = _calculate_plan(collection, assessment.default_plan, threads, native_observer)
+    else:
+        if plan is None or not isinstance(plan, Plan):
+            raise TypeError("plan must be a Plan; omit it to use automatic assessment")
+        if any(
+            (
+                method is not None,
+                parameter_set is not None,
+                _passed(method_scope),
+                options is not None,
+                options_by_method is not None,
+                _passed(parameter_matching),
+                _passed(execution),
+                radius is not None,
+                _passed(cutoff_threshold),
+                _passed(cover_threshold),
+                fixed_ions is not None,
+            )
+        ):
+            raise TypeError("selection arguments cannot be combined with an assessed plan")
+        if not plan._matches(collection):
+            raise ValueError("plan was assessed for a different molecule collection")
+        result = _calculate_plan(collection, plan, threads, native_observer)
 
-    if plan is None or not isinstance(plan, Plan):
-        raise TypeError("plan must be a Plan; omit it to use automatic assessment")
-    if any(
-        (
-            method is not None,
-            parameter_set is not None,
-            _passed(method_scope),
-            options is not None,
-            options_by_method is not None,
-            _passed(parameter_matching),
-            _passed(execution),
-            radius is not None,
-            _passed(cutoff_threshold),
-            _passed(cover_threshold),
-            fixed_ions is not None,
-        )
-    ):
-        raise TypeError("selection arguments cannot be combined with an assessed plan")
-    if not plan._matches(collection):
-        raise ValueError("plan was assessed for a different molecule collection")
+    # Raised here rather than in a helper, so that the traceback ends at this function.
+    error, cautions = _outcome(result)
+    if error is not None:
+        raise error
+    for message, category in cautions:
+        warnings.warn(message, category, stacklevel=2)
+    return result
+
+
+def _calculate_plan(
+    collection: MoleculeCollection,
+    plan: Plan,
+    threads: int | None,
+    native_observer: _NativeObserverAdapter | None,
+) -> CalculationResult:
     normalized_threads = None if threads is None else RequestedCalculation(threads=threads).threads
     requested = (
         plan._requested
@@ -399,8 +424,45 @@ def calculate(
         methods,
         parameter_sets,
     )
-    result._raise_for_status()
     return result
+
+
+def _outcome(
+    result: CalculationResult,
+) -> tuple[ChargeFWError | None, list[tuple[str, type[ChargeFWWarning]]]]:
+    """The error of a failed calculation, or the warnings about issues that can make charges wrong.
+
+    A failure has no warnings: its error carries the issues in its result, also when warnings are
+    turned into errors.
+    """
+
+    error = result._status_error()
+    if error is not None:
+        return error, []
+    molecules = result.molecules
+
+    def describe(index: int) -> str:
+        name = molecules[index].name
+        return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+
+    return None, [
+        *issue_warnings(
+            ((issue.molecule_index, issue) for issue in result.input_warnings),
+            kinds=INPUT_WARNING_KINDS,
+            category=InputWarning,
+            molecule_count=len(molecules),
+            describe=describe,
+            attribute="result.input_warnings",
+        ),
+        *issue_warnings(
+            ((issue.molecule_index, issue) for issue in result.charge_warnings),
+            kinds=CHARGE_WARNING_KINDS,
+            category=ChargeWarning,
+            molecule_count=len(molecules),
+            describe=describe,
+            attribute="result.charge_warnings",
+        ),
+    ]
 
 
 Assessment.__module__ = __name__
