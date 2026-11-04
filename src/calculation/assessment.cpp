@@ -4,6 +4,7 @@
 #include "input_checks.h"
 
 #include "core/diagnostic_description.h"
+#include "methods/parameter_issue_messages.h"
 
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_registry.h>
@@ -186,16 +187,14 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
 
     const auto molecule_index = *issue.molecule_index;
     const auto& target = partition.targets.at(molecule_index);
-    const auto active_atom_index = issue.location.atom_index;
-    const auto active_bond_index = issue.location.bond_index;
     const auto& original_molecule = original_molecules[molecule_index];
 
     auto& location = issue.location;
-    if (active_atom_index.has_value()) {
-        location.atom_index = target.active_atom_indices.at(*active_atom_index);
+    if (location.atom_index.has_value()) {
+        location.atom_index = target.active_atom_indices.at(*location.atom_index);
     }
-    if (active_bond_index.has_value()) {
-        location.bond_index = target.active_bond_indices.at(*active_bond_index);
+    if (location.bond_index.has_value()) {
+        location.bond_index = target.active_bond_indices.at(*location.bond_index);
     }
     // Active indices are in the order of the original ones, so the lists stay sorted.
     for (auto& atom_index : location.atom_indices) {
@@ -207,18 +206,16 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
 
     if (issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed &&
         parameter_set != nullptr) {
-        if (active_atom_index.has_value()) {
-            const auto original_atom_index = target.active_atom_indices.at(*active_atom_index);
-            issue.message = core::detail::molecule_description(original_molecule, molecule_index) +
-                            ": parameter set '" + std::string{parameter_set->id()} +
-                            "' has no atom parameter matching " +
-                            core::detail::atom_description(original_molecule, original_atom_index);
-        } else if (active_bond_index.has_value()) {
-            const auto original_bond_index = target.active_bond_indices.at(*active_bond_index);
-            issue.message = core::detail::molecule_description(original_molecule, molecule_index) +
-                            ": parameter set '" + std::string{parameter_set->id()} +
-                            "' has no bond parameter matching " +
-                            core::detail::bond_description(original_molecule, original_bond_index);
+        // Described again in the original molecule, whose atom numbering the user knows.
+        const auto prefix = core::detail::molecule_description(original_molecule, molecule_index);
+        if (!location.atom_indices.empty()) {
+            issue.message = prefix + ": " +
+                            methods::detail::missing_atom_parameters_message(
+                                original_molecule, parameter_set->id(), location.atom_indices);
+        } else if (!location.bond_indices.empty()) {
+            issue.message = prefix + ": " +
+                            methods::detail::missing_bond_parameters_message(
+                                original_molecule, parameter_set->id(), location.bond_indices);
         }
     } else if (issue.kind == methods::PrerequisiteIssueKind::invalid_geometry &&
                !target.sources.empty()) {

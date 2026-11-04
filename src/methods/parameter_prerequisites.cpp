@@ -3,8 +3,13 @@
 #include <chargefw/parameters/classification/parameter_classifier.h>
 
 #include "core/diagnostic_description.h"
+#include "methods/parameter_issue_messages.h"
 
+#include <cstddef>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace chargefw::methods {
 namespace {
@@ -76,26 +81,34 @@ auto check_bond_parameter_names(const MethodRequirements& requirements,
     }
 }
 
+// One issue for the atoms without parameters and one for the bonds, not one per atom or bond.
 auto add_classification_issues(ParameterPrerequisiteResult& result,
-                               const std::vector<parameters::ClassificationIssue>& issues) -> void {
+                               const std::vector<parameters::ClassificationIssue>& issues,
+                               const core::Molecule& molecule,
+                               const std::string_view parameter_set_id) -> void {
+    auto atoms = std::vector<std::size_t>{};
+    auto bonds = std::vector<std::size_t>{};
     for (const auto& issue : issues) {
-        PrerequisiteIssue prerequisite_issue{
-            .kind = PrerequisiteIssueKind::parameter_classification_failed,
-            .message = issue.message};
-
         switch (issue.kind) {
         case parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER:
-            prerequisite_issue.location.atom_index = issue.object_index;
-            prerequisite_issue.location.atom_indices = {issue.object_index};
+            atoms.push_back(issue.object_index);
             break;
-
         case parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER:
-            prerequisite_issue.location.bond_index = issue.object_index;
-            prerequisite_issue.location.bond_indices = {issue.object_index};
+            bonds.push_back(issue.object_index);
             break;
         }
-
-        result.issues.push_back(std::move(prerequisite_issue));
+    }
+    if (!atoms.empty()) {
+        result.issues.push_back(PrerequisiteIssue{
+            .kind = PrerequisiteIssueKind::parameter_classification_failed,
+            .message = detail::missing_atom_parameters_message(molecule, parameter_set_id, atoms),
+            .location = {.atom_index = atoms.front(), .atom_indices = std::move(atoms)}});
+    }
+    if (!bonds.empty()) {
+        result.issues.push_back(PrerequisiteIssue{
+            .kind = PrerequisiteIssueKind::parameter_classification_failed,
+            .message = detail::missing_bond_parameters_message(molecule, parameter_set_id, bonds),
+            .location = {.bond_index = bonds.front(), .bond_indices = std::move(bonds)}});
     }
 }
 
@@ -134,7 +147,8 @@ auto check_parameter_prerequisites(const Method& method, const ParameterPrerequi
             input.parameter_set, input.classification_options);
 
         if (!classification) {
-            add_classification_issues(result, classification.issues());
+            add_classification_issues(result, classification.issues(),
+                                      input.prepared_molecule.molecule(), input.parameter_set.id());
             return result;
         }
 

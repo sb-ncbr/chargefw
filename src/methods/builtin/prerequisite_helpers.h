@@ -13,6 +13,8 @@
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace chargefw::methods::builtin::detail {
 
@@ -53,17 +55,28 @@ auto add_element_prerequisite_issues(const MethodPrerequisiteInput& input,
     const auto& table = core::periodic_table();
     const auto& molecule = input.prepared_molecule.molecule();
 
+    auto atoms = std::vector<std::size_t>{};
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto atomic_number = molecule.atom(atom_index).atomic_number();
-
         if (!table.contains(atomic_number) || !element_supported(table.element(atomic_number))) {
-            result.add(PrerequisiteIssue{
-                .kind = PrerequisiteIssueKind::unsupported_molecule,
-                .message = std::string{requirement} + ": " +
-                           core::detail::atom_description(molecule, atom_index),
-                .location = {.atom_index = atom_index, .atom_indices = {atom_index}}});
+            atoms.push_back(atom_index);
         }
     }
+    if (atoms.empty()) {
+        return;
+    }
+
+    // One issue for all atoms whose element the method does not support.
+    const auto example = core::detail::atom_description(molecule, atoms.front());
+    result.add(PrerequisiteIssue{
+        .kind = PrerequisiteIssueKind::unsupported_molecule,
+        .message = atoms.size() == 1
+                       ? std::string{requirement} + ": " + example
+                       : std::string{requirement} + ": " + std::to_string(atoms.size()) + " of " +
+                             std::to_string(molecule.atom_count()) + " atoms do not meet it (" +
+                             core::detail::element_counts_description(molecule, atoms) +
+                             "), such as " + example,
+        .location = {.atom_index = atoms.front(), .atom_indices = std::move(atoms)}});
 }
 
 } // namespace chargefw::methods::builtin::detail

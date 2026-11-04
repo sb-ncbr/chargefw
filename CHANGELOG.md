@@ -30,6 +30,10 @@
 - A calculated charge more than 6 e away from its atom's formal charge gives a
   `charge_out_of_range` warning, one per molecule or conformer, which names the furthest atom. Fixed
   ions are not checked.
+- A parameter set without values for some atoms or bonds of a molecule is rejected with one issue for
+  the atoms, which counts them by element, and one for the bonds, each listing all of them, instead of
+  one issue per atom or bond. A method that does not support some elements gives one issue for all such
+  atoms. A crystal structure without hydrogens gave tens of thousands of issues; it now gives a few.
 - Fixed ions in large systems are checked against the other atoms much faster.
 
 ### Output

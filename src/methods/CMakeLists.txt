@@ -7,6 +7,7 @@ target_sources(chargefw_core_objects
         method_applicability.cpp
         fixed_source_validation.cpp
         fixed_source_validation.h
+        parameter_issue_messages.h
         builtin_methods.h
         builtin_methods.cpp
         method.cpp

@@ -363,6 +363,51 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
 }
 
+TEST_CASE("missing parameters give one issue for the atoms and one for the bonds",
+          "[calculation][calculation]") {
+    const auto only_issue = [](const calculation::AssessmentResult& assessment) {
+        REQUIRE(assessment.rejections().size() == 1);
+        REQUIRE(assessment.rejections()[0].issues.size() == 1);
+        return std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]);
+    };
+
+    // The parameters cover only H and O, so both carbons and the nitrogen lack them.
+    const auto atoms = core::Molecule{
+        std::vector{core::Atom{6}, core::Atom{1}, core::Atom{7}, core::Atom{6}, core::Atom{8}},
+        {},
+        {core::Conformer{{{0.0, 0.0, 0.0},
+                          {2.0, 0.0, 0.0},
+                          {4.0, 0.0, 0.0},
+                          {6.0, 0.0, 0.0},
+                          {8.0, 0.0, 0.0}}}}};
+    const auto atom_issue = only_issue(calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{atoms}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+        .method_id = "eem"}));
+    CHECK(atom_issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed);
+    CHECK(atom_issue.location.atom_index == 0);
+    CHECK(atom_issue.location.atom_indices == std::vector<std::size_t>{0, 2, 3});
+    CHECK(atom_issue.message.contains("3 of 5 atoms (C: 2, N: 1)"));
+
+    // The parameters have only the H-O bond, so both O-O bonds lack them.
+    const auto bonds = core::Molecule{
+        std::vector{core::Atom{1}, core::Atom{8}, core::Atom{8}, core::Atom{8}, core::Atom{1}},
+        std::vector{core::Bond{0, 1}, core::Bond{1, 2}, core::Bond{2, 3}, core::Bond{3, 4}},
+        {core::Conformer{{{0.0, 0.0, 0.0},
+                          {1.0, 0.0, 0.0},
+                          {2.5, 0.0, 0.0},
+                          {4.0, 0.0, 0.0},
+                          {5.0, 0.0, 0.0}}}}};
+    const auto bond_issue = only_issue(calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{bonds}},
+        .parameter_sets = {chargefw::test::make_sqe_ho_parameters("sqe")},
+        .method_id = "sqe"}));
+    CHECK(bond_issue.location.bond_index == 1);
+    CHECK(bond_issue.location.bond_indices == std::vector<std::size_t>{1, 2});
+    CHECK(bond_issue.location.atom_indices.empty());
+    CHECK(bond_issue.message.contains("2 of 4 bonds"));
+}
+
 TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",
           "[calculation][calculation]") {
     // Dummy charges are zero, so they are as far from each atom as its formal charge.

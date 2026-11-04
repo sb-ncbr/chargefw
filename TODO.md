@@ -29,10 +29,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Issue reporting
 
-- [ ] Report parameter classification failures as one issue per parameter set and molecule with
-  `atom_indices` and `bond_indices`, instead of one issue per atom or bond, following the rules in
-  [DEVELOPMENT.md](DEVELOPMENT.md#issues-and-diagnostics); add `bond_indices` to diagnostics and a shared
-  location type for the issues.
 - [ ] Give `unbonded_residue_atoms` its `atom_indices` and `aromatic_bonds_converted` its
   `bond_indices`.
 
