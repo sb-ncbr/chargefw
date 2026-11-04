@@ -56,7 +56,8 @@
 
 - `molecule.import_diagnostics` is renamed to `molecule.import_issues`, and its values from
   `chargefw.ImportDiagnostic` to `chargefw.ImportIssue`, with a `kind` instead of a `code`. The kinds
-  are the same strings, such as `"partial_charges_ignored"`.
+  are the same strings, such as `"partial_charges_ignored"`. An `ImportIssue` lists the atoms and
+  bonds it concerns in `atom_indices` and `bond_indices`.
 - `CalculationResult.warnings` is removed; use `result.plan.warnings`. `result.plan` is `None` when no
   plan was recorded.
 - `Assessment.input_warnings` and `CalculationResult.input_warnings` list `chargefw.InputIssue`
@@ -88,10 +89,10 @@
   `ExecutionResult::input_warnings` report cautions about input molecules, such as missing hydrogens.
 - `calculation::ChargeIssue` and `ExecutionResult::charge_warnings` report cautions about calculated
   charges. `features::CloseAtoms::atoms` lists the atoms of close pairs.
-- `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`, and
-  `adapters::ResultDiagnostic` give their conformer, atom, and bond indices in one
-  `core::IssueLocation location`, which also lists every atom and bond they concern in
-  `atom_indices` and `bond_indices`.
+- `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`,
+  `adapters::ImportIssue`, and `adapters::ResultDiagnostic` give their conformer, atom, and bond
+  indices in one `core::IssueLocation location`, which also lists every atom and bond they concern
+  in `atom_indices` and `bond_indices`.
 - `features::PreparedMolecule` finds the geometry defects of its conformers once, in
   `geometry_defects()`, and copies share them. The defects include atoms that are too close, in
   `close_atoms`; `features::find_close_atoms()` finds those for one conformer without caching.

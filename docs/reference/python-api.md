@@ -80,6 +80,7 @@ assessed with, which includes having the same `name`.
 | `kind` | Kind of caution, such as `"partial_charges_ignored"` or `"coordinates_2d_ignored"`; the same code appears in result JSON |
 | `message` | Description |
 | `line` | Line in the file, or `None` |
+| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of the atoms and bonds the caution concerns, such as the atoms of `"unbonded_residue_atoms"` and the bonds of `"aromatic_bonds_converted"`; empty for cautions about the file |
 
 ### SourceMapping
 

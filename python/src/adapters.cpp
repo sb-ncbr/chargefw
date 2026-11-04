@@ -205,9 +205,10 @@ auto as_python(const MoleculePayload& payload) -> nb::dict {
     result["record_id"] = portable_id(payload.identity.record_id);
     nb::list import_issues;
     for (const auto& issue : payload.import_issues) {
-        import_issues.append(
-            nb::make_tuple(std::string{adapters::to_string(issue.kind)}, issue.message,
-                           issue.line.has_value() ? nb::cast(*issue.line) : nb::none()));
+        import_issues.append(nb::make_tuple(
+            std::string{adapters::to_string(issue.kind)}, issue.message,
+            issue.line.has_value() ? nb::cast(*issue.line) : nb::none(),
+            nb::cast(issue.location.atom_indices), nb::cast(issue.location.bond_indices)));
     }
     result["import_issues"] = import_issues;
     result["native_input_metadata"] = payload.native_input_metadata;

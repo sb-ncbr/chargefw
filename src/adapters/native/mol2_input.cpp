@@ -265,7 +265,7 @@ struct SourceBond {
 
     std::vector<core::Bond> bonds;
     bonds.reserve(source_bonds->size());
-    auto aromatic_bonds = std::size_t{0};
+    auto aromatic_bonds = std::vector<std::size_t>{}; // Indices in bonds.
 
     for (const auto& [first_id, second_id, type] : *source_bonds) {
         const auto first = atom_indices.find(first_id);
@@ -278,7 +278,7 @@ struct SourceBond {
         bonds.emplace_back(first->second, second->second,
                            common::bond_order(type, BondFormat::mol2));
         if (type == "ar" || type == "4") {
-            ++aromatic_bonds;
+            aromatic_bonds.push_back(bonds.size() - 1);
         }
     }
 
@@ -295,8 +295,8 @@ struct SourceBond {
                        "were not used for calculation.",
             .line = std::nullopt});
     }
-    if (aromatic_bonds > 0) {
-        issues.push_back(common::aromatic_bonds_issue(aromatic_bonds));
+    if (!aromatic_bonds.empty()) {
+        issues.push_back(common::aromatic_bonds_issue(std::move(aromatic_bonds)));
     }
 
     auto sites = atom_references;

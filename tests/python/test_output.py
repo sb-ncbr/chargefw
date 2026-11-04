@@ -219,6 +219,10 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
         "aromatic_bonds_converted",
     ]
     assert manual.import_issues == ()
+    # The warning lists the aromatic bond, here the first, as Python and result JSON give it.
+    aromatic = imported_molecule.import_issues[1]
+    assert aromatic.bond_indices.tolist() == [0]
+    assert not aromatic.bond_indices.flags.writeable
     result = chargefw.calculate([manual, imported_molecule], method="formal")
     manual_record, imported_record = result_json(result)["results"]
 
@@ -233,6 +237,7 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
         "aromatic_bonds_converted",
         "hydrogens_missing",
     ]
+    assert imported_record["diagnostics"][1]["bond_indices"] == [0]
 
 
 def test_charge_warnings_list_their_atoms() -> None:

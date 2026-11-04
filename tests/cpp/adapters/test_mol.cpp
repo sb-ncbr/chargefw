@@ -384,6 +384,7 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
         if (aromatic) {
             CHECK(result->issues[0].kind ==
                   chargefw::adapters::ImportIssueKind::aromatic_bonds_converted);
+            CHECK(result->issues[0].location.bond_indices == std::vector<std::size_t>{1});
         }
     }
 }

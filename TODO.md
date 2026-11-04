@@ -27,11 +27,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
-## Issue reporting
-
-- [ ] Give `unbonded_residue_atoms` its `atom_indices` and `aromatic_bonds_converted` its
-  `bond_indices`.
-
 ## Project infrastructure
 
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel

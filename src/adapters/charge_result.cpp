@@ -526,6 +526,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.message = issue.message;
         imported.molecule_index = molecule_index;
         imported.line = issue.line;
+        imported.location = issue.location;
         append_unique(diagnostics, seen, std::move(imported));
     }
     // Each warning is one finding, so two with the same text, such as for different atoms of a

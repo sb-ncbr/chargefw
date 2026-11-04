@@ -3,6 +3,7 @@
 #include <chargefw/core/molecule.h>
 #include <snitch/snitch.hpp>
 
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -435,17 +436,28 @@ _chem_comp_bond.value_order
         CHECK(explicit_bond_count(value_order) == 0);
     }
 
-    // The warning comes with the file's bonds, which templates do not read.
+    // The warning comes with the file's bonds, which templates do not read. It lists the aromatic
+    // bond by its index in the record, with explicit and hybrid reading.
     for (const auto strategy :
          {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
           gemmi_adapter::BondStrategy::hybrid}) {
+        CAPTURE(gemmi_adapter::to_string(strategy));
         std::istringstream aromatic{duplicate_input("ALA N CA arom")};
         const auto record = mmcif::MmcifReader{aromatic, {}, {.bond_strategy = strategy}}.next();
         REQUIRE(record.has_value());
-        const auto warned = std::ranges::any_of(record->issues, [](const auto& issue) {
+        const auto warning = std::ranges::find_if(record->issues, [](const auto& issue) {
             return issue.kind == chargefw::adapters::ImportIssueKind::aromatic_bonds_converted;
         });
-        CHECK(warned == (strategy != gemmi_adapter::BondStrategy::templates));
+        REQUIRE((warning != record->issues.end()) ==
+                (strategy != gemmi_adapter::BondStrategy::templates));
+        if (warning != record->issues.end()) {
+            REQUIRE(warning->location.bond_indices.size() == 1);
+            const auto& bond = record->molecule.bond(warning->location.bond_indices[0]);
+            const auto names =
+                std::set<std::string_view>{record->molecule.atom(bond.first_atom_index()).name(),
+                                           record->molecule.atom(bond.second_atom_index()).name()};
+            CHECK(names == std::set<std::string_view>{"N", "CA"});
+        }
     }
 }
 

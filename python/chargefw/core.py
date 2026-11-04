@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from operator import index as as_index
 from typing import Any, Literal, overload
 
@@ -17,6 +17,7 @@ from ._arrays import (
     as_names,
     as_portable_id,
     immutable_array,
+    index_array,
 )
 from ._chargefw import core as _native_core
 from ._types import ImportIssueKind
@@ -122,13 +123,17 @@ class SourceMapping:
     components: tuple[SourceComponentInstance, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ImportIssue:
     """A caution that a file reader attached to an imported molecule."""
 
     kind: ImportIssueKind
     message: str
     line: int | None = None
+    # Every atom and bond the issue concerns, in index order, such as the aromatic bonds read as
+    # single bonds.
+    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
+    bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 class Molecule:

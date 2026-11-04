@@ -31,8 +31,9 @@ enum class ExplicitBondOrders : std::uint8_t { connectivity_only, from_source };
 struct ExplicitBonds {
     std::vector<core::Bond> bonds;
     std::size_t skipped_symmetry_connections = 0;
-    // Aromatic bonds, read as single bonds.
-    std::size_t aromatic_bonds = 0;
+    // Indices in bonds of the aromatic bonds, read as single bonds. The record keeps explicit bonds
+    // first and in this order, so these are its bond indices too.
+    std::vector<std::size_t> aromatic_bonds = {};
 };
 
 [[nodiscard]] auto explicit_pdb(const ::gemmi::Structure& structure,
