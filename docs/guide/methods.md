@@ -537,21 +537,16 @@ calculations.
 
 **In ChargeFW.** The hardness of hydrogen is a fixed parameter, so the system is solved once. The
 Coulomb term $J_{i,j}$ is one of several empirical expressions developed to replace the *ab initio*
-one; `overlap_term` selects it. The default, `DasGupta-Huzinaga`, follows Oda and Hirono
-(*J. Mol. Struct. THEOCHEM* 634, 159, 2003):
+one; `overlap_term` selects it. The terms are those compared by Oda and Hirono (*J. Mol. Struct.
+THEOCHEM* 634, 159, 2003), with $k = 14.4$ eV·Å, $R_{i,j}$ in Å, and $a_0 = 0.529177$ Å:
 
-$$
-J_{i,j} = \frac{k}{R_{i,j} + k \big/ \left(\frac{1}{2}(J_i + J_j)\, e^{0.4 R_{i,j} / a_0}\right)}
-$$
-
-where $k = 14.4$ eV·Å and $a_0 = 0.529177$ Å. The Louwen-Vogt term uses the geometric mean of Njo, Fan,
-and van de Graaf (*J. Mol. Catal. A* 134, 79, 1998):
-
-$$
-J_{i,j} = \frac{k}{\left[(k / \sqrt{J_i J_j})^3 + R_{i,j}^3\right]^{1/3}}
-$$
-
-The Nishimoto-Mataga, Nishimoto-Mataga-Weiss, Ohno, and Ohno-Klopman terms are also available.
+| `overlap_term` | $J_{i,j}$ |
+| --- | --- |
+| `Nishimoto-Mataga` (default) | $\dfrac{k}{R_{i,j} + 2k / (J_i + J_j)}$ |
+| `Nishimoto-Mataga-Weiss` | $\dfrac{1.2\,k}{R_{i,j} + 2.4\,k / (J_i + J_j)}$ |
+| `Ohno` | $\dfrac{k}{\sqrt{R_{i,j}^2 + \left(2k / (J_i + J_j)\right)^2}}$ |
+| `Ohno-Klopman` | $\dfrac{k}{\sqrt{R_{i,j}^2 + \left(k / (2J_i) + k / (2J_j)\right)^2}}$ |
+| `DasGupta-Huzinaga` | $\dfrac{k}{R_{i,j} + 2k \big/ \left((J_i + J_j)\, e^{0.4 R_{i,j} / a_0}\right)}$ |
 
 (smpqeq)=
 #### SMP/QEq

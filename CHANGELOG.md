@@ -35,6 +35,10 @@
   one issue per atom or bond. A method that does not support some elements gives one issue for all such
   atoms. A crystal structure without hydrogens gave tens of thousands of issues; it now gives a few.
 - Fixed ions in large systems are checked against the other atoms much faster.
+- QEq uses the Nishimoto-Mataga Coulomb term by default instead of DasGupta-Huzinaga, so QEq charges
+  change. Set `overlap_term` to `DasGupta-Huzinaga` for the previous results.
+- The QEq `overlap_term` choice `Louwen-Vogt` is removed. It used the hardness in place of the
+  Coulomb integral at zero distance, which made charges diverge.
 
 ### Output
 
