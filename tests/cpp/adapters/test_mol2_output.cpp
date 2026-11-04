@@ -50,7 +50,158 @@ auto generated_record() -> adapters::ImportedMoleculeRecord {
     return result;
 }
 
+// The atom types written for a molecule, in atom order.
+[[nodiscard]] auto written_atom_types(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds)
+    -> std::vector<std::string> {
+    const auto atom_count = atoms.size();
+    auto record = adapters::ImportedMoleculeRecord{
+        .molecule = core::Molecule{std::move(atoms),
+                                   std::move(bonds),
+                                   {core::Conformer{std::vector<core::Position>(atom_count)}}},
+        .identity = {.source = "input"}};
+    const auto result = calculation_result(
+        {std::move(record)},
+        charges::ChargeSet{"formal",
+                           {{.target = {.molecule_index = 0},
+                             .charges = charges::AtomicCharges{std::vector(atom_count, 0.0)}}}});
+    auto output = std::ostringstream{};
+    mol2_output::Mol2Writer{output}.write(result);
+
+    auto input = std::istringstream{output.str()};
+    auto types = std::vector<std::string>{};
+    auto line = std::string{};
+    while (std::getline(input, line) && line != "@<TRIPOS>ATOM") {
+    }
+    for (std::size_t index = 0; index < atom_count && std::getline(input, line); ++index) {
+        auto fields = std::istringstream{line};
+        auto field = std::string{};
+        for (auto column = 0; column < 6; ++column) {
+            fields >> field;
+        }
+        types.push_back(field);
+    }
+    return types;
+}
+
 } // namespace
+
+TEST_CASE("MOL2 output writes SYBYL atom types derived from the topology", "[adapters][mol2]") {
+    using core::Atom;
+    using core::Bond;
+    constexpr auto single = core::BondOrder::SINGLE;
+    constexpr auto double_ = core::BondOrder::DOUBLE;
+    constexpr auto triple = core::BondOrder::TRIPLE;
+    struct Case {
+        std::string_view name;
+        std::vector<Atom> atoms;
+        std::vector<Bond> bonds;
+        std::vector<std::string> types;
+    };
+    const auto cases = std::vector<Case>{
+        {.name = "acetate shares the charge between its oxygens",
+         .atoms = {Atom{6}, Atom{6}, Atom{8}, Atom{8, -1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, double_}, Bond{1, 3, single}, Bond{0, 4, single},
+                   Bond{0, 5, single}, Bond{0, 6, single}},
+         .types = {"C.3", "C.2", "O.co2", "O.co2", "H", "H", "H"}},
+        {.name = "acetic acid keeps its carbonyl and hydroxyl oxygens",
+         .atoms = {Atom{6}, Atom{6}, Atom{8}, Atom{8}, Atom{1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, double_}, Bond{1, 3, single}, Bond{0, 4, single},
+                   Bond{0, 5, single}, Bond{0, 6, single}, Bond{3, 7, single}},
+         .types = {"C.3", "C.2", "O.2", "O.3", "H", "H", "H", "H"}},
+        {.name = "carbonate is not a carboxylate",
+         .atoms = {Atom{6}, Atom{8}, Atom{8, -1}, Atom{8, -1}},
+         .bonds = {Bond{0, 1, double_}, Bond{0, 2, single}, Bond{0, 3, single}},
+         .types = {"C.2", "O.2", "O.3", "O.3"}},
+        {.name = "methyl phosphate dianion",
+         .atoms = {Atom{15}, Atom{8}, Atom{8, -1}, Atom{8, -1}, Atom{8}, Atom{6}, Atom{1}, Atom{1},
+                   Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{4, 5, single}, Bond{5, 6, single}, Bond{5, 7, single}, Bond{5, 8, single}},
+         .types = {"P.3", "O.co2", "O.co2", "O.co2", "O.3", "C.3", "H", "H", "H"}},
+        {.name = "methylammonium",
+         .atoms = {Atom{6}, Atom{7, 1}, Atom{1}, Atom{1}, Atom{1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{1, 5, single}, Bond{1, 6, single}, Bond{1, 7, single}},
+         .types = {"C.3", "N.4", "H", "H", "H", "H", "H", "H"}},
+        {.name = "methylamine",
+         .atoms = {Atom{6}, Atom{7}, Atom{1}, Atom{1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{1, 5, single}, Bond{1, 6, single}},
+         .types = {"C.3", "N.3", "H", "H", "H", "H", "H"}},
+        {.name = "N-methylacetamide",
+         .atoms = {Atom{6}, Atom{6}, Atom{8}, Atom{7}, Atom{6}, Atom{1}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, double_}, Bond{1, 3, single}, Bond{3, 4, single},
+                   Bond{0, 5, single}, Bond{0, 6, single}, Bond{0, 7, single}, Bond{3, 8, single},
+                   Bond{4, 9, single}, Bond{4, 10, single}, Bond{4, 11, single}},
+         .types = {"C.3", "C.2", "O.2", "N.am", "C.3", "H", "H", "H", "H", "H", "H", "H"}},
+        {.name = "vinylamine is conjugated",
+         .atoms = {Atom{6}, Atom{6}, Atom{7}, Atom{1}, Atom{1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{1, 2, single}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{1, 5, single}, Bond{2, 6, single}, Bond{2, 7, single}},
+         .types = {"C.2", "C.2", "N.pl3", "H", "H", "H", "H", "H"}},
+        {.name = "benzene is written in its Kekule form",
+         .atoms = {Atom{6}, Atom{6}, Atom{6}, Atom{6}, Atom{6}, Atom{6}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{1, 2, single}, Bond{2, 3, double_}, Bond{3, 4, single},
+                   Bond{4, 5, double_}, Bond{5, 0, single}, Bond{0, 6, single}, Bond{1, 7, single},
+                   Bond{2, 8, single}, Bond{3, 9, single}, Bond{4, 10, single},
+                   Bond{5, 11, single}},
+         .types = {"C.2", "C.2", "C.2", "C.2", "C.2", "C.2", "H", "H", "H", "H", "H", "H"}},
+        {.name = "nitromethane",
+         .atoms = {Atom{6}, Atom{7, 1}, Atom{8}, Atom{8, -1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, double_}, Bond{1, 3, single}, Bond{0, 4, single},
+                   Bond{0, 5, single}, Bond{0, 6, single}},
+         .types = {"C.3", "N.pl3", "O.2", "O.3", "H", "H", "H"}},
+        {.name = "acetonitrile",
+         .atoms = {Atom{6}, Atom{6}, Atom{7}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, triple}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{0, 5, single}},
+         .types = {"C.3", "C.1", "N.1", "H", "H", "H"}},
+        {.name = "guanidinium",
+         .atoms = {Atom{6}, Atom{7, 1}, Atom{7}, Atom{7}, Atom{1}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{1, 4, single},
+                   Bond{1, 5, single}, Bond{2, 6, single}, Bond{2, 7, single}, Bond{3, 8, single},
+                   Bond{3, 9, single}},
+         .types = {"C.cat", "N.pl3", "N.pl3", "N.pl3", "H", "H", "H", "H", "H", "H"}},
+        {.name = "dimethyl sulfoxide",
+         .atoms = {Atom{16}, Atom{8}, Atom{6}, Atom{6}, Atom{1}, Atom{1}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{2, 4, single},
+                   Bond{2, 5, single}, Bond{2, 6, single}, Bond{3, 7, single}, Bond{3, 8, single},
+                   Bond{3, 9, single}},
+         .types = {"S.O", "O.2", "C.3", "C.3", "H", "H", "H", "H", "H", "H"}},
+        {.name = "dimethyl sulfoxide with separated charges",
+         .atoms = {Atom{16, 1}, Atom{8, -1}, Atom{6}, Atom{6}, Atom{1}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{0, 2, single}, Bond{0, 3, single}, Bond{2, 4, single},
+                   Bond{2, 5, single}, Bond{2, 6, single}, Bond{3, 7, single}, Bond{3, 8, single},
+                   Bond{3, 9, single}},
+         .types = {"S.O", "O.3", "C.3", "C.3", "H", "H", "H", "H", "H", "H"}},
+        {.name = "dimethyl sulfone",
+         .atoms = {Atom{16}, Atom{8}, Atom{8}, Atom{6}, Atom{6}, Atom{1}, Atom{1}, Atom{1}, Atom{1},
+                   Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, double_}, Bond{0, 2, double_}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{3, 5, single}, Bond{3, 6, single}, Bond{3, 7, single}, Bond{4, 8, single},
+                   Bond{4, 9, single}, Bond{4, 10, single}},
+         .types = {"S.O2", "O.2", "O.2", "C.3", "C.3", "H", "H", "H", "H", "H", "H"}},
+        {.name = "methanesulfenate is not a sulfoxide",
+         .atoms = {Atom{6}, Atom{16}, Atom{8, -1}, Atom{1}, Atom{1}, Atom{1}},
+         .bonds = {Bond{0, 1, single}, Bond{1, 2, single}, Bond{0, 3, single}, Bond{0, 4, single},
+                   Bond{0, 5, single}},
+         .types = {"C.3", "S.3", "O.3", "H", "H", "H"}},
+        {.name = "sodium chloride",
+         .atoms = {Atom{11, 1}, Atom{17, -1}},
+         .bonds = {},
+         .types = {"Na", "Cl"}},
+    };
+
+    for (const auto& item : cases) {
+        CAPTURE(item.name);
+        CHECK(written_atom_types(item.atoms, item.bonds) == item.types);
+    }
+}
 
 TEST_CASE("result-owned MOL2 writes every conformer with its charges", "[adapters][mol2]") {
     const auto result = calculation_result(
@@ -93,6 +244,7 @@ TEST_CASE("result-owned MOL2 writes every conformer with its charges", "[adapter
     CHECK(first->identity.record_id == "record_conformer_1");
     CHECK(second->identity.record_id == "record_conformer_2");
     CHECK(first->molecule.atom_count() == 2);
+    CHECK(first->molecule.atom(1).formal_charge() == -1);
     CHECK(second->molecule.bond_count() == 1);
     CHECK(first->molecule.conformer(0)[1].x == 1.23456789012345);
     CHECK(second->molecule.conformer(0)[1].x == 1.33456789012345);

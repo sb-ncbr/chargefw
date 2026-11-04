@@ -6,6 +6,7 @@ target_sources(chargefw_core_objects
         native/json_input.cpp
         native/mol_input.cpp
         native/mol2_input.cpp
+        native/mol2_atom_types.cpp
         native/mol2_output.cpp
         native/pqr_output.cpp
         native/sdf_input.cpp

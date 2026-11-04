@@ -38,6 +38,10 @@
 
 ### Output
 
+- MOL2 output writes SYBYL atom types, such as `C.3`, `N.am`, or `O.co2`, derived from the bonds and
+  formal charges, and the formal charges in a `UNITY_ATOM_ATTR` section that Open Babel, RDKit, and
+  ChargeFW read. Before, atom types were element symbols and formal charges were lost. Aromatic rings
+  are written in their Kekulé form.
 - mmCIF output writes structures whose histidines or arginines are in different protonation states.
   The bonds whose order differs are written with order `delo`, and the bond rows of a residue name
   follow its template. Reading the file back gives the same bonds.
