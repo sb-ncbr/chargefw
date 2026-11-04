@@ -38,6 +38,8 @@
   code, such as `resource_threshold_exceeded`: in the record of the molecule they concern, or in the
   document's diagnostics. `effective.warnings` still lists them as text.
 - Writing results of rejected large structures takes linear instead of quadratic time.
+- mmCIF output accepts charges from −10 to +10, the range of version 1.1 of the charge dictionary.
+  Before, charges outside [−5, 5] were refused, which excluded fixed ions such as W⁶⁺.
 
 ### Python
 

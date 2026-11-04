@@ -667,8 +667,9 @@ auto validate_result_output(const ChargeCalculationResult& result) -> void {
     }
     for (const auto& assignment : result.charges()->assignments()) {
         for (const auto charge : assignment.charges.values()) {
-            if (charge < -5.0 || charge > 5.0) {
-                throw std::invalid_argument{"mmCIF charge is outside the dictionary range [-5, 5]"};
+            if (charge < -10.0 || charge > 10.0) {
+                throw std::invalid_argument{
+                    "mmCIF charge is outside the dictionary range [-10, 10]"};
             }
         }
     }

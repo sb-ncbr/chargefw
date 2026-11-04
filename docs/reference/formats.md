@@ -303,7 +303,7 @@ generated atom names, `UNL`, chain `A`, and entity `1`. Output site IDs and mode
 generated per block, and each charge row refers to the generated `_atom_site.id` for its site.
 Molecule-scoped charges cover every conformer and conformer-scoped charges never broadcast. Output
 rejects missing or non-finite coordinates, empty records, unsuccessful results, and charges outside the
-dictionary's inclusive `[-5, 5]` range before serializing the document.
+dictionary's inclusive `[-10, 10]` range before serializing the document.
 
 The bonds used in the calculation are written with their orders (`sing`, `doub`, or `trip`), which
 viewers that read mmCIF bond data can display. Bonds within a residue go to `_chem_comp_bond`, named

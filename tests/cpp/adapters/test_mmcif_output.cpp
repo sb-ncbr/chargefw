@@ -523,12 +523,18 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
                                                 .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
     CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(missing_result), std::invalid_argument);
 
-    const auto range_result =
-        calculation_result({generated_record("range")},
-                           charges::ChargeSet{"formal",
-                                              {{.target = {.molecule_index = 0},
-                                                .charges = charges::AtomicCharges{{5.1, -5.1}}}}});
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(range_result), std::invalid_argument);
+    // The dictionary range is inclusive.
+    const auto range_result = [](const double charge) {
+        return calculation_result(
+            {generated_record("range")},
+            charges::ChargeSet{"formal",
+                               {{.target = {.molecule_index = 0},
+                                 .charges = charges::AtomicCharges{{charge, -charge}}}}});
+    };
+    auto in_range = std::ostringstream{};
+    CHECK_NOTHROW(mmcif_output::MmcifWriter{in_range}.write(range_result(10.0)));
+    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(range_result(10.1)),
+                    std::invalid_argument);
 
     auto nonfinite = generated_record("nonfinite");
     nonfinite.molecule = core::Molecule{
