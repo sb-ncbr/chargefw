@@ -18,8 +18,8 @@
 
 - `parameters::parameter_layout()` and `parameter_values()` list the values of a parameter set in a
   fixed order, `with_parameter_values()` copies a set with new values, and `compatible()` tells whether
-  two sets differ only in their values and descriptive metadata. Parameter keys can be compared with
-  `==`.
+  two sets differ only in their values and descriptive metadata. `to_string()` names a
+  `ParameterScope`, and parameter keys can be compared with `==`.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter
   set, without checking the molecules again.
 - `parameters::make_parameter_template()` makes a parameter set with an entry for every atom and bond

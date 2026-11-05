@@ -203,3 +203,9 @@ class ParameterSetDescriptorPayload(TypedDict):
     notes: str
     atom_keys: list[AtomParameterKeyPayload]
     bond_keys: list[BondParameterKeyPayload]
+
+
+class CandidateChargesPayload(TypedDict):
+    status: ExecutionStatus
+    charges: NDArray[np.float64] | None
+    failure_message: str | None

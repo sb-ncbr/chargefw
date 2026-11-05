@@ -9,6 +9,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -75,6 +76,18 @@ template <typename Entry>
 }
 
 } // namespace
+
+auto to_string(const ParameterScope value) -> std::string_view {
+    switch (value) {
+    case ParameterScope::common:
+        return "common";
+    case ParameterScope::atom:
+        return "atom";
+    case ParameterScope::bond:
+        return "bond";
+    }
+    throw std::invalid_argument{"unknown parameter scope"};
+}
 
 auto parameter_layout(const ParameterSet& set) -> std::vector<ParameterSlot> {
     auto slots = std::vector<ParameterSlot>{};

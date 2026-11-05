@@ -7,11 +7,14 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace chargefw::parameters {
 
 enum class ParameterScope : std::uint8_t { common, atom, bond };
+
+[[nodiscard]] auto to_string(ParameterScope value) -> std::string_view;
 
 // One value of a parameter set: a common parameter, or one parameter of one atom or bond entry.
 struct ParameterSlot {
