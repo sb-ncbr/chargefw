@@ -353,8 +353,9 @@ class NativePlan {
     }
 
     // Charges of every assignment, concatenated in assignment order, for candidate values in
-    // layout order. Only the status, the charges with the size of each assignment, and the failure
-    // message are returned: a fit evaluates many candidates and needs no other result data.
+    // layout order. Only the status, the charges with the size and molecule of each assignment, and
+    // the failure message are returned: a fit evaluates many candidates and needs no other result
+    // data.
     [[nodiscard]] auto calculate_values(const value_array& values,
                                         const std::optional<std::size_t> max_threads) const
         -> nb::dict {
@@ -377,17 +378,21 @@ class NativePlan {
         if (!result.charges.has_value()) {
             payload["charges"] = nb::none();
             payload["assignment_sizes"] = nb::none();
+            payload["assignment_molecules"] = nb::none();
             return payload;
         }
         auto charges = std::vector<double>{};
         auto assignment_sizes = nb::list{};
+        auto assignment_molecules = nb::list{};
         for (const auto& assignment : result.charges->assignments()) {
             const auto assignment_values = assignment.charges.values();
             charges.insert(charges.end(), assignment_values.begin(), assignment_values.end());
             assignment_sizes.append(assignment_values.size());
+            assignment_molecules.append(assignment.target.molecule_index);
         }
         payload["charges"] = numpy_values(charges);
         payload["assignment_sizes"] = std::move(assignment_sizes);
+        payload["assignment_molecules"] = std::move(assignment_molecules);
         return payload;
     }
 
@@ -416,6 +421,24 @@ class NativePlan {
         const auto estimate = calculation::estimate(state_->assessment_, plan(),
                                                     max_threads.value_or(state_->max_threads_));
         return {estimate.memory_bytes, estimate.operations};
+    }
+
+    // The number of calculated atoms matched to each atom entry and of bonds matched to each bond
+    // entry of the plan's parameter set, as classified during assessment.
+    [[nodiscard]] auto entry_counts() const
+        -> std::pair<std::vector<std::size_t>, std::vector<std::size_t>> {
+        const auto& set = parameter_set();
+        auto atoms = std::vector<std::size_t>(set.atom().size(), 0);
+        auto bonds = std::vector<std::size_t>(set.bond().size(), 0);
+        for (const auto& classification : plan().classifications()) {
+            for (const auto entry : classification.atom().parameter_entry_indices()) {
+                ++atoms[entry];
+            }
+            for (const auto entry : classification.bond().parameter_entry_indices()) {
+                ++bonds[entry];
+            }
+        }
+        return {std::move(atoms), std::move(bonds)};
     }
 
   private:
@@ -609,7 +632,8 @@ void bind_calculation(nb::module_& module) {
         .def("_layout", &NativePlan::layout)
         .def("_values", &NativePlan::values)
         .def("_calculate_values", &NativePlan::calculate_values, nb::arg("values"),
-             nb::arg("max_threads") = nb::none());
+             nb::arg("max_threads") = nb::none())
+        .def("_entry_counts", &NativePlan::entry_counts);
     nb::class_<NativeAssessment>(module, "_NativeAssessment")
         .def("report", &NativeAssessment::report)
         .def("plans", &NativeAssessment::plans)

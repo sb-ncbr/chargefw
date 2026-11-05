@@ -527,3 +527,65 @@ def test_fit_diagnostics_do_not_build_a_matrix_in_the_number_of_charges() -> Non
         fit(evaluator, references, start=FIT_START, free=FIT_FREE)
 
     assert svd.call_args.kwargs["full_matrices"] is False
+
+
+def test_evaluator_counts_the_atoms_of_each_type() -> None:
+    evaluator = training_evaluator()
+
+    # kappa, then hydrogen (4 atoms), carbon (1), and oxygen (2), each with A and B.
+    assert evaluator.matches == (None, 4, 4, 1, 1, 2, 2)
+
+
+def test_fit_diagnostics_show_counts_and_errors_per_element() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+
+    exact = fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+    # The weak direction lies on the one carbon atom, which the counts make visible.
+    assert exact.diagnostics.matches == (4, 1, 1, 2, 2)
+    assert set(exact.diagnostics.weakest) == {3, 4}
+    by_element = exact.diagnostics.by_element
+    assert list(by_element) == ["H", "C", "O"]
+    assert [element.count for element in by_element.values()] == [4, 1, 2]
+    assert all(element.rmsd < 1e-8 for element in by_element.values())
+    # Four hydrogen charges vary; R² is defined. A single carbon charge leaves R² undefined.
+    assert by_element["H"].r2 == pytest.approx(1.0, abs=1e-8)
+    assert np.isnan(by_element["C"].r2)
+
+    # Oxygen B held below its true value: the error is largest on oxygen.
+    lower = np.full(7, -np.inf)
+    upper = np.full(7, np.inf)
+    upper[6] = 1.05
+    start = TRUE_VALUES.copy()
+    start[6] = 1.0
+    bounded = fit(evaluator, references, start=start, free=[6], bounds=(lower, upper))
+    errors = bounded.diagnostics.by_element
+    assert max(errors, key=lambda element: errors[element].rmsd) == "O"
+    assert errors["H"].r2 < 1.0 and errors["O"].r2 < 1.0
+
+
+def test_matches_count_bonds_and_conformers_line_up_with_elements() -> None:
+    # SQE counts bonds too: H-C twice, H-O twice, C-O once.
+    sqe = template_evaluator("sqe", "hbo", "bo")
+    bond_matches = [match for slot, match in zip(sqe.layout, sqe.matches) if slot.scope == "bond"]
+    assert bond_matches == [2, 2, 1]
+
+    # EEM uses coordinates, so water with two conformers gives two assignments of three charges.
+    two_conformers = chargefw.Molecule(
+        [8, 1, 1],
+        bonds=np.array([[0, 1, 1], [0, 2, 1]], dtype=np.int32),
+        coordinates=np.array(
+            [
+                [[0.0, 0.0, 0.0], [0.96, 0.0, 0.0], [-0.24, 0.93, 0.0]],
+                [[0.0, 0.0, 0.0], [0.98, 0.0, 0.0], [-0.26, 0.92, 0.0]],
+            ]
+        ),
+    )
+    evaluator = eem_evaluator(two_conformers)
+    references = evaluator.charges(EEM_WATER_VALUES)
+    result = fit(evaluator, references, start=EEM_WATER_VALUES + 0.1, free=[2, 3, 4])
+
+    # Atoms are counted once per molecule, charges once per conformer.
+    assert evaluator.matches == (None, 2, 2, 1, 1)
+    by_element = result.diagnostics.by_element
+    assert (by_element["H"].count, by_element["O"].count) == (4, 2)

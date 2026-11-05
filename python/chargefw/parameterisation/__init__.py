@@ -6,12 +6,14 @@ import math
 import operator
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Literal, SupportsIndex
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .._chargefw import parameters as _native_parameters
+from .._elements import periodic_table
 from .._methods import Method
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
 from .._types import AtomClassifier, BondClassifier, ParameterScope
@@ -21,6 +23,7 @@ from . import profiles
 
 __all__ = [
     "Diagnostics",
+    "ElementDiagnostics",
     "EvaluationError",
     "Evaluator",
     "FitResult",
@@ -82,8 +85,11 @@ class Evaluator:
     """
 
     __slots__ = (
+        "_assignment_molecules",
         "_assignment_sizes",
+        "_atomic_numbers",
         "_layout",
+        "_matches",
         "_native",
         "_parameter_set",
         "_threads",
@@ -108,9 +114,22 @@ class Evaluator:
         )
         self._values = np.array(self._native._values(), dtype=np.float64)
         self._values.setflags(write=False)
-        # The number of charges in each assignment, known after the first successful calculation;
-        # it depends only on the molecules and the method, not on the values.
+        # The number of charges and the molecule of each assignment, known after the first
+        # successful calculation; they depend only on the molecules and the method, not on values.
         self._assignment_sizes: tuple[int, ...] | None = None
+        self._assignment_molecules: tuple[int, ...] | None = None
+        self._atomic_numbers = tuple(
+            np.array(molecule.atomic_numbers) for molecule in plan._molecules
+        )
+        atom_counts, bond_counts = self._native._entry_counts()
+        self._matches = tuple(
+            atom_counts[index]
+            if scope == "atom"
+            else bond_counts[index]
+            if scope == "bond"
+            else None
+            for scope, index, _ in self._native._layout()
+        )
 
     @property
     def layout(self) -> tuple[Slot, ...]:
@@ -124,6 +143,13 @@ class Evaluator:
 
         return self._values
 
+    @property
+    def matches(self) -> tuple[int | None, ...]:
+        """Per slot, the number of calculated atoms or bonds of its type; ``None`` for common
+        parameters. A type matched by few atoms or bonds is poorly determined by the data."""
+
+        return self._matches
+
     def charges(self, values: ArrayLike) -> NDArray[np.float64]:
         """The charges of every assignment, concatenated in assignment order.
 
@@ -136,9 +162,11 @@ class Evaluator:
             result["status"] != "success"
             or result["charges"] is None
             or result["assignment_sizes"] is None
+            or result["assignment_molecules"] is None
         ):
             raise EvaluationError(result["failure_message"] or result["status"])
         self._assignment_sizes = tuple(result["assignment_sizes"])
+        self._assignment_molecules = tuple(result["assignment_molecules"])
         return result["charges"]
 
     def jacobian(
@@ -197,6 +225,15 @@ class Evaluator:
             result[:, column] = (charges - base) / step
         return result
 
+    def _charge_elements(self) -> NDArray[np.int64]:
+        """The atomic number of every charge, in the order of ``charges()``."""
+
+        if self._assignment_molecules is None:
+            raise RuntimeError("the elements of the charges are known after a calculation")
+        return np.concatenate(
+            [self._atomic_numbers[molecule] for molecule in self._assignment_molecules]
+        )
+
     def _slot_indices(self, slots: Sequence[SupportsIndex] | None) -> list[int]:
         if slots is None:
             return list(range(len(self._layout)))
@@ -246,11 +283,23 @@ class Evaluator:
 
 
 @dataclass(frozen=True, slots=True)
+class ElementDiagnostics:
+    """How well the charges of one element match the references.
+
+    ``r2`` is ``nan`` when every reference of the element is the same, which leaves it undefined.
+    """
+
+    count: int
+    rmsd: float
+    r2: float
+
+
+@dataclass(frozen=True, slots=True)
 class Diagnostics:
     """What shows whether the fitted values can be trusted.
 
     ``r2`` is the coefficient of determination of the charges at the fitted values against the
-    references, without weights. ``at_bounds`` lists free slots whose fitted value is at a bound,
+    references, without weights; ``nan`` when every reference is the same. ``at_bounds`` lists free slots whose fitted value is at a bound,
     within ``1e-8 * max(1, |bound|)``. ``failed_messages`` holds the distinct messages of trial
     calculations that failed, at most 20.
 
@@ -261,9 +310,16 @@ class Diagnostics:
     determine some combination of them. ``weakest`` lists the
     free slots that dominate the direction of the smallest singular value: those whose share of it is
     at least half the largest share.
+
+    ``matches`` gives, for each free slot in the order of ``FitResult.free``, the number of
+    calculated atoms or bonds of its type, or ``None`` for a common parameter. ``by_element`` maps
+    each element symbol, in atomic-number order, to the number of charges of that element and their
+    RMSD and R² against the references.
     """
 
     r2: float
+    by_element: Mapping[str, ElementDiagnostics]
+    matches: tuple[int | None, ...]
     at_bounds: tuple[int, ...]
     failed_messages: tuple[str, ...]
     singular_values: NDArray[np.float64]
@@ -454,7 +510,16 @@ def fit(
     final_charges = evaluator.charges(fitted)
     final_jacobian = weight[:, np.newaxis] * evaluator.jacobian(fitted, free_slots, (lower, upper))
     diagnostics = _diagnostics(
-        final_charges, reference, final_jacobian, fitted, free_slots, lower, upper, failed_messages
+        final_charges,
+        reference,
+        final_jacobian,
+        fitted,
+        free_slots,
+        lower,
+        upper,
+        failed_messages,
+        evaluator._charge_elements(),
+        tuple(evaluator.matches[slot] for slot in free_slots),
     )
     return FitResult(
         values=fitted,
@@ -480,10 +545,18 @@ def _diagnostics(
     lower: NDArray[np.float64],
     upper: NDArray[np.float64],
     failed_messages: Sequence[str],
+    elements: NDArray[np.int64],
+    matches: tuple[int | None, ...],
 ) -> Diagnostics:
-    total = float(np.sum((reference - reference.mean()) ** 2))
-    residual = float(np.sum((charges - reference) ** 2))
-    r2 = 1.0 - residual / total if total > 0.0 else math.nan
+    by_element = {
+        periodic_table[int(atomic_number)].symbol: ElementDiagnostics(
+            count=int(np.count_nonzero(elements == atomic_number)),
+            rmsd=_rmsd(charges[elements == atomic_number], reference[elements == atomic_number]),
+            r2=_r2(charges[elements == atomic_number], reference[elements == atomic_number]),
+        )
+        for atomic_number in np.unique(elements)
+    }
+    r2 = _r2(charges, reference)
 
     def at_bound(value: float, bound: float) -> bool:
         return math.isfinite(bound) and abs(value - bound) <= 1e-8 * max(1.0, abs(bound))
@@ -513,12 +586,24 @@ def _diagnostics(
     singular_values.setflags(write=False)
     return Diagnostics(
         r2=r2,
+        by_element=MappingProxyType(by_element),
+        matches=matches,
         at_bounds=at_bounds,
         failed_messages=tuple(failed_messages),
         singular_values=singular_values,
         rank=rank,
         weakest=weakest,
     )
+
+
+def _rmsd(charges: NDArray[np.float64], reference: NDArray[np.float64]) -> float:
+    return float(np.sqrt(np.mean((charges - reference) ** 2)))
+
+
+def _r2(charges: NDArray[np.float64], reference: NDArray[np.float64]) -> float:
+    total = float(np.sum((reference - reference.mean()) ** 2))
+    residual = float(np.sum((charges - reference) ** 2))
+    return 1.0 - residual / total if total > 0.0 else math.nan
 
 
 def _fixed_slots(layout: Sequence[Slot], profile: profiles.Profile | None) -> set[int]:
