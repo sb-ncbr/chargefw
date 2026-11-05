@@ -20,6 +20,7 @@ from ..core import Molecule, MoleculeCollection
 from . import profiles
 
 __all__ = [
+    "Diagnostics",
     "EvaluationError",
     "Evaluator",
     "FitResult",
@@ -245,13 +246,41 @@ class Evaluator:
 
 
 @dataclass(frozen=True, slots=True)
+class Diagnostics:
+    """What shows whether the fitted values can be trusted.
+
+    ``r2`` is the coefficient of determination of the charges at the fitted values against the
+    references, without weights. ``at_bounds`` lists free slots whose fitted value is at a bound,
+    within ``1e-8 * max(1, |bound|)``. ``failed_messages`` holds the distinct messages of trial
+    calculations that failed, at most 20.
+
+    ``singular_values`` come from the weighted Jacobian at the fitted values, for the free slots,
+    with each column scaled to unit length, so they compare slots whatever their units; they are in
+    decreasing order. ``rank`` counts those above ``1e-6`` times the largest, well above the noise of
+    a finite-difference Jacobian. A rank below the number of free slots means the data cannot
+    determine some combination of them. ``weakest`` lists the
+    free slots that dominate the direction of the smallest singular value: those whose share of it is
+    at least half the largest share.
+    """
+
+    r2: float
+    at_bounds: tuple[int, ...]
+    failed_messages: tuple[str, ...]
+    singular_values: NDArray[np.float64]
+    rank: int
+    weakest: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class FitResult:
     """The outcome of ``fit()``.
 
     ``values`` and ``start`` hold every slot in the order of the evaluator's layout; ``free`` lists
-    the slots the fit changed, and ``bounds`` the lower and upper values it used per slot. ``rmsd`` compares the charges at ``values`` with the references,
-    without weights. ``failed_evaluations`` counts trial values whose calculation failed and were
-    therefore rejected. ``parameter_set()`` turns the fitted values into a parameter set.
+    the slots the fit changed, and ``bounds`` the lower and upper values it used per slot. ``rmsd``
+    compares the charges at ``values`` with the references, without weights.
+    ``failed_evaluations`` counts trial values whose calculation failed and were therefore rejected.
+    ``diagnostics`` shows whether the values can be trusted. ``parameter_set()`` turns the fitted
+    values into a parameter set.
     """
 
     values: NDArray[np.float64]
@@ -263,6 +292,7 @@ class FitResult:
     evaluations: int
     failed_evaluations: int
     rmsd: float
+    diagnostics: Diagnostics
     # The parameter set the fit started from, with its original values; parameter_set() combines its
     # keys with ``values``. It keeps no training data.
     _parameter_set: ParameterSet = field(repr=False, compare=False)
@@ -382,6 +412,7 @@ def fit(
         )
 
     failed = 0
+    failed_messages: list[str] = []
 
     def values_of(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
         values = initial.copy()
@@ -392,9 +423,11 @@ def fit(
         nonlocal failed
         try:
             charges = evaluator.charges(values_of(free_values))
-        except EvaluationError:
+        except EvaluationError as error:
             # Non-finite residuals make the TRF method reject the trial and shorten its step.
             failed += 1
+            if len(failed_messages) < 20 and str(error) not in failed_messages:
+                failed_messages.append(str(error))
             return np.full(reference.size, np.nan)
         return weight * (charges - reference)
 
@@ -419,6 +452,10 @@ def fit(
     fitted.setflags(write=False)
     initial.setflags(write=False)
     final_charges = evaluator.charges(fitted)
+    final_jacobian = weight[:, np.newaxis] * evaluator.jacobian(fitted, free_slots, (lower, upper))
+    diagnostics = _diagnostics(
+        final_charges, reference, final_jacobian, fitted, free_slots, lower, upper, failed_messages
+    )
     return FitResult(
         values=fitted,
         start=initial,
@@ -429,7 +466,58 @@ def fit(
         evaluations=int(solution.nfev),
         failed_evaluations=failed,
         rmsd=float(np.sqrt(np.mean((final_charges - reference) ** 2))),
+        diagnostics=diagnostics,
         _parameter_set=evaluator._parameter_set,
+    )
+
+
+def _diagnostics(
+    charges: NDArray[np.float64],
+    reference: NDArray[np.float64],
+    jacobian: NDArray[np.float64],
+    values: NDArray[np.float64],
+    free: Sequence[int],
+    lower: NDArray[np.float64],
+    upper: NDArray[np.float64],
+    failed_messages: Sequence[str],
+) -> Diagnostics:
+    total = float(np.sum((reference - reference.mean()) ** 2))
+    residual = float(np.sum((charges - reference) ** 2))
+    r2 = 1.0 - residual / total if total > 0.0 else math.nan
+
+    def at_bound(value: float, bound: float) -> bool:
+        return math.isfinite(bound) and abs(value - bound) <= 1e-8 * max(1.0, abs(bound))
+
+    at_bounds = tuple(
+        slot
+        for slot in free
+        if at_bound(values[slot], lower[slot]) or at_bound(values[slot], upper[slot])
+    )
+
+    norms = np.linalg.norm(jacobian, axis=0)
+    scaled = jacobian / np.where(norms > 0.0, norms, 1.0)
+    # The right singular vectors give the weakest direction. A reduced SVD has all of them when there
+    # are at least as many charges as free slots; only an underdetermined Jacobian needs the full one
+    # for its null directions, and then the left vectors are small. A full SVD of a tall Jacobian
+    # would build a square matrix in the number of charges.
+    rows, columns = scaled.shape
+    _, singular_values, right = np.linalg.svd(scaled, full_matrices=rows < columns)
+    singular_values = np.concatenate((singular_values, np.zeros(len(free) - singular_values.size)))
+    rank = int(np.sum(singular_values > 1e-6 * singular_values[0])) if singular_values[0] else 0
+    weakest_direction = np.abs(right[-1])
+    weakest = tuple(
+        free[index]
+        for index in np.argsort(-weakest_direction, kind="stable")
+        if weakest_direction[index] >= 0.5 * weakest_direction.max()
+    )
+    singular_values.setflags(write=False)
+    return Diagnostics(
+        r2=r2,
+        at_bounds=at_bounds,
+        failed_messages=tuple(failed_messages),
+        singular_values=singular_values,
+        rank=rank,
+        weakest=weakest,
     )
 
 

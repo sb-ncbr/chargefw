@@ -17,7 +17,9 @@
   `fit()` fits the values to reference charges with SciPy's least squares; the result's
   `parameter_set()` turns the fitted values into a parameter set. Profiles for EEM and the SQE
   methods give default bounds, starting values, and fixed parameters; the SQE bounds keep the system
-  stable for every molecule and geometry. Install SciPy with the `parameterisation` extra.
+  stable for every molecule and geometry. Fit diagnostics report R², parameters at a bound, failed
+  calculations, and which parameters the data cannot determine. Install SciPy with the
+  `parameterisation` extra.
 - `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
   `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
   `chargefw.write_parameter_set()` writes any parameter set to a JSON file.

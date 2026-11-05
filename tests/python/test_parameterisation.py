@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import chargefw
 import numpy as np
@@ -462,3 +463,67 @@ def test_sqe_bounds_follow_the_minimum_width_and_kappa() -> None:
     assert bounds["kappa"] == (0.1, np.inf)
     with pytest.raises(ValueError):
         sqe_bounds(min_kappa=0.0)
+
+
+def test_fit_diagnostics_show_what_the_data_cannot_determine() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+
+    # Carbon occurs once, in formaldehyde, so its A and B cannot be told apart.
+    result = fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+    assert result.diagnostics.r2 == pytest.approx(1.0, abs=1e-12)
+    assert result.diagnostics.rank == 4
+    assert set(result.diagnostics.weakest) == {3, 4}
+    assert result.diagnostics.singular_values.shape == (5,)
+
+    # Freeing kappa and hydrogen A adds EEM's two invariances, which nothing can determine.
+    everything = fit(evaluator, references, start=FIT_START, free=list(range(7)))
+    assert everything.diagnostics.rank == 4
+
+
+def test_fit_diagnostics_report_bounds_and_failed_calculations() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    lower = np.full(7, -np.inf)
+    upper = np.full(7, np.inf)
+    upper[6] = 1.05
+    start = TRUE_VALUES.copy()
+    start[6] = 1.0
+
+    # The true oxygen B, 1.1, lies above the bound, and no other slot is free to compensate.
+    bounded = fit(evaluator, references, start=start, free=[6], bounds=(lower, upper))
+    assert bounded.diagnostics.at_bounds == (6,)
+    assert bounded.values[6] == pytest.approx(1.05)
+
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    failing = fit(FailingEvaluator(plan, threads=1), references, start=FIT_START, free=FIT_FREE)
+    assert failing.diagnostics.failed_messages == ("oxygen electronegativity above 2.9",)
+
+
+def test_fit_diagnostics_cover_more_free_slots_than_charges() -> None:
+    evaluator = eem_evaluator(water())
+    references = evaluator.charges(EEM_WATER_VALUES)
+    start = EEM_WATER_VALUES + np.array([0.0, 0.0, 0.1, 0.2, 0.1])
+
+    # Three charges with a fixed total determine at most two combinations of the five slots.
+    result = fit(evaluator, references, start=start, free=[0, 1, 2, 3, 4])
+
+    assert result.diagnostics.singular_values.shape == (5,)
+    assert result.diagnostics.rank == 2
+    assert result.diagnostics.weakest
+
+
+def test_fit_diagnostics_do_not_build_a_matrix_in_the_number_of_charges() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+
+    # A full SVD of the tall Jacobian would build a square matrix in the number of charges.
+    with patch.object(np.linalg, "svd", wraps=np.linalg.svd) as svd:
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+
+    assert svd.call_args.kwargs["full_matrices"] is False
