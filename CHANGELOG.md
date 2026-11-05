@@ -11,6 +11,10 @@
 
 ### C++
 
+- `parameters::parameter_layout()` and `parameter_values()` list the values of a parameter set in a
+  fixed order, `with_parameter_values()` copies a set with new values, and `compatible()` tells whether
+  two sets differ only in their values and descriptive metadata. Parameter keys can be compared with
+  `==`.
 - `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.
   `find_applicable_methods()`, `ApplicabilityRequest`, `CalculationRequest`, `CalculationResult`, and
   the `calculate()` overload that takes a `CalculationRequest` are removed. Calculate charges with
