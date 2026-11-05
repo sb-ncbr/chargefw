@@ -88,6 +88,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _warnings.py
     calculation.py
     charges.py
+    parameterisation.py
     core.py
 )
 foreach(package_source IN LISTS CHARGEFW_PYTHON_PACKAGE_SOURCES)

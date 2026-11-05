@@ -11,6 +11,9 @@
 
 ### Python
 
+- `chargefw.parameterisation` starts support for fitting parameter values: `make_parameter_template()`
+  makes a parameter set with an entry for every atom and bond type of your molecules, and `Evaluator`
+  calculates the charges of an assessed plan, and their derivatives, for any vector of values.
 - `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
   `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
 

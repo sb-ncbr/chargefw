@@ -1,13 +1,23 @@
 #include "bindings.h"
 #include "native_parameter_catalog.h"
 
+#include <chargefw/core/molecule.h>
+#include <chargefw/core/molecule_collection.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/features/prepared_molecule_collection.h>
+#include <chargefw/methods/method.h>
+#include <chargefw/methods/method_registry.h>
+#include <chargefw/parameters/classification/parameter_template.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/parameters/models/parameter_key.h>
+#include <chargefw/parameters/models/parameter_set_metadata.h>
 
 #include <nanobind/stl/string.h>
 
+#include <cstddef>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -24,6 +34,46 @@ auto make_bundled_parameter_catalog() -> NativeParameterCatalog {
 auto load_parameter_set_catalog(const std::string& path) -> NativeParameterCatalog {
     auto parameter_sets = std::vector<parameters::ParameterSet>{};
     parameter_sets.push_back(parameters::load_parameter_set_json_file(path));
+    return NativeParameterCatalog{std::move(parameter_sets)};
+}
+
+auto parameter_names(const std::vector<std::string_view>& names) -> std::vector<std::string> {
+    return {names.begin(), names.end()};
+}
+
+// A catalog with a template for `method_id` built from the molecules: one zero-valued entry for
+// every atom and bond type that occurs, with the parameter names the method requires.
+auto make_parameter_template_catalog(const nb::sequence& molecules, const std::string& method_id,
+                                     const std::string& atom_types, const std::string& bond_types,
+                                     std::string id) -> NativeParameterCatalog {
+    auto copies = std::vector<core::Molecule>{};
+    copies.reserve(static_cast<std::size_t>(nb::len(molecules)));
+    for (const auto molecule : molecules) {
+        copies.push_back(nb::cast<const core::Molecule&>(molecule));
+    }
+
+    nb::gil_scoped_release release;
+    const auto* method = methods::method_registry().find(method_id);
+    if (method == nullptr) {
+        throw std::invalid_argument{"method '" + method_id + "' is not registered"};
+    }
+    const auto requirements = method->requirements();
+    if (!requirements.requires_parameters()) {
+        throw std::invalid_argument{"method '" + method_id + "' has no parameters"};
+    }
+    const auto collection = core::MoleculeCollection{std::move(copies)};
+    const auto prepared = features::PreparedMoleculeCollection{collection};
+    auto metadata = parameters::ParameterSetMetadata{};
+    metadata.id = std::move(id);
+    metadata.method_id = method_id;
+    auto parameter_sets = std::vector<parameters::ParameterSet>{};
+    parameter_sets.push_back(parameters::make_parameter_template(
+        prepared,
+        {.common = parameter_names(requirements.common_parameters),
+         .atom = parameter_names(requirements.atom_parameters),
+         .bond = parameter_names(requirements.bond_parameters)},
+        parameters::atom_classification_kind_from_string(atom_types),
+        parameters::bond_classification_kind_from_string(bond_types), std::move(metadata)));
     return NativeParameterCatalog{std::move(parameter_sets)};
 }
 
@@ -77,6 +127,9 @@ void bind_parameters(nb::module_& module) {
                nb::call_guard<nb::gil_scoped_release>());
     module.def("_load_parameter_set_catalog", &load_parameter_set_catalog, nb::arg("path"),
                nb::call_guard<nb::gil_scoped_release>());
+    module.def("_make_parameter_template_catalog", &make_parameter_template_catalog,
+               nb::arg("molecules"), nb::arg("method_id"), nb::arg("atom_types"),
+               nb::arg("bond_types"), nb::arg("id"));
 }
 
 } // namespace chargefw::python
