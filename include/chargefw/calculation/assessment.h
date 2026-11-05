@@ -145,6 +145,11 @@ class AssessmentResult {
     [[nodiscard]] auto prepared_molecules() const noexcept
         -> const features::PreparedMoleculeCollection&;
 
+    // Executes `plan` with its own parameter set, or with the values of `candidate` when given.
+    [[nodiscard]] auto execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
+                               std::size_t max_threads, const CalculationObserver& observer) const
+        -> ExecutionResult;
+
     auto
     assess_prepared(std::span<const methods::Method* const> selected_methods,
                     const parameters::ClassificationOptions& classification_options,
@@ -159,6 +164,9 @@ class AssessmentResult {
     friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                           std::size_t max_threads, const CalculationObserver& observer)
         -> ExecutionResult;
+    friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+                          const parameters::ParameterSet& candidate, std::size_t max_threads,
+                          const CalculationObserver& observer) -> ExecutionResult;
     friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                          std::size_t max_threads) -> methods::ResourceEstimate;
 

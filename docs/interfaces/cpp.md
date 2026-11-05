@@ -272,6 +272,13 @@ auto serial = calculation::calculate(assessment, 1);
 auto parallel = calculation::calculate(assessment, 4);
 ```
 
+`calculate(assessment, plan, candidate)` runs a plan with other values for its parameter set, still
+without checking the molecules again; fitting parameters calls it many times. Make the candidate with
+`parameters::with_parameter_values()` from `plan.parameter_set()`, described in [Methods and parameter
+sets](#methods-and-parameter-sets), and give it an ID of its own. The result reports that ID. A
+candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
+method has no parameters throws `std::invalid_argument`.
+
 `calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
 plan's approximate peak working memory and number of operations; [Threads and
 estimates](../guide/large-structures.md#threads-and-estimates) explains them.

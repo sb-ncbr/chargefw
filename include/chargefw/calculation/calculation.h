@@ -5,6 +5,7 @@
 #include <chargefw/calculation/observer.h>
 #include <chargefw/charges/charge_collection.h>
 #include <chargefw/methods/method_requirements.h>
+#include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -66,6 +67,18 @@ struct ExecutionResult {
 // reusable after calculation and independent plans may be executed repeatedly.
 [[nodiscard]] auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                              std::size_t max_threads = 0,
+                             const CalculationObserver& observer = default_calculation_observer())
+    -> ExecutionResult;
+
+// Executes `plan` as the overload above, with the values of `candidate` instead of the values of
+// the plan's parameter set. The assessment's classifications are reused, so `candidate` must be
+// compatible with plan.parameter_set(): the same method, entry keys, and parameter names, in the
+// same order (parameters::compatible()). Throws std::invalid_argument if the plan belongs to
+// another assessment, if its method has no parameters, if `candidate` is not compatible, or if
+// `candidate` has the ID of the plan's parameter set. The result reports the candidate's
+// parameter-set ID.
+[[nodiscard]] auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+                             const parameters::ParameterSet& candidate, std::size_t max_threads = 0,
                              const CalculationObserver& observer = default_calculation_observer())
     -> ExecutionResult;
 

@@ -16,9 +16,11 @@
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/methods/method_requirements.h>
+#include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
+#include <chargefw/parameters/models/parameter_values.h>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -36,6 +38,7 @@ namespace charges = chargefw::charges;
 namespace core = chargefw::core;
 namespace features = chargefw::features;
 namespace methods = chargefw::methods;
+namespace parameters = chargefw::parameters;
 
 using chargefw::test::calculate_application;
 
@@ -811,4 +814,78 @@ TEST_CASE("both assessment overloads reject duplicate parameter-set IDs",
             CHECK_THROWS_AS(assess_duplicate_rvalue_request(), std::invalid_argument);
         }
     }
+}
+
+TEST_CASE("a plan calculates with candidate parameter values without new assessment",
+          "[calculation][calculation]") {
+    const auto assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+        .method_id = "eem",
+        .parameter_set_id = "test-eem-ho"});
+    const auto* plan = assessment.default_plan();
+    REQUIRE(plan != nullptr);
+    const auto& assessed = *plan->parameter_set();
+    const auto original = calculation::calculate(assessment, *plan);
+    REQUIRE(original.calculated());
+
+    // The same values under a new ID give the same charges, reported under the new ID.
+    const auto copy = parameters::with_parameter_values(
+        assessed, parameters::parameter_values(assessed), {.id = "copy"});
+    const auto same = calculation::calculate(assessment, *plan, copy);
+    REQUIRE(same.calculated());
+    CHECK(std::ranges::equal(same.charges->assignment(0).charges.values(),
+                             original.charges->assignment(0).charges.values()));
+    CHECK(same.charges->parameter_set_id() == std::optional<std::string_view>{"copy"});
+    REQUIRE(same.effective.has_value());
+    CHECK(same.effective->parameter_set_id == std::optional<std::string>{"copy"});
+
+    // Equal electronegativities (A) for hydrogen and oxygen give zero charges.
+    auto values = parameters::parameter_values(assessed); // kappa, H: A, B, O: A, B
+    values[3] = values[1];
+    const auto equal = calculation::calculate(
+        assessment, *plan, parameters::with_parameter_values(assessed, values, {.id = "equal"}));
+    REQUIRE(equal.calculated());
+    for (const auto charge : equal.charges->assignment(0).charges.values()) {
+        CHECK(std::abs(charge) < 1e-12);
+    }
+
+    // The plan is unchanged and keeps its own values.
+    const auto again = calculation::calculate(assessment, *plan);
+    CHECK(std::ranges::equal(again.charges->assignment(0).charges.values(),
+                             original.charges->assignment(0).charges.values()));
+}
+
+TEST_CASE("candidate parameter values are rejected for plans and sets they do not fit",
+          "[calculation][calculation]") {
+    const auto assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+        .method_id = "eem",
+        .parameter_set_id = "test-eem-ho"});
+    const auto* plan = assessment.default_plan();
+    REQUIRE(plan != nullptr);
+    const auto& assessed = *plan->parameter_set();
+    const auto values = parameters::parameter_values(assessed);
+
+    // The assessed set's own ID would report changed values under a published name.
+    CHECK_THROWS_AS(calculation::calculate(
+                        assessment, *plan,
+                        parameters::with_parameter_values(assessed, values, assessed.metadata())),
+                    std::invalid_argument);
+    // Another entry order would read wrong entries through the stored classifications.
+    const auto reordered = parameters::ParameterSet{
+        {.id = "reordered", .method_id = "eem"},
+        assessed.common(),
+        parameters::AtomParameters{{assessed.atom()[1], assessed.atom()[0]}}};
+    CHECK_THROWS_AS(calculation::calculate(assessment, *plan, reordered), std::invalid_argument);
+
+    const auto formal_assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .method_id = "formal"});
+    REQUIRE(formal_assessment.default_plan() != nullptr);
+    CHECK_THROWS_AS(calculation::calculate(
+                        formal_assessment, *formal_assessment.default_plan(),
+                        parameters::with_parameter_values(assessed, values, {.id = "candidate"})),
+                    std::invalid_argument);
 }
