@@ -42,6 +42,9 @@ file(REMOVE_RECURSE "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/adapters")
 set(CHARGEFW_PYTHON_IO_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/io")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_IO_DIRECTORY}")
+set(CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY
+    "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/parameterisation")
+file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY}")
 set(CHARGEFW_PYTHON_STUB_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_chargefw")
 set(CHARGEFW_PYTHON_PARAMETER_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}")
@@ -88,7 +91,6 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _warnings.py
     calculation.py
     charges.py
-    parameterisation.py
     core.py
 )
 foreach(package_source IN LISTS CHARGEFW_PYTHON_PACKAGE_SOURCES)
@@ -103,6 +105,15 @@ set(CHARGEFW_PYTHON_IO_SOURCES
 foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
     configure_file("chargefw/io/${io_source}"
                    "${CHARGEFW_PYTHON_IO_DIRECTORY}/${io_source}" COPYONLY)
+endforeach()
+set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
+    __init__.py
+    profiles.py
+)
+foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
+    configure_file("chargefw/parameterisation/${parameterisation_source}"
+                   "${CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY}/${parameterisation_source}"
+                   COPYONLY)
 endforeach()
 # The import check needs to know whether the extension was built for x86-64-v3 (optimization.cmake).
 configure_file(chargefw/_cpu.py "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_cpu.py" @ONLY)
@@ -174,6 +185,11 @@ endforeach()
 foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
     install(FILES "chargefw/io/${io_source}"
             DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/io
+            COMPONENT python)
+endforeach()
+foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
+    install(FILES "chargefw/parameterisation/${parameterisation_source}"
+            DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/parameterisation
             COMPONENT python)
 endforeach()
 install(FILES chargefw/py.typed

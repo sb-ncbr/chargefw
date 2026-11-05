@@ -10,6 +10,7 @@ chargefw_add_snitch_test(test_methods
         test_method_options.cpp
         test_method_prerequisites.cpp
         test_method_registry.cpp
+        test_parameter_invariances.cpp
         test_mpeoe.cpp
         test_peoe.cpp
         test_sqe.cpp

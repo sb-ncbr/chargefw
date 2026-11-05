@@ -6,17 +6,18 @@ import math
 import operator
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import SupportsIndex
+from typing import Literal, SupportsIndex
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from ._chargefw import parameters as _native_parameters
-from ._methods import Method
-from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
-from ._types import AtomClassifier, BondClassifier, ParameterScope
-from .calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
-from .core import Molecule, MoleculeCollection
+from .._chargefw import parameters as _native_parameters
+from .._methods import Method
+from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
+from .._types import AtomClassifier, BondClassifier, ParameterScope
+from ..calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
+from ..core import Molecule, MoleculeCollection
+from . import profiles
 
 __all__ = [
     "EvaluationError",
@@ -248,7 +249,7 @@ class FitResult:
     """The outcome of ``fit()``.
 
     ``values`` and ``start`` hold every slot in the order of the evaluator's layout; ``free`` lists
-    the slots the fit changed. ``rmsd`` compares the charges at ``values`` with the references,
+    the slots the fit changed, and ``bounds`` the lower and upper values it used per slot. ``rmsd`` compares the charges at ``values`` with the references,
     without weights. ``failed_evaluations`` counts trial values whose calculation failed and were
     therefore rejected. ``parameter_set()`` turns the fitted values into a parameter set.
     """
@@ -256,6 +257,7 @@ class FitResult:
     values: NDArray[np.float64]
     start: NDArray[np.float64]
     free: tuple[int, ...]
+    bounds: tuple[NDArray[np.float64], NDArray[np.float64]]
     success: bool
     message: str
     evaluations: int
@@ -295,6 +297,7 @@ def fit(
     | None = None,
     free: Sequence[SupportsIndex] | None = None,
     bounds: tuple[ArrayLike, ArrayLike] | None = None,
+    profile: profiles.Profile | Literal["default"] | None = "default",
     max_evaluations: int | None = None,
 ) -> FitResult:
     """Fit parameter values so that the charges match reference charges in the least-squares sense.
@@ -303,8 +306,15 @@ def fit(
     per assignment, or one array for all. ``weights`` has the same shape, or is omitted for equal
     weights. ``start`` is a vector in layout order, or a mapping from (key, parameter name) to the
     values that differ from the evaluator's values; the key is ``None`` for common parameters.
-    ``free`` lists the slots to fit (default: all); the others keep their start values. ``bounds``
-    gives lower and upper values per slot.
+    ``free`` lists the slots to fit; the others keep their start values. ``bounds`` gives lower and
+    upper values per slot.
+
+    ``profile`` gives the defaults for what is omitted: by default the method's entry in
+    ``profiles.PROFILES``, or nothing for a method without one, or for ``profile=None``. Without ``free``,
+    every slot is fitted except the profile's fixed ones. Without ``bounds``, the profile's bounds
+    apply, and no bounds without a profile. A parameter whose values are all zero in the plan's set,
+    as in a template, starts at the profile's value for it; a free slot of such a parameter without
+    a profile value needs a value in ``start``.
 
     One array per assignment must match the assignments in number and size. ``free`` must not
     repeat a slot.
@@ -323,13 +333,30 @@ def fit(
             "fit() needs SciPy; install it, for example with pip install chargefw[parameterisation]"
         ) from error
 
-    free_slots = evaluator._slot_indices(free)
+    chosen = (
+        profiles.PROFILES.get(evaluator._parameter_set.method) if profile == "default" else profile
+    )
+    layout = evaluator.layout
+    if free is not None:
+        free_slots = evaluator._slot_indices(free)
+    else:
+        fixed = _fixed_slots(layout, chosen)
+        free_slots = [slot for slot in range(len(layout)) if slot not in fixed]
     if not free_slots:
         raise ValueError("fit needs at least one free slot")
     if len(set(free_slots)) != len(free_slots):
         raise ValueError("free slots must not repeat")
-    lower, upper = evaluator._bounds(bounds)
-    initial = _start_values(evaluator, start)
+    lower, upper = evaluator._bounds(
+        bounds if bounds is not None else _profile_bounds(layout, chosen)
+    )
+    initial, missing = _start_values(evaluator, start, chosen)
+    missing_free = [slot for slot in free_slots if slot in missing]
+    if missing_free:
+        raise ValueError(
+            "these free slots have no start value, because their parameter is not given in the "
+            "parameter set and has no default; give them in start: "
+            + "; ".join(f"slot {slot} ({evaluator._describe(slot)})" for slot in missing_free)
+        )
     _check_start_in_bounds(evaluator, initial, free_slots, lower, upper)
 
     try:
@@ -396,6 +423,7 @@ def fit(
         values=fitted,
         start=initial,
         free=tuple(free_slots),
+        bounds=(_read_only(lower), _read_only(upper)),
         success=bool(solution.success),
         message=str(solution.message),
         evaluations=int(solution.nfev),
@@ -405,23 +433,68 @@ def fit(
     )
 
 
+def _fixed_slots(layout: Sequence[Slot], profile: profiles.Profile | None) -> set[int]:
+    if profile is None:
+        return set()
+    fixed = set()
+    for name in profile.fixed:
+        first = next((index for index, slot in enumerate(layout) if slot.name == name), None)
+        if first is not None:
+            fixed.add(first)
+    return fixed
+
+
+def _profile_bounds(
+    layout: Sequence[Slot], profile: profiles.Profile | None
+) -> tuple[NDArray[np.float64], NDArray[np.float64]] | None:
+    if profile is None:
+        return None
+    lower = np.full(len(layout), -math.inf)
+    upper = np.full(len(layout), math.inf)
+    for index, slot in enumerate(layout):
+        if slot.name in profile.bounds:
+            lower[index], upper[index] = profile.bounds[slot.name]
+    return lower, upper
+
+
 def _start_values(
     evaluator: Evaluator,
     start: ArrayLike
     | Mapping[tuple[AtomParameterKey | BondParameterKey | None, str], float]
     | None,
-) -> NDArray[np.float64]:
-    if start is None:
-        return np.array(evaluator.values)
-    if isinstance(start, Mapping):
-        values = np.array(evaluator.values)
+    profile: profiles.Profile | None,
+) -> tuple[NDArray[np.float64], set[int]]:
+    """The start values, and the slots that have none."""
+
+    if start is not None and not isinstance(start, Mapping):
+        return evaluator._vector(start).copy(), set()
+
+    values = np.array(evaluator.values)
+    missing: set[int] = set()
+    if profile is not None:
+        groups: dict[tuple[ParameterScope, str], list[int]] = {}
+        for index, slot in enumerate(evaluator.layout):
+            groups.setdefault((slot.scope, slot.name), []).append(index)
+        for (_, name), slots in groups.items():
+            if np.all(values[slots] == 0.0):
+                if name in profile.start:
+                    values[slots] = profile.start[name]
+                else:
+                    missing.update(slots)
+    if start is not None:
         positions = {(slot.key, slot.name): index for index, slot in enumerate(evaluator.layout)}
         for (key, name), value in start.items():
             if (key, name) not in positions:
                 raise KeyError(f"no slot for parameter {name!r} of {key!r} in the layout")
             values[positions[(key, name)]] = value
-        return evaluator._vector(values).copy()
-    return evaluator._vector(start).copy()
+            missing.discard(positions[(key, name)])
+    return evaluator._vector(values).copy(), missing
+
+
+def _read_only(values: NDArray[np.float64]) -> NDArray[np.float64]:
+    copy = np.array(values)
+    copy.setflags(write=False)
+    return copy
 
 
 def _check_start_in_bounds(

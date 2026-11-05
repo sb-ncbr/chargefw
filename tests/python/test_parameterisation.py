@@ -13,6 +13,7 @@ from chargefw.parameterisation import (
     fit,
     make_parameter_template,
 )
+from chargefw.parameterisation.profiles import PROFILES, sqe_bounds
 from numpy.typing import ArrayLike, NDArray
 
 
@@ -380,3 +381,84 @@ def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
     assert document["metadata"]["id"] == "EEM_Baek1991"
     assert document["metadata"]["method"] == "eem"
     assert document["common"]["names"] == ["kappa"]
+
+
+def template_evaluator(method: str, atom_types: str, bond_types: str = "plain") -> Evaluator:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(
+        molecules,
+        method,
+        atom_types=atom_types,  # type: ignore[arg-type]
+        bond_types=bond_types,  # type: ignore[arg-type]
+    )
+    plan = chargefw.assess(
+        molecules, method=method, parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    return Evaluator(plan, threads=1)
+
+
+def test_eem_profile_fits_a_template_from_the_electronegativities_alone() -> None:
+    evaluator = template_evaluator("eem", "plain")
+    references = training_evaluator().charges(TRUE_VALUES)
+    carbon = chargefw.AtomParameterKey(element="C", classifier="plain", type="*")
+    oxygen = chargefw.AtomParameterKey(element="O", classifier="plain", type="*")
+
+    # Hydrogen A is the fixed slot, so it needs no value; kappa and B start from the profile.
+    result = fit(evaluator, references, start={(carbon, "A"): 0.5, (oxygen, "A"): 1.5})
+
+    assert result.rmsd < 1e-8, result.message
+    assert result.free == (2, 3, 4, 5, 6)
+    assert result.values[0] == PROFILES["eem"].start["kappa"]
+    np.testing.assert_array_equal(result.bounds[0][[2, 4, 6]], [1e-3, 1e-3, 1e-3])
+
+
+def test_profile_reports_free_slots_without_a_start_value() -> None:
+    evaluator = template_evaluator("eem", "plain")
+    references = training_evaluator().charges(TRUE_VALUES)
+
+    with pytest.raises(ValueError, match="no start value") as error:
+        fit(evaluator, references)
+    message = str(error.value)
+    assert "slot 3 (atom A of" in message and "slot 5 (atom A of" in message
+    assert "slot 1 " not in message
+
+    # Without a profile, the template's zero values are the start, and EEM rejects kappa = 0.
+    with pytest.raises(EvaluationError, match="at the start"):
+        fit(evaluator, references, profile=None)
+
+
+def test_sqe_profile_keeps_the_fit_within_stable_bounds() -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    # Atom types H/1, C/2, O/1, O/2 (electronegativity, hardness, width), then bonds H-C, H-O, C-O.
+    true_values = np.array(
+        [4.5, 13.0, 1.0, 5.5, 10.0, 1.0, 8.7, 13.0, 1.0, 8.0, 11.0, 1.0, 1.0, 1.5, 0.8]
+    )
+    references = evaluator.charges(true_values)
+    start = {
+        (slot.key, slot.name): value
+        for slot, value in zip(evaluator.layout, true_values - 0.5, strict=True)
+        if slot.name == "electronegativity"
+    }
+
+    result = fit(evaluator, references, start=start)
+
+    assert result.rmsd < 1e-6, result.message
+    assert 0 not in result.free
+    lower, upper = result.bounds
+    assert np.all(result.values >= lower) and np.all(result.values <= upper)
+    np.testing.assert_allclose(lower[[1, 2, 12]], [1.0 / (np.sqrt(np.pi) * 0.5), 0.5, 0.01])
+
+    soft = dict(start)
+    soft[(evaluator.layout[1].key, "hardness")] = 0.5
+    with pytest.raises(ValueError, match="slot 1 \\(atom hardness of"):
+        fit(evaluator, references, start=soft)
+
+
+def test_sqe_bounds_follow_the_minimum_width_and_kappa() -> None:
+    bounds = sqe_bounds(min_width=0.25, min_kappa=0.1)
+    assert bounds["width"] == (0.25, np.inf)
+    assert bounds["hardness"][0] == pytest.approx(1.0 / (np.sqrt(np.pi) * 0.25))
+    assert bounds["kappa"] == (0.1, np.inf)
+    with pytest.raises(ValueError):
+        sqe_bounds(min_kappa=0.0)
