@@ -15,6 +15,8 @@
   fixed order, `with_parameter_values()` copies a set with new values, and `compatible()` tells whether
   two sets differ only in their values and descriptive metadata. Parameter keys can be compared with
   `==`.
+- `parameters::save_parameter_set_json()` writes a parameter set in the JSON format that the loading
+  functions read.
 - `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.
   `find_applicable_methods()`, `ApplicabilityRequest`, `CalculationRequest`, `CalculationResult`, and
   the `calculate()` overload that takes a `CalculationRequest` are removed. Calculate charges with

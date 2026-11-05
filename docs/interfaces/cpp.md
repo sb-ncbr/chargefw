@@ -354,7 +354,10 @@ options instead, or assessment refuses the method.
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
 sets by method ID and order each method's sets by descending priority, then ID.
 `parameters::load_parameter_set_json_file()` loads one file, and `load_parameter_set_json()` one set
-from a `std::istream`. These functions are declared in
+from a `std::istream`. `save_parameter_set_json()` writes a set to a `std::ostream` in the same
+format, which loads back as an equal set. The format lists the parameter names once for all atom
+entries and once for all bond entries, so writing a set whose entries have different names throws
+`std::invalid_argument`. These functions are declared in
 `<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
 format](../reference/parameter-format.md) describes the files.
 

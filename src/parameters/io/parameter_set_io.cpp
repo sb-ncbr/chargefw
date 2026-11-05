@@ -9,9 +9,13 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <limits>
 #include <memory>
+#include <ostream>
+#include <print>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -498,6 +502,168 @@ auto sort_parameter_sets(std::vector<ParameterSet>& parameter_sets) -> void {
     });
 }
 
+// The writer lays out documents like the bundled files: two-space indentation, with keys, names,
+// and values each on one line. Strings and numbers are serialized by nlohmann/json, which writes
+// the shortest number text that reads back as the same double.
+
+[[nodiscard]] auto json_string(const std::string_view value) -> std::string {
+    return Json(std::string{value}).dump();
+}
+
+[[nodiscard]] auto number_text(const double value) -> std::string {
+    return Json(value).dump();
+}
+
+[[nodiscard]] auto join(const std::vector<std::string>& parts, const std::string_view separator)
+    -> std::string {
+    auto text = std::string{};
+    for (const auto& part : parts) {
+        if (!text.empty()) {
+            text += separator;
+        }
+        text += part;
+    }
+    return text;
+}
+
+[[nodiscard]] auto names_text(const std::span<const NamedParameter> parameters) -> std::string {
+    auto names = std::vector<std::string>{};
+    names.reserve(parameters.size());
+    for (const auto& parameter : parameters) {
+        names.push_back(json_string(parameter.name));
+    }
+    return "[" + join(names, ", ") + "]";
+}
+
+[[nodiscard]] auto values_text(const std::span<const NamedParameter> parameters) -> std::string {
+    auto values = std::vector<std::string>{};
+    values.reserve(parameters.size());
+    for (const auto& parameter : parameters) {
+        values.push_back(number_text(parameter.value));
+    }
+    return "[" + join(values, ", ") + "]";
+}
+
+// Keys are checked against the rules the reader enforces, so that a written set always loads back.
+[[nodiscard]] auto key_classifier_text(const std::string_view classifier, const bool plain,
+                                       const std::string& type) -> std::string {
+    if (classifier == "unknown") {
+        throw std::invalid_argument{"cannot write a parameter key with an unknown classifier"};
+    }
+    if (plain && type != "*") {
+        throw std::invalid_argument{"cannot write a plain parameter key with type '" + type +
+                                    "'; a plain key must have type '*'"};
+    }
+    return "\"classifier\": " + json_string(classifier) + ", \"type\": " + json_string(type);
+}
+
+[[nodiscard]] auto atom_key_text(const AtomParameterKey& key) -> std::string {
+    auto element = std::string_view{"*"};
+    if (key.atomic_number != 0) {
+        try {
+            element = core::element_symbol(key.atomic_number);
+        } catch (const std::out_of_range&) {
+            throw std::invalid_argument{"cannot write a parameter key with atomic number " +
+                                        std::to_string(key.atomic_number)};
+        }
+    }
+    return "{\"element\": " + json_string(element) + ", " +
+           key_classifier_text(to_string(key.classification),
+                               key.classification == AtomParameterClassificationKind::PLAIN,
+                               key.type) +
+           "}";
+}
+
+[[nodiscard]] auto bond_type_key_text(const BondTypeKey& key) -> std::string {
+    return "{" +
+           key_classifier_text(to_string(key.classification),
+                               key.classification == BondParameterClassificationKind::PLAIN,
+                               key.type) +
+           "}";
+}
+
+// The names shared by every entry of a section, which the format stores once.
+template <typename Entry>
+[[nodiscard]] auto section_names(const std::span<const Entry> entries,
+                                 const std::string_view section)
+    -> std::span<const NamedParameter> {
+    const auto names = std::span<const NamedParameter>{entries.front().parameters};
+    for (const auto& entry : entries) {
+        if (!std::ranges::equal(entry.parameters, names, [](const auto& lhs, const auto& rhs) {
+                return lhs.name == rhs.name;
+            })) {
+            throw std::invalid_argument{
+                "cannot write " + std::string{section} +
+                " parameters whose entries have different parameter names; the JSON format "
+                "lists one set of names per section"};
+        }
+    }
+    return names;
+}
+
+[[nodiscard]] auto metadata_text(const ParameterSetMetadata& metadata) -> std::string {
+    auto members = std::vector<std::string>{"    \"id\": " + json_string(metadata.id),
+                                            "    \"method\": " + json_string(metadata.method_id)};
+    for (const auto& [name, value] :
+         {std::pair{"name", std::string_view{metadata.name}},
+          std::pair{"publication", std::string_view{metadata.publication}},
+          std::pair{"notes", std::string_view{metadata.notes}}}) {
+        if (!value.empty()) {
+            members.push_back("    \"" + std::string{name} + "\": " + json_string(value));
+        }
+    }
+    // Optional members are written only when they differ from their defaults.
+    if (metadata.priority != 0) {
+        members.push_back("    \"priority\": " + std::to_string(metadata.priority));
+    }
+    return "  \"metadata\": {\n" + join(members, ",\n") + "\n  }";
+}
+
+[[nodiscard]] auto common_text(const CommonParameters& common) -> std::string {
+    return "  \"common\": {\n    \"names\": " + names_text(common.parameters()) +
+           ",\n    \"values\": " + values_text(common.parameters()) + "\n  }";
+}
+
+[[nodiscard]] auto atom_text(const AtomParameters& atom) -> std::string {
+    auto entries = std::vector<std::string>{};
+    entries.reserve(atom.size());
+    for (const auto& entry : atom.entries()) {
+        entries.push_back("      {\n        \"key\": " + atom_key_text(entry.key) +
+                          ",\n        \"values\": " + values_text(entry.parameters) + "\n      }");
+    }
+    return "  \"atom\": {\n    \"names\": " + names_text(section_names(atom.entries(), "atom")) +
+           ",\n    \"data\": [\n" + join(entries, ",\n") + "\n    ]\n  }";
+}
+
+[[nodiscard]] auto bond_text(const BondParameters& bond) -> std::string {
+    auto entries = std::vector<std::string>{};
+    entries.reserve(bond.size());
+    for (const auto& entry : bond.entries()) {
+        entries.push_back(
+            "      {\n        \"key\": {\n          \"atoms\": [\n            " +
+            atom_key_text(entry.key.first_atom) + ",\n            " +
+            atom_key_text(entry.key.second_atom) +
+            "\n          ],\n          \"bond\": " + bond_type_key_text(entry.key.bond) +
+            "\n        },\n        \"values\": " + values_text(entry.parameters) + "\n      }");
+    }
+    return "  \"bond\": {\n    \"names\": " + names_text(section_names(bond.entries(), "bond")) +
+           ",\n    \"data\": [\n" + join(entries, ",\n") + "\n    ]\n  }";
+}
+
+[[nodiscard]] auto parameter_set_text(const ParameterSet& set) -> std::string {
+    auto sections = std::vector<std::string>{metadata_text(set.metadata())};
+    if (!set.common().empty()) {
+        sections.push_back(common_text(set.common()));
+    }
+    if (!set.atom().empty()) {
+        sections.push_back(atom_text(set.atom()));
+    }
+    if (!set.bond().empty()) {
+        sections.push_back(bond_text(set.bond()));
+    }
+    return "{\n" + join(sections, ",\n") + "\n}\n";
+}
+
 } // namespace
 
 auto load_parameter_set_json(std::istream& input) -> ParameterSet {
@@ -512,6 +678,11 @@ auto load_parameter_set_json_file(const std::filesystem::path& path) -> Paramete
     }
 
     return load_parameter_set_json_document(input, "parameter file '" + path.string() + "'");
+}
+
+auto save_parameter_set_json(const ParameterSet& set, std::ostream& output) -> void {
+    // Build the whole document first, so a set that cannot be written leaves the stream untouched.
+    std::print(output, "{}", parameter_set_text(set));
 }
 
 auto load_parameter_sets_json_directory(const std::filesystem::path& directory)

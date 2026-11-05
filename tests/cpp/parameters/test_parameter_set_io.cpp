@@ -1,5 +1,12 @@
+#include "support/test_parameters.h"
+
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
+#include <chargefw/parameters/models/atom_parameters.h>
+#include <chargefw/parameters/models/bond_parameters.h>
+#include <chargefw/parameters/models/common_parameters.h>
+#include <chargefw/parameters/models/parameter_set.h>
+#include <chargefw/parameters/models/parameter_values.h>
 
 #include <filesystem>
 #include <sstream>
@@ -7,6 +14,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include <snitch/snitch.hpp>
 
@@ -278,4 +287,87 @@ TEST_CASE("parameter set loads named unordered bond keys", "[parameters][io]") {
 
     REQUIRE(parameter_set.bond().size() == 1);
     CHECK(parameter_set.bond().parameter(0, "kappa") == 1.0);
+}
+
+namespace {
+
+auto round_trip(const parameters::ParameterSet& set) -> parameters::ParameterSet {
+    std::stringstream stream;
+    parameters::save_parameter_set_json(set, stream);
+    return parameters::load_parameter_set_json(stream);
+}
+
+auto check_equal_sets(const parameters::ParameterSet& expected,
+                      const parameters::ParameterSet& actual) -> void {
+    CHECK(actual.id() == expected.id());
+    CHECK(actual.method_id() == expected.method_id());
+    CHECK(actual.name() == expected.name());
+    CHECK(actual.publication() == expected.publication());
+    CHECK(actual.notes() == expected.notes());
+    CHECK(actual.priority() == expected.priority());
+    CHECK(parameters::compatible(expected, actual));
+    CHECK(parameters::parameter_values(actual) == parameters::parameter_values(expected));
+}
+
+} // namespace
+
+TEST_CASE("bundled parameter sets read back equal after writing", "[parameters][io]") {
+    const auto parameter_sets =
+        parameters::load_parameter_sets_json_directory(CHARGEFW_TEST_PARAMETER_DIR);
+    REQUIRE_FALSE(parameter_sets.empty());
+
+    for (const auto& parameter_set : parameter_sets) {
+        CAPTURE(parameter_set.id());
+        check_equal_sets(parameter_set, round_trip(parameter_set));
+    }
+}
+
+TEST_CASE("parameter set with wildcard keys and priority reads back equal after writing",
+          "[parameters][io]") {
+    const auto set = parameters::ParameterSet{
+        {.id = "written", .method_id = "test", .notes = "Line one\nline \"two\"", .priority = 7},
+        parameters::CommonParameters{{{.name = "kappa", .value = 0.1}}},
+        parameters::AtomParameters{{{.key = chargefw::test::plain_atom_key(0),
+                                     .parameters = {{.name = "A", .value = 1.0 / 3.0}}}}},
+        parameters::BondParameters{{{.key = chargefw::test::plain_bond_key(),
+                                     .parameters = {{.name = "kappa", .value = -2.5e-7}}}}}};
+
+    check_equal_sets(set, round_trip(set));
+}
+
+TEST_CASE("parameter sets that the JSON format cannot represent are not written",
+          "[parameters][io]") {
+    using AtomEntries = std::vector<parameters::AtomParameterEntry>;
+    using BondEntries = std::vector<parameters::BondParameterEntry>;
+    const auto value = std::vector<parameters::NamedParameter>{{.name = "A", .value = 1.0}};
+
+    auto plain_typed_atom = chargefw::test::plain_atom_key(6);
+    plain_typed_atom.type = "1";
+    auto plain_typed_bond = chargefw::test::plain_bond_key(1, 8);
+    plain_typed_bond.bond.type = "2";
+    auto bond_with_plain_typed_atom = chargefw::test::plain_bond_key(1, 8);
+    bond_with_plain_typed_atom.second_atom = plain_typed_atom;
+    auto unknown_element = chargefw::test::plain_atom_key(200);
+
+    const auto cases = std::vector<std::pair<std::string, std::pair<AtomEntries, BondEntries>>>{
+        {"entries with different names",
+         {{{.key = chargefw::test::plain_atom_key(1), .parameters = value},
+           {.key = chargefw::test::plain_atom_key(8), .parameters = {{.name = "B", .value = 2.0}}}},
+          {}}},
+        {"plain atom key with a type", {{{.key = plain_typed_atom, .parameters = value}}, {}}},
+        {"plain bond key with a type", {{}, {{.key = plain_typed_bond, .parameters = value}}}},
+        {"bond key with an invalid atom key",
+         {{}, {{.key = bond_with_plain_typed_atom, .parameters = value}}}},
+        {"unknown element", {{{.key = unknown_element, .parameters = value}}, {}}}};
+
+    for (const auto& [label, entries] : cases) {
+        CAPTURE(label);
+        const auto set = parameters::ParameterSet{{.id = "unwritable", .method_id = "test"},
+                                                  {},
+                                                  parameters::AtomParameters{entries.first},
+                                                  parameters::BondParameters{entries.second}};
+        std::stringstream stream;
+        CHECK_THROWS_AS(parameters::save_parameter_set_json(set, stream), std::invalid_argument);
+        CHECK(stream.str().empty());
+    }
 }
