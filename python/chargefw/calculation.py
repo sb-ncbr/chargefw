@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -74,6 +75,7 @@ __all__ = [
     "calculate",
     "methods",
     "parameter_sets",
+    "read_parameter_set",
 ]
 
 
@@ -175,6 +177,37 @@ parameter_sets = _default_parameter_descriptors()
 methods = _method_catalog(parameter_sets)
 
 
+def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
+    """Read a parameter set from a JSON file in the ChargeFW parameter-set format.
+
+    Pass the result as ``parameter_set`` to ``assess()`` or ``calculate()``, with its method. Its ID
+    must differ from the IDs of the bundled parameter sets.
+    """
+
+    native = _native_parameters._load_parameter_set_catalog(os.fspath(path))
+    (descriptor,) = native._descriptors()
+    if descriptor["id"] in parameter_sets:
+        raise ValueError(
+            f"parameter set {descriptor['id']!r} in {os.fspath(path)!r} has the ID of a bundled "
+            "parameter set"
+        )
+    return _parameter_set(descriptor, native)
+
+
+def _parameter_catalogs(
+    parameter_set: str | ParameterSet | None,
+) -> tuple[_native_parameters._NativeParameterCatalog, ParameterSetCatalog]:
+    """The native catalog for an assessment and the catalog that resolves its results.
+
+    A set that is not bundled is assessed alone, and its results resolve it next to the bundled
+    sets; read_parameter_set() guarantees that its ID does not collide with theirs.
+    """
+
+    if isinstance(parameter_set, ParameterSet) and parameter_set._native is not None:
+        return parameter_set._native, ParameterSetCatalog((*parameter_sets.values(), parameter_set))
+    return _default_parameter_catalog(), parameter_sets
+
+
 def _as_collection(value: Molecule | MoleculeCollection | Iterable[Molecule]) -> MoleculeCollection:
     if isinstance(value, MoleculeCollection):
         return value
@@ -186,17 +219,27 @@ def _as_collection(value: Molecule | MoleculeCollection | Iterable[Molecule]) ->
 class Assessment:
     """Priority-ordered runnable plans and rejected alternatives for immutable molecules."""
 
-    __slots__ = ("_native", "_requested", "_plans", "_rejections", "_input_warnings", "_seconds")
+    __slots__ = (
+        "_native",
+        "_requested",
+        "_parameter_sets",
+        "_plans",
+        "_rejections",
+        "_input_warnings",
+        "_seconds",
+    )
 
     def __init__(
         self,
         native: _native_calculation._NativeAssessment,
         molecules: MoleculeCollection,
         requested: RequestedCalculation,
+        parameter_sets: ParameterSetCatalog,
     ) -> None:
         payload = native.report()
         self._native = native
         self._requested = requested
+        self._parameter_sets = parameter_sets
         self._plans = tuple(
             Plan(plan, molecules, methods, parameter_sets, requested) for plan in native.plans()
         )
@@ -260,6 +303,7 @@ def assess(
         fixed_ions=fixed_ions,
     )
     collection = _as_collection(molecules)
+    native_catalog, catalog = _parameter_catalogs(parameter_set)
     native = _native_calculation._make_assessment(
         collection._native_molecules,
         tuple(getattr(molecule, "_native_input_metadata", None) for molecule in collection),
@@ -273,7 +317,7 @@ def assess(
         ),
         tuple(molecule._caller_atom_ids for molecule in collection),
         collection.name,
-        _default_parameter_catalog(),
+        native_catalog,
         requested.method,
         requested.parameter_set,
         requested.method_scope,
@@ -289,7 +333,7 @@ def assess(
         requested.threads,
         requested.fixed_ions,
     )
-    return Assessment(native, collection, requested)
+    return Assessment(native, collection, requested, catalog)
 
 
 class _OmittedPlan:
@@ -368,7 +412,7 @@ def calculate(
                 collection,
                 assessment._requested,
                 methods,
-                parameter_sets,
+                assessment._parameter_sets,
                 assessment.rejections,
             )
         else:
@@ -422,7 +466,7 @@ def _calculate_plan(
         collection,
         requested,
         methods,
-        parameter_sets,
+        plan._parameter_sets,
     )
     return result
 

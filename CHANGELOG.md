@@ -9,6 +9,11 @@
   with the wheels. On an older CPU, `import chargefw` raises an `ImportError`; build from source with
   `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON`, which now defaults to `OFF`.
 
+### Python
+
+- `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
+  `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
+
 ### C++
 
 - `parameters::parameter_layout()` and `parameter_values()` list the values of a parameter set in a
