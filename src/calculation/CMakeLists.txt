@@ -10,6 +10,7 @@ target_sources(chargefw_core_objects
         fixed_charge_partition.cpp
         full_execution.cpp
         input_issues.cpp
+        observer.cpp
         execution_policy.cpp
         reduced_execution.cpp
         charge_checks.h

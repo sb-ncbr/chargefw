@@ -255,25 +255,9 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
     return result;
 }
 
-auto calculation_phase(const calculation::CalculationPhase phase) -> std::string_view {
-    switch (phase) {
-    case calculation::CalculationPhase::computation_started:
-        return "computation_started";
-    case calculation::CalculationPhase::computation_finished:
-        return "computation_finished";
-    case calculation::CalculationPhase::target_started:
-        return "target_started";
-    case calculation::CalculationPhase::target_finished:
-        return "target_finished";
-    case calculation::CalculationPhase::fragment_progress:
-        return "fragment_progress";
-    }
-    throw std::invalid_argument{"unknown calculation phase"};
-}
-
 auto calculation_progress(const calculation::CalculationProgress& progress) -> nb::dict {
     auto result = nb::dict{};
-    result["phase"] = std::string{calculation_phase(progress.phase)};
+    result["phase"] = std::string{calculation::to_string(progress.phase)};
     result["mode"] = std::string{calculation::to_string(progress.mode)};
     result["method_id"] = std::string{progress.method_id};
     result["target_index"] = progress.target_index;
