@@ -15,6 +15,9 @@
   fixed order, `with_parameter_values()` copies a set with new values, and `compatible()` tells whether
   two sets differ only in their values and descriptive metadata. Parameter keys can be compared with
   `==`.
+- `parameters::make_parameter_template()` makes a parameter set with an entry for every atom and bond
+  type of a molecule collection under chosen classifiers, with the given parameter names and zero
+  values.
 - `parameters::save_parameter_set_json()` writes a parameter set in the JSON format that the loading
   functions read.
 - `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.

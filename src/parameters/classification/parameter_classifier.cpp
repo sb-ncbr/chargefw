@@ -1,12 +1,16 @@
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
+#include <chargefw/parameters/classification/parameter_template.h>
 
 #include "core/diagnostic_description.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -195,7 +199,106 @@ auto find_bond_parameter_entry(const core::Molecule& molecule,
     return match;
 }
 
+// Orders template keys by atomic number, then classifier and type.
+struct AtomKeyLess {
+    [[nodiscard]] auto operator()(const AtomParameterKey& first,
+                                  const AtomParameterKey& second) const -> bool {
+        return std::tie(first.atomic_number, first.classification, first.type) <
+               std::tie(second.atomic_number, second.classification, second.type);
+    }
+};
+
+struct BondKeyLess {
+    [[nodiscard]] auto operator()(const BondParameterKey& first,
+                                  const BondParameterKey& second) const -> bool {
+        const auto atom_less = AtomKeyLess{};
+        if (first.first_atom != second.first_atom) {
+            return atom_less(first.first_atom, second.first_atom);
+        }
+        if (first.second_atom != second.second_atom) {
+            return atom_less(first.second_atom, second.second_atom);
+        }
+        return std::tie(first.bond.classification, first.bond.type) <
+               std::tie(second.bond.classification, second.bond.type);
+    }
+};
+
+auto template_atom_key(const core::Molecule& molecule, const features::TopologyFeatures& topology,
+                       const std::size_t atom_index,
+                       const AtomParameterClassificationKind classification) -> AtomParameterKey {
+    return {.atomic_number = molecule.atom(atom_index).atomic_number(),
+            .classification = classification,
+            .type = atom_type_for(molecule, topology, atom_index, classification, false)};
+}
+
+// A bond matches its key in either endpoint order, so the key puts the smaller atom key first.
+auto template_bond_key(const core::Molecule& molecule, const features::TopologyFeatures& topology,
+                       const std::size_t bond_index,
+                       const AtomParameterClassificationKind atom_classification,
+                       const BondParameterClassificationKind bond_classification)
+    -> BondParameterKey {
+    const auto& bond = molecule.bond(bond_index);
+    auto first =
+        template_atom_key(molecule, topology, bond.first_atom_index(), atom_classification);
+    auto second =
+        template_atom_key(molecule, topology, bond.second_atom_index(), atom_classification);
+    if (AtomKeyLess{}(second, first)) {
+        std::swap(first, second);
+    }
+    return {.first_atom = std::move(first),
+            .second_atom = std::move(second),
+            .bond = {.classification = bond_classification,
+                     .type = bond_type_for(molecule, bond_index, bond_classification, false)}};
+}
+
+auto zero_parameters(const std::vector<std::string>& names) -> std::vector<NamedParameter> {
+    auto parameters = std::vector<NamedParameter>{};
+    parameters.reserve(names.size());
+    for (const auto& name : names) {
+        parameters.push_back({.name = name, .value = 0.0});
+    }
+    return parameters;
+}
+
 } // namespace
+
+auto make_parameter_template(const features::PreparedMoleculeCollection& molecules,
+                             const ParameterNames& names,
+                             const AtomParameterClassificationKind atom_types,
+                             const BondParameterClassificationKind bond_types,
+                             ParameterSetMetadata metadata) -> ParameterSet {
+    auto atom_keys = std::set<AtomParameterKey, AtomKeyLess>{};
+    auto bond_keys = std::set<BondParameterKey, BondKeyLess>{};
+    for (const auto& prepared : molecules.molecules()) {
+        const auto& molecule = prepared.molecule();
+        const auto& topology = prepared.topology();
+        if (!names.atom.empty()) {
+            for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
+                atom_keys.insert(template_atom_key(molecule, topology, atom_index, atom_types));
+            }
+        }
+        if (!names.bond.empty()) {
+            for (std::size_t bond_index = 0; bond_index < molecule.bond_count(); ++bond_index) {
+                bond_keys.insert(
+                    template_bond_key(molecule, topology, bond_index, atom_types, bond_types));
+            }
+        }
+    }
+
+    auto atom_entries = std::vector<AtomParameterEntry>{};
+    atom_entries.reserve(atom_keys.size());
+    for (const auto& key : atom_keys) {
+        atom_entries.push_back({.key = key, .parameters = zero_parameters(names.atom)});
+    }
+    auto bond_entries = std::vector<BondParameterEntry>{};
+    bond_entries.reserve(bond_keys.size());
+    for (const auto& key : bond_keys) {
+        bond_entries.push_back({.key = key, .parameters = zero_parameters(names.bond)});
+    }
+    return ParameterSet{std::move(metadata), CommonParameters{zero_parameters(names.common)},
+                        AtomParameters{std::move(atom_entries)},
+                        BondParameters{std::move(bond_entries)}};
+}
 
 auto try_classify_parameters(const core::Molecule& molecule,
                              const features::TopologyFeatures& topology,

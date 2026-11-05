@@ -361,6 +361,18 @@ entries and once for all bond entries, so writing a set whose entries have diffe
 `<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
 format](../reference/parameter-format.md) describes the files.
 
+To build a parameter set of your own, start from a template. `parameters::make_parameter_template()`,
+declared in `<chargefw/parameters/classification/parameter_template.h>`, makes one entry for every atom
+type and bond type that occurs in a `PreparedMoleculeCollection` under the classifiers you choose,
+gives each entry the parameter names you pass in a `ParameterNames`, and sets all values to zero. Pass
+the names the method's `requirements()` lists, and the method ID in the metadata. Every atom and bond of
+those molecules matches an entry. `parameter_layout()` and `parameter_values()`, declared in
+`<chargefw/parameters/models/parameter_values.h>`, list the values of a set in a fixed order: the common
+parameters, then each atom entry, then each bond entry, each with its parameters in stored order.
+`with_parameter_values()` copies a set with new values in that order and new metadata, keeping its keys,
+names, and method. `compatible()` tells whether two sets differ only in their values and descriptive
+metadata.
+
 `<chargefw/parameters/io/parameter_data_paths.h>` declares
 `parameters::bundled_parameter_directory()`, the directory with the bundled sets of the installed
 library, and `parameters::default_parameter_directories()`, every directory
