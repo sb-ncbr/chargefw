@@ -208,4 +208,5 @@ class ParameterSetDescriptorPayload(TypedDict):
 class CandidateChargesPayload(TypedDict):
     status: ExecutionStatus
     charges: NDArray[np.float64] | None
+    assignment_sizes: list[int] | None
     failure_message: str | None

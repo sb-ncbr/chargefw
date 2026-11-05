@@ -3,7 +3,14 @@
 import chargefw
 import numpy as np
 import pytest
-from chargefw.parameterisation import EvaluationError, Evaluator, Slot, make_parameter_template
+from chargefw.parameterisation import (
+    EvaluationError,
+    Evaluator,
+    Slot,
+    fit,
+    make_parameter_template,
+)
+from numpy.typing import ArrayLike, NDArray
 
 
 def water() -> chargefw.Molecule:
@@ -197,3 +204,135 @@ def test_evaluator_needs_full_execution_and_parameters() -> None:
     assert formal is not None
     with pytest.raises(ValueError, match="no parameters"):
         Evaluator(formal)
+
+
+def training_evaluator() -> Evaluator:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    return Evaluator(plan, threads=1)
+
+
+# EEM values for kappa, then hydrogen, carbon, and oxygen (A, B), from which references are made.
+TRUE_VALUES = np.array([0.5, 2.0, 1.0, 2.5, 1.2, 3.0, 1.1])
+FIT_START = np.array([0.5, 2.0, 0.9, 2.2, 1.0, 2.6, 1.0])
+# kappa and hydrogen A stay fixed: EEM charges do not change when every A shifts by the same amount
+# or when A, B, and kappa scale together.
+FIT_FREE = [2, 3, 4, 5, 6]
+
+
+def test_fit_reproduces_references_made_from_known_values() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+
+    result = fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+
+    assert result.success, result.message
+    assert result.rmsd < 1e-8
+    assert result.free == tuple(FIT_FREE)
+    assert result.values[0] == FIT_START[0] and result.values[1] == FIT_START[1]
+    np.testing.assert_array_equal(result.start, FIT_START)
+    assert result.failed_evaluations == 0
+    np.testing.assert_allclose(evaluator.charges(result.values), references, atol=1e-8)
+
+
+def test_fit_takes_start_by_key_and_references_per_assignment() -> None:
+    evaluator = training_evaluator()
+    per_assignment = [evaluator.charges(TRUE_VALUES)[:3], evaluator.charges(TRUE_VALUES)[3:]]
+    start = {(slot.key, slot.name): value for slot, value in zip(evaluator.layout, FIT_START)}
+
+    result = fit(evaluator, per_assignment, start=start, free=FIT_FREE)
+    assert result.rmsd < 1e-8
+
+    oxygen = chargefw.AtomParameterKey(element="O", classifier="plain", type="*")
+    with pytest.raises(KeyError):
+        fit(evaluator, per_assignment, start={(oxygen, "C"): 1.0}, free=FIT_FREE)
+    with pytest.raises(ValueError, match="one per calculated charge"):
+        fit(evaluator, per_assignment[0], start=FIT_START, free=FIT_FREE)
+    # The right total, split at the wrong place, would pair references with the wrong atoms.
+    flat = evaluator.charges(TRUE_VALUES)
+    with pytest.raises(ValueError, match="assignment 0 must have 3 values"):
+        fit(evaluator, [flat[:4], flat[4:]], start=FIT_START, free=FIT_FREE)
+    with pytest.raises(ValueError, match="2 assignments"):
+        fit(evaluator, [flat], start=FIT_START, free=FIT_FREE)
+    with pytest.raises(ValueError, match="weights for assignment 1"):
+        fit(evaluator, flat, weights=[np.ones(3), np.ones(3)], start=FIT_START, free=FIT_FREE)
+
+
+def test_fit_checks_the_start_before_fitting() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    lower = np.full(7, -np.inf)
+    upper = np.full(7, np.inf)
+
+    upper[5] = 2.0
+    with pytest.raises(ValueError, match="slot 5 \\(atom A of"):
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
+    upper[5] = FIT_START[5]
+    with pytest.raises(ValueError, match="strictly inside"):
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
+    # So close to a bound that SciPy would move the start itself.
+    upper[5] = FIT_START[5] + 1e-12
+    with pytest.raises(ValueError, match="strictly inside"):
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
+
+    zero_kappa = FIT_START.copy()
+    zero_kappa[0] = 0.0
+    with pytest.raises(EvaluationError, match="at the start"):
+        fit(evaluator, references, start=zero_kappa, free=FIT_FREE)
+
+    # Equal electronegativities give zero charges for neutral molecules, which no hardness changes.
+    equal = FIT_START.copy()
+    equal[[1, 3, 5]] = 2.0
+    with pytest.raises(ValueError, match="slot 2 \\(atom B of"):
+        fit(evaluator, references, start=equal, free=FIT_FREE)
+
+    with pytest.raises(ValueError, match="at least one free slot"):
+        fit(evaluator, references, start=FIT_START, free=[])
+    with pytest.raises(ValueError, match="must not repeat"):
+        fit(evaluator, references, start=FIT_START, free=[5, 5])
+
+
+class FailingEvaluator(Evaluator):
+    """Fails every calculation with an oxygen electronegativity above 2.9."""
+
+    def charges(self, values: ArrayLike) -> NDArray[np.float64]:
+        vector = np.asarray(values, dtype=np.float64)
+        if vector[5] > 2.9:
+            raise EvaluationError("oxygen electronegativity above 2.9")
+        return super().charges(vector)
+
+
+def test_fit_rejects_trial_values_whose_calculation_fails() -> None:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    evaluator = FailingEvaluator(plan, threads=1)
+    references = training_evaluator().charges(TRUE_VALUES)
+
+    result = fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+
+    # The true oxygen value, 3.0, cannot be calculated, so the fit settles below 2.9.
+    assert result.failed_evaluations > 0
+    assert result.values[5] <= 2.9
+
+
+def test_evaluator_jacobian_steps_the_other_way_when_a_step_fails() -> None:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    near_failure = FIT_START.copy()
+    near_failure[5] = 2.9
+
+    failing = FailingEvaluator(plan, threads=1).jacobian(near_failure, slots=[5])
+    expected = training_evaluator().jacobian(near_failure, slots=[5])
+    np.testing.assert_allclose(failing, expected, rtol=1e-4)

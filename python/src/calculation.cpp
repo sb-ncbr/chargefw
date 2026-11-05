@@ -353,8 +353,8 @@ class NativePlan {
     }
 
     // Charges of every assignment, concatenated in assignment order, for candidate values in
-    // layout order. Only the status, the charges, and the failure message are returned: a fit
-    // evaluates many candidates and needs no other result data.
+    // layout order. Only the status, the charges with the size of each assignment, and the failure
+    // message are returned: a fit evaluates many candidates and needs no other result data.
     [[nodiscard]] auto calculate_values(const value_array& values,
                                         const std::optional<std::size_t> max_threads) const
         -> nb::dict {
@@ -376,14 +376,18 @@ class NativePlan {
             result.failure_message.has_value() ? nb::cast(*result.failure_message) : nb::none();
         if (!result.charges.has_value()) {
             payload["charges"] = nb::none();
+            payload["assignment_sizes"] = nb::none();
             return payload;
         }
         auto charges = std::vector<double>{};
+        auto assignment_sizes = nb::list{};
         for (const auto& assignment : result.charges->assignments()) {
             const auto assignment_values = assignment.charges.values();
             charges.insert(charges.end(), assignment_values.begin(), assignment_values.end());
+            assignment_sizes.append(assignment_values.size());
         }
         payload["charges"] = numpy_values(charges);
+        payload["assignment_sizes"] = std::move(assignment_sizes);
         return payload;
     }
 
