@@ -31,6 +31,8 @@
   two sets differ only in their values and descriptive metadata. `to_string()` names a
   `ParameterScope`, and parameter keys can be compared with `==`.
 - `calculation::to_string()` names a `CalculationPhase`.
+- `ExecutionPlan::classifications()` gives the parameter-set entries matched to the atoms and bonds
+  the plan calculates.
 - `adapters::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
   `molecular_source_format_from_string()` reads a format name.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter

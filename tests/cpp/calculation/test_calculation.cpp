@@ -889,3 +889,37 @@ TEST_CASE("candidate parameter values are rejected for plans and sets they do no
                         parameters::with_parameter_values(assessed, values, {.id = "candidate"})),
                     std::invalid_argument);
 }
+
+TEST_CASE("a plan reports the parameter entries of the atoms it calculates",
+          "[calculation][calculation]") {
+    // Water (O, H, H) and a magnesium ion; the H/O parameter set has no entry for magnesium.
+    auto atoms = std::vector{core::Atom{8, 0}, core::Atom{1, 0}, core::Atom{1, 0}};
+    auto positions =
+        std::vector<core::Position>{{0.0, 0.0, 0.0}, {0.96, 0.0, 0.0}, {-0.24, 0.93, 0.0}};
+    atoms.emplace_back(12, 2);
+    positions.push_back({5.0, 0.0, 0.0});
+    const auto molecule = core::Molecule{std::move(atoms),
+                                         {core::Bond{0, 1}, core::Bond{0, 2}},
+                                         {core::Conformer{std::move(positions)}},
+                                         "water-with-ion"};
+
+    // The ion is fixed, so only the water atoms are matched: oxygen to entry 1, hydrogen to 0.
+    const auto assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{molecule}},
+        .parameter_sets = {chargefw::test::make_eem_ho_parameters(0.5)},
+        .method_id = "eem",
+        .parameter_set_id = "test-eem-ho",
+        .fixed_ions = calculation::FixedIons{
+            .sources = {{.molecule_index = 0, .atom_index = 3, .charge = 2.0}}}});
+    const auto* plan = assessment.default_plan();
+    REQUIRE(plan != nullptr);
+    REQUIRE(plan->classifications().size() == 1);
+    const auto indices = plan->classifications()[0].atom().parameter_entry_indices();
+    CHECK(std::vector(indices.begin(), indices.end()) == std::vector<std::size_t>{1, 0, 0});
+
+    const auto formal = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .method_id = "formal"});
+    REQUIRE(formal.default_plan() != nullptr);
+    CHECK(formal.default_plan()->classifications().empty());
+}

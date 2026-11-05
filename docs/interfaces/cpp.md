@@ -255,7 +255,10 @@ geometry then reject the molecule.
 Parameter-set IDs in one request must be unique. `calculation::assess()` returns an `AssessmentResult`
 with the `molecules()`, the possible `plans()` in selection order, the `rejections()` with reasons, the
 `default_plan()`, the `input_warnings()`, and the time taken. A plan has its method, parameter set, all option values, an
-`ExecutionPolicy` with the mode and radius, and warnings.
+`ExecutionPolicy` with the mode and radius, and warnings. Its `classifications()` give, for each
+calculated molecule, the parameter-set entry of every atom when the set has atom entries, and of every
+bond when it has bond entries; the other list is empty, so EEM, which has no bond parameters, gives
+no bond entries. With fixed ions, they cover the calculated atoms only.
 [Choosing a method](../guide/methods.md#choosing-a-method) and
 [Large structures](../guide/large-structures.md) explain selection and execution.
 

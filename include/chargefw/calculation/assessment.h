@@ -7,6 +7,7 @@
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/classification_result.h>
+#include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
@@ -46,6 +47,13 @@ class ExecutionPlan {
     [[nodiscard]] auto method_options() const noexcept -> const methods::MethodOptions&;
     [[nodiscard]] auto policy() const noexcept -> const ExecutionPolicy&;
     [[nodiscard]] auto warnings() const noexcept -> std::span<const methods::ExecutionIssue>;
+    // The parameter entries matched during assessment, one classification per calculated molecule.
+    // Its atom indices cover every atom when the parameter set has atom entries, and its bond
+    // indices every bond when it has bond entries; otherwise that list is empty, as the bond list
+    // is for EEM. Empty for a method without parameters. With fixed ions, the molecules are the
+    // calculated parts, without the ions.
+    [[nodiscard]] auto classifications() const noexcept
+        -> std::span<const parameters::ParameterClassification>;
 
   private:
     ExecutionPlan(std::shared_ptr<const PlanIdentity> identity,

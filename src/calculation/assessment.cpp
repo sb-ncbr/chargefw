@@ -292,6 +292,11 @@ auto ExecutionPlan::warnings() const noexcept -> std::span<const methods::Execut
     return warnings_;
 }
 
+auto ExecutionPlan::classifications() const noexcept
+    -> std::span<const parameters::ParameterClassification> {
+    return candidate_->classifications;
+}
+
 auto AssessmentResult::assess_prepared(
     const std::span<const methods::Method* const> selected_methods,
     const parameters::ClassificationOptions& classification_options,
