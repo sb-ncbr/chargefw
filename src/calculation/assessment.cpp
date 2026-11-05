@@ -4,6 +4,7 @@
 #include "input_checks.h"
 
 #include "core/diagnostic_description.h"
+#include "methods/find_applicable_methods.h"
 #include "methods/parameter_issue_messages.h"
 
 #include <chargefw/methods/method.h>

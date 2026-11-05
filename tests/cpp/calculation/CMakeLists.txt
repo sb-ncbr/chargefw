@@ -17,6 +17,9 @@ target_include_directories(test_fixed_charge_partition PRIVATE
 chargefw_add_snitch_test(test_observer
         test_observer.cpp
 )
+target_include_directories(test_observer PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)
 
 chargefw_add_snitch_test(test_execution_policy
         test_execution_policy.cpp

@@ -1,3 +1,5 @@
+#include "methods/find_applicable_methods.h"
+
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/parameter_prerequisites.h>

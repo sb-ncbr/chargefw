@@ -5,6 +5,7 @@ target_sources(chargefw_core_objects
         method_prerequisites.cpp
         parameter_prerequisites.cpp
         method_applicability.cpp
+        find_applicable_methods.h
         fixed_source_validation.cpp
         fixed_source_validation.h
         parameter_issue_messages.h

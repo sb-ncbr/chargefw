@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### C++
+
+- `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.
+  `find_applicable_methods()`, `ApplicabilityRequest`, `CalculationRequest`, `CalculationResult`, and
+  the `calculate()` overload that takes a `CalculationRequest` are removed. Calculate charges with
+  `assess()` and `calculate()`.
+
 ## 3.0.0rc3
 
 ### Input

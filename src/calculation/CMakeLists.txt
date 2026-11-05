@@ -2,6 +2,7 @@ target_sources(chargefw_core_objects
         PRIVATE
         assessment.cpp
         calculation.cpp
+        calculation_request.h
         charge_issues.cpp
         cover_execution.cpp
         cutoff_execution.cpp

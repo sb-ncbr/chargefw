@@ -1,3 +1,4 @@
+#include "calculation/calculation_request.h"
 #include "calculation/cover_execution.h"
 #include "calculation/cutoff_execution.h"
 #include "calculation/fixed_charge_partition.h"
