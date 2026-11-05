@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import operator
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import SupportsIndex
 
 import numpy as np
@@ -15,7 +15,7 @@ from ._chargefw import parameters as _native_parameters
 from ._methods import Method
 from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
 from ._types import AtomClassifier, BondClassifier, ParameterScope
-from .calculation import Plan, _as_collection, parameter_sets
+from .calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
 from .core import Molecule, MoleculeCollection
 
 __all__ = [
@@ -79,7 +79,14 @@ class Evaluator:
     cutoff or cover execution.
     """
 
-    __slots__ = ("_assignment_sizes", "_layout", "_native", "_threads", "_values")
+    __slots__ = (
+        "_assignment_sizes",
+        "_layout",
+        "_native",
+        "_parameter_set",
+        "_threads",
+        "_values",
+    )
 
     def __init__(self, plan: Plan, *, threads: int | None = None) -> None:
         parameter_set = plan.parameter_set
@@ -91,6 +98,7 @@ class Evaluator:
                 "assess with execution='full'"
             )
         self._native = plan._native
+        self._parameter_set = parameter_set
         self._threads = threads
         self._layout = tuple(
             _slot(scope, index, name, parameter_set)
@@ -242,7 +250,7 @@ class FitResult:
     ``values`` and ``start`` hold every slot in the order of the evaluator's layout; ``free`` lists
     the slots the fit changed. ``rmsd`` compares the charges at ``values`` with the references,
     without weights. ``failed_evaluations`` counts trial values whose calculation failed and were
-    therefore rejected.
+    therefore rejected. ``parameter_set()`` turns the fitted values into a parameter set.
     """
 
     values: NDArray[np.float64]
@@ -253,6 +261,28 @@ class FitResult:
     evaluations: int
     failed_evaluations: int
     rmsd: float
+    # The parameter set the fit started from, with its original values; parameter_set() combines its
+    # keys with ``values``. It keeps no training data.
+    _parameter_set: ParameterSet = field(repr=False, compare=False)
+
+    def parameter_set(
+        self, *, id: str, name: str = "", publication: str = "", notes: str = ""
+    ) -> ParameterSet:
+        """The fitted values as a parameter set for the evaluator's method.
+
+        Pass it to ``assess()`` or ``calculate()``, or write it with ``write_parameter_set()``.
+        The ID must differ from the IDs of the bundled parameter sets.
+        """
+
+        if id in parameter_sets:
+            raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
+        source = self._parameter_set
+        catalog = source._native or _default_parameter_catalog()
+        native = catalog._with_values(
+            source.id, np.ascontiguousarray(self.values), id, name, publication, notes
+        )
+        (descriptor,) = native._descriptors()
+        return _parameter_set(descriptor, native)
 
 
 def fit(
@@ -371,6 +401,7 @@ def fit(
         evaluations=int(solution.nfev),
         failed_evaluations=failed,
         rmsd=float(np.sqrt(np.mean((final_charges - reference) ** 2))),
+        _parameter_set=evaluator._parameter_set,
     )
 
 

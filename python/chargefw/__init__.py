@@ -35,6 +35,7 @@ from .calculation import (
     methods,
     parameter_sets,
     read_parameter_set,
+    write_parameter_set,
 )
 from .charges import ChargeAssignment
 from .core import (
@@ -82,6 +83,7 @@ __all__ = [
     "parameter_sets",
     "periodic_table",
     "read_parameter_set",
+    "write_parameter_set",
     "RequestedCalculation",
     "ChargeFWError",
     "NoExecutablePlanError",

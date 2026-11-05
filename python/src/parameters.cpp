@@ -11,10 +11,14 @@
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/parameters/models/parameter_key.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
+#include <chargefw/parameters/models/parameter_values.h>
 
+#include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
 
 #include <cstddef>
+#include <span>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -25,6 +29,9 @@ namespace nb = nanobind;
 
 namespace chargefw::python {
 namespace {
+
+// Parameter values passed from Python, one per slot in layout order.
+using value_array = nb::ndarray<const double, nb::ndim<1>, nb::c_contig, nb::device::cpu>;
 
 auto make_bundled_parameter_catalog() -> NativeParameterCatalog {
     return NativeParameterCatalog{parameters::load_default_parameter_sets()};
@@ -77,6 +84,42 @@ auto make_parameter_template_catalog(const nb::sequence& molecules, const std::s
     return NativeParameterCatalog{std::move(parameter_sets)};
 }
 
+auto find_parameter_set(const NativeParameterCatalog& catalog, const std::string& id)
+    -> const parameters::ParameterSet& {
+    for (const auto& parameter_set : catalog.parameter_sets()) {
+        if (parameter_set.id() == id) {
+            return parameter_set;
+        }
+    }
+    throw std::invalid_argument{"no parameter set '" + id + "' in the catalog"};
+}
+
+// The JSON text of the catalog's parameter set with the given ID.
+auto parameter_set_json(const NativeParameterCatalog& catalog, const std::string& id)
+    -> std::string {
+    auto output = std::ostringstream{};
+    parameters::save_parameter_set_json(find_parameter_set(catalog, id), output);
+    return output.str();
+}
+
+// A catalog with a copy of the parameter set `id`, with `values` in layout order and new metadata;
+// the method stays the same.
+auto parameter_set_with_values(const NativeParameterCatalog& catalog, const std::string& id,
+                               const value_array& values, std::string new_id, std::string name,
+                               std::string publication, std::string notes)
+    -> NativeParameterCatalog {
+    auto metadata = parameters::ParameterSetMetadata{};
+    metadata.id = std::move(new_id);
+    metadata.name = std::move(name);
+    metadata.publication = std::move(publication);
+    metadata.notes = std::move(notes);
+    auto parameter_sets = std::vector<parameters::ParameterSet>{};
+    parameter_sets.push_back(parameters::with_parameter_values(
+        find_parameter_set(catalog, id), std::span{values.data(), values.size()},
+        std::move(metadata)));
+    return NativeParameterCatalog{std::move(parameter_sets)};
+}
+
 auto atom_key_payload(const parameters::AtomParameterKey& key) -> nb::dict {
     auto payload = nb::dict{};
     payload["element"] = key.atomic_number == 0
@@ -122,7 +165,10 @@ auto parameter_set_descriptors(const NativeParameterCatalog& catalog) -> nb::lis
 
 void bind_parameters(nb::module_& module) {
     nb::class_<NativeParameterCatalog>(module, "_NativeParameterCatalog")
-        .def("_descriptors", &parameter_set_descriptors);
+        .def("_descriptors", &parameter_set_descriptors)
+        .def("_json", &parameter_set_json, nb::arg("id"))
+        .def("_with_values", &parameter_set_with_values, nb::arg("id"), nb::arg("values"),
+             nb::arg("new_id"), nb::arg("name"), nb::arg("publication"), nb::arg("notes"));
     module.def("_load_bundled_parameter_catalog", &make_bundled_parameter_catalog,
                nb::call_guard<nb::gil_scoped_release>());
     module.def("_load_parameter_set_catalog", &load_parameter_set_catalog, nb::arg("path"),

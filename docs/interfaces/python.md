@@ -361,6 +361,9 @@ The set's ID must differ from the IDs in `chargefw.parameter_sets`; reading a fi
 raises `ValueError`, as does a file that does not follow the format. Such a set is not added to
 `chargefw.parameter_sets`; results report it in `plan.parameter_set`.
 
+`chargefw.write_parameter_set(parameter_set, path)` writes any parameter set, bundled or your own, to a
+JSON file in the same format.
+
 ## Assessing before calculating
 
 `chargefw.assess()` takes the same molecules and arguments as `calculate()`, without `observer`, and

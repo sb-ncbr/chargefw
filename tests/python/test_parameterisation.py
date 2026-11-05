@@ -1,4 +1,7 @@
-"""Parameter templates and evaluation of candidate parameter values."""
+"""Parameter templates, evaluation of candidate parameter values, and fitting."""
+
+import json
+from pathlib import Path
 
 import chargefw
 import numpy as np
@@ -336,3 +339,44 @@ def test_evaluator_jacobian_steps_the_other_way_when_a_step_fails() -> None:
     failing = FailingEvaluator(plan, threads=1).jacobian(near_failure, slots=[5])
     expected = training_evaluator().jacobian(near_failure, slots=[5])
     np.testing.assert_allclose(failing, expected, rtol=1e-4)
+
+
+def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: Path) -> None:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    result = fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+
+    fitted = result.parameter_set(id="water-fit", name="Water fit", notes="Fitted in a test")
+    assert (fitted.id, fitted.method, fitted.name, fitted.notes) == (
+        "water-fit",
+        "eem",
+        "Water fit",
+        "Fitted in a test",
+    )
+    calculated = chargefw.calculate(molecules, method="eem", parameter_set=fitted)
+    charges = np.concatenate([assignment.values for assignment in calculated.assignments])
+    np.testing.assert_allclose(charges, references, atol=1e-8)
+
+    # Written and read back, the set gives exactly the same charges.
+    path = tmp_path / "water-fit.json"
+    chargefw.write_parameter_set(fitted, path)
+    reread = chargefw.read_parameter_set(path)
+    assert (reread.id, reread.name, reread.atom_keys) == (fitted.id, fitted.name, fitted.atom_keys)
+    recalculated = chargefw.calculate(molecules, method="eem", parameter_set=reread)
+    np.testing.assert_array_equal(
+        np.concatenate([assignment.values for assignment in recalculated.assignments]), charges
+    )
+
+    with pytest.raises(ValueError, match="bundled"):
+        result.parameter_set(id="EEM_Baek1991")
+
+
+def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
+    path = tmp_path / "baek.json"
+    chargefw.write_parameter_set(chargefw.parameter_sets["EEM_Baek1991"], path)
+
+    document = json.loads(path.read_text(encoding="utf-8"))
+    assert document["metadata"]["id"] == "EEM_Baek1991"
+    assert document["metadata"]["method"] == "eem"
+    assert document["common"]["names"] == ["kappa"]
