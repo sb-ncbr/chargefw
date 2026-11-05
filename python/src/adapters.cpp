@@ -62,37 +62,6 @@ struct MoleculePayload {
     std::shared_ptr<NativeInputMetadata> native_input_metadata;
 };
 
-[[nodiscard]] auto format_name(const adapters::MolecularSourceFormat format) -> std::string_view {
-    switch (format) {
-    case adapters::MolecularSourceFormat::molecule_json:
-        return "molecule-json";
-    case adapters::MolecularSourceFormat::mol:
-        return "mol";
-    case adapters::MolecularSourceFormat::sdf:
-        return "sdf";
-    case adapters::MolecularSourceFormat::mol2:
-        return "mol2";
-    case adapters::MolecularSourceFormat::pdb:
-        return "pdb";
-    case adapters::MolecularSourceFormat::mmcif:
-        return "mmcif";
-    }
-    throw std::invalid_argument{"unknown molecular source format"};
-}
-
-[[nodiscard]] auto connectivity_name(const adapters::SourceConnectivity connectivity)
-    -> std::string_view {
-    switch (connectivity) {
-    case adapters::SourceConnectivity::absent:
-        return "absent";
-    case adapters::SourceConnectivity::explicitly_empty:
-        return "explicitly-empty";
-    case adapters::SourceConnectivity::present:
-        return "present";
-    }
-    throw std::invalid_argument{"unknown source connectivity state"};
-}
-
 [[nodiscard]] auto atom_references(const std::vector<adapters::SourceAtomReference>& references)
     -> nb::list {
     auto result = nb::list{};
@@ -133,14 +102,14 @@ struct MoleculePayload {
     for (const auto& component : metadata.components) {
         components.append(nb::make_tuple(component.component_id, component.atom_indices));
     }
-    result["format"] = std::string{format_name(metadata.format)};
+    result["format"] = std::string{adapters::to_string(metadata.format)};
     result["atoms"] = atom_references(metadata.atoms);
     result["conformers"] = std::move(conformers);
     result["record_selection"] = metadata.record_selection;
     result["alternate_location_selection"] = metadata.alternate_location_selection;
     result["conformer_selection"] = metadata.conformer_selection;
     result["bond_strategy"] = metadata.bond_strategy;
-    result["source_connectivity"] = std::string{connectivity_name(metadata.source_connectivity)};
+    result["source_connectivity"] = std::string{adapters::to_string(metadata.source_connectivity)};
     result["components"] = std::move(components);
     return result;
 }
@@ -243,35 +212,46 @@ auto parse(std::string contents, std::string source, const std::string& format,
     {
         nb::gil_scoped_release release;
         std::istringstream input{std::move(contents)};
-        if (format == "mol") {
-            auto reader = adapters::native::mol_input::MolReader{input, std::move(source)};
-            payloads = read_all(reader);
-        } else if (format == "sdf") {
-            auto reader = adapters::native::sdf_input::SdfReader{input, std::move(source)};
-            payloads = read_all(reader);
-        } else if (format == "mol2") {
-            auto reader = adapters::native::mol2_input::Mol2Reader{input, std::move(source)};
-            payloads = read_all(reader);
-        } else if (format == "molecule-json") {
-            auto reader = adapters::native::json_input::JsonReader{
-                input, std::move(source), adapters::conformer_selection_from_string(conformers)};
-            payloads = read_all(reader);
-        } else if (format == "pdb" || format == "mmcif") {
-            const auto options = adapters::gemmi::InputOptions{
+        const auto structural_options = [&] {
+            return adapters::gemmi::InputOptions{
                 .selection = adapters::gemmi::record_selection_from_string(selection),
                 .bond_strategy = adapters::gemmi::bond_strategy_from_string(bonds),
                 .conformers = adapters::conformer_selection_from_string(conformers)};
-            if (format == "pdb") {
-                auto reader =
-                    adapters::gemmi::pdb_input::PdbReader{input, std::move(source), options};
-                payloads = read_all(reader);
-            } else {
-                auto reader =
-                    adapters::gemmi::mmcif_input::MmcifReader{input, std::move(source), options};
-                payloads = read_all(reader);
-            }
-        } else {
-            throw std::invalid_argument{"unsupported molecular input format: " + format};
+        };
+        switch (adapters::molecular_source_format_from_string(format)) {
+        case adapters::MolecularSourceFormat::mol: {
+            auto reader = adapters::native::mol_input::MolReader{input, std::move(source)};
+            payloads = read_all(reader);
+            break;
+        }
+        case adapters::MolecularSourceFormat::sdf: {
+            auto reader = adapters::native::sdf_input::SdfReader{input, std::move(source)};
+            payloads = read_all(reader);
+            break;
+        }
+        case adapters::MolecularSourceFormat::mol2: {
+            auto reader = adapters::native::mol2_input::Mol2Reader{input, std::move(source)};
+            payloads = read_all(reader);
+            break;
+        }
+        case adapters::MolecularSourceFormat::molecule_json: {
+            auto reader = adapters::native::json_input::JsonReader{
+                input, std::move(source), adapters::conformer_selection_from_string(conformers)};
+            payloads = read_all(reader);
+            break;
+        }
+        case adapters::MolecularSourceFormat::pdb: {
+            auto reader = adapters::gemmi::pdb_input::PdbReader{input, std::move(source),
+                                                                structural_options()};
+            payloads = read_all(reader);
+            break;
+        }
+        case adapters::MolecularSourceFormat::mmcif: {
+            auto reader = adapters::gemmi::mmcif_input::MmcifReader{input, std::move(source),
+                                                                    structural_options()};
+            payloads = read_all(reader);
+            break;
+        }
         }
     }
     return as_python(payloads);

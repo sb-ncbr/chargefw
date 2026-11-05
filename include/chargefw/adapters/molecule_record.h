@@ -81,11 +81,21 @@ enum class MolecularSourceFormat : std::uint8_t {
     mmcif,
 };
 
+// The name of the format in result JSON and in Python, such as "molecule-json".
+[[nodiscard]] auto to_string(MolecularSourceFormat value) -> std::string_view;
+
+// The format with the given name. Throws std::invalid_argument for an unknown name.
+[[nodiscard]] auto molecular_source_format_from_string(std::string_view value)
+    -> MolecularSourceFormat;
+
 enum class SourceConnectivity : std::uint8_t {
     absent,
     explicitly_empty,
     present,
 };
+
+// The name of the connectivity state in result JSON and in Python, such as "explicitly-empty".
+[[nodiscard]] auto to_string(SourceConnectivity value) -> std::string_view;
 
 struct SourceHierarchyLabels {
     std::optional<std::string> atom;

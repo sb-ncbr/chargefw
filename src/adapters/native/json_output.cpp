@@ -68,36 +68,6 @@ constexpr auto metric_scale = 1000.0;
     return std::round(value * scale) / scale;
 }
 
-[[nodiscard]] auto source_format_name(const MolecularSourceFormat format) -> std::string_view {
-    switch (format) {
-    case MolecularSourceFormat::molecule_json:
-        return "molecule-json";
-    case MolecularSourceFormat::mol:
-        return "mol";
-    case MolecularSourceFormat::sdf:
-        return "sdf";
-    case MolecularSourceFormat::mol2:
-        return "mol2";
-    case MolecularSourceFormat::pdb:
-        return "pdb";
-    case MolecularSourceFormat::mmcif:
-        return "mmcif";
-    }
-    throw std::invalid_argument{"unknown molecular source format"};
-}
-
-[[nodiscard]] auto connectivity_name(const SourceConnectivity connectivity) -> std::string_view {
-    switch (connectivity) {
-    case SourceConnectivity::absent:
-        return "absent";
-    case SourceConnectivity::explicitly_empty:
-        return "explicitly-empty";
-    case SourceConnectivity::present:
-        return "present";
-    }
-    throw std::invalid_argument{"unknown source connectivity state"};
-}
-
 [[nodiscard]] auto import_metadata_json(const MoleculeImportMetadata& metadata) -> Json {
     auto policy = Json::object();
     const auto add_policy = [&policy](const std::string_view name,
@@ -111,9 +81,9 @@ constexpr auto metric_scale = 1000.0;
     add_policy("conformer_selection", metadata.conformer_selection);
     add_policy("bond_strategy", metadata.bond_strategy);
 
-    return Json{{"format", source_format_name(metadata.format)},
+    return Json{{"format", to_string(metadata.format)},
                 {"policy", std::move(policy)},
-                {"source_connectivity", connectivity_name(metadata.source_connectivity)}};
+                {"source_connectivity", to_string(metadata.source_connectivity)}};
 }
 
 [[nodiscard]] auto portable_id_json(const PortableId& id) -> Json {
