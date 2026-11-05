@@ -306,9 +306,8 @@ molecule index, an optional conformer index, and the charges in atom order.
 
 Invalid arguments throw `std::invalid_argument`, also from `assess()`. A valid assessment reports
 methods that do not apply as rejections, and `default_plan()` is null when none applies; it has no
-status. The `calculate()` overloads that take an assessment report failures and cancellation through
-the `ExecutionStatus`; the lower-level `CalculationRequest` overload throws them as exceptions
-instead. A `std::logic_error` or `std::runtime_error` from a method, such as an invalid parameter value
+status. `calculate()` reports failures and cancellation through the `ExecutionStatus`. A
+`std::logic_error` or `std::runtime_error` from a method, such as an invalid parameter value
 or a solver that does not converge, becomes `numerical_failure`. Other exceptions, such as
 `std::bad_alloc` when memory runs out, are not caught and reach the caller.
 

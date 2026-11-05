@@ -17,3 +17,6 @@ chargefw_add_snitch_test(test_methods
         test_tsef.cpp
         test_veem.cpp
 )
+target_include_directories(test_methods PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)

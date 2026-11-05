@@ -1,3 +1,4 @@
+#include "methods/find_applicable_methods.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"

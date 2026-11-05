@@ -1,5 +1,6 @@
 #include <chargefw/calculation/calculation.h>
 
+#include "calculation/calculation_request.h"
 #include "calculation/charge_checks.h"
 #include "calculation/cover_execution.h"
 #include "calculation/cutoff_execution.h"

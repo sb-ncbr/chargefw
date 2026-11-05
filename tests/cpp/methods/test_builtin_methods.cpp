@@ -1,3 +1,5 @@
+#include "calculation/calculation_request.h"
+#include "methods/find_applicable_methods.h"
 #include "support/test_calculation.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
