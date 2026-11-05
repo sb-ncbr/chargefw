@@ -19,14 +19,15 @@ cmake -S . -B build/native-release -G Ninja \
     -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
     -DCHARGEFW_BUILD_CLI=OFF \
     -DCHARGEFW_BUILD_PYTHON=OFF \
-    -DCHARGEFW_BUILD_TESTS=OFF \
-    -DCHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=OFF
+    -DCHARGEFW_BUILD_TESTS=OFF
 cmake --build build/native-release --parallel
 cmake --install build/native-release --prefix "$PWD/_install" --strip
 ```
 
-Set `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON` only for an installation that stays on the build machine;
-interprocedural optimization alone does not make the binaries CPU-specific.
+On x86-64, ChargeFW is built for CPUs with AVX2 and FMA (x86-64-v3): Intel Haswell, AMD Excavator, or
+newer. Set `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON` to build for the CPU of the build machine instead,
+for an older CPU or an installation that stays on that machine. Native builds can run faster on CPUs
+with AVX-512. Interprocedural optimization alone does not make the binaries CPU-specific.
 
 Use the installed package from another CMake project:
 

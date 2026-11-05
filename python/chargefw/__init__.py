@@ -2,6 +2,7 @@
 
 from typing import Final
 
+from . import _cpu as _cpu  # Checks the CPU before the extension is loaded.
 from . import io as io
 from ._chargefw import version as _native_version
 from ._chargefw.calculation import _fixed_ion_names

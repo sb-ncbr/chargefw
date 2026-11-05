@@ -95,9 +95,10 @@ Available presets are:
 | `clang-ubsan` | Undefined behavior |
 | `clang-tidy` | Static analysis during compilation |
 
-All checked-in presets build the native library, CLI, tests, and Python bindings. Release presets also
-enable IPO and host-native optimization; debug, sanitizer, and static-analysis presets disable
-host-native optimization for reproducibility. Ignored `CMakeUserPresets.json` presets may inherit the
+All checked-in presets build the native library, CLI, tests, and Python bindings, and optimize for the
+host CPU (`CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON`), because they build and run on the same machine
+and test speed matters. Release presets also enable IPO. Distributed builds use the x86-64-v3 default
+instead, and the wheel workflow tests them. Ignored `CMakeUserPresets.json` presets may inherit the
 stable `gcc-debug` and `gcc-release` names to customize local build and installation directories.
 
 Installation tests use the parent's build type, C and C++ compilers, compiler/linker flags, and IPO

@@ -49,7 +49,6 @@ CHARGEFW_BUILD_LIBRARY = "OFF"
 CHARGEFW_BUILD_CLI = "OFF"
 CHARGEFW_BUILD_PYTHON = "ON"
 CHARGEFW_BUILD_TESTS = "OFF"
-CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS = "OFF"
 CHARGEFW_FETCH_DEPENDENCIES = "ON"
 
 [tool.cibuildwheel]
@@ -61,7 +60,6 @@ build = [
   "cp31[2-4]-macosx_arm64",
   "cp31[2-4]-win_amd64",
 ]
-config-settings = { "cmake.define.CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS" = "OFF" }
 test-requires = ["pytest", "jsonschema"]
 test-extras = "gemmi"
 test-command = "pytest {project}/tests/python -q"

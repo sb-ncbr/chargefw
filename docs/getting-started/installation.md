@@ -17,6 +17,11 @@ and later releases. There are no wheels for Alpine Linux and other systems based
 to build ChargeFW from source, which is not supported. Use the [Docker image](#command-line-in-docker)
 for the command line there.
 
+On x86-64, the wheels and the Docker image need a CPU with AVX2 and FMA (the x86-64-v3 level): Intel
+Haswell (2013), AMD Excavator (2015), or newer. On an older CPU, `import chargefw` raises an
+`ImportError`, and the Docker image stops with an illegal-instruction error. Build the library and
+command line [from source](#from-source) with `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON` instead.
+
 On Python 3.11, pip reports no error but installs an older ChargeFW release. If your system Python is
 3.11, as on Debian 12, create an environment with a newer Python. [uv](https://docs.astral.sh/uv/)
 downloads one for you:

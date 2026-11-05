@@ -39,7 +39,7 @@ option(CHARGEFW_ENABLE_WARNINGS "Enable project warnings" ON)
 option(CHARGEFW_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(CHARGEFW_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(CHARGEFW_ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
-option(CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS "Optimize for the build host CPU" ON)
+option(CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS "Optimize for the build host CPU instead of x86-64-v3" OFF)
 
 if(NOT CHARGEFW_BUILD_LIBRARY AND (CHARGEFW_BUILD_CLI OR CHARGEFW_BUILD_TESTS))
   message(FATAL_ERROR
