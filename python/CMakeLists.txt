@@ -103,6 +103,8 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
     configure_file("chargefw/io/${io_source}"
                    "${CHARGEFW_PYTHON_IO_DIRECTORY}/${io_source}" COPYONLY)
 endforeach()
+# The import check needs to know whether the extension was built for x86-64-v3 (optimization.cmake).
+configure_file(chargefw/_cpu.py "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_cpu.py" @ONLY)
 configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.typed" COPYONLY)
 
 nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
@@ -174,6 +176,9 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
             COMPONENT python)
 endforeach()
 install(FILES chargefw/py.typed
+        DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}
+        COMPONENT python)
+install(FILES "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_cpu.py"
         DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}
         COMPONENT python)
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/python/chargefw/_chargefw"

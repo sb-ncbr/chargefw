@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Installation
+
+- On x86-64, the wheels, the Docker image, and source builds target x86-64-v3 (AVX2 and FMA: Intel
+  Haswell, AMD Excavator, or newer). Full calculations on large structures run about twice as fast
+  with the wheels. On an older CPU, `import chargefw` raises an `ImportError`; build from source with
+  `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON`, which now defaults to `OFF`.
+
 ### C++
 
 - `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.

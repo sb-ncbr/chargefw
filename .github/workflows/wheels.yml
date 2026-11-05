@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: python -m pip install cibuildwheel==3.4.1
+      - run: python -m pip install cibuildwheel==4.3.5
       - uses: actions/download-artifact@v8
         with:
           name: sdist
