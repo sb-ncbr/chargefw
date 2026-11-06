@@ -136,9 +136,11 @@ struct SqeHoValues {
     double oxygen_width = 1.0;
     std::optional<double> hydrogen_q0;
     std::optional<double> oxygen_q0;
+    double kappa = 1.0;
 };
 
-/// SQE-family (sqe, sqeq0, sqeqp) parameters for H and O with an H-O single-bond kappa of 1.
+/// SQE-family (sqe, sqeq0, sqeqp) parameters for H and O with an H-O single-bond kappa of 1 by
+/// default.
 [[nodiscard]] inline auto make_sqe_ho_parameters(const std::string_view method_id,
                                                  const SqeHoValues& values = {})
     -> parameters::ParameterSet {
@@ -163,8 +165,8 @@ struct SqeHoValues {
         {},
         parameters::AtomParameters{{{.key = plain_atom_key(1), .parameters = std::move(hydrogen)},
                                     {.key = plain_atom_key(8), .parameters = std::move(oxygen)}}},
-        parameters::BondParameters{
-            {{.key = single_bond_key(1, 8), .parameters = {{.name = "kappa", .value = 1.0}}}}}};
+        parameters::BondParameters{{{.key = single_bond_key(1, 8),
+                                     .parameters = {{.name = "kappa", .value = values.kappa}}}}}};
 }
 
 } // namespace chargefw::test

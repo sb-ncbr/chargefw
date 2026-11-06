@@ -444,6 +444,29 @@ TEST_CASE("SQE reduced execution preserves original component charge budgets",
     }
 }
 
+TEST_CASE("SQE reduced execution fails when a fragment system is not positive definite",
+          "[calculation][reduced-execution][sqe]") {
+    const auto chain = make_extended_components(0);
+    for (const auto mode : {calculation::ExecutionSelectionKind::cutoff,
+                            calculation::ExecutionSelectionKind::cover}) {
+        CAPTURE(mode);
+        const auto result = calculate_application(calculation::AssessmentRequest{
+            .molecules = core::MoleculeCollection{std::vector{chain}},
+            .parameter_sets = {chargefw::test::make_sqe_ho_parameters("sqe", {.kappa = -50.0})},
+            .method_id = "sqe",
+            .execution_selection = calculation::ExecutionSelection{mode, 8.0}});
+
+        CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
+        CHECK_FALSE(result.charges.has_value());
+        REQUIRE(result.effective.has_value());
+        CHECK(result.effective->method_id == "sqe");
+        REQUIRE(result.failure_message.has_value());
+        CHECK(result.failure_message->contains(mode == calculation::ExecutionSelectionKind::cutoff
+                                                   ? "cutoff fragment around"
+                                                   : "cover fragment around"));
+    }
+}
+
 TEST_CASE("reduced approximation remains bounded across a truncated radius sweep",
           "[calculation][reduced-execution][accuracy]") {
     struct AccuracyCase {

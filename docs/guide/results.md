@@ -130,10 +130,15 @@ charge is set.
 ## When a calculation fails
 
 A calculation fails without charges when no method and parameter set apply to your molecules, when the
-calculation does not converge, or when it is cancelled. The command line still writes the result JSON,
-with the reasons, and exits with a [status](../interfaces/cli.md#exit-statuses) other than 0. Python
-raises a `chargefw.ChargeFWError`; its `result` attribute holds the same information. Here the
-parameter set has no values for chlorine in chlorobenzene:
+calculation does not converge, or when it is cancelled. With SQE, SQE+q0, and SQE+qp, it also fails
+when the equations for the split charges cannot be factorized as positive definite. This happens when
+the parameter set gives the molecule no single energy minimum at its geometry, and can also happen
+through rounding when it comes close to that. With cutoff and cover execution, each fragment's
+equations are checked, not those of the whole molecule. Check the geometry, or use another parameter
+set. The command line still writes the result JSON, with the reasons, and exits with a
+[status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.ChargeFWError`;
+its `result` attribute holds the same information. Here the parameter set has no values for chlorine
+in chlorobenzene:
 
 ```python
 chlorobenzene = Chem.AddHs(Chem.MolFromSmiles("Clc1ccccc1"))

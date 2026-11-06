@@ -95,6 +95,29 @@ auto make_duplicate_parameter_request(const std::string_view first_method_id,
     return request;
 }
 
+// An H-O pair 2 apart with narrow widths: the bond interaction is exactly 1/2, so the 1 x 1
+// split-charge system 1 + 1 - 2 * 1/2 + kappa is exactly zero for kappa = -1.
+auto make_singular_sqe_pair() -> std::pair<core::Molecule, chargefw::parameters::ParameterSet> {
+    const auto atom_parameters = std::vector<chargefw::parameters::NamedParameter>{
+        {.name = "electronegativity", .value = 1.0},
+        {.name = "hardness", .value = 1.0},
+        {.name = "width", .value = 0.1}};
+    return {core::Molecule{std::vector{core::Atom{1}, core::Atom{8}},
+                           std::vector{core::Bond{0, 1, core::BondOrder::SINGLE}},
+                           {core::Conformer{{core::Position{.x = 0.0}, core::Position{.x = 2.0}}}},
+                           "singular-sqe"},
+            chargefw::parameters::ParameterSet{
+                chargefw::parameters::ParameterSetMetadata{
+                    .id = "test-sqe", .method_id = "sqe", .name = "Singular SQE parameters"},
+                {},
+                chargefw::parameters::AtomParameters{
+                    {{.key = chargefw::test::plain_atom_key(1), .parameters = atom_parameters},
+                     {.key = chargefw::test::plain_atom_key(8), .parameters = atom_parameters}}},
+                chargefw::parameters::BondParameters{
+                    {{.key = chargefw::test::single_bond_key(1, 8),
+                      .parameters = {{.name = "kappa", .value = -1.0}}}}}}};
+}
+
 auto make_double_bonded_carbons() -> core::Molecule {
     return core::Molecule{std::vector{core::Atom{6}, core::Atom{6}},
                           std::vector{core::Bond{0, 1, core::BondOrder::DOUBLE}},
@@ -199,6 +222,41 @@ TEST_CASE("fixed-charge EEM retains provenance on numerical failure",
     const auto& provenance = *result.effective->fixed_ions;
     REQUIRE(provenance.sources.size() == 1);
     CHECK(provenance.sources[0].charge == 0.25);
+}
+
+TEST_CASE("SQE fails on split-charge systems that are not positive definite",
+          "[calculation][calculation][sqe]") {
+    auto [singular_molecule, singular_parameters] = make_singular_sqe_pair();
+    struct Case {
+        core::Molecule molecule;
+        chargefw::parameters::ParameterSet parameter_set;
+    };
+    const auto cases = std::array{
+        // Strongly negative kappa: indefinite, the energy has no minimum.
+        Case{.molecule = chargefw::test::make_water(),
+             .parameter_set = chargefw::test::make_sqe_ho_parameters("sqe", {.kappa = -50.0})},
+        // Exactly singular: the energy has no unique minimum.
+        Case{.molecule = std::move(singular_molecule),
+             .parameter_set = std::move(singular_parameters)}};
+
+    for (const auto& test_case : cases) {
+        CAPTURE(test_case.molecule.name());
+        const auto result = calculate_application(calculation::AssessmentRequest{
+            .molecules = core::MoleculeCollection{std::vector{test_case.molecule}},
+            .parameter_sets = {test_case.parameter_set},
+            .method_id = "sqe",
+            .parameter_set_id = "test-sqe"});
+
+        CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
+        CHECK_FALSE(result.charges.has_value());
+        REQUIRE(result.effective.has_value());
+        CHECK(result.effective->method_id == "sqe");
+        CHECK(result.effective->parameter_set_id == std::optional<std::string>{"test-sqe"});
+        REQUIRE(result.failure_message.has_value());
+        CHECK(result.failure_message->contains("method 'sqe', molecule 1 ('" +
+                                               std::string{test_case.molecule.name()} +
+                                               "'), conformer 1"));
+    }
 }
 
 TEST_CASE("method options are validated and recorded in effective provenance",
