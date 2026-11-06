@@ -16,6 +16,14 @@
   the `calculate()` overload that takes a `CalculationRequest` are removed. Calculate charges with
   `assess()` and `calculate()`.
 
+### Calculation
+
+- SQE, SQE+q0, and SQE+qp calculations fail with `numerical_failure` when the split-charge system
+  cannot be factorized as positive definite, as when the energy has no unique minimum at the
+  molecule's geometry. Earlier versions returned the solution without warning, with charges that could
+  be far too large. In cutoff and cover execution, each fragment is checked. Solving the system takes
+  about half the time.
+
 ## 3.0.0rc3
 
 ### Input

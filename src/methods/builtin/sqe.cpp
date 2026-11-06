@@ -1,5 +1,4 @@
 #include "methods/builtin/sqe.h"
-#include "methods/builtin/dense_solve.h"
 #include "methods/builtin/prerequisite_helpers.h"
 
 #include "methods/fixed_source_validation.h"
@@ -8,6 +7,7 @@
 #include <chargefw/core/position.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
+#include <Eigen/Cholesky>
 #include <Eigen/Core>
 
 #include <cmath>
@@ -47,10 +47,10 @@ auto sqe_core::estimate(const TargetSize& target, const bool initial_charges) ->
         // calculate() returns zero or initial charges without building either system.
         return {.memory_bytes = 0.0, .operations = n};
     }
-    // Dense n x n atom interactions and the m x m split-charge system factorized by LU.
-    // Initial charges add one dense matrix-vector product.
+    // Dense n x n atom interactions and the m x m split-charge system factorized in place by
+    // Cholesky. Initial charges add one dense matrix-vector product.
     return {.memory_bytes = 8.0 * n * n + 8.0 * m * m,
-            .operations = 2.0 / 3.0 * m * m * m + 0.5 * n * n + m * m +
+            .operations = 1.0 / 3.0 * m * m * m + 0.5 * n * n + m * m +
                           (initial_charges ? 2.0 * n * n : 0.0)};
 }
 
@@ -158,7 +158,16 @@ auto sqe_core::calculate(const CalculationInput& input,
         split_matrix(a, a) += kappa[static_cast<std::size_t>(a)];
     }
 
-    const Eigen::VectorXd split_charge = solve_in_place(split_matrix, split_rhs);
+    // S is symmetric; a positive definite S means the energy has a unique minimum. Any other
+    // system (indefinite, semidefinite, or nearly singular to working precision) is rejected
+    // rather than solved. The calling execution adds the molecule, conformer, and fragment.
+    const Eigen::LLT<Eigen::Ref<Eigen::MatrixXd>> llt{split_matrix};
+    if (llt.info() != Eigen::Success) {
+        throw std::runtime_error{
+            "SQE split-charge system could not be factorized as positive definite; no charges were "
+            "returned. Check the geometry or use another parameter set"};
+    }
+    const Eigen::VectorXd split_charge = llt.solve(split_rhs);
     Eigen::VectorXd charges = Eigen::VectorXd::Zero(n);
     for (Eigen::Index a = 0; a < m; ++a) {
         const auto [i, j] = endpoints(a);
