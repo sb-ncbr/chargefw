@@ -145,36 +145,44 @@ auto calculate(const CalculationRequest& request) -> CalculationResult {
     return calculate_request(request);
 }
 
-auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
-                               const std::size_t max_threads,
-                               const CalculationObserver& observer) const -> ExecutionResult {
+auto AssessmentResult::check_plan(const ExecutionPlan& plan) const -> void {
     if (plan.identity_ != plan_identity_) {
         throw std::invalid_argument{"execution plan belongs to a different assessment"};
     }
+}
 
-    // With a candidate, the plan's candidate method is copied with its parameter set replaced, so
-    // the executors, the charge set, and the provenance all read the candidate. The stored
-    // classifications stay valid because the candidate is compatible with the assessed set.
-    auto with_candidate = std::optional<methods::ApplicableMethod>{};
-    if (candidate != nullptr) {
-        const auto* assessed = plan.parameter_set();
-        if (assessed == nullptr) {
-            throw std::invalid_argument{"method '" + std::string{plan.method().id()} +
-                                        "' has no parameters to replace"};
-        }
-        if (!parameters::compatible(*assessed, *candidate)) {
-            throw std::invalid_argument{
-                "parameter set '" + std::string{candidate->id()} +
-                "' does not have the method, keys, and parameter names of parameter set '" +
-                std::string{assessed->id()} + "'"};
-        }
-        if (candidate->id() == assessed->id()) {
-            throw std::invalid_argument{"parameter set with changed values must not keep the ID '" +
-                                        std::string{assessed->id()} + "'"};
-        }
-        with_candidate.emplace(*plan.candidate_);
-        with_candidate->parameter_set = candidate;
+auto AssessmentResult::replace_values(const ExecutionPlan& plan,
+                                      const parameters::ParameterSet* candidate)
+    -> std::optional<methods::ApplicableMethod> {
+    if (candidate == nullptr) {
+        return std::nullopt;
     }
+    const auto* assessed = plan.parameter_set();
+    if (assessed == nullptr) {
+        throw std::invalid_argument{"method '" + std::string{plan.method().id()} +
+                                    "' has no parameters to replace"};
+    }
+    if (!parameters::compatible(*assessed, *candidate)) {
+        throw std::invalid_argument{
+            "parameter set '" + std::string{candidate->id()} +
+            "' does not have the method, keys, and parameter names of parameter set '" +
+            std::string{assessed->id()} + "'"};
+    }
+    if (candidate->id() == assessed->id()) {
+        throw std::invalid_argument{"parameter set with changed values must not keep the ID '" +
+                                    std::string{assessed->id()} + "'"};
+    }
+    // The executors, the charge set, and the provenance all read the candidate through this copy.
+    auto replaced = *plan.candidate_;
+    replaced.parameter_set = candidate;
+    return replaced;
+}
+
+auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
+                               const std::size_t max_threads,
+                               const CalculationObserver& observer) const -> ExecutionResult {
+    check_plan(plan);
+    const auto with_candidate = replace_values(plan, candidate);
 
     const auto& assessment = *this;
     const auto& selected = with_candidate.has_value() ? *with_candidate : *plan.candidate_;

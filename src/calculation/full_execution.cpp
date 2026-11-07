@@ -2,38 +2,22 @@
 
 #include "calculation/fixed_charge_partition.h"
 #include "calculation/target_execution.h"
+#include "calculation/target_input.h"
 #include "methods/applicable_method_execution.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
-#include <chargefw/parameters/models/parameter_view.h>
 
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace chargefw::calculation {
 namespace {
-
-[[nodiscard]] auto make_geometry_if_required(const methods::Method& method,
-                                             const features::PreparedMolecule& molecule,
-                                             const std::optional<std::size_t> conformer_index)
-    -> std::optional<features::ConformerFeatures> {
-    if (!method.requirements().coordinates) {
-        return std::nullopt;
-    }
-
-    if (!conformer_index.has_value()) {
-        throw std::invalid_argument{"geometry-dependent method requires a conformer index"};
-    }
-
-    return features::ConformerFeatures{molecule.molecule(), *conformer_index};
-}
 
 auto validate_calculated_charges(const methods::Method& method,
                                  const features::PreparedMolecule& molecule,
@@ -64,34 +48,13 @@ auto validate_calculated_charges(const methods::Method& method,
                                     const std::optional<std::size_t> conformer_index,
                                     const detail::FixedChargePartitionTarget* partition_target)
     -> charges::AtomicCharges {
-    auto geometry = make_geometry_if_required(*selected.method, molecule, conformer_index);
-    auto fixed_sources = std::vector<methods::FixedPointSource>{};
-    auto target_charge = core::total_formal_charge(molecule.molecule());
-    if (partition_target != nullptr) {
-        target_charge = partition_target->active_charge;
-        fixed_sources = detail::materialize_fixed_point_sources(*partition_target, conformer_index);
-    }
-
-    if (classification == nullptr) {
-        const methods::CalculationInput input{
-            molecule,      selected.method_options,
-            target_charge, geometry ? std::addressof(*geometry) : nullptr,
-            nullptr,       fixed_sources};
-        auto atomic_charges = calculate_method(*selected.method, input);
-        validate_calculated_charges(*selected.method, molecule, atomic_charges);
-        return atomic_charges;
-    }
-
-    parameters::validate_parameter_classification(molecule.molecule(), *selected.parameter_set,
-                                                  *classification);
-    const parameters::ParameterView parameter_view{*selected.parameter_set, *classification};
-    const methods::CalculationInput input{
-        molecule,        selected.method_options,
-        target_charge,   geometry ? std::addressof(*geometry) : nullptr,
-        &parameter_view, fixed_sources};
-    auto atomic_charges = calculate_method(*selected.method, input);
-    validate_calculated_charges(*selected.method, molecule, atomic_charges);
-    return atomic_charges;
+    return detail::with_target_input(
+        selected, molecule, classification, conformer_index, partition_target,
+        [&](const methods::CalculationInput& input) {
+            auto atomic_charges = calculate_method(*selected.method, input);
+            validate_calculated_charges(*selected.method, molecule, atomic_charges);
+            return atomic_charges;
+        });
 }
 
 } // namespace

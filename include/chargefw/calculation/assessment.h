@@ -153,6 +153,16 @@ class AssessmentResult {
     [[nodiscard]] auto prepared_molecules() const noexcept
         -> const features::PreparedMoleculeCollection&;
 
+    // Throws unless `plan` belongs to this assessment.
+    auto check_plan(const ExecutionPlan& plan) const -> void;
+
+    // The method of `plan` with the parameter set `candidate`, which must have the method, keys,
+    // and parameter names of the plan's set and another ID; nothing without a candidate. The
+    // classifications of the plan stay valid for the candidate.
+    [[nodiscard]] static auto replace_values(const ExecutionPlan& plan,
+                                             const parameters::ParameterSet* candidate)
+        -> std::optional<methods::ApplicableMethod>;
+
     // Executes `plan` with its own parameter set, or with the values of `candidate` when given.
     [[nodiscard]] auto execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
                                std::size_t max_threads, const CalculationObserver& observer) const
