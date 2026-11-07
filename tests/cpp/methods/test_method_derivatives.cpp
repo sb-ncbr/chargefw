@@ -209,6 +209,7 @@ TEST_CASE("Gradients match central differences of every slot", "[methods][sqe][d
     for (const auto& [method_id, parameter_set] : cases()) {
         const auto& selected = method(method_id);
         for (const auto sources : source_choices) {
+            REQUIRE(selected.requirements().supports_exact_derivatives);
             const auto linearized = linearize(molecule, method_id, parameter_set, sources);
             const auto gradients = charge_gradients(*linearized);
             // The channels are the method's parameters, in its order.

@@ -1,0 +1,391 @@
+#include <chargefw/calculation/derivatives.h>
+
+#include "calculation/fixed_charge_partition.h"
+#include "calculation/parallel_for.h"
+#include "calculation/target_execution.h"
+#include "calculation/target_input.h"
+#include "methods/applicable_method_execution.h"
+
+#include <chargefw/calculation/execution_policy.h>
+#include <chargefw/core/molecule.h>
+#include <chargefw/features/prepared_molecule.h>
+#include <chargefw/methods/calculation_input.h>
+#include <chargefw/methods/method.h>
+#include <chargefw/methods/method_applicability.h>
+#include <chargefw/methods/method_derivatives.h>
+#include <chargefw/methods/method_requirements.h>
+#include <chargefw/parameters/classification/parameter_classification.h>
+#include <chargefw/parameters/models/parameter_values.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <optional>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace chargefw::calculation {
+namespace {
+
+constexpr auto no_slot = std::numeric_limits<std::size_t>::max();
+
+// Targets are calculated in parallel in batches of this size; each batch is then added to the
+// result in target order, so the arithmetic does not depend on the threads, and only one batch's
+// partial sums are kept at a time.
+constexpr std::size_t batch_size = 256;
+
+// For each parameter of the method, the layout slot of each entry, or no_slot when the set has no
+// such value. Parameters are matched to slots by name.
+struct SlotTable {
+    std::vector<std::vector<std::size_t>> atom; // [method atom parameter][atom entry]
+    std::vector<std::vector<std::size_t>> bond; // [method bond parameter][bond entry]
+    std::vector<std::size_t> common;            // [method common parameter]
+};
+
+[[nodiscard]] auto make_slot_table(const methods::MethodRequirements& requirements,
+                                   const parameters::ParameterSet& set,
+                                   const std::span<const parameters::ParameterSlot> layout)
+    -> SlotTable {
+    const auto channel = [](const std::vector<std::string_view>& names,
+                            const std::string_view name) -> std::optional<std::size_t> {
+        const auto found = std::ranges::find(names, name);
+        if (found == names.end()) {
+            return std::nullopt;
+        }
+        return static_cast<std::size_t>(found - names.begin());
+    };
+
+    auto table = SlotTable{
+        .atom = std::vector(requirements.atom_parameters.size(),
+                            std::vector<std::size_t>(set.atom().size(), no_slot)),
+        .bond = std::vector(requirements.bond_parameters.size(),
+                            std::vector<std::size_t>(set.bond().size(), no_slot)),
+        .common = std::vector<std::size_t>(requirements.common_parameters.size(), no_slot)};
+    for (std::size_t slot = 0; slot < layout.size(); ++slot) {
+        const auto& [scope, entry, name] = layout[slot];
+        switch (scope) {
+        case parameters::ParameterScope::common:
+            if (const auto index = channel(requirements.common_parameters, name)) {
+                table.common[*index] = slot;
+            }
+            break;
+        case parameters::ParameterScope::atom:
+            if (const auto index = channel(requirements.atom_parameters, name)) {
+                table.atom[*index][entry] = slot;
+            }
+            break;
+        case parameters::ParameterScope::bond:
+            if (const auto index = channel(requirements.bond_parameters, name)) {
+                table.bond[*index][entry] = slot;
+            }
+            break;
+        }
+    }
+    return table;
+}
+
+// One target's contribution, over only the slots it contains.
+struct TargetTerms {
+    // The target's rows: its atoms in source order, fixed ions included.
+    std::vector<double> charges;
+    // The global slots the target contains, ascending.
+    std::vector<std::size_t> slots;
+    // slots.size() x slots.size(), row-major.
+    std::vector<double> gauss_newton;
+    std::vector<double> gradient;
+    double sum_of_squares = 0.0;
+};
+
+[[nodiscard]] auto linearize_method(const methods::Method& method,
+                                    const methods::CalculationInput& input)
+    -> std::unique_ptr<methods::LinearizedCharges> {
+    auto result = std::unique_ptr<methods::LinearizedCharges>{};
+    try {
+        result = method.linearize(input);
+    } catch (const std::invalid_argument& error) {
+        // As in ordinary calculation: invalid values for this target are a numerical failure.
+        throw std::runtime_error{error.what()};
+    }
+    if (result == nullptr) {
+        throw std::logic_error{"method '" + std::string{method.id()} +
+                               "' declares exact derivatives but returned none"};
+    }
+    return result;
+}
+
+auto check_gradient_shape(const methods::ParameterGradient& gradient,
+                          const methods::MethodRequirements& requirements,
+                          const std::size_t atom_count, const std::size_t bond_count) -> void {
+    const auto sized = [](const std::vector<std::vector<double>>& channels,
+                          const std::size_t size) {
+        return std::ranges::all_of(channels,
+                                   [size](const auto& values) { return values.size() == size; });
+    };
+    if (gradient.atom.size() != requirements.atom_parameters.size() ||
+        gradient.bond.size() != requirements.bond_parameters.size() ||
+        gradient.common.size() != requirements.common_parameters.size() ||
+        !sized(gradient.atom, atom_count) || !sized(gradient.bond, bond_count)) {
+        throw std::logic_error{"method gradient does not have the shape of its parameters"};
+    }
+}
+
+auto require_finite(const std::span<const double> values) -> void {
+    if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
+        throw std::runtime_error{"the normal equations are not finite"};
+    }
+}
+
+[[nodiscard]] auto target_terms(const methods::ApplicableMethod& selected,
+                                const methods::MethodRequirements& requirements,
+                                const features::PreparedMolecule& molecule,
+                                const parameters::ParameterClassification& classification,
+                                const std::optional<std::size_t> conformer_index,
+                                const detail::FixedChargePartitionTarget* partition_target,
+                                const SlotTable& table, const std::size_t slot_count,
+                                const std::span<const double> references,
+                                const std::span<const double> weights) -> TargetTerms {
+    const auto linearized =
+        detail::with_target_input(selected, molecule, &classification, conformer_index,
+                                  partition_target, [&](const methods::CalculationInput& input) {
+                                      return linearize_method(*selected.method, input);
+                                  });
+    const auto active = linearized->charges();
+    const auto atom_count = molecule.molecule().atom_count();
+    const auto bond_count = molecule.molecule().bond_count();
+    if (active.size() != atom_count) {
+        throw std::runtime_error{"method '" + std::string{selected.method->id()} + "' produced " +
+                                 std::to_string(active.size()) + " charges for " +
+                                 std::to_string(atom_count) + " atoms"};
+    }
+
+    // Active atoms are rows at their source positions; fixed ions have their own rows.
+    const auto row_of = [partition_target](const std::size_t atom) {
+        return partition_target == nullptr ? atom : partition_target->active_atom_indices[atom];
+    };
+    auto result = TargetTerms{};
+    result.charges.assign(references.size(), 0.0);
+    for (std::size_t atom = 0; atom < atom_count; ++atom) {
+        result.charges[row_of(atom)] = active[atom];
+    }
+    const auto sources = partition_target == nullptr
+                             ? std::span<const FixedAtomCharge>{}
+                             : std::span<const FixedAtomCharge>{partition_target->sources};
+    for (const auto& source : sources) {
+        result.charges[source.atom_index] = source.charge;
+    }
+
+    // The slots the target contains, and their local positions.
+    auto local = std::vector<std::size_t>(slot_count, no_slot);
+    const auto add = [&](const std::size_t slot) {
+        if (slot != no_slot && local[slot] == no_slot) {
+            local[slot] = 0;
+            result.slots.push_back(slot);
+        }
+    };
+    for (const auto& entries : table.atom) {
+        for (std::size_t atom = 0; atom < atom_count; ++atom) {
+            add(entries[classification.atom()[atom]]);
+        }
+    }
+    for (const auto& entries : table.bond) {
+        for (std::size_t bond = 0; bond < bond_count; ++bond) {
+            add(entries[classification.bond()[bond]]);
+        }
+    }
+    for (const auto slot : table.common) {
+        add(slot);
+    }
+    std::ranges::sort(result.slots);
+    for (std::size_t index = 0; index < result.slots.size(); ++index) {
+        local[result.slots[index]] = index;
+    }
+    const auto k = result.slots.size();
+    result.gauss_newton.assign(k * k, 0.0);
+    result.gradient.assign(k, 0.0);
+
+    // One gradient per weighted row, summed into its slots: a = d q_atom / d slot. The weighted row
+    // b = w a and residual t = w r are formed first, so that w^2 is never computed on its own.
+    auto cotangent = std::vector<double>(atom_count, 0.0);
+    auto row = std::vector<double>(k, 0.0);
+    for (std::size_t atom = 0; atom < atom_count; ++atom) {
+        const auto weight = weights[row_of(atom)];
+        if (weight == 0.0) {
+            continue;
+        }
+        const auto residual = weight * (active[atom] - references[row_of(atom)]);
+        result.sum_of_squares += residual * residual;
+
+        cotangent[atom] = 1.0;
+        const auto gradient = linearized->gradient(cotangent);
+        cotangent[atom] = 0.0;
+        check_gradient_shape(gradient, requirements, atom_count, bond_count);
+
+        std::ranges::fill(row, 0.0);
+        for (std::size_t channel = 0; channel < table.atom.size(); ++channel) {
+            for (std::size_t other = 0; other < atom_count; ++other) {
+                const auto slot = table.atom[channel][classification.atom()[other]];
+                if (slot != no_slot) {
+                    row[local[slot]] += gradient.atom[channel][other];
+                }
+            }
+        }
+        for (std::size_t channel = 0; channel < table.bond.size(); ++channel) {
+            for (std::size_t bond = 0; bond < bond_count; ++bond) {
+                const auto slot = table.bond[channel][classification.bond()[bond]];
+                if (slot != no_slot) {
+                    row[local[slot]] += gradient.bond[channel][bond];
+                }
+            }
+        }
+        for (std::size_t channel = 0; channel < table.common.size(); ++channel) {
+            if (table.common[channel] != no_slot) {
+                row[local[table.common[channel]]] += gradient.common[channel];
+            }
+        }
+
+        for (auto& value : row) {
+            value *= weight;
+        }
+        for (std::size_t first = 0; first < k; ++first) {
+            for (std::size_t second = 0; second < k; ++second) {
+                result.gauss_newton[first * k + second] += row[first] * row[second];
+            }
+            result.gradient[first] += residual * row[first];
+        }
+    }
+
+    for (const auto& source : sources) {
+        const auto weight = weights[source.atom_index];
+        if (weight != 0.0) {
+            const auto residual = weight * (source.charge - references[source.atom_index]);
+            result.sum_of_squares += residual * residual;
+        }
+    }
+
+    require_finite(result.gauss_newton);
+    require_finite(result.gradient);
+    require_finite(std::span{&result.sum_of_squares, 1});
+    return result;
+}
+
+auto check_rows(const std::span<const double> values, const std::size_t rows,
+                const std::string_view name) -> void {
+    if (values.size() != rows) {
+        throw std::invalid_argument{std::string{name} + " must have " + std::to_string(rows) +
+                                    " values, one per charge, not " +
+                                    std::to_string(values.size())};
+    }
+    if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
+        throw std::invalid_argument{std::string{name} + " must be finite"};
+    }
+}
+
+} // namespace
+
+auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& plan,
+                      const parameters::ParameterSet& candidate,
+                      const std::span<const double> references,
+                      const std::span<const double> weights, const std::size_t max_threads)
+    -> NormalEquations {
+    assessment.check_plan(plan);
+    const auto replaced = AssessmentResult::replace_values(plan, &candidate);
+    const auto& selected = *replaced;
+    if (plan.policy().mode() != ExecutionMode::full) {
+        throw std::invalid_argument{"normal equations need full execution, but the plan uses " +
+                                    std::string{to_string(plan.policy().mode())}};
+    }
+    const auto requirements = selected.method->requirements();
+    if (!requirements.supports_exact_derivatives) {
+        throw std::invalid_argument{"method '" + std::string{selected.method->id()} +
+                                    "' has no exact derivatives"};
+    }
+
+    const auto& molecules = assessment.prepared_molecules();
+    const auto* partition = assessment.fixed_charge_partition_.get();
+    methods::detail::validate_selected_candidate(selected, molecules, partition != nullptr);
+    if (partition != nullptr) {
+        detail::validate_partition_active_molecules(molecules, *partition);
+    }
+    methods::detail::validate_coordinate_targets(selected, molecules);
+
+    // Each target's rows follow the previous target's.
+    const auto targets = detail::make_calculation_targets(molecules, requirements.coordinates);
+    auto offsets = std::vector<std::size_t>{0};
+    for (const auto& target : targets) {
+        const auto rows =
+            partition == nullptr
+                ? molecules[target.molecule_index].molecule().atom_count()
+                : partition->targets.at(target.molecule_index).active_atom_indices.size() +
+                      partition->targets.at(target.molecule_index).sources.size();
+        offsets.push_back(offsets.back() + rows);
+    }
+    check_rows(references, offsets.back(), "references");
+    check_rows(weights, offsets.back(), "weights");
+    if (std::ranges::any_of(weights, [](const double weight) { return weight < 0.0; })) {
+        throw std::invalid_argument{"weights must not be negative"};
+    }
+
+    const auto layout = parameters::parameter_layout(candidate);
+    const auto table = make_slot_table(requirements, candidate, layout);
+    const auto slot_count = layout.size();
+    auto result = NormalEquations{.charges = std::vector<double>(offsets.back(), 0.0),
+                                  .sum_of_squares = 0.0,
+                                  .gauss_newton = std::vector<double>(slot_count * slot_count, 0.0),
+                                  .gradient = std::vector<double>(slot_count, 0.0)};
+
+    for (std::size_t first = 0; first < targets.size(); first += batch_size) {
+        const auto count = std::min(batch_size, targets.size() - first);
+        auto terms = std::vector<TargetTerms>(count);
+        detail::parallel_for_indexed(count, max_threads, [&](const std::size_t index) {
+            const auto target_index = first + index;
+            const auto& target = targets[target_index];
+            const auto& molecule = molecules[target.molecule_index];
+            const auto rows = offsets[target_index + 1] - offsets[target_index];
+            try {
+                terms[index] = target_terms(
+                    selected, requirements, molecule,
+                    selected.classifications[target.molecule_index], target.conformer_index,
+                    partition == nullptr ? nullptr : &partition->targets.at(target.molecule_index),
+                    table, slot_count, references.subspan(offsets[target_index], rows),
+                    weights.subspan(offsets[target_index], rows));
+            } catch (const std::invalid_argument& error) {
+                throw std::invalid_argument{
+                    detail::make_target_failure_message(selected, molecule, target, error)};
+            } catch (const std::logic_error& error) {
+                throw std::logic_error{
+                    detail::make_target_failure_message(selected, molecule, target, error)};
+            } catch (const std::runtime_error& error) {
+                throw std::runtime_error{
+                    detail::make_target_failure_message(selected, molecule, target, error)};
+            }
+        });
+
+        // In target order, whatever the threads.
+        for (std::size_t index = 0; index < count; ++index) {
+            const auto& part = terms[index];
+            std::ranges::copy(part.charges, result.charges.begin() + static_cast<std::ptrdiff_t>(
+                                                                         offsets[first + index]));
+            result.sum_of_squares += part.sum_of_squares;
+            const auto k = part.slots.size();
+            for (std::size_t row = 0; row < k; ++row) {
+                for (std::size_t column = 0; column < k; ++column) {
+                    result.gauss_newton[part.slots[row] * slot_count + part.slots[column]] +=
+                        part.gauss_newton[row * k + column];
+                }
+                result.gradient[part.slots[row]] += part.gradient[row];
+            }
+        }
+    }
+
+    require_finite(result.gauss_newton);
+    require_finite(result.gradient);
+    require_finite(std::span{&result.sum_of_squares, 1});
+    return result;
+}
+
+} // namespace chargefw::calculation

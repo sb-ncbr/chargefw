@@ -282,6 +282,24 @@ sets](#methods-and-parameter-sets), and give it an ID of its own. The result rep
 candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
 method has no parameters throws `std::invalid_argument`.
 
+`calculation::normal_equations(assessment, plan, candidate, references, weights, max_threads)` returns
+what a weighted least-squares fit of the charges needs at the candidate's values, from exact
+derivatives. With the charges q, your reference charges y, your weights w, and the derivatives J of the
+charges with respect to the values of `parameters::parameter_layout(candidate)`, the result holds:
+
+- `charges`: q;
+- `sum_of_squares`: Σ (wᵢ (qᵢ − yᵢ))²;
+- `gauss_newton`: Jᵀ diag(w²) J, one row and one column per value, row by row;
+- `gradient`: Jᵀ diag(w²) (q − y), one per value.
+
+Give one reference charge and one weight per charge, in the order of the result's assignments with the
+charges of each assignment in atom order, fixed ions included. A weight of 0 leaves a charge out. Fixed
+ions keep their prescribed charges, so they change only the sum of squares. The plan must use full
+execution, and the method must have exact derivatives (`requirements().supports_exact_derivatives`):
+EEM, SQE, SQE+q0, and SQE+qp. The result is the same for any number of threads. Invalid arguments
+throw `std::invalid_argument`; a calculation that fails throws `std::runtime_error` or
+`std::logic_error` naming the molecule.
+
 `calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
 plan's approximate peak working memory and number of operations; [Threads and
 estimates](../guide/large-structures.md#threads-and-estimates) explains them.

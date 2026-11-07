@@ -34,6 +34,7 @@ class SQEqpMethod final : public Method {
         requirements.resources.reduced_charge_policy =
             ReducedChargePolicy::parameterized_charge_components;
         requirements.supports_fixed_point_sources = true;
+        requirements.supports_exact_derivatives = true;
         return requirements;
     }
 

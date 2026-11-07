@@ -68,6 +68,8 @@ struct MethodRequirements {
     ResourceRequirements resources{};
     // Numerical/scientific support, independent of cutoff and cover execution support.
     bool supports_fixed_point_sources = false;
+    // Method::linearize() returns exact derivatives with respect to the parameter values.
+    bool supports_exact_derivatives = false;
 
     [[nodiscard]] auto requires_common_parameters() const noexcept -> bool {
         return !common_parameters.empty();

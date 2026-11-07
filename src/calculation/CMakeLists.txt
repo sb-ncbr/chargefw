@@ -6,6 +6,7 @@ target_sources(chargefw_core_objects
         charge_issues.cpp
         cover_execution.cpp
         cutoff_execution.cpp
+        derivatives.cpp
         estimate.cpp
         fixed_charge_partition.cpp
         full_execution.cpp
@@ -30,6 +31,7 @@ target_sources(chargefw_core_objects
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/calculation.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/charge_issues.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/derivatives.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/assessment.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_policy.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/input_issues.h

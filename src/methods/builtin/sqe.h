@@ -46,6 +46,7 @@ class SQEMethod final : public Method {
         requirements.resources.supports_cover = true;
         requirements.resources.reduced_charge_policy = ReducedChargePolicy::zero_components;
         requirements.supports_fixed_point_sources = true;
+        requirements.supports_exact_derivatives = true;
         return requirements;
     }
 
