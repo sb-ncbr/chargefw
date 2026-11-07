@@ -137,6 +137,32 @@ def test_evaluator_jacobian_respects_eem_invariances_and_bounds() -> None:
     np.testing.assert_allclose(bounded[:, 0], jacobian[:, 3], atol=1e-6)
 
 
+def test_native_normal_equations_match_the_jacobian() -> None:
+    evaluator = eem_evaluator(water())
+    native = evaluator._native
+    assert native._exact_derivatives()
+    references = np.array([-0.5, 0.3, 0.2])
+    weights = np.array([1.0, 2.0, 0.5])
+
+    payload = native._normal_equations(EEM_WATER_VALUES, references, weights)
+    assert payload["status"] == "success"
+    charges = evaluator.charges(EEM_WATER_VALUES)
+    np.testing.assert_array_equal(payload["charges"], charges)
+    residuals = weights * (charges - references)
+    assert payload["sum_of_squares"] == pytest.approx(residuals @ residuals)
+    weighted = weights[:, np.newaxis] * evaluator.jacobian(EEM_WATER_VALUES)
+    gauss_newton = np.asarray(payload["gauss_newton"]).reshape(5, 5)
+    np.testing.assert_allclose(gauss_newton, weighted.T @ weighted, atol=1e-5)
+    np.testing.assert_allclose(np.asarray(payload["gradient"]), weighted.T @ residuals, atol=1e-5)
+
+    # A failing calculation is a status; malformed arguments raise.
+    failed = native._normal_equations(np.array([0.0, 2.0, 1.0, 3.0, 1.0]), references, weights)
+    assert failed["status"] == "numerical_failure" and failed["charges"] is None
+    assert failed["failure_message"] is not None and "kappa" in failed["failure_message"]
+    with pytest.raises(ValueError):
+        native._normal_equations(EEM_WATER_VALUES, references[:2], weights)
+
+
 def test_evaluator_jacobian_names_the_slot_whose_step_fails() -> None:
     evaluator = eem_evaluator(water())
     values = EEM_WATER_VALUES.copy()

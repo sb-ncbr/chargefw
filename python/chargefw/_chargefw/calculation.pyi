@@ -8,6 +8,7 @@ from .._payloads import (
     CandidateChargesPayload,
     ExecutionPlanPayload,
     ExecutionResultPayload,
+    NormalEquationsPayload,
 )
 from .._types import MethodScope, ParameterScope, PortableId, RequestedExecution
 from .adapters import _NativeInputMetadata
@@ -31,6 +32,14 @@ class _NativePlan:
         self, values: NDArray[np.float64], max_threads: int | None = None
     ) -> CandidateChargesPayload: ...
     def _entry_counts(self) -> tuple[list[int], list[int]]: ...
+    def _normal_equations(
+        self,
+        values: NDArray[np.float64],
+        references: NDArray[np.float64],
+        weights: NDArray[np.float64],
+        max_threads: int | None = None,
+    ) -> NormalEquationsPayload: ...
+    def _exact_derivatives(self) -> bool: ...
 
 class _NativeAssessment:
     def report(self) -> AssessmentReportPayload: ...

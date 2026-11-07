@@ -8,6 +8,7 @@
 #include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/calculation.h>
+#include <chargefw/calculation/derivatives.h>
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/calculation/observer.h>
@@ -362,12 +363,7 @@ class NativePlan {
         auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
         auto result = [&] {
             nb::gil_scoped_release release;
-            const auto& assessed = parameter_set();
-            auto metadata = parameters::ParameterSetMetadata{};
-            metadata.id = std::string{assessed.id()} + ":candidate";
-            const auto candidate =
-                parameters::with_parameter_values(assessed, candidate_values, std::move(metadata));
-            return calculation::calculate(state_->assessment_, plan(), candidate,
+            return calculation::calculate(state_->assessment_, plan(), candidate(candidate_values),
                                           max_threads.value_or(state_->max_threads_));
         }();
 
@@ -394,6 +390,55 @@ class NativePlan {
         payload["assignment_sizes"] = std::move(assignment_sizes);
         payload["assignment_molecules"] = std::move(assignment_molecules);
         return payload;
+    }
+
+    // The normal equations of a least-squares fit at candidate values in layout order
+    // (calculation::normal_equations); "gauss_newton" is flattened row by row. A failing
+    // calculation is reported in "status" and "failure_message", as by calculate_values().
+    [[nodiscard]] auto normal_equations(const value_array& values, const value_array& references,
+                                        const value_array& weights,
+                                        const std::optional<std::size_t> max_threads) const
+        -> nb::dict {
+        auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
+        auto result = std::optional<calculation::NormalEquations>{};
+        auto failure_message = std::optional<std::string>{};
+        {
+            nb::gil_scoped_release release;
+            try {
+                result = calculation::normal_equations(
+                    state_->assessment_, plan(), candidate(candidate_values),
+                    std::span{references.data(), references.size()},
+                    std::span{weights.data(), weights.size()},
+                    max_threads.value_or(state_->max_threads_));
+            } catch (const std::invalid_argument&) {
+                throw;
+            } catch (const std::logic_error& error) {
+                failure_message = error.what();
+            } catch (const std::runtime_error& error) {
+                failure_message = error.what();
+            }
+        }
+
+        auto payload = nb::dict{};
+        payload["status"] = result.has_value() ? "success" : "numerical_failure";
+        payload["failure_message"] =
+            failure_message.has_value() ? nb::cast(*failure_message) : nb::none();
+        if (!result.has_value()) {
+            payload["charges"] = nb::none();
+            payload["sum_of_squares"] = nb::none();
+            payload["gauss_newton"] = nb::none();
+            payload["gradient"] = nb::none();
+            return payload;
+        }
+        payload["charges"] = numpy_values(result->charges);
+        payload["sum_of_squares"] = result->sum_of_squares;
+        payload["gauss_newton"] = numpy_values(result->gauss_newton);
+        payload["gradient"] = numpy_values(result->gradient);
+        return payload;
+    }
+
+    [[nodiscard]] auto exact_derivatives() const -> bool {
+        return plan().method().requirements().supports_exact_derivatives;
     }
 
     [[nodiscard]] auto calculate(const std::optional<std::size_t> max_threads,
@@ -444,6 +489,15 @@ class NativePlan {
   private:
     [[nodiscard]] auto plan() const -> const calculation::ExecutionPlan& {
         return state_->assessment_.plans()[index_];
+    }
+
+    // The plan's parameter set with `values`, under an ID of its own.
+    [[nodiscard]] auto candidate(const std::span<const double> values) const
+        -> parameters::ParameterSet {
+        const auto& assessed = parameter_set();
+        auto metadata = parameters::ParameterSetMetadata{};
+        metadata.id = std::string{assessed.id()} + ":candidate";
+        return parameters::with_parameter_values(assessed, values, std::move(metadata));
     }
 
     [[nodiscard]] auto parameter_set() const -> const parameters::ParameterSet& {
@@ -633,7 +687,10 @@ void bind_calculation(nb::module_& module) {
         .def("_values", &NativePlan::values)
         .def("_calculate_values", &NativePlan::calculate_values, nb::arg("values"),
              nb::arg("max_threads") = nb::none())
-        .def("_entry_counts", &NativePlan::entry_counts);
+        .def("_entry_counts", &NativePlan::entry_counts)
+        .def("_normal_equations", &NativePlan::normal_equations, nb::arg("values"),
+             nb::arg("references"), nb::arg("weights"), nb::arg("max_threads") = nb::none())
+        .def("_exact_derivatives", &NativePlan::exact_derivatives);
     nb::class_<NativeAssessment>(module, "_NativeAssessment")
         .def("report", &NativeAssessment::report)
         .def("plans", &NativeAssessment::plans)
