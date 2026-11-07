@@ -14,7 +14,7 @@ chargefw_add_snitch_test(test_methods
         test_mpeoe.cpp
         test_peoe.cpp
         test_sqe.cpp
-        test_sqe_derivatives.cpp
+        test_method_derivatives.cpp
         test_sqeqp.cpp
         test_tsef.cpp
         test_veem.cpp

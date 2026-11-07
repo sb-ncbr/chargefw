@@ -2,6 +2,8 @@
 
 #include <chargefw/methods/method.h>
 
+#include <memory>
+
 namespace chargefw::methods::builtin {
 
 class EEMMethod final : public Method {
@@ -38,6 +40,9 @@ class EEMMethod final : public Method {
 
     [[nodiscard]] auto calculate(const CalculationInput& input) const
         -> charges::AtomicCharges override;
+
+    [[nodiscard]] auto linearize(const CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> override;
 
     [[nodiscard]] auto estimate(const TargetSize& target, const MethodOptions& options) const
         -> ResourceEstimate override;

@@ -37,6 +37,8 @@ target_sources(chargefw_core_objects
         sqeqp.cpp
         eem.h
         eem.cpp
+        eem_derivatives.cpp
+        eem_system.h
         smpqeq.h
         smpqeq.cpp
         sfkeem.h

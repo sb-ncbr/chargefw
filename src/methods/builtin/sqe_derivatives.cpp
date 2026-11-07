@@ -27,6 +27,7 @@
 
 #include "methods/fixed_source_validation.h"
 
+#include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
 #include <chargefw/parameters/models/parameter_view.h>
@@ -247,6 +248,8 @@ auto sqe_core::linearize(const CalculationInput& input,
     auto system = build_system(input, initial_charge_values);
     solve(system);
     Eigen::VectorXd charges = atom_charges(system);
+    // The check calculate() gets from AtomicCharges, which rejects non-finite charges.
+    static_cast<void>(charges::AtomicCharges{to_vector(charges)});
 
     return std::make_unique<SqeLinearization>(std::move(charges), std::move(system),
                                               width_derivatives(input));

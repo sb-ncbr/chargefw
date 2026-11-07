@@ -32,8 +32,8 @@
 #include <utility>
 #include <vector>
 
-// Exact derivatives of the SQE family (Method::linearize). The molecules use plain H and O types,
-// so atom entry 0 is hydrogen, entry 1 oxygen, and one bond entry covers every bond.
+// Exact derivatives of the methods that have them (Method::linearize). The molecules use plain H
+// and O types, so atom entry 0 is hydrogen, entry 1 oxygen, and one bond entry covers every bond.
 
 namespace methods = chargefw::methods;
 namespace parameters = chargefw::parameters;
@@ -74,6 +74,7 @@ auto cases() -> std::vector<Case> {
         {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0", {.hydrogen_width = 0.8})},
         {"sqeqp", chargefw::test::make_sqe_ho_parameters(
                       "sqeqp", {.hydrogen_width = 0.8, .hydrogen_q0 = 0.1, .oxygen_q0 = -0.3})},
+        {"eem", chargefw::test::make_eem_ho_parameters(0.5)},
     };
 }
 
@@ -134,23 +135,25 @@ auto slot_derivatives(const core::Molecule& molecule, const methods::Method& sel
                       const std::span<const methods::ParameterGradient> charge_gradients,
                       const parameters::ParameterSlot& slot) -> std::vector<double> {
     const auto& requirements = selected.requirements();
+    const auto channel = [&slot](const std::vector<std::string_view>& names) {
+        return static_cast<std::size_t>(std::ranges::find(names, slot.name) - names.begin());
+    };
     auto result = std::vector<double>{};
     for (const auto& gradient : charge_gradients) {
         auto sum = 0.0;
         if (slot.scope == parameters::ParameterScope::atom) {
-            const auto channel = static_cast<std::size_t>(
-                std::ranges::find(requirements.atom_parameters, slot.name) -
-                requirements.atom_parameters.begin());
             const auto element = slot.entry_index == 0 ? 1 : 8;
             for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
                 if (molecule.atom(atom).atomic_number() == element) {
-                    sum += gradient.atom[channel][atom];
+                    sum += gradient.atom[channel(requirements.atom_parameters)][atom];
                 }
             }
-        } else {
-            for (const auto value : gradient.bond[0]) {
+        } else if (slot.scope == parameters::ParameterScope::bond) {
+            for (const auto value : gradient.bond[channel(requirements.bond_parameters)]) {
                 sum += value;
             }
+        } else {
+            sum = gradient.common[channel(requirements.common_parameters)];
         }
         result.push_back(sum);
     }
@@ -187,8 +190,7 @@ const auto source_choices = std::array{std::span<const methods::FixedPointSource
 
 } // namespace
 
-TEST_CASE("SQE-family linearization reproduces the calculated charges",
-          "[methods][sqe][derivatives]") {
+TEST_CASE("Linearization reproduces the calculated charges", "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     for (const auto& [method_id, parameter_set] : cases()) {
         for (const auto sources : source_choices) {
@@ -201,8 +203,7 @@ TEST_CASE("SQE-family linearization reproduces the calculated charges",
     }
 }
 
-TEST_CASE("SQE-family gradients match central differences of every slot",
-          "[methods][sqe][derivatives]") {
+TEST_CASE("Gradients match central differences of every slot", "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     constexpr auto step = 1e-6;
     for (const auto& [method_id, parameter_set] : cases()) {
@@ -215,6 +216,8 @@ TEST_CASE("SQE-family gradients match central differences of every slot",
                     selected.requirements().atom_parameters.size());
             REQUIRE(gradients.front().bond.size() ==
                     selected.requirements().bond_parameters.size());
+            REQUIRE(gradients.front().common.size() ==
+                    selected.requirements().common_parameters.size());
 
             const auto layout = parameters::parameter_layout(parameter_set);
             for (std::size_t slot = 0; slot < layout.size(); ++slot) {
@@ -262,6 +265,9 @@ TEST_CASE("SQE-family linearization covers molecules without bonds",
     // change can move.
     const auto separate = make_separate_atoms();
     for (const auto& [method_id, parameter_set] : cases()) {
+        if (!method(method_id).requirements().bonds) {
+            continue;
+        }
         CAPTURE(method_id);
         const auto linearized = linearize(separate, method_id, parameter_set, {});
         const auto gradient = linearized->gradient(std::vector{1.0, -2.0});
@@ -272,24 +278,52 @@ TEST_CASE("SQE-family linearization covers molecules without bonds",
     }
 }
 
-TEST_CASE("SQE-family linearization outlives its input and rejects malformed cotangents",
-          "[methods][sqe][derivatives]") {
+TEST_CASE("Linearization outlives its input and rejects malformed cotangents",
+          "[methods][derivatives]") {
     const auto all_cases = cases();
-    const auto& [method_id, parameter_set] = all_cases[2];
-    const auto charges = charges_of(make_water_and_hydroxide(), method_id, parameter_set, source);
-    // The molecule, the parameter set, and the input objects are destroyed before any use.
-    const auto linearized = [&method_id] {
-        const auto molecule = make_water_and_hydroxide();
-        const auto parameter_set = cases()[2].parameter_set;
-        return linearize(molecule, method_id, parameter_set, source);
-    }();
-    CHECK(std::ranges::equal(linearized->charges(), charges));
-    const auto gradient = linearized->gradient(std::vector{0.4, -1.1, 0.7, 0.25, -0.9});
-    CHECK_FALSE(all_zero(gradient.atom[2])); // width, which the fixed source also depends on
+    for (std::size_t index = 0; index < all_cases.size(); ++index) {
+        const auto& [method_id, parameter_set] = all_cases[index];
+        CAPTURE(method_id);
+        const auto charges =
+            charges_of(make_water_and_hydroxide(), method_id, parameter_set, source);
+        // The molecule, the parameter set, and the input objects are destroyed before any use.
+        const auto linearized = [&method_id, index] {
+            const auto molecule = make_water_and_hydroxide();
+            const auto temporary_parameters = cases()[index].parameter_set;
+            return linearize(molecule, method_id, temporary_parameters, source);
+        }();
+        CHECK(std::ranges::equal(linearized->charges(), charges));
+        const auto gradient = linearized->gradient(std::vector{0.4, -1.1, 0.7, 0.25, -0.9});
+        for (const auto& channel : gradient.atom) {
+            CHECK_FALSE(all_zero(channel));
+        }
 
-    CHECK_THROWS_AS(linearized->gradient(std::vector{1.0}), std::invalid_argument);
-    CHECK_THROWS_AS(linearized->gradient(std::vector{1.0, 0.0, std::nan(""), 0.0, 0.0}),
-                    std::invalid_argument);
-    // Summing each bonded part's q0 gradient overflows; the gradient is not finite.
-    CHECK_THROWS_AS(linearized->gradient(std::vector(5, 1e308)), std::runtime_error);
+        CHECK_THROWS_AS(linearized->gradient(std::vector{1.0}), std::invalid_argument);
+        CHECK_THROWS_AS(linearized->gradient(std::vector{1.0, 0.0, std::nan(""), 0.0, 0.0}),
+                        std::invalid_argument);
+        if (method_id == "sqeqp") {
+            // Summing each bonded part's q0 gradient overflows; the gradient is not finite.
+            CHECK_THROWS_AS(linearized->gradient(std::vector(5, 1e308)), std::runtime_error);
+        }
+    }
+}
+
+TEST_CASE("Linearization fails where calculation fails", "[methods][derivatives]") {
+    // Two atoms 1 Å apart with kappa = 1 and both B = 1 make the EEM system singular.
+    std::vector atoms{core::Atom{1, 0, "H"}, core::Atom{8, 0, "O"}};
+    std::vector positions{core::Position{.x = 0.0, .y = 0.0, .z = 0.0},
+                          core::Position{.x = 1.0, .y = 0.0, .z = 0.0}};
+    std::vector conformers{core::Conformer{std::move(positions), "model-1"}};
+    const core::Molecule molecule{std::move(atoms), {}, std::move(conformers), "singular"};
+    const parameters::ParameterSet parameter_set{
+        parameters::ParameterSetMetadata{.id = "singular", .method_id = "eem", .name = "Singular"},
+        parameters::CommonParameters{{{.name = "kappa", .value = 1.0}}},
+        parameters::AtomParameters{
+            {{.key = chargefw::test::plain_atom_key(1),
+              .parameters = {{.name = "A", .value = 1.0}, {.name = "B", .value = 1.0}}},
+             {.key = chargefw::test::plain_atom_key(8),
+              .parameters = {{.name = "A", .value = 2.0}, {.name = "B", .value = 1.0}}}}}};
+
+    CHECK_THROWS_AS(charges_of(molecule, "eem", parameter_set, {}), std::invalid_argument);
+    CHECK_THROWS_AS(linearize(molecule, "eem", parameter_set, {}), std::invalid_argument);
 }
