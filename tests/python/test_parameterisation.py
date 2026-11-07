@@ -14,7 +14,7 @@ from chargefw.parameterisation import (
     fit,
     make_parameter_template,
 )
-from chargefw.parameterisation.profiles import PROFILES, sqe_bounds
+from chargefw.parameterisation.profiles import PROFILES, StableHardness
 from numpy.typing import ArrayLike, NDArray
 
 
@@ -429,40 +429,108 @@ def test_profile_reports_free_slots_without_a_start_value() -> None:
         fit(evaluator, references, profile=None)
 
 
-def test_sqe_profile_keeps_the_fit_within_stable_bounds() -> None:
-    evaluator = template_evaluator("sqe", "hbo", "bo")
-    # Atom types H/1, C/2, O/1, O/2 (electronegativity, hardness, width), then bonds H-C, H-O, C-O.
-    true_values = np.array(
-        [4.5, 13.0, 1.0, 5.5, 10.0, 1.0, 8.7, 13.0, 1.0, 8.0, 11.0, 1.0, 1.0, 1.5, 0.8]
-    )
-    references = evaluator.charges(true_values)
-    start = {
+# Atom types H/1, C/2, O/1, O/2 (electronegativity, hardness, width), then bonds H-C, H-O, C-O.
+SQE_TRUE_VALUES = np.array(
+    [4.5, 13.0, 1.0, 5.5, 10.0, 1.0, 8.7, 13.0, 1.0, 8.0, 11.0, 1.0, 1.0, 1.5, 0.8]
+)
+
+
+def sqe_start(
+    evaluator: Evaluator,
+) -> dict[tuple[chargefw.AtomParameterKey | chargefw.BondParameterKey | None, str], float]:
+    return {
         (slot.key, slot.name): value
-        for slot, value in zip(evaluator.layout, true_values - 0.5, strict=True)
+        for slot, value in zip(evaluator.layout, SQE_TRUE_VALUES - 0.5, strict=True)
         if slot.name == "electronegativity"
     }
+
+
+def test_sqe_profile_keeps_every_fitted_type_stable() -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    references = evaluator.charges(SQE_TRUE_VALUES)
+    start = sqe_start(evaluator)
 
     result = fit(evaluator, references, start=start)
 
     assert result.rmsd < 1e-6, result.message
     assert 0 not in result.free
-    lower, upper = result.bounds
-    assert np.all(result.values >= lower) and np.all(result.values <= upper)
-    np.testing.assert_allclose(lower[[1, 2, 12]], [1.0 / (np.sqrt(np.pi) * 0.5), 0.5, 0.01])
+    # The stability condition, per atom type: sqrt(pi) * hardness * width >= 1, and kappa >= 0.01.
+    hardness, width = result.values[[1, 4, 7, 10]], result.values[[2, 5, 8, 11]]
+    assert np.all(np.sqrt(np.pi) * hardness * width >= 1.0 - 1e-12)
+    assert np.all(result.values[12:] >= 0.01)
 
     soft = dict(start)
     soft[(evaluator.layout[1].key, "hardness")] = 0.5
-    with pytest.raises(ValueError, match="slot 1 \\(atom hardness of"):
+    with pytest.raises(ValueError, match="slot 1 \\(atom hardness of .*, fitted as u"):
         fit(evaluator, references, start=soft)
 
+    # Narrow widths with a large hardness are stable; a width then moves the charges through the
+    # hardness that depends on it, so it is not insensitive.
+    narrow = dict(start)
+    for slot in evaluator.layout:
+        if slot.name in ("hardness", "width"):
+            narrow[(slot.key, slot.name)] = 13.0 if slot.name == "hardness" else 0.06
+    assert fit(evaluator, references, start=narrow, max_evaluations=1).evaluations >= 1
 
-def test_sqe_bounds_follow_the_minimum_width_and_kappa() -> None:
-    bounds = sqe_bounds(min_width=0.25, min_kappa=0.1)
-    assert bounds["width"] == (0.25, np.inf)
-    assert bounds["hardness"][0] == pytest.approx(1.0 / (np.sqrt(np.pi) * 0.25))
-    assert bounds["kappa"] == (0.1, np.inf)
-    with pytest.raises(ValueError):
-        sqe_bounds(min_kappa=0.0)
+
+def test_stable_hardness_pairs_each_entry_with_its_own_width(tmp_path: Path) -> None:
+    # Two entries share a key; ChargeFW uses the first, and each has its own hardness and width.
+    hydrogen = {"element": "H", "classifier": "plain", "type": "*"}
+    oxygen = {"element": "O", "classifier": "plain", "type": "*"}
+    document = {
+        "metadata": {"id": "repeated-keys", "method": "sqe"},
+        "atom": {
+            "names": ["electronegativity", "hardness", "width"],
+            "data": [
+                {"key": hydrogen, "values": [4.5, 2.0, 0.1]},
+                {"key": hydrogen, "values": [4.5, 2.0, 10.0]},
+                {"key": oxygen, "values": [8.7, 13.0, 1.0]},
+            ],
+        },
+        "bond": {
+            "names": ["kappa"],
+            "data": [
+                {
+                    "key": {
+                        "atoms": [hydrogen, oxygen],
+                        "bond": {"classifier": "plain", "type": "*"},
+                    },
+                    "values": [1.0],
+                }
+            ],
+        },
+    }
+    path = tmp_path / "repeated.json"
+    path.write_text(json.dumps(document))
+    parameter_set = chargefw.read_parameter_set(path)
+    plan = chargefw.assess(
+        water(), method="sqe", parameter_set=parameter_set, execution="full"
+    ).default_plan
+    assert plan is not None
+    evaluator = Evaluator(plan)
+    names = [slot.name for slot in evaluator.layout]
+
+    pairs = StableHardness().dependencies(evaluator.layout)
+
+    assert pairs == {1: (2,), 4: (5,), 7: (8,)}, names
+    # The first entry, with width 0.1, is outside the stable region: u < 0.
+    assert StableHardness().to_internal(evaluator.values, evaluator.layout)[1] < 0.0
+
+
+def test_sqe_profile_rejects_settings_its_transform_cannot_honour() -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    references = evaluator.charges(SQE_TRUE_VALUES)
+    start = sqe_start(evaluator)
+
+    lower = np.full(len(evaluator.layout), -np.inf)
+    lower[1] = 1.0
+    with pytest.raises(ValueError, match="unbounded.*slot 1 "):
+        fit(evaluator, references, start=start, bounds=(lower, np.inf))
+
+    # A fixed hardness with a free width would change the hardness anyway.
+    free = [slot for slot in range(len(evaluator.layout)) if slot not in (0, 1)]
+    with pytest.raises(ValueError, match="not free.*slot 1 "):
+        fit(evaluator, references, start=start, free=free)
 
 
 def test_fit_diagnostics_show_what_the_data_cannot_determine() -> None:

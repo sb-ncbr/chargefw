@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import operator
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal, SupportsIndex
@@ -299,9 +299,11 @@ class Diagnostics:
     """What shows whether the fitted values can be trusted.
 
     ``r2`` is the coefficient of determination of the charges at the fitted values against the
-    references, without weights; ``nan`` when every reference is the same. ``at_bounds`` lists free slots whose fitted value is at a bound,
-    within ``1e-8 * max(1, |bound|)``. ``failed_messages`` holds the distinct messages of trial
-    calculations that failed, at most 20.
+    references, without weights; ``nan`` when every reference is the same. ``at_bounds`` lists free
+    slots whose fitted value is at a bound, within ``1e-8 * max(1, |bound|)``; for a slot the profile
+    transforms, the bound of the transformed quantity counts, such as the stability limit of the SQE
+    hardness. ``failed_messages`` holds the distinct messages of trial calculations that failed, at
+    most 20.
 
     ``singular_values`` come from the weighted Jacobian at the fitted values, for the free slots,
     with each column scaled to unit length, so they compare slots whatever their units; they are in
@@ -332,7 +334,9 @@ class FitResult:
     """The outcome of ``fit()``.
 
     ``values`` and ``start`` hold every slot in the order of the evaluator's layout; ``free`` lists
-    the slots the fit changed, and ``bounds`` the lower and upper values it used per slot. ``rmsd``
+    the slots the fit changed, and ``bounds`` the lower and upper values it used per slot; a slot the
+    profile transforms has no bounds of its own there, as its bound applies to the transformed
+    quantity. ``rmsd``
     compares the charges at ``values`` with the references, without weights.
     ``failed_evaluations`` counts trial values whose calculation failed and were therefore rejected.
     ``diagnostics`` shows whether the values can be trusted. ``parameter_set()`` turns the fitted
@@ -402,6 +406,11 @@ def fit(
     as in a template, starts at the profile's value for it; a free slot of such a parameter without
     a profile value needs a value in ``start``.
 
+    The profile's transforms change what the fit varies for some slots, such as the SQE hardness,
+    fitted as u = √π·hardness·width − 1 ≥ 0. A transformed slot takes its bounds from the transform:
+    ``bounds`` must leave it unbounded, and if the slot is not free, the slots it depends on (the
+    width) must not be free either.
+
     One array per assignment must match the assignments in number and size. ``free`` must not
     repeat a slot.
 
@@ -435,6 +444,11 @@ def fit(
     lower, upper = evaluator._bounds(
         bounds if bounds is not None else _profile_bounds(layout, chosen)
     )
+    coordinates = _Coordinates(chosen.transforms if chosen is not None else (), layout)
+    coordinates.check(evaluator, free_slots, lower, upper)
+    # The fit works in internal coordinates: the values, except that transformed slots hold the
+    # transformed quantity, which carries the transform's bounds.
+    internal_lower, internal_upper = coordinates.bounds(lower, upper)
     initial, missing = _start_values(evaluator, start, chosen)
     missing_free = [slot for slot in free_slots if slot in missing]
     if missing_free:
@@ -443,7 +457,14 @@ def fit(
             "parameter set and has no default; give them in start: "
             + "; ".join(f"slot {slot} ({evaluator._describe(slot)})" for slot in missing_free)
         )
-    _check_start_in_bounds(evaluator, initial, free_slots, lower, upper)
+    internal_initial = coordinates.to_internal(initial)
+    _check_start_in_bounds(
+        coordinates.describe(evaluator),
+        internal_initial,
+        free_slots,
+        internal_lower,
+        internal_upper,
+    )
 
     try:
         start_charges = evaluator.charges(initial)
@@ -455,8 +476,14 @@ def fit(
     weight = np.ones(start_charges.size) if weights is None else _flat(weights, "weights", sizes)
 
     start_jacobian = evaluator.jacobian(initial, free_slots, (lower, upper))
+    # Sensitivity counts in the coordinates the optimizer varies: with a transform, a slot whose own
+    # value does not move the charges can still move them through the slots that depend on it.
+    start_derivative = coordinates.derivative(internal_initial)[np.ix_(free_slots, free_slots)]
+    internal_start_jacobian = start_jacobian @ start_derivative
     insensitive = [
-        slot for column, slot in enumerate(free_slots) if not start_jacobian[:, column].any()
+        slot
+        for column, slot in enumerate(free_slots)
+        if not internal_start_jacobian[:, column].any()
     ]
     if insensitive:
         raise ValueError(
@@ -470,10 +497,13 @@ def fit(
     failed = 0
     failed_messages: list[str] = []
 
+    def internal_of(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+        internal = internal_initial.copy()
+        internal[free_slots] = free_values
+        return internal
+
     def values_of(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
-        values = initial.copy()
-        values[free_slots] = free_values
-        return values
+        return coordinates.to_values(internal_of(free_values))
 
     def residuals(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
         nonlocal failed
@@ -488,18 +518,21 @@ def fit(
         return weight * (charges - reference)
 
     def jacobian(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
-        values = values_of(free_values)
-        if np.array_equal(values, initial):
+        internal = internal_of(free_values)
+        values = coordinates.to_values(internal)
+        if np.array_equal(internal, internal_initial):
             charges_jacobian = start_jacobian
         else:
             charges_jacobian = evaluator.jacobian(values, free_slots, (lower, upper))
-        return weight[:, np.newaxis] * charges_jacobian
+        # The chain rule from values to the internal coordinates the optimizer varies.
+        derivative = coordinates.derivative(internal)[np.ix_(free_slots, free_slots)]
+        return weight[:, np.newaxis] * (charges_jacobian @ derivative)
 
     solution = least_squares(
         residuals,
-        initial[free_slots],
+        internal_initial[free_slots],
         jac=jacobian,
-        bounds=(lower[free_slots], upper[free_slots]),
+        bounds=(internal_lower[free_slots], internal_upper[free_slots]),
         method="trf",
         x_scale="jac",
         max_nfev=max_evaluations,
@@ -513,10 +546,10 @@ def fit(
         final_charges,
         reference,
         final_jacobian,
-        fitted,
+        internal_of(solution.x),
         free_slots,
-        lower,
-        upper,
+        internal_lower,
+        internal_upper,
         failed_messages,
         evaluator._charge_elements(),
         tuple(evaluator.matches[slot] for slot in free_slots),
@@ -671,7 +704,7 @@ def _read_only(values: NDArray[np.float64]) -> NDArray[np.float64]:
 
 
 def _check_start_in_bounds(
-    evaluator: Evaluator,
+    describe: Callable[[int], str],
     start: NDArray[np.float64],
     free: Sequence[int],
     lower: NDArray[np.float64],
@@ -692,11 +725,97 @@ def _check_start_in_bounds(
             "the start must lie strictly inside the bounds of every free slot, at least "
             "1e-10 * max(1, |bound|) from a finite bound; change the start or the bounds of: "
             + "; ".join(
-                f"slot {slot} ({evaluator._describe(slot)}) = {start[slot]!r} in "
+                f"slot {slot} ({describe(slot)}) = {start[slot]!r} in "
                 f"[{lower[slot]!r}, {upper[slot]!r}]"
                 for slot in outside
             )
         )
+
+
+class _Coordinates:
+    """The profile's transforms, applied together: values to internal coordinates and back.
+
+    Transforms act on disjoint slots, so they apply one after another, and the derivative of the
+    combination is the product of theirs.
+    """
+
+    def __init__(self, transforms: Sequence[profiles.Transform], layout: Sequence[Slot]) -> None:
+        self._transforms = tuple(transforms)
+        self._layout = layout
+        self._owner: dict[int, profiles.Transform] = {}
+        self._dependencies: dict[int, tuple[int, ...]] = {}
+        for transform in self._transforms:
+            for slot, depends_on in transform.dependencies(layout).items():
+                if slot in self._owner or any(d in self._owner for d in depends_on):
+                    raise ValueError("the transforms of a profile must act on separate slots")
+                self._owner[slot] = transform
+                self._dependencies[slot] = depends_on
+
+    def check(
+        self,
+        evaluator: Evaluator,
+        free: Sequence[int],
+        lower: NDArray[np.float64],
+        upper: NDArray[np.float64],
+    ) -> None:
+        """A transformed slot is unbounded, and is free whenever a slot it depends on is free."""
+
+        bounded = [s for s in self._owner if math.isfinite(lower[s]) or math.isfinite(upper[s])]
+        if bounded:
+            raise ValueError(
+                "bounds must leave these slots unbounded, because the profile transforms them and "
+                "the transform sets their bounds: "
+                + "; ".join(f"slot {s} ({self.describe(evaluator)(s)})" for s in bounded)
+            )
+        free_set = set(free)
+        held = [
+            s
+            for s, depends_on in self._dependencies.items()
+            if s not in free_set and any(d in free_set for d in depends_on)
+        ]
+        if held:
+            raise ValueError(
+                "these slots are not free, but slots their transform depends on are, so their "
+                "values would change anyway; free them too, or fix the slots they depend on: "
+                + "; ".join(f"slot {s} ({self.describe(evaluator)(s)})" for s in held)
+            )
+
+    def bounds(
+        self, lower: NDArray[np.float64], upper: NDArray[np.float64]
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        internal_lower, internal_upper = np.array(lower), np.array(upper)
+        for slot, transform in self._owner.items():
+            internal_lower[slot], internal_upper[slot] = transform.bounds
+        return internal_lower, internal_upper
+
+    def to_internal(self, values: NDArray[np.float64]) -> NDArray[np.float64]:
+        internal = np.array(values, dtype=np.float64)
+        for transform in reversed(self._transforms):
+            internal = transform.to_internal(internal, self._layout)
+        return internal
+
+    def to_values(self, internal: NDArray[np.float64]) -> NDArray[np.float64]:
+        values = np.array(internal, dtype=np.float64)
+        for transform in self._transforms:
+            values = transform.to_values(values, self._layout)
+        return values
+
+    def derivative(self, internal: NDArray[np.float64]) -> NDArray[np.float64]:
+        result = np.eye(len(self._layout))
+        point = np.array(internal, dtype=np.float64)
+        for transform in self._transforms:
+            result = transform.derivative(point, self._layout) @ result
+            point = transform.to_values(point, self._layout)
+        return result
+
+    def describe(self, evaluator: Evaluator) -> Callable[[int], str]:
+        def described(slot: int) -> str:
+            text = evaluator._describe(slot)
+            if slot in self._owner:
+                text += f", fitted as {self._owner[slot].name}"
+            return text
+
+        return described
 
 
 def _flat(

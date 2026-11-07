@@ -16,8 +16,9 @@
   calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
   `fit()` fits the values to reference charges with SciPy's least squares; the result's
   `parameter_set()` turns the fitted values into a parameter set. Profiles for EEM and the SQE
-  methods give default bounds, starting values, and fixed parameters; the SQE bounds keep the system
-  stable for every molecule and geometry. Fit diagnostics report R² and the error per element,
+  methods give default bounds, starting values, and fixed parameters; the SQE profiles fit each
+  hardness as √π·hardness·width − 1 ≥ 0, which keeps the system stable for every molecule and
+  geometry. Fit diagnostics report R² and the error per element,
   parameters at a bound, failed calculations, which parameters the data cannot determine, and how many
   atoms or bonds each type has. Install SciPy with the
   `parameterisation` extra.

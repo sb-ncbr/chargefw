@@ -108,7 +108,10 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
 endforeach()
 set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
     __init__.py
-    profiles.py
+    profiles/__init__.py
+    profiles/_profile.py
+    profiles/eem.py
+    profiles/sqe.py
 )
 foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
     configure_file("chargefw/parameterisation/${parameterisation_source}"
@@ -188,8 +191,10 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
             COMPONENT python)
 endforeach()
 foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
+    get_filename_component(parameterisation_subdirectory "${parameterisation_source}" DIRECTORY)
     install(FILES "chargefw/parameterisation/${parameterisation_source}"
-            DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/parameterisation
+            DESTINATION
+                ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/parameterisation/${parameterisation_subdirectory}
             COMPONENT python)
 endforeach()
 install(FILES chargefw/py.typed
