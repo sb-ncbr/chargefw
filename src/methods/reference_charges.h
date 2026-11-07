@@ -50,4 +50,25 @@ namespace chargefw::methods::detail {
     return charges;
 }
 
+// The linear part of component_normalized_charges(): subtracts each connected component's mean.
+// The normalization is this projection plus a constant, so a change of the reference charges
+// changes the normalized charges by the projected change. The projection is symmetric, so it also
+// maps a gradient with respect to the normalized charges to one with respect to the references.
+// `components` are the atom indices of each connected component, as
+// features::connected_components() returns them; a caller that outlives the topology keeps this
+// list.
+inline auto remove_component_means(const std::vector<std::vector<std::size_t>>& components,
+                                   std::vector<double>& values) -> void {
+    for (const auto& component : components) {
+        auto sum = 0.0;
+        for (const auto atom_index : component) {
+            sum += values[atom_index];
+        }
+        const auto mean = sum / static_cast<double>(component.size());
+        for (const auto atom_index : component) {
+            values[atom_index] -= mean;
+        }
+    }
+}
+
 } // namespace chargefw::methods::detail

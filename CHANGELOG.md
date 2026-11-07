@@ -39,6 +39,9 @@
   `molecular_source_format_from_string()` reads a format name.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter
   set, without checking the molecules again.
+- `Method::linearize()` returns a method's charges with their exact derivatives with respect to its
+  parameter values, as `methods::LinearizedCharges`, whose `gradient()` gives the gradient of a
+  weighted sum of the charges; SQE, SQE+q0, and SQE+qp provide it.
 - `parameters::make_parameter_template()` makes a parameter set with an entry for every atom and bond
   type of a molecule collection under chosen classifiers, with the given parameter names and zero
   values.

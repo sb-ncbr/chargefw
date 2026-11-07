@@ -347,6 +347,16 @@ with no source at an atom's position, and assemble the results; the method calcu
 it is given. The last argument, reference charges, is used by ChargeFW's cutoff and cover execution;
 leave it empty.
 
+`Method::linearize()` takes the same input and returns the charges together with their derivatives
+with respect to the parameter values, as a `methods::LinearizedCharges`, or a null pointer for a
+method without exact derivatives; SQE, SQE+q0, and SQE+qp have them. `gradient(weights)` takes one
+weight per atom and returns the gradient of the weighted sum of the charges, Σ wᵢ qᵢ, as a
+`methods::ParameterGradient`: for each parameter in `requirements()`, in that order, one value per
+atom, per bond, or one common value. A weight of 1 on one atom and 0 elsewhere gives that atom
+charge's gradient. Geometry, classification, target charge, and fixed sources stay constant. The
+object keeps its own copies, so it stays valid after the input and the parameter set are destroyed,
+and `gradient()` may be called from several threads at once.
+
 ## Methods and parameter sets
 
 `methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
