@@ -17,7 +17,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <functional>
+#include <optional>
 #include <snitch/snitch.hpp>
 #include <span>
 #include <stdexcept>
@@ -35,7 +35,24 @@ namespace parameters = chargefw::parameters;
 
 namespace {
 
-using Transform = std::function<double(const parameterization::ParameterSlot&, double)>;
+// A change of parameter values: value * scale + shift, for the values of one parameter name (all
+// values when empty), and only of one atom entry when given. Entry 0 is hydrogen and entry 1 oxygen
+// in the H/O test sets.
+struct Transform {
+    std::string_view name;
+    std::optional<std::size_t> entry;
+    double scale = 1.0;
+    double shift = 0.0;
+
+    [[nodiscard]] auto operator()(const parameterization::ParameterSlot& slot,
+                                  const double value) const -> double {
+        const auto matches =
+            (name.empty() || slot.name == name) &&
+            (!entry.has_value() ||
+             (slot.scope == parameterization::ParameterScope::atom && slot.entry_index == *entry));
+        return matches ? value * scale + shift : value;
+    }
+};
 
 auto calculate(const chargefw::core::Molecule& molecule, const std::string_view method_id,
                const parameters::ParameterSet& parameter_set,
@@ -76,16 +93,11 @@ auto max_difference(const chargefw::charges::AtomicCharges& first,
 }
 
 auto add_to(const std::string_view name, const double amount) -> Transform {
-    return [name, amount](const parameterization::ParameterSlot& slot, const double value) {
-        return slot.name == name ? value + amount : value;
-    };
+    return {.name = name, .entry = std::nullopt, .scale = 1.0, .shift = amount};
 }
 
-// Changes only the oxygen entry, the second atom entry of the H/O test sets.
 auto add_to_oxygen(const std::string_view name, const double amount) -> Transform {
-    return [name, amount](const parameterization::ParameterSlot& slot, const double value) {
-        return slot.name == name && slot.entry_index == 1 ? value + amount : value;
-    };
+    return {.name = name, .entry = 1, .scale = 1.0, .shift = amount};
 }
 
 struct InvarianceCase {
@@ -102,13 +114,9 @@ auto cases() -> std::vector<InvarianceCase> {
     const auto sqeq0 = chargefw::test::make_sqe_ho_parameters("sqeq0");
     const auto sqeqp =
         chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.1, .oxygen_q0 = -0.3});
-    const auto scale_all = [](const parameterization::ParameterSlot& /*slot*/, const double value) {
-        return 1.7 * value;
-    };
-    const auto flip_hydrogen_width = [](const parameterization::ParameterSlot& slot,
-                                        const double value) {
-        return slot.name == "width" && slot.entry_index == 0 ? -value : value;
-    };
+    const auto scale_all = Transform{.name = {}, .entry = std::nullopt, .scale = 1.7, .shift = 0.0};
+    const auto flip_hydrogen_width =
+        Transform{.name = "width", .entry = 0, .scale = -1.0, .shift = 0.0};
     return {
         {"EEM: same constant added to every A", "eem", eem, add_to("A", 0.7),
          add_to_oxygen("A", 0.7)},
