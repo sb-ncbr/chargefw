@@ -62,7 +62,7 @@ build = [
   "cp31[2-4]-win_amd64",
 ]
 test-requires = ["pytest", "jsonschema"]
-test-extras = "gemmi"
+test-extras = ["gemmi", "parameterization"]
 test-command = "pytest {project}/tests/python -q"
 
 [tool.cibuildwheel.windows]

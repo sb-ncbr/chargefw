@@ -27,7 +27,8 @@ RUN python3 -m venv /opt/venv \
         'mypy' \
         'nanobind>=2.11' \
         'numpy>=2.0' \
-        'pytest'
+        'pytest' \
+        'scipy>=1.18'
 
 WORKDIR /source
 COPY . .

@@ -15,8 +15,9 @@ Test builds use an installed Snitch 1.3.2 when CMake finds one and otherwise dow
 `CHARGEFW_FETCH_DEPENDENCIES=OFF`.
 
 The checked-in presets also build the Python bindings. Their Python interpreter needs Python 3.12 or
-newer, development headers, NumPy 2.0 or newer, Nanobind 2.11 or newer, Gemmi 0.7.4, and the test
-tools pytest, jsonschema, and mypy. RDKit is optional; its tests are skipped when it is absent. The
+newer, development headers, NumPy 2.0 or newer, Nanobind 2.11 or newer, Gemmi 0.7.4, SciPy 1.18 or
+newer for the fitting tests, and the test tools pytest, jsonschema, and mypy. RDKit is optional; its
+tests are skipped when it is absent. The
 presets use `/usr/bin/python3`; select another interpreter explicitly when needed:
 
 ```bash
