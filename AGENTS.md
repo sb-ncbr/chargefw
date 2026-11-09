@@ -104,8 +104,8 @@ should include only the individual adapter headers it uses.
   capability-checked, explicit in provenance, and validated per method.
 - Bindings, adapters, and applications translate representations into the native facade; they must not
   duplicate applicability, selection, or scientific policy.
-- Fitting algorithms and fitting-specific capabilities belong in parameterisation. Calculation, methods,
-  and parameters must not depend on parameterisation; shared scientific calculation primitives remain in
+- Fitting algorithms and fitting-specific capabilities belong in parameterization. Calculation, methods,
+  and parameters must not depend on parameterization; shared scientific calculation primitives remain in
   their owning lower domains.
 - Avoid global mutable state. The library must remain suitable for concurrent and embedded use.
 
@@ -187,7 +187,7 @@ update pinned distribution releases intentionally.
 ## C++ conventions
 
 - Use C++23. Public names remain under
-  `chargefw::{core,features,parameters,methods,charges,calculation,parameterisation,adapters}`.
+  `chargefw::{core,features,parameters,methods,charges,calculation,parameterization,adapters}`.
 - Follow `.clang-format`: LLVM-derived, four spaces, 100-column limit, left-attached pointers and
   references.
 - Prefer value ownership, `std::span` for read-only views, and explicit non-owning references/pointers

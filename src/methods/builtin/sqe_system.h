@@ -11,7 +11,7 @@
 namespace chargefw::methods::builtin::sqe_core {
 
 // The SQE equations of one input with at least one bond. Shared by calculate() and by the exact
-// derivatives (src/parameterisation), so that both solve the same system.
+// derivatives (src/parameterization), so that both solve the same system.
 struct System {
     // J: hardness on the diagonal, the atom-atom interactions off it.
     Eigen::MatrixXd charge_matrix;

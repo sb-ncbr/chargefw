@@ -11,7 +11,7 @@ namespace chargefw::methods::builtin::eem_core {
 //   M = [ A  1 ]   A_ii = B_i,   A_ij = kappa / R_ij,
 //       [ 1  0 ]   b_i = -A_i - kappa sum_s Q_s / r_is,   b_n = total charge.
 //
-// Shared by calculate() and by the exact derivatives (src/parameterisation), so that both solve the
+// Shared by calculate() and by the exact derivatives (src/parameterization), so that both solve the
 // same system.
 struct System {
     Eigen::MatrixXd matrix;

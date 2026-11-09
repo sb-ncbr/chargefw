@@ -4,7 +4,7 @@
     "name": "Ionescu 2013 (EX-MPA_6-31Gd_gas)",
     "method": "eem",
     "publication": "10.1021/ci400448n",
-    "notes": "Parameterised to reproduce HF/6-31G**/MPA/gas-phase charges",
+    "notes": "Parameterized to reproduce HF/6-31G**/MPA/gas-phase charges",
     "priority": 65
   },
   "common": {

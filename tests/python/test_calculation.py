@@ -11,7 +11,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
-from chargefw.parameterisation import EvaluationError, Evaluator
+from chargefw.parameterization import EvaluationError, Evaluator
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:

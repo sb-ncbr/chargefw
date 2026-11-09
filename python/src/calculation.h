@@ -16,7 +16,7 @@
 namespace chargefw::python {
 
 // An assessment with what the Python results need, shared by its plans and by the objects that
-// fit parameters on them (parameterisation.cpp), which keep it alive.
+// fit parameters on them (parameterization.cpp), which keep it alive.
 class NativeAssessmentState {
   public:
     NativeAssessmentState(calculation::AssessmentResult assessment,

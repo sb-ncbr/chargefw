@@ -1,7 +1,7 @@
 #include "support/test_parameters.h"
 
 #include <chargefw/methods/method_registry.h>
-#include <chargefw/parameterisation/parameter_vector.h>
+#include <chargefw/parameterization/parameter_vector.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/bond_parameters.h>
@@ -19,7 +19,7 @@
 
 #include <snitch/snitch.hpp>
 
-namespace parameterisation = chargefw::parameterisation;
+namespace parameterization = chargefw::parameterization;
 namespace parameters = chargefw::parameters;
 
 namespace {
@@ -307,8 +307,8 @@ auto check_equal_sets(const parameters::ParameterSet& expected,
     CHECK(actual.notes() == expected.notes());
     CHECK(actual.priority() == expected.priority());
     CHECK(parameters::compatible(expected, actual));
-    CHECK(parameterisation::parameter_values(actual) ==
-          parameterisation::parameter_values(expected));
+    CHECK(parameterization::parameter_values(actual) ==
+          parameterization::parameter_values(expected));
 }
 
 } // namespace

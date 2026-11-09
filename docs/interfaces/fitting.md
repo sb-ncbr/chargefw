@@ -1,12 +1,12 @@
 # Fitting parameters
 
-`chargefw.parameterisation` fits the parameter values of a method to reference charges you already
+`chargefw.parameterization` fits the parameter values of a method to reference charges you already
 have, for example charges from quantum chemistry for a set of training molecules. The result is a
 parameter set you can calculate with and save like any other. Fitting needs SciPy 1.18 or newer;
-install it with the `parameterisation` extra:
+install it with the `parameterization` extra:
 
 ```console
-$ pip install "chargefw[parameterisation]"
+$ pip install "chargefw[parameterization]"
 ```
 
 This fits SQE+qp from scratch to reference charges stored as one text file per molecule, with one
@@ -15,7 +15,7 @@ charge per line in atom order:
 ```python
 import numpy as np
 import chargefw
-from chargefw.parameterisation import Evaluator, fit, make_parameter_template
+from chargefw.parameterization import Evaluator, fit, make_parameter_template
 
 molecules = chargefw.io.read("training.sdf", format="sdf")
 references = [np.loadtxt(f"charges/{index}.txt") for index in range(len(molecules))]
@@ -227,7 +227,7 @@ for the diagnostics come on top of that number.
 Before it starts, `fit()` checks that the start lies within the limits (a value on a limit, as an
 earlier fit can leave it, is fine), that the charges can be calculated, and that every value you fit
 changes at least one charge. Otherwise it raises `ValueError` naming the slots, or
-`chargefw.parameterisation.EvaluationError` if the charges cannot be calculated.
+`chargefw.parameterization.EvaluationError` if the charges cannot be calculated.
 
 During the fit, values for which the calculation fails, for example because the system becomes
 unstable, are rejected, and the fit tries a smaller step. `result.failed_evaluations` counts them.

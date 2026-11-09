@@ -4,7 +4,7 @@
     "name": "Racek 2016 (ccd2016_npa)",
     "method": "eem",
     "publication": "10.1186/s13321-016-0171-1",
-    "notes": "Parameterised to reproduce B3LYP/6-311G/NPA charges",
+    "notes": "Parameterized to reproduce B3LYP/6-311G/NPA charges",
     "priority": 0
   },
   "common": {

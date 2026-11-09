@@ -351,12 +351,12 @@ The application-facing charge result owns those ordered imported records togethe
 execution result. Output adapters consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
 
-### Parameterisation
+### Parameterization
 
-Fitting parameter values builds on the calculation without changing it. `chargefw::parameterisation`
-(`include/chargefw/parameterisation/`, `src/parameterisation/`) may use calculation, methods,
-parameters, features, and core; none of them uses parameterisation, and no public header outside
-`chargefw/parameterisation/` mentions fitting. Calculating a plan with the values of a compatible set,
+Fitting parameter values builds on the calculation without changing it. `chargefw::parameterization`
+(`include/chargefw/parameterization/`, `src/parameterization/`) may use calculation, methods,
+parameters, features, and core; none of them uses parameterization, and no public header outside
+`chargefw/parameterization/` mentions fitting. Calculating a plan with the values of a compatible set,
 `calculation::calculate(assessment, plan, candidate)`, stays in calculation: it is ordinary execution
 with other values.
 
@@ -365,20 +365,20 @@ with other values.
   a plan with candidate values; a function that takes a plan checks that it belongs to the assessment.
   Keep it narrow, so that the public assessment header names no consumer.
 - **Exact derivatives** of EEM, SQE, SQE+q0, and SQE+qp are private to the library
-  (`src/parameterisation/method_derivatives.h`). They are attached to the built-in methods from
+  (`src/parameterization/method_derivatives.h`). They are attached to the built-in methods from
   outside, matched by their concrete, final type; the methods know nothing of them. What they share
   with the methods is the system each method solves (`sqe_system.h`, `eem_system.h`) and each SQE
   variant's initial charges, written once for both. A change to a method's equations, such as its
   interaction function, needs the matching change to its derivatives; the central-difference test of
-  every slot in `tests/cpp/parameterisation/test_method_derivatives.cpp` catches one that is missed.
+  every slot in `tests/cpp/parameterization/test_method_derivatives.cpp` catches one that is missed.
 - **Derivatives per parameter-set value.** `normal_equations()` asks each molecule for the
   derivatives of all its charges with respect to the parameter-set values it uses, one column per
   value (`LinearizedCharges::jacobian()`, forward mode). That costs about one solve per value instead
   of one per atom, and each molecule's columns reduce at once to its part of Jᵀ W² J and Jᵀ W² r; the
   Jacobian of all charges is never formed.
-- **Python.** The native fitting functions form the `_chargefw.parameterisation` submodule
-  (`python/src/parameterisation.cpp`), apart from the calculation and parameters bindings. The package
-  `chargefw.parameterisation` keeps the optimizer, the profiles, and their decisions, such as which
+- **Python.** The native fitting functions form the `_chargefw.parameterization` submodule
+  (`python/src/parameterization.cpp`), apart from the calculation and parameters bindings. The package
+  `chargefw.parameterization` keeps the optimizer, the profiles, and their decisions, such as which
   parameters of single-bonded atom types to hold; native code reports the facts those decisions rest
   on (`single_bond_entries()`). `_compression.py` turns the normal equations into the small
   least-squares model that SciPy's optimizer steps on.

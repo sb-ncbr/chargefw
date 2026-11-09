@@ -7,7 +7,7 @@
 #include <cstddef>
 
 // The keys the classifier gives single atoms and bonds under strict types, for code that builds
-// parameter sets from molecules (parameterisation::make_parameter_template()). Private to the
+// parameter sets from molecules (parameterization::make_parameter_template()). Private to the
 // library; the classifier stays the one place that decides types.
 namespace chargefw::parameters::detail {
 

@@ -42,9 +42,9 @@ file(REMOVE_RECURSE "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/adapters")
 set(CHARGEFW_PYTHON_IO_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/io")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_IO_DIRECTORY}")
-set(CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY
-    "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/parameterisation")
-file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY}")
+set(CHARGEFW_PYTHON_PARAMETERIZATION_DIRECTORY
+    "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/parameterization")
+file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_PARAMETERIZATION_DIRECTORY}")
 set(CHARGEFW_PYTHON_STUB_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_chargefw")
 set(CHARGEFW_PYTHON_PARAMETER_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}")
@@ -69,7 +69,7 @@ set(CHARGEFW_PYTHON_STUB_SOURCES
     calculation.pyi
     core.pyi
     methods.pyi
-    parameterisation.pyi
+    parameterization.pyi
     parameters.pyi
 )
 foreach(stub_source IN LISTS CHARGEFW_PYTHON_STUB_SOURCES)
@@ -107,7 +107,7 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
     configure_file("chargefw/io/${io_source}"
                    "${CHARGEFW_PYTHON_IO_DIRECTORY}/${io_source}" COPYONLY)
 endforeach()
-set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
+set(CHARGEFW_PYTHON_PARAMETERIZATION_SOURCES
     __init__.py
     _compression.py
     _coordinates.py
@@ -121,9 +121,9 @@ set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
     profiles/eem.py
     profiles/sqe.py
 )
-foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
-    configure_file("chargefw/parameterisation/${parameterisation_source}"
-                   "${CHARGEFW_PYTHON_PARAMETERISATION_DIRECTORY}/${parameterisation_source}"
+foreach(parameterization_source IN LISTS CHARGEFW_PYTHON_PARAMETERIZATION_SOURCES)
+    configure_file("chargefw/parameterization/${parameterization_source}"
+                   "${CHARGEFW_PYTHON_PARAMETERIZATION_DIRECTORY}/${parameterization_source}"
                    COPYONLY)
 endforeach()
 # The import check needs to know whether the extension was built for x86-64-v3 (optimization.cmake).
@@ -137,7 +137,7 @@ nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
     src/methods.cpp
     src/module.cpp
     src/parameters.cpp
-    src/parameterisation.cpp
+    src/parameterization.cpp
 )
 set_target_properties(chargefw_python PROPERTIES
     OUTPUT_NAME _chargefw
@@ -199,11 +199,11 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
             DESTINATION ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/io
             COMPONENT python)
 endforeach()
-foreach(parameterisation_source IN LISTS CHARGEFW_PYTHON_PARAMETERISATION_SOURCES)
-    get_filename_component(parameterisation_subdirectory "${parameterisation_source}" DIRECTORY)
-    install(FILES "chargefw/parameterisation/${parameterisation_source}"
+foreach(parameterization_source IN LISTS CHARGEFW_PYTHON_PARAMETERIZATION_SOURCES)
+    get_filename_component(parameterization_subdirectory "${parameterization_source}" DIRECTORY)
+    install(FILES "chargefw/parameterization/${parameterization_source}"
             DESTINATION
-                ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/parameterisation/${parameterisation_subdirectory}
+                ${CHARGEFW_PYTHON_INSTALL_PACKAGE_DIRECTORY}/parameterization/${parameterization_subdirectory}
             COMPONENT python)
 endforeach()
 install(FILES chargefw/py.typed

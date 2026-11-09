@@ -11,7 +11,7 @@
 
 ### Python
 
-- `chargefw.parameterisation` starts support for fitting parameter values: `make_parameter_template()`
+- `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
   makes a parameter set with an entry for every atom and bond type of your molecules, `Evaluator`
   calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
   `fit()` fits the values to reference charges with SciPy's least squares, using exact derivatives
@@ -23,14 +23,14 @@
   geometry, and start the electronegativities (EEM's A, and SQE+qp's q0) from their best values for
   the start of the other parameters, so they need no start. Fit diagnostics report R² and the error
   per element, parameters at a bound, failed calculations, which parameters the data cannot
-  determine, and how many atoms or bonds each type has. Install SciPy 1.18 or newer with the `parameterisation` extra.
+  determine, and how many atoms or bonds each type has. Install SciPy 1.18 or newer with the `parameterization` extra.
 - `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
   `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
   `chargefw.write_parameter_set()` writes any parameter set to a JSON file.
 
 ### C++
 
-- The new `chargefw::parameterisation` namespace has what fitting parameter values needs:
+- The new `chargefw::parameterization` namespace has what fitting parameter values needs:
   `make_parameter_template()` makes a parameter set with an entry for every atom and bond type of a
   molecule collection under chosen classifiers, with the given parameter names and zero values;
   `parameter_layout()` and `parameter_values()` list the values of a set in a fixed order, and

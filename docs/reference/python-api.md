@@ -342,7 +342,7 @@ The [parameter-set format](parameter-format.md#classifiers) explains classifiers
 
 ## Fitting
 
-`chargefw.parameterisation` fits parameter values to reference charges; [Fitting
+`chargefw.parameterization` fits parameter values to reference charges; [Fitting
 parameters](../interfaces/fitting.md) shows how.
 
 | Function | Returns |
@@ -350,7 +350,7 @@ parameters](../interfaces/fitting.md) shows how.
 | `make_parameter_template(molecules, method, *, atom_types, bond_types="plain", id="template")` | `ParameterSet` with an entry for every atom and bond type of the molecules, all values zero |
 | `fit(evaluator, references, *, weights=None, start=None, free=None, bounds=None, profile="default", max_evaluations=None)` | `FitResult` |
 
-`chargefw.parameterisation.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
+`chargefw.parameterization.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
 start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`.
 
 ### Evaluator
@@ -421,7 +421,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |
 | `chargefw.CalculationCancelledError` | The observer cancelled the calculation |
-| `chargefw.parameterisation.EvaluationError` | A calculation for parameter values failed during fitting or evaluation |
+| `chargefw.parameterization.EvaluationError` | A calculation for parameter values failed during fitting or evaluation |
 
 Invalid arguments raise `TypeError` or `ValueError`, files that cannot be read or written raise
 `OSError`, and a calculation that runs out of memory raises `MemoryError`.

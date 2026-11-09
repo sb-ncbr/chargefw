@@ -4,7 +4,7 @@
     "name": "Yang 1997",
     "method": "abeem",
     "publication": "10.1021/jp9711048",
-    "notes": "Parameterised to reproduce HF/STO-3G/MPA charges",
+    "notes": "Parameterized to reproduce HF/STO-3G/MPA charges",
     "priority": 0
   },
   "common":
