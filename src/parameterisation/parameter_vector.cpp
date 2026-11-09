@@ -1,10 +1,9 @@
-#include <chargefw/parameters/models/parameter_values.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/bond_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <span>
 #include <stdexcept>
@@ -13,8 +12,12 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::parameters {
+namespace chargefw::parameterisation {
 namespace {
+
+using parameters::NamedParameter;
+using parameters::ParameterSet;
+using parameters::ParameterSetMetadata;
 
 [[nodiscard]] auto value_count(const ParameterSet& set) -> std::size_t {
     auto count = set.common().size();
@@ -25,21 +28,6 @@ namespace {
         count += entry.parameters.size();
     }
     return count;
-}
-
-[[nodiscard]] auto same_names(const std::span<const NamedParameter> first,
-                              const std::span<const NamedParameter> second) -> bool {
-    return std::ranges::equal(first, second, [](const auto& lhs, const auto& rhs) -> bool {
-        return lhs.name == rhs.name;
-    });
-}
-
-template <typename Entry>
-[[nodiscard]] auto same_entries(const std::span<const Entry> first,
-                                const std::span<const Entry> second) -> bool {
-    return std::ranges::equal(first, second, [](const Entry& lhs, const Entry& rhs) -> bool {
-        return lhs.key == rhs.key && same_names(lhs.parameters, rhs.parameters);
-    });
 }
 
 template <typename Entry>
@@ -120,13 +108,6 @@ auto parameter_values(const ParameterSet& set) -> std::vector<double> {
     return values;
 }
 
-auto compatible(const ParameterSet& reference, const ParameterSet& candidate) -> bool {
-    return reference.method_id() == candidate.method_id() &&
-           same_names(reference.common().parameters(), candidate.common().parameters()) &&
-           same_entries(reference.atom().entries(), candidate.atom().entries()) &&
-           same_entries(reference.bond().entries(), candidate.bond().entries());
-}
-
 auto with_parameter_values(const ParameterSet& set, std::span<const double> values,
                            ParameterSetMetadata metadata) -> ParameterSet {
     const auto expected = value_count(set);
@@ -142,10 +123,10 @@ auto with_parameter_values(const ParameterSet& set, std::span<const double> valu
     metadata.method_id = set.method_id();
 
     // The constructors reject non-finite values.
-    auto common = CommonParameters{take_values(set.common().parameters(), values)};
-    auto atom = AtomParameters{take_entry_values(set.atom().entries(), values)};
-    auto bond = BondParameters{take_entry_values(set.bond().entries(), values)};
+    auto common = parameters::CommonParameters{take_values(set.common().parameters(), values)};
+    auto atom = parameters::AtomParameters{take_entry_values(set.atom().entries(), values)};
+    auto bond = parameters::BondParameters{take_entry_values(set.bond().entries(), values)};
     return ParameterSet{std::move(metadata), std::move(common), std::move(atom), std::move(bond)};
 }
 
-} // namespace chargefw::parameters
+} // namespace chargefw::parameterisation

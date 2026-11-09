@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace chargefw::parameters {
+namespace chargefw::parameterisation {
 
 enum class ParameterScope : std::uint8_t { common, atom, bond };
 
@@ -28,19 +28,18 @@ struct ParameterSlot {
 
 // Every value of `set` in a fixed order: the common parameters, then each atom entry with its
 // parameters, then each bond entry with its parameters, each in stored order.
-[[nodiscard]] auto parameter_layout(const ParameterSet& set) -> std::vector<ParameterSlot>;
+[[nodiscard]] auto parameter_layout(const parameters::ParameterSet& set)
+    -> std::vector<ParameterSlot>;
 
 // The values of `set` in the order of parameter_layout().
-[[nodiscard]] auto parameter_values(const ParameterSet& set) -> std::vector<double>;
-
-// True when `candidate` has the method ID, entry keys, and parameter names of `reference`, in the
-// same order; the values and the descriptive metadata may differ.
-[[nodiscard]] auto compatible(const ParameterSet& reference, const ParameterSet& candidate) -> bool;
+[[nodiscard]] auto parameter_values(const parameters::ParameterSet& set) -> std::vector<double>;
 
 // A copy of `set` with `values` in the order of parameter_layout() and the identifying `metadata`.
 // The method ID is taken from `set`; metadata.method_id must be empty or equal to it. Throws
 // std::invalid_argument for a wrong number of values, a non-finite value, or another method ID.
-[[nodiscard]] auto with_parameter_values(const ParameterSet& set, std::span<const double> values,
-                                         ParameterSetMetadata metadata) -> ParameterSet;
+[[nodiscard]] auto with_parameter_values(const parameters::ParameterSet& set,
+                                         std::span<const double> values,
+                                         parameters::ParameterSetMetadata metadata)
+    -> parameters::ParameterSet;
 
-} // namespace chargefw::parameters
+} // namespace chargefw::parameterisation

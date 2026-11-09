@@ -10,9 +10,9 @@
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/core/position.h>
 #include <chargefw/parameterisation/normal_equations.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <algorithm>
 #include <cmath>
@@ -120,7 +120,7 @@ auto differences(const calculation::AssessmentResult& assessment,
                  const calculation::ExecutionPlan& plan, const parameters::ParameterSet& candidate)
     -> std::vector<double> {
     constexpr auto step = 1e-6;
-    const auto values = parameters::parameter_values(candidate);
+    const auto values = parameterisation::parameter_values(candidate);
     const auto rows = charges_of(assessment, plan, candidate).size();
     auto jacobian = std::vector<double>(rows * values.size());
     for (std::size_t slot = 0; slot < values.size(); ++slot) {
@@ -129,9 +129,10 @@ auto differences(const calculation::AssessmentResult& assessment,
         up[slot] += step;
         down[slot] -= step;
         const auto high = charges_of(
-            assessment, plan, parameters::with_parameter_values(candidate, up, {.id = "up"}));
-        const auto low = charges_of(
-            assessment, plan, parameters::with_parameter_values(candidate, down, {.id = "down"}));
+            assessment, plan, parameterisation::with_parameter_values(candidate, up, {.id = "up"}));
+        const auto low =
+            charges_of(assessment, plan,
+                       parameterisation::with_parameter_values(candidate, down, {.id = "down"}));
         for (std::size_t row = 0; row < rows; ++row) {
             jacobian[row * values.size() + slot] = (high[row] - low[row]) / (2.0 * step);
         }
@@ -158,8 +159,8 @@ auto check_against_differences(const calculation::AssessmentResult& assessment,
                                const std::vector<double>& weights)
     -> parameterisation::NormalEquations {
     const auto& plan = *assessment.default_plan();
-    const auto candidate = parameters::with_parameter_values(
-        *plan.parameter_set(), parameters::parameter_values(*plan.parameter_set()),
+    const auto candidate = parameterisation::with_parameter_values(
+        *plan.parameter_set(), parameterisation::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
     const auto result =
         parameterisation::normal_equations(assessment, plan, candidate, references, weights);
@@ -168,7 +169,7 @@ auto check_against_differences(const calculation::AssessmentResult& assessment,
     CHECK(result.charges == charges);
 
     const auto jacobian = differences(assessment, plan, candidate);
-    const auto slots = parameters::parameter_layout(candidate).size();
+    const auto slots = parameterisation::parameter_layout(candidate).size();
     auto gauss_newton = std::vector<double>(slots * slots, 0.0);
     auto gradient = std::vector<double>(slots, 0.0);
     auto sum_of_squares = 0.0;
@@ -211,10 +212,11 @@ TEST_CASE("Normal equations match differences of the charges, by parameter name"
     const auto result = check_against_differences(assessment, row_values(8, -0.4, 0.1), weights);
 
     // The carbon entry's slots have no derivatives.
-    const auto layout = parameters::parameter_layout(*assessment.default_plan()->parameter_set());
+    const auto layout =
+        parameterisation::parameter_layout(*assessment.default_plan()->parameter_set());
     const auto slots = layout.size();
     for (std::size_t slot = 0; slot < slots; ++slot) {
-        if (layout[slot].scope == parameters::ParameterScope::atom &&
+        if (layout[slot].scope == parameterisation::ParameterScope::atom &&
             layout[slot].entry_index == 2) {
             CAPTURE(layout[slot].name);
             CHECK(result.gradient[slot] == 0.0);
@@ -265,8 +267,8 @@ TEST_CASE("Normal equations do not depend on the number of threads", "[calculati
     const auto& plan = *assessment.default_plan();
     const auto references = row_values(900, -0.3, 0.001);
     const auto weights = row_values(900, 0.2, 0.002);
-    const auto candidate = parameters::with_parameter_values(
-        *plan.parameter_set(), parameters::parameter_values(*plan.parameter_set()),
+    const auto candidate = parameterisation::with_parameter_values(
+        *plan.parameter_set(), parameterisation::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
     const auto one =
         parameterisation::normal_equations(assessment, plan, candidate, references, weights, 1);
@@ -291,8 +293,8 @@ TEST_CASE("Normal equations do not depend on the number of threads", "[calculati
 TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][derivatives]") {
     const auto assessment = assess(sqe_molecules(), unusual_sqeqp_parameters());
     const auto& plan = *assessment.default_plan();
-    const auto candidate = parameters::with_parameter_values(
-        *plan.parameter_set(), parameters::parameter_values(*plan.parameter_set()),
+    const auto candidate = parameterisation::with_parameter_values(
+        *plan.parameter_set(), parameterisation::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
     const auto references = std::vector<double>(8, 0.0);
     const auto weights = std::vector<double>(8, 1.0);
@@ -329,22 +331,22 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
         assess(sqe_molecules(), chargefw::test::make_eem_ho_parameters(0.5), std::nullopt,
                calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff, 8.0});
     const auto& cutoff_plan = *cutoff.default_plan();
-    CHECK_THROWS_AS(
-        parameterisation::normal_equations(
-            cutoff, cutoff_plan,
-            parameters::with_parameter_values(
-                *cutoff_plan.parameter_set(),
-                parameters::parameter_values(*cutoff_plan.parameter_set()), {.id = "candidate"}),
-            references, weights),
-        std::invalid_argument);
+    CHECK_THROWS_AS(parameterisation::normal_equations(
+                        cutoff, cutoff_plan,
+                        parameterisation::with_parameter_values(
+                            *cutoff_plan.parameter_set(),
+                            parameterisation::parameter_values(*cutoff_plan.parameter_set()),
+                            {.id = "candidate"}),
+                        references, weights),
+                    std::invalid_argument);
     const auto qeq = assess(sqe_molecules(), chargefw::test::make_qeq_ho_parameters());
     const auto& qeq_plan = *qeq.default_plan();
     CHECK_THROWS_AS(
         parameterisation::normal_equations(
             qeq, qeq_plan,
-            parameters::with_parameter_values(
-                *qeq_plan.parameter_set(), parameters::parameter_values(*qeq_plan.parameter_set()),
-                {.id = "candidate"}),
+            parameterisation::with_parameter_values(
+                *qeq_plan.parameter_set(),
+                parameterisation::parameter_values(*qeq_plan.parameter_set()), {.id = "candidate"}),
             references, weights),
         std::invalid_argument);
 

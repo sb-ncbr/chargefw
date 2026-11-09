@@ -6,7 +6,6 @@ target_sources(chargefw_core_objects
         parameter_view.cpp
         parameter_key.cpp
         parameter_set.cpp
-        parameter_values.cpp
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS
@@ -19,5 +18,4 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/models/parameter_key.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/models/parameter_set.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/models/parameter_set_metadata.h
-        ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/models/parameter_values.h
 )

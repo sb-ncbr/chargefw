@@ -14,9 +14,9 @@
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameterisation/normal_equations.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
 #include <chargefw/parameters/models/parameter_set.h>
-#include <chargefw/parameters/models/parameter_values.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <algorithm>
@@ -39,6 +39,7 @@
 
 namespace derivatives = chargefw::parameterisation::detail;
 namespace methods = chargefw::methods;
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
 namespace core = chargefw::core;
 
@@ -138,12 +139,13 @@ auto linearize(const core::Molecule& molecule, const std::string_view method_id,
 // oxygen, and one bond entry covers every bond.
 auto slot_columns(const core::Molecule& molecule, const methods::Method& selected,
                   const parameters::ParameterSet& parameter_set) -> derivatives::ParameterColumns {
-    const auto layout = parameters::parameter_layout(parameter_set);
-    const auto slot_of = [&layout](const parameters::ParameterScope scope, const std::size_t entry,
-                                   const std::string_view name) {
-        const auto found = std::ranges::find_if(layout, [&](const parameters::ParameterSlot& slot) {
-            return slot.scope == scope && slot.entry_index == entry && slot.name == name;
-        });
+    const auto layout = parameterisation::parameter_layout(parameter_set);
+    const auto slot_of = [&layout](const parameterisation::ParameterScope scope,
+                                   const std::size_t entry, const std::string_view name) {
+        const auto found =
+            std::ranges::find_if(layout, [&](const parameterisation::ParameterSlot& slot) {
+                return slot.scope == scope && slot.entry_index == entry && slot.name == name;
+            });
         REQUIRE(found != layout.end());
         return static_cast<std::size_t>(found - layout.begin());
     };
@@ -155,15 +157,15 @@ auto slot_columns(const core::Molecule& molecule, const methods::Method& selecte
         for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
             const auto entry =
                 molecule.atom(atom).atomic_number() == 1 ? std::size_t{0} : std::size_t{1};
-            assigned.push_back(slot_of(parameters::ParameterScope::atom, entry, name));
+            assigned.push_back(slot_of(parameterisation::ParameterScope::atom, entry, name));
         }
     }
     for (const auto name : requirements.bond_parameters) {
         columns.bond.emplace_back(molecule.bond_count(),
-                                  slot_of(parameters::ParameterScope::bond, 0, name));
+                                  slot_of(parameterisation::ParameterScope::bond, 0, name));
     }
     for (const auto name : requirements.common_parameters) {
-        columns.common.push_back(slot_of(parameters::ParameterScope::common, 0, name));
+        columns.common.push_back(slot_of(parameterisation::ParameterScope::common, 0, name));
     }
     return columns;
 }
@@ -176,9 +178,9 @@ auto column_of(const std::vector<double>& jacobian, const std::size_t atom_count
 
 auto shifted(const parameters::ParameterSet& parameter_set, const std::size_t slot,
              const double amount) -> parameters::ParameterSet {
-    auto values = parameters::parameter_values(parameter_set);
+    auto values = parameterisation::parameter_values(parameter_set);
     values[slot] += amount;
-    return parameters::with_parameter_values(parameter_set, values, {.id = "shifted"});
+    return parameterisation::with_parameter_values(parameter_set, values, {.id = "shifted"});
 }
 
 auto all_zero(const std::span<const double> values) -> bool {
@@ -226,7 +228,7 @@ TEST_CASE("Jacobian matches central differences of every slot", "[methods][sqe][
             const auto jacobian = linearized->jacobian(columns);
             REQUIRE(jacobian.size() == molecule.atom_count() * columns.count);
 
-            const auto layout = parameters::parameter_layout(parameter_set);
+            const auto layout = parameterisation::parameter_layout(parameter_set);
             for (std::size_t slot = 0; slot < layout.size(); ++slot) {
                 CAPTURE(method_id, sources.size(), layout[slot].name, layout[slot].entry_index);
                 const auto exact = column_of(jacobian, molecule.atom_count(), slot);

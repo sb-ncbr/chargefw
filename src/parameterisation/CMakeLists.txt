@@ -5,6 +5,8 @@ target_sources(chargefw_core_objects
         method_derivatives.h
         normal_equations.cpp
         parameter_columns.h
+        parameter_template.cpp
+        parameter_vector.cpp
         sqe_derivatives.cpp
         PUBLIC
         FILE_SET HEADERS
@@ -12,4 +14,6 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/normal_equations.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/parameter_template.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/parameter_vector.h
 )

@@ -12,7 +12,6 @@
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/parameters/models/parameter_set.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <chrono>
 #include <cstddef>

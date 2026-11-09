@@ -1,11 +1,11 @@
 #include "support/test_parameters.h"
 
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/bond_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <array>
 #include <limits>
@@ -15,8 +15,9 @@
 #include <utility>
 #include <vector>
 
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
-using parameters::ParameterScope;
+using parameterisation::ParameterScope;
 
 namespace {
 
@@ -47,15 +48,15 @@ TEST_CASE("parameter layout lists common, atom, and bond values in order",
           "[parameters][parameter-values]") {
     const auto set = make_set({});
 
-    const auto expected = std::vector<parameters::ParameterSlot>{
+    const auto expected = std::vector<parameterisation::ParameterSlot>{
         {.scope = ParameterScope::common, .entry_index = 0, .name = "kappa"},
         {.scope = ParameterScope::atom, .entry_index = 0, .name = "A"},
         {.scope = ParameterScope::atom, .entry_index = 0, .name = "B"},
         {.scope = ParameterScope::atom, .entry_index = 1, .name = "A"},
         {.scope = ParameterScope::atom, .entry_index = 1, .name = "B"},
         {.scope = ParameterScope::bond, .entry_index = 0, .name = "kappa"}};
-    CHECK(parameters::parameter_layout(set) == expected);
-    CHECK(parameters::parameter_values(set) == std::vector{0.5, 1.0, 2.0, 3.0, 4.0, 5.0});
+    CHECK(parameterisation::parameter_layout(set) == expected);
+    CHECK(parameterisation::parameter_values(set) == std::vector{0.5, 1.0, 2.0, 3.0, 4.0, 5.0});
 }
 
 TEST_CASE("new parameter values keep the keys and names of the set",
@@ -63,14 +64,15 @@ TEST_CASE("new parameter values keep the keys and names of the set",
     const auto set = make_set({});
     const auto values = std::array{1.5, -1.0, 2.5, -3.0, 4.5, 6.0};
 
-    const auto candidate =
-        parameters::with_parameter_values(set, values, {.id = "candidate", .name = "Candidate"});
+    const auto candidate = parameterisation::with_parameter_values(
+        set, values, {.id = "candidate", .name = "Candidate"});
 
     CHECK(candidate.id() == "candidate");
     CHECK(candidate.name() == "Candidate");
     CHECK(candidate.method_id() == "test");
-    CHECK(parameters::parameter_values(candidate) == std::vector(values.begin(), values.end()));
-    CHECK(parameters::parameter_layout(candidate) == parameters::parameter_layout(set));
+    CHECK(parameterisation::parameter_values(candidate) ==
+          std::vector(values.begin(), values.end()));
+    CHECK(parameterisation::parameter_layout(candidate) == parameterisation::parameter_layout(set));
     CHECK(parameters::compatible(set, candidate));
 }
 
@@ -117,15 +119,16 @@ TEST_CASE("new parameter values are rejected for a wrong count, non-finite value
           "[parameters][parameter-values]") {
     const auto set = make_set({});
 
-    CHECK_THROWS_AS(parameters::with_parameter_values(set, std::array{1.0}, {.id = "short"}),
+    CHECK_THROWS_AS(parameterisation::with_parameter_values(set, std::array{1.0}, {.id = "short"}),
                     std::invalid_argument);
 
-    auto values = parameters::parameter_values(set);
+    auto values = parameterisation::parameter_values(set);
     values[3] = std::numeric_limits<double>::quiet_NaN();
-    CHECK_THROWS_AS(parameters::with_parameter_values(set, values, {.id = "nan"}),
+    CHECK_THROWS_AS(parameterisation::with_parameter_values(set, values, {.id = "nan"}),
                     std::invalid_argument);
 
-    CHECK_THROWS_AS(parameters::with_parameter_values(set, parameters::parameter_values(set),
-                                                      {.id = "other", .method_id = "eem"}),
+    CHECK_THROWS_AS(parameterisation::with_parameter_values(set,
+                                                            parameterisation::parameter_values(set),
+                                                            {.id = "other", .method_id = "eem"}),
                     std::invalid_argument);
 }

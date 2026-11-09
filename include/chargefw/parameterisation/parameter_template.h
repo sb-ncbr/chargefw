@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace chargefw::parameters {
+namespace chargefw::parameterisation {
 
 // The parameter names a template gives its common parameters and each of its atom and bond entries.
 struct ParameterNames {
@@ -25,8 +25,9 @@ struct ParameterNames {
 // matches an entry under strict matching. `metadata` must name the method.
 [[nodiscard]] auto make_parameter_template(const features::PreparedMoleculeCollection& molecules,
                                            const ParameterNames& names,
-                                           AtomParameterClassificationKind atom_types,
-                                           BondParameterClassificationKind bond_types,
-                                           ParameterSetMetadata metadata) -> ParameterSet;
+                                           parameters::AtomParameterClassificationKind atom_types,
+                                           parameters::BondParameterClassificationKind bond_types,
+                                           parameters::ParameterSetMetadata metadata)
+    -> parameters::ParameterSet;
 
-} // namespace chargefw::parameters
+} // namespace chargefw::parameterisation

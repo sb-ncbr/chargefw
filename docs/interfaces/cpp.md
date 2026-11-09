@@ -277,15 +277,16 @@ auto parallel = calculation::calculate(assessment, 4);
 
 `calculate(assessment, plan, candidate)` runs a plan with other values for its parameter set, still
 without checking the molecules again; fitting parameters calls it many times. Make the candidate with
-`parameters::with_parameter_values()` from `plan.parameter_set()`, described in [Methods and parameter
+`parameterisation::with_parameter_values()` from `plan.parameter_set()`, described in [Methods and parameter
 sets](#methods-and-parameter-sets), and give it an ID of its own. The result reports that ID. A
 candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
 method has no parameters throws `std::invalid_argument`.
 
 `parameterisation::normal_equations(assessment, plan, candidate, references, weights, max_threads)`,
 declared in `<chargefw/parameterisation/normal_equations.h>`, returns what a weighted least-squares fit
-of the charges needs at the candidate's values, from exact derivatives. With the charges q, your reference charges y, your weights w, and the derivatives J of the
-charges with respect to the values of `parameters::parameter_layout(candidate)`, the result holds:
+of the charges needs at the candidate's values, from exact derivatives. With the charges q, your
+reference charges y, your weights w, and the derivatives J of the charges with respect to the values
+of `parameterisation::parameter_layout(candidate)`, the result holds:
 
 - `charges`: q;
 - `sum_of_squares`: Σ (wᵢ (qᵢ − yᵢ))²;
@@ -389,17 +390,19 @@ entries and once for all bond entries, so writing a set whose entries have diffe
 `<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
 format](../reference/parameter-format.md) describes the files.
 
-To build a parameter set of your own, start from a template. `parameters::make_parameter_template()`,
-declared in `<chargefw/parameters/classification/parameter_template.h>`, makes one entry for every atom
-type and bond type that occurs in a `PreparedMoleculeCollection` under the classifiers you choose,
-gives each entry the parameter names you pass in a `ParameterNames`, and sets all values to zero. Pass
-the names the method's `requirements()` lists, and the method ID in the metadata. Every atom and bond of
-those molecules matches an entry. `parameter_layout()` and `parameter_values()`, declared in
-`<chargefw/parameters/models/parameter_values.h>`, list the values of a set in a fixed order: the common
-parameters, then each atom entry, then each bond entry, each with its parameters in stored order.
-`with_parameter_values()` copies a set with new values in that order and new metadata, keeping its keys,
-names, and method. `compatible()` tells whether two sets differ only in their values and descriptive
-metadata.
+To build a parameter set of your own, start from a template.
+`parameterisation::make_parameter_template()`, declared in
+`<chargefw/parameterisation/parameter_template.h>`, makes one entry for every atom type and bond type
+that occurs in a `PreparedMoleculeCollection` under the classifiers you choose, gives each entry the
+parameter names you pass in a `ParameterNames`, and sets all values to zero. Pass the names the
+method's `requirements()` lists, and the method ID in the metadata. Every atom and bond of those
+molecules matches an entry. `parameterisation::parameter_layout()` and `parameter_values()`, declared
+in `<chargefw/parameterisation/parameter_vector.h>`, list the values of a set in a fixed order: the
+common parameters, then each atom entry, then each bond entry, each with its parameters in stored
+order. `with_parameter_values()` copies a set with new values in that order and new metadata, keeping
+its keys, names, and method. `parameters::compatible()`, declared in
+`<chargefw/parameters/models/parameter_set.h>`, tells whether two sets differ only in their values and
+descriptive metadata.
 
 `<chargefw/parameters/io/parameter_data_paths.h>` declares
 `parameters::bundled_parameter_directory()`, the directory with the bundled sets of the installed

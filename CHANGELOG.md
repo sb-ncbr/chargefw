@@ -30,10 +30,10 @@
 
 ### C++
 
-- `parameters::parameter_layout()` and `parameter_values()` list the values of a parameter set in a
-  fixed order, `with_parameter_values()` copies a set with new values, and `compatible()` tells whether
-  two sets differ only in their values and descriptive metadata. `to_string()` names a
-  `ParameterScope`, and parameter keys can be compared with `==`.
+- `parameterisation::parameter_layout()` and `parameter_values()` list the values of a parameter set
+  in a fixed order, `with_parameter_values()` copies a set with new values, and `to_string()` names a
+  `ParameterScope`. `parameters::compatible()` tells whether two sets differ only in their values and
+  descriptive metadata, and parameter keys can be compared with `==`.
 - `calculation::to_string()` names a `CalculationPhase`.
 - `ExecutionPlan::classifications()` gives the parameter-set entries matched to the atoms and bonds
   the plan calculates.
@@ -45,7 +45,7 @@
   charges, the weighted sum of squares, Jᵀ diag(w²) J, and Jᵀ diag(w²) r of a least-squares fit of
   the charges, from exact derivatives, for the methods `parameterisation::has_exact_derivatives()`
   names: EEM, SQE, SQE+q0, and SQE+qp.
-- `parameters::make_parameter_template()` makes a parameter set with an entry for every atom and bond
+- `parameterisation::make_parameter_template()` makes a parameter set with an entry for every atom and bond
   type of a molecule collection under chosen classifiers, with the given parameter names and zero
   values.
 - `parameters::save_parameter_set_json()` writes a parameter set in the JSON format that the loading

@@ -7,11 +7,11 @@
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_registry.h>
-#include <chargefw/parameters/classification/parameter_template.h>
+#include <chargefw/parameterisation/parameter_template.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/parameters/models/parameter_key.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
@@ -74,7 +74,7 @@ auto make_parameter_template_catalog(const nb::sequence& molecules, const std::s
     metadata.id = std::move(id);
     metadata.method_id = method_id;
     auto parameter_sets = std::vector<parameters::ParameterSet>{};
-    parameter_sets.push_back(parameters::make_parameter_template(
+    parameter_sets.push_back(parameterisation::make_parameter_template(
         prepared,
         {.common = parameter_names(requirements.common_parameters),
          .atom = parameter_names(requirements.atom_parameters),
@@ -114,7 +114,7 @@ auto parameter_set_with_values(const NativeParameterCatalog& catalog, const std:
     metadata.publication = std::move(publication);
     metadata.notes = std::move(notes);
     auto parameter_sets = std::vector<parameters::ParameterSet>{};
-    parameter_sets.push_back(parameters::with_parameter_values(
+    parameter_sets.push_back(parameterisation::with_parameter_values(
         find_parameter_set(catalog, id), std::span{values.data(), values.size()},
         std::move(metadata)));
     return NativeParameterCatalog{std::move(parameter_sets)};

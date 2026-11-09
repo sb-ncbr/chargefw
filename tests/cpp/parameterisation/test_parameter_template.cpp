@@ -6,10 +6,10 @@
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
+#include <chargefw/parameterisation/parameter_template.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
-#include <chargefw/parameters/classification/parameter_template.h>
 #include <chargefw/parameters/models/parameter_key.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <array>
 #include <cstddef>
@@ -19,6 +19,7 @@
 
 namespace core = chargefw::core;
 namespace features = chargefw::features;
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
 using parameters::AtomParameterClassificationKind;
 using parameters::BondParameterClassificationKind;
@@ -41,7 +42,7 @@ auto make_collection() -> core::MoleculeCollection {
 }
 
 const auto sqe_names =
-    parameters::ParameterNames{.atom = {"electronegativity", "hardness"}, .bond = {"kappa"}};
+    parameterisation::ParameterNames{.atom = {"electronegativity", "hardness"}, .bond = {"kappa"}};
 
 } // namespace
 
@@ -50,7 +51,7 @@ TEST_CASE("parameter template has one zero entry per occurring type, in key orde
     const auto collection = make_collection();
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
-    const auto set = parameters::make_parameter_template(
+    const auto set = parameterisation::make_parameter_template(
         prepared, sqe_names, AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
         BondParameterClassificationKind::BOND_ORDER, {.id = "template", .method_id = "sqe"});
 
@@ -82,7 +83,7 @@ TEST_CASE("parameter template has one zero entry per occurring type, in key orde
 
     CHECK(set.method_id() == "sqe");
     CHECK(set.common().empty());
-    CHECK(parameters::parameter_values(set) == std::vector<double>(4 * 2 + 3 * 1, 0.0));
+    CHECK(parameterisation::parameter_values(set) == std::vector<double>(4 * 2 + 3 * 1, 0.0));
 }
 
 TEST_CASE("parameter template matches every atom and bond of its molecules",
@@ -98,7 +99,7 @@ TEST_CASE("parameter template matches every atom and bond of its molecules",
                     std::pair{AtomParameterClassificationKind::BONDED_ELEMENTS,
                               BondParameterClassificationKind::BOND_ORDER}}) {
         CAPTURE(parameters::to_string(atom_types), parameters::to_string(bond_types));
-        const auto set = parameters::make_parameter_template(
+        const auto set = parameterisation::make_parameter_template(
             prepared, sqe_names, atom_types, bond_types, {.id = "template", .method_id = "sqe"});
 
         for (const auto& molecule : prepared.molecules()) {
@@ -115,7 +116,7 @@ TEST_CASE("parameter template makes only the sections it has names for",
     const auto collection = make_collection();
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
-    const auto set = parameters::make_parameter_template(
+    const auto set = parameterisation::make_parameter_template(
         prepared, {.common = {"kappa"}, .atom = {"A", "B"}}, AtomParameterClassificationKind::PLAIN,
         BondParameterClassificationKind::PLAIN, {.id = "template", .method_id = "eem"});
 

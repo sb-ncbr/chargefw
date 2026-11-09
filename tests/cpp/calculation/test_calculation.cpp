@@ -16,11 +16,11 @@
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/methods/method_requirements.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
-#include <chargefw/parameters/models/parameter_values.h>
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -38,6 +38,7 @@ namespace charges = chargefw::charges;
 namespace core = chargefw::core;
 namespace features = chargefw::features;
 namespace methods = chargefw::methods;
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
 
 using chargefw::test::calculate_application;
@@ -830,8 +831,8 @@ TEST_CASE("a plan calculates with candidate parameter values without new assessm
     REQUIRE(original.calculated());
 
     // The same values under a new ID give the same charges, reported under the new ID.
-    const auto copy = parameters::with_parameter_values(
-        assessed, parameters::parameter_values(assessed), {.id = "copy"});
+    const auto copy = parameterisation::with_parameter_values(
+        assessed, parameterisation::parameter_values(assessed), {.id = "copy"});
     const auto same = calculation::calculate(assessment, *plan, copy);
     REQUIRE(same.calculated());
     CHECK(std::ranges::equal(same.charges->assignment(0).charges.values(),
@@ -841,10 +842,11 @@ TEST_CASE("a plan calculates with candidate parameter values without new assessm
     CHECK(same.effective->parameter_set_id == std::optional<std::string>{"copy"});
 
     // Equal electronegativities (A) for hydrogen and oxygen give zero charges.
-    auto values = parameters::parameter_values(assessed); // kappa, H: A, B, O: A, B
+    auto values = parameterisation::parameter_values(assessed); // kappa, H: A, B, O: A, B
     values[3] = values[1];
     const auto equal = calculation::calculate(
-        assessment, *plan, parameters::with_parameter_values(assessed, values, {.id = "equal"}));
+        assessment, *plan,
+        parameterisation::with_parameter_values(assessed, values, {.id = "equal"}));
     REQUIRE(equal.calculated());
     for (const auto charge : equal.charges->assignment(0).charges.values()) {
         CHECK(std::abs(charge) < 1e-12);
@@ -866,12 +868,12 @@ TEST_CASE("candidate parameter values are rejected for plans and sets they do no
     const auto* plan = assessment.default_plan();
     REQUIRE(plan != nullptr);
     const auto& assessed = *plan->parameter_set();
-    const auto values = parameters::parameter_values(assessed);
+    const auto values = parameterisation::parameter_values(assessed);
 
     // The assessed set's own ID would report changed values under a published name.
-    CHECK_THROWS_AS(calculation::calculate(
-                        assessment, *plan,
-                        parameters::with_parameter_values(assessed, values, assessed.metadata())),
+    CHECK_THROWS_AS(calculation::calculate(assessment, *plan,
+                                           parameterisation::with_parameter_values(
+                                               assessed, values, assessed.metadata())),
                     std::invalid_argument);
     // Another entry order would read wrong entries through the stored classifications.
     const auto reordered = parameters::ParameterSet{
@@ -884,9 +886,9 @@ TEST_CASE("candidate parameter values are rejected for plans and sets they do no
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal"});
     REQUIRE(formal_assessment.default_plan() != nullptr);
-    CHECK_THROWS_AS(calculation::calculate(
-                        formal_assessment, *formal_assessment.default_plan(),
-                        parameters::with_parameter_values(assessed, values, {.id = "candidate"})),
+    CHECK_THROWS_AS(calculation::calculate(formal_assessment, *formal_assessment.default_plan(),
+                                           parameterisation::with_parameter_values(
+                                               assessed, values, {.id = "candidate"})),
                     std::invalid_argument);
 }
 

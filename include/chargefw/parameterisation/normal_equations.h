@@ -12,7 +12,7 @@ namespace chargefw::parameterisation {
 
 // The quantities of a weighted least-squares fit of charges at one set of parameter values. Rows
 // are every charge of every assignment, concatenated in assignment order, fixed ions included;
-// slots are those of parameters::parameter_layout() of the candidate. With residuals
+// slots are those of parameter_layout() (parameter_vector.h) of the candidate. With residuals
 // r = charges - references, weights w, and the Jacobian J of the charges with respect to the slots:
 struct NormalEquations {
     // One per row.

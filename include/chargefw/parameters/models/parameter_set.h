@@ -34,4 +34,8 @@ class ParameterSet {
     BondParameters bond_;
 };
 
+// True when `candidate` has the method ID, entry keys, and parameter names of `reference`, in the
+// same order; the values and the descriptive metadata may differ.
+[[nodiscard]] auto compatible(const ParameterSet& reference, const ParameterSet& candidate) -> bool;
+
 } // namespace chargefw::parameters

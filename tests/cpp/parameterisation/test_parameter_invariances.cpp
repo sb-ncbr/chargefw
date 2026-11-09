@@ -9,9 +9,9 @@
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
 #include <chargefw/parameters/models/parameter_set.h>
-#include <chargefw/parameters/models/parameter_values.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <array>
@@ -30,11 +30,12 @@
 // fixed point sources, so that a profile never fixes a slot the data could determine.
 
 namespace methods = chargefw::methods;
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
 
 namespace {
 
-using Transform = std::function<double(const parameters::ParameterSlot&, double)>;
+using Transform = std::function<double(const parameterisation::ParameterSlot&, double)>;
 
 auto calculate(const chargefw::core::Molecule& molecule, const std::string_view method_id,
                const parameters::ParameterSet& parameter_set,
@@ -56,12 +57,12 @@ auto calculate(const chargefw::core::Molecule& molecule, const std::string_view 
 
 auto transformed(const parameters::ParameterSet& parameter_set, const Transform& transform)
     -> parameters::ParameterSet {
-    const auto layout = parameters::parameter_layout(parameter_set);
-    auto values = parameters::parameter_values(parameter_set);
+    const auto layout = parameterisation::parameter_layout(parameter_set);
+    auto values = parameterisation::parameter_values(parameter_set);
     for (std::size_t index = 0; index < layout.size(); ++index) {
         values[index] = transform(layout[index], values[index]);
     }
-    return parameters::with_parameter_values(parameter_set, values, {.id = "transformed"});
+    return parameterisation::with_parameter_values(parameter_set, values, {.id = "transformed"});
 }
 
 auto max_difference(const chargefw::charges::AtomicCharges& first,
@@ -75,14 +76,14 @@ auto max_difference(const chargefw::charges::AtomicCharges& first,
 }
 
 auto add_to(const std::string_view name, const double amount) -> Transform {
-    return [name, amount](const parameters::ParameterSlot& slot, const double value) {
+    return [name, amount](const parameterisation::ParameterSlot& slot, const double value) {
         return slot.name == name ? value + amount : value;
     };
 }
 
 // Changes only the oxygen entry, the second atom entry of the H/O test sets.
 auto add_to_oxygen(const std::string_view name, const double amount) -> Transform {
-    return [name, amount](const parameters::ParameterSlot& slot, const double value) {
+    return [name, amount](const parameterisation::ParameterSlot& slot, const double value) {
         return slot.name == name && slot.entry_index == 1 ? value + amount : value;
     };
 }
@@ -101,10 +102,11 @@ auto cases() -> std::vector<InvarianceCase> {
     const auto sqeq0 = chargefw::test::make_sqe_ho_parameters("sqeq0");
     const auto sqeqp =
         chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.1, .oxygen_q0 = -0.3});
-    const auto scale_all = [](const parameters::ParameterSlot& /*slot*/, const double value) {
+    const auto scale_all = [](const parameterisation::ParameterSlot& /*slot*/, const double value) {
         return 1.7 * value;
     };
-    const auto flip_hydrogen_width = [](const parameters::ParameterSlot& slot, const double value) {
+    const auto flip_hydrogen_width = [](const parameterisation::ParameterSlot& slot,
+                                        const double value) {
         return slot.name == "width" && slot.entry_index == 0 ? -value : value;
     };
     return {

@@ -1,4 +1,5 @@
 #include <chargefw/parameterisation/normal_equations.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 
 #include "parameterisation/method_derivatives.h"
 
@@ -17,7 +18,6 @@
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <Eigen/Core>
 
@@ -55,8 +55,7 @@ struct SlotTable {
 
 [[nodiscard]] auto make_slot_table(const methods::MethodRequirements& requirements,
                                    const parameters::ParameterSet& set,
-                                   const std::span<const parameters::ParameterSlot> layout)
-    -> SlotTable {
+                                   const std::span<const ParameterSlot> layout) -> SlotTable {
     const auto channel = [](const std::vector<std::string_view>& names,
                             const std::string_view name) -> std::optional<std::size_t> {
         const auto found = std::ranges::find(names, name);
@@ -75,17 +74,17 @@ struct SlotTable {
     for (std::size_t slot = 0; slot < layout.size(); ++slot) {
         const auto& [scope, entry, name] = layout[slot];
         switch (scope) {
-        case parameters::ParameterScope::common:
+        case ParameterScope::common:
             if (const auto index = channel(requirements.common_parameters, name)) {
                 table.common[*index] = slot;
             }
             break;
-        case parameters::ParameterScope::atom:
+        case ParameterScope::atom:
             if (const auto index = channel(requirements.atom_parameters, name)) {
                 table.atom[*index][entry] = slot;
             }
             break;
-        case parameters::ParameterScope::bond:
+        case ParameterScope::bond:
             if (const auto index = channel(requirements.bond_parameters, name)) {
                 table.bond[*index][entry] = slot;
             }
@@ -321,7 +320,7 @@ auto normal_equations(const calculation::AssessmentResult& assessment,
         throw std::invalid_argument{"weights must not be negative"};
     }
 
-    const auto layout = parameters::parameter_layout(candidate);
+    const auto layout = parameter_layout(candidate);
     const auto table = make_slot_table(requirements, candidate, layout);
     const auto slot_count = layout.size();
     auto result = NormalEquations{.charges = std::vector<double>(offsets.back(), 0.0),

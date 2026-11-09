@@ -16,8 +16,8 @@
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/parameterisation/normal_equations.h>
+#include <chargefw/parameterisation/parameter_vector.h>
 #include <chargefw/parameters/models/parameter_set.h>
-#include <chargefw/parameters/models/parameter_values.h>
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
@@ -344,15 +344,15 @@ class NativePlan {
     // The slots of the plan's parameter set, as (scope, entry index, name).
     [[nodiscard]] auto layout() const -> nb::list {
         auto result = nb::list{};
-        for (const auto& slot : parameters::parameter_layout(parameter_set())) {
-            result.append(nb::make_tuple(std::string{parameters::to_string(slot.scope)},
+        for (const auto& slot : parameterisation::parameter_layout(parameter_set())) {
+            result.append(nb::make_tuple(std::string{parameterisation::to_string(slot.scope)},
                                          slot.entry_index, slot.name));
         }
         return result;
     }
 
     [[nodiscard]] auto values() const -> nb::ndarray<nb::numpy, const double, nb::shape<-1>> {
-        return numpy_values(parameters::parameter_values(parameter_set()));
+        return numpy_values(parameterisation::parameter_values(parameter_set()));
     }
 
     // Charges of every assignment, concatenated in assignment order, for candidate values in
@@ -580,7 +580,7 @@ class NativePlan {
         const auto& assessed = parameter_set();
         auto metadata = parameters::ParameterSetMetadata{};
         metadata.id = std::string{assessed.id()} + ":candidate";
-        return parameters::with_parameter_values(assessed, values, std::move(metadata));
+        return parameterisation::with_parameter_values(assessed, values, std::move(metadata));
     }
 
     [[nodiscard]] auto parameter_set() const -> const parameters::ParameterSet& {
