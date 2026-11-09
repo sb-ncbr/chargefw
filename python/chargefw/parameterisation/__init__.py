@@ -20,6 +20,7 @@ from .._types import AtomClassifier, BondClassifier, ParameterScope
 from ..calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
 from ..core import Molecule, MoleculeCollection
 from . import profiles
+from ._compression import CompressionError, compress, resolution
 
 __all__ = [
     "Diagnostics",
@@ -88,6 +89,7 @@ class Evaluator:
         "_assignment_molecules",
         "_assignment_sizes",
         "_atomic_numbers",
+        "_exact",
         "_layout",
         "_matches",
         "_native",
@@ -114,6 +116,8 @@ class Evaluator:
         )
         self._values = np.array(self._native._values(), dtype=np.float64)
         self._values.setflags(write=False)
+        # The method provides exact derivatives, which fit() uses through _normal_equations().
+        self._exact = self._native._exact_derivatives()
         # The number of charges and the molecule of each assignment, known after the first
         # successful calculation; they depend only on the molecules and the method, not on values.
         self._assignment_sizes: tuple[int, ...] | None = None
@@ -225,6 +229,38 @@ class Evaluator:
             result[:, column] = (charges - base) / step
         return result
 
+    def _normal_equations(
+        self,
+        values: NDArray[np.float64],
+        references: NDArray[np.float64],
+        weights: NDArray[np.float64],
+    ) -> tuple[NDArray[np.float64], float, NDArray[np.float64], NDArray[np.float64]]:
+        """The charges, the weighted sum of squares, JᵀW²J, and JᵀW²r over every slot, from exact
+        derivatives; for a method that has them. Raises ``EvaluationError`` when a calculation
+        fails."""
+
+        payload = self._native._normal_equations(
+            self._vector(values),
+            np.ascontiguousarray(references, dtype=np.float64),
+            np.ascontiguousarray(weights, dtype=np.float64),
+            self._threads,
+        )
+        if (
+            payload["status"] != "success"
+            or payload["charges"] is None
+            or payload["sum_of_squares"] is None
+            or payload["gauss_newton"] is None
+            or payload["gradient"] is None
+        ):
+            raise EvaluationError(payload["failure_message"] or payload["status"])
+        size = len(self._layout)
+        return (
+            payload["charges"],
+            float(payload["sum_of_squares"]),
+            np.asarray(payload["gauss_newton"]).reshape(size, size),
+            np.asarray(payload["gradient"]),
+        )
+
     def _charge_elements(self) -> NDArray[np.int64]:
         """The atomic number of every charge, in the order of ``charges()``."""
 
@@ -307,9 +343,9 @@ class Diagnostics:
 
     ``singular_values`` come from the weighted Jacobian at the fitted values, for the free slots,
     with each column scaled to unit length, so they compare slots whatever their units; they are in
-    decreasing order. ``rank`` counts those above ``1e-6`` times the largest, well above the noise of
-    a finite-difference Jacobian. A rank below the number of free slots means the data cannot
-    determine some combination of them. ``weakest`` lists the
+    decreasing order. ``rank`` counts those above ``1e-6`` times the largest, well above rounding
+    and the noise of a finite-difference Jacobian. A rank below the number of free slots means the
+    data cannot determine some combination of them. ``weakest`` lists the
     free slots that dominate the direction of the smallest singular value: those whose share of it is
     at least half the largest share.
 
@@ -414,11 +450,18 @@ def fit(
     One array per assignment must match the assignments in number and size. ``free`` must not
     repeat a slot.
 
+    The fit takes SciPy's trust-region reflective steps. For a method with exact derivatives (EEM,
+    SQE, SQE+q0, SQE+qp), each step uses them in the form of the normal equations, whose size
+    depends on the free slots and not on the number of charges. Other methods use the forward
+    differences of ``Evaluator.jacobian()``.
+
     Before fitting, the start is checked: it must lie strictly inside the bounds of every free slot,
     at least ``1e-10 * max(1, |bound|)`` from a finite bound, so that SciPy uses it unchanged; the
-    charges must be calculable; and every free slot must change them. Calculations that fail at
-    trial values are rejected, and the optimizer tries a shorter step. A Jacobian step that fails is
-    tried the other way; if that fails too, the fit stops with ``EvaluationError``. Needs SciPy.
+    charges must be calculable; and every free slot must change a charge whose weight is not zero.
+    Calculations that fail at trial values are rejected, and the optimizer tries a shorter step. A
+    finite-difference step that fails is tried the other way; if that fails too, the fit stops with
+    ``EvaluationError``. So does a fit whose normal equations cannot represent its least-squares
+    model in floating point. Needs SciPy.
     """
 
     try:
@@ -475,16 +518,21 @@ def fit(
     reference = _flat(references, "references", sizes)
     weight = np.ones(start_charges.size) if weights is None else _flat(weights, "weights", sizes)
 
-    start_jacobian = evaluator.jacobian(initial, free_slots, (lower, upper))
+    exact = evaluator._exact
+    free_index = np.ix_(free_slots, free_slots)
     # Sensitivity counts in the coordinates the optimizer varies: with a transform, a slot whose own
     # value does not move the charges can still move them through the slots that depend on it.
-    start_derivative = coordinates.derivative(internal_initial)[np.ix_(free_slots, free_slots)]
-    internal_start_jacobian = start_jacobian @ start_derivative
-    insensitive = [
-        slot
-        for column, slot in enumerate(free_slots)
-        if not internal_start_jacobian[:, column].any()
-    ]
+    # Charges with weight zero do not count.
+    start_derivative = coordinates.derivative(internal_initial)[free_index]
+    if exact:
+        _, _, start_gram, _ = evaluator._normal_equations(initial, reference, weight)
+        sensitivity = np.diag(start_derivative.T @ start_gram[free_index] @ start_derivative)
+        sensitive = sensitivity != 0.0
+    else:
+        start_jacobian = evaluator.jacobian(initial, free_slots, (lower, upper))
+        internal_start_jacobian = (weight[:, np.newaxis] * start_jacobian) @ start_derivative
+        sensitive = internal_start_jacobian.any(axis=0)
+    insensitive = [slot for column, slot in enumerate(free_slots) if not sensitive[column]]
     if insensitive:
         raise ValueError(
             "the charges do not change with these free slots at the start, so the fit cannot "
@@ -505,28 +553,76 @@ def fit(
     def values_of(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
         return coordinates.to_values(internal_of(free_values))
 
-    def residuals(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+    def record(error: EvaluationError) -> None:
         nonlocal failed
-        try:
-            charges = evaluator.charges(values_of(free_values))
-        except EvaluationError as error:
-            # Non-finite residuals make the TRF method reject the trial and shorten its step.
-            failed += 1
-            if len(failed_messages) < 20 and str(error) not in failed_messages:
-                failed_messages.append(str(error))
-            return np.full(reference.size, np.nan)
-        return weight * (charges - reference)
+        failed += 1
+        if len(failed_messages) < 20 and str(error) not in failed_messages:
+            failed_messages.append(str(error))
 
-    def jacobian(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
-        internal = internal_of(free_values)
-        values = coordinates.to_values(internal)
-        if np.array_equal(internal, internal_initial):
-            charges_jacobian = start_jacobian
-        else:
-            charges_jacobian = evaluator.jacobian(values, free_slots, (lower, upper))
-        # The chain rule from values to the internal coordinates the optimizer varies.
-        derivative = coordinates.derivative(internal)[np.ix_(free_slots, free_slots)]
-        return weight[:, np.newaxis] * (charges_jacobian @ derivative)
+    if exact:
+        # The least-squares model in the size of the free slots, from the normal equations; see
+        # _compression. Cached, so that the residuals and the matrix of one point share one call.
+        size = len(free_slots)
+        cache: dict[bytes, tuple[NDArray[np.float64], NDArray[np.float64]]] = {}
+
+        def compressed(
+            free_values: NDArray[np.float64],
+        ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+            key = free_values.tobytes()
+            if key not in cache:
+                internal = internal_of(free_values)
+                try:
+                    _, total, gram, gradient = evaluator._normal_equations(
+                        coordinates.to_values(internal), reference, weight
+                    )
+                except EvaluationError as error:
+                    # Non-finite residuals make the TRF method reject the trial and shorten its
+                    # step.
+                    record(error)
+                    represented = (np.full(size + 1, np.nan), np.zeros((size + 1, size)))
+                else:
+                    derivative = coordinates.derivative(internal)[free_index]
+                    try:
+                        represented = compress(
+                            total,
+                            derivative.T @ gram[free_index] @ derivative,
+                            derivative.T @ gradient[free_slots],
+                        )
+                    except CompressionError as error:
+                        raise EvaluationError(
+                            f"the fit cannot continue with exact derivatives: {error}"
+                        ) from error
+                cache.clear()
+                cache[key] = represented
+            return cache[key]
+
+        def residuals(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+            return compressed(free_values)[0]
+
+        def jacobian(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+            return compressed(free_values)[1]
+
+    else:
+
+        def residuals(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+            try:
+                charges = evaluator.charges(values_of(free_values))
+            except EvaluationError as error:
+                # Non-finite residuals make the TRF method reject the trial and shorten its step.
+                record(error)
+                return np.full(reference.size, np.nan)
+            return weight * (charges - reference)
+
+        def jacobian(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
+            internal = internal_of(free_values)
+            values = coordinates.to_values(internal)
+            if np.array_equal(internal, internal_initial):
+                charges_jacobian = start_jacobian
+            else:
+                charges_jacobian = evaluator.jacobian(values, free_slots, (lower, upper))
+            # The chain rule from values to the internal coordinates the optimizer varies.
+            derivative = coordinates.derivative(internal)[free_index]
+            return weight[:, np.newaxis] * (charges_jacobian @ derivative)
 
     solution = least_squares(
         residuals,
@@ -535,17 +631,27 @@ def fit(
         bounds=(internal_lower[free_slots], internal_upper[free_slots]),
         method="trf",
         x_scale="jac",
+        loss="linear",
+        tr_solver="exact",
         max_nfev=max_evaluations,
     )
     fitted = values_of(solution.x)
     fitted.setflags(write=False)
     initial.setflags(write=False)
-    final_charges = evaluator.charges(fitted)
-    final_jacobian = weight[:, np.newaxis] * evaluator.jacobian(fitted, free_slots, (lower, upper))
+    # The diagnostics use the weighted derivatives in the parameter values, not the internal
+    # coordinates.
+    if exact:
+        final_charges, _, final_gram, _ = evaluator._normal_equations(fitted, reference, weight)
+        spectrum = _spectrum_of_gram(final_gram[free_index])
+    else:
+        final_charges = evaluator.charges(fitted)
+        spectrum = _spectrum_of_jacobian(
+            weight[:, np.newaxis] * evaluator.jacobian(fitted, free_slots, (lower, upper))
+        )
     diagnostics = _diagnostics(
         final_charges,
         reference,
-        final_jacobian,
+        spectrum,
         internal_of(solution.x),
         free_slots,
         internal_lower,
@@ -569,10 +675,46 @@ def fit(
     )
 
 
+def _spectrum_of_jacobian(
+    jacobian: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """The singular values of the Jacobian with unit columns, in decreasing order, one per column,
+    and the right singular vector of the smallest."""
+
+    norms = np.linalg.norm(jacobian, axis=0)
+    scaled = jacobian / np.where(norms > 0.0, norms, 1.0)
+    # The right singular vectors give the weakest direction. A reduced SVD has all of them when there
+    # are at least as many charges as free slots; only an underdetermined Jacobian needs the full one
+    # for its null directions, and then the left vectors are small. A full SVD of a tall Jacobian
+    # would build a square matrix in the number of charges.
+    rows, columns = scaled.shape
+    _, singular_values, right = np.linalg.svd(scaled, full_matrices=rows < columns)
+    singular_values = np.concatenate((singular_values, np.zeros(columns - singular_values.size)))
+    return singular_values, right[-1]
+
+
+def _spectrum_of_gram(
+    gram: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """As _spectrum_of_jacobian(), from JᵀJ: its eigenvalues, scaled to unit diagonal, are the
+    squared singular values, and its eigenvectors the right singular vectors."""
+
+    norms = np.sqrt(np.clip(np.diag(gram), 0.0, None))
+    scale = np.ones(norms.size)
+    np.divide(1.0, norms, out=scale, where=norms > 0.0)
+    eigenvalues, vectors = np.linalg.eigh(scale[:, np.newaxis] * gram * scale[np.newaxis, :])
+    if eigenvalues[0] < -resolution(norms.size) * max(float(eigenvalues[-1]), 0.0):
+        raise EvaluationError(
+            "the normal equations at the fitted values are not positive semidefinite "
+            f"(eigenvalue {eigenvalues[0]:.3e})"
+        )
+    return np.sqrt(np.clip(eigenvalues, 0.0, None))[::-1].copy(), vectors[:, 0]
+
+
 def _diagnostics(
     charges: NDArray[np.float64],
     reference: NDArray[np.float64],
-    jacobian: NDArray[np.float64],
+    spectrum: tuple[NDArray[np.float64], NDArray[np.float64]],
     values: NDArray[np.float64],
     free: Sequence[int],
     lower: NDArray[np.float64],
@@ -600,17 +742,9 @@ def _diagnostics(
         if at_bound(values[slot], lower[slot]) or at_bound(values[slot], upper[slot])
     )
 
-    norms = np.linalg.norm(jacobian, axis=0)
-    scaled = jacobian / np.where(norms > 0.0, norms, 1.0)
-    # The right singular vectors give the weakest direction. A reduced SVD has all of them when there
-    # are at least as many charges as free slots; only an underdetermined Jacobian needs the full one
-    # for its null directions, and then the left vectors are small. A full SVD of a tall Jacobian
-    # would build a square matrix in the number of charges.
-    rows, columns = scaled.shape
-    _, singular_values, right = np.linalg.svd(scaled, full_matrices=rows < columns)
-    singular_values = np.concatenate((singular_values, np.zeros(len(free) - singular_values.size)))
+    singular_values, smallest_direction = spectrum
     rank = int(np.sum(singular_values > 1e-6 * singular_values[0])) if singular_values[0] else 0
-    weakest_direction = np.abs(right[-1])
+    weakest_direction = np.abs(smallest_direction)
     weakest = tuple(
         free[index]
         for index in np.argsort(-weakest_direction, kind="stable")

@@ -108,6 +108,7 @@ foreach(io_source IN LISTS CHARGEFW_PYTHON_IO_SOURCES)
 endforeach()
 set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
     __init__.py
+    _compression.py
     profiles/__init__.py
     profiles/_profile.py
     profiles/eem.py

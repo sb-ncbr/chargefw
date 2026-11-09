@@ -27,7 +27,7 @@ Repository = "https://github.com/sb-ncbr/chargefw"
 
 [project.optional-dependencies]
 gemmi = ["gemmi==0.7.4"]
-parameterisation = ["scipy>=1.11"]
+parameterisation = ["scipy>=1.18"]
 rdkit = ["rdkit>=2024.9"]
 
 [project.scripts]

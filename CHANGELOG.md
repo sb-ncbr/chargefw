@@ -14,14 +14,15 @@
 - `chargefw.parameterisation` starts support for fitting parameter values: `make_parameter_template()`
   makes a parameter set with an entry for every atom and bond type of your molecules, `Evaluator`
   calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
-  `fit()` fits the values to reference charges with SciPy's least squares; the result's
+  `fit()` fits the values to reference charges with SciPy's least squares, using exact derivatives
+  for EEM, SQE, SQE+q0, and SQE+qp, whose cost then does not grow with the number of charges in each
+  step of the optimizer; the result's
   `parameter_set()` turns the fitted values into a parameter set. Profiles for EEM and the SQE
   methods give default bounds, starting values, and fixed parameters; the SQE profiles fit each
   hardness as √π·hardness·width − 1 ≥ 0, which keeps the system stable for every molecule and
   geometry. Fit diagnostics report R² and the error per element,
   parameters at a bound, failed calculations, which parameters the data cannot determine, and how many
-  atoms or bonds each type has. Install SciPy with the
-  `parameterisation` extra.
+  atoms or bonds each type has. Install SciPy 1.18 or newer with the `parameterisation` extra.
 - `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
   `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
   `chargefw.write_parameter_set()` writes any parameter set to a JSON file.

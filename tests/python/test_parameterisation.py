@@ -12,6 +12,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
+from chargefw import parameterisation
 from chargefw.parameterisation import (
     EvaluationError,
     Evaluator,
@@ -349,6 +350,16 @@ class FailingEvaluator(Evaluator):
             raise EvaluationError("oxygen electronegativity above 2.9")
         return super().charges(vector)
 
+    def _normal_equations(
+        self,
+        values: NDArray[np.float64],
+        references: NDArray[np.float64],
+        weights: NDArray[np.float64],
+    ) -> tuple[NDArray[np.float64], float, NDArray[np.float64], NDArray[np.float64]]:
+        if values[5] > 2.9:
+            raise EvaluationError("oxygen electronegativity above 2.9")
+        return super()._normal_equations(values, references, weights)
+
 
 def test_fit_rejects_trial_values_whose_calculation_fails() -> None:
     molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
@@ -516,6 +527,29 @@ def test_sqe_profile_keeps_every_fitted_type_stable() -> None:
     assert fit(evaluator, references, start=narrow, max_evaluations=1).evaluations >= 1
 
 
+def test_exact_and_forward_difference_fits_agree() -> None:
+    evaluator = training_evaluator()
+    differences = training_evaluator()
+    differences._exact = False
+    references = evaluator.charges(TRUE_VALUES)
+    start = TRUE_VALUES.copy()
+    start[DETERMINED_FREE] += 0.2
+
+    # Both paths recover the charges from the slots the data determines.
+    for path in (evaluator, differences):
+        result = fit(path, references, start=start, free=DETERMINED_FREE)
+        np.testing.assert_allclose(evaluator.charges(result.values), references, atol=1e-6)
+
+    # At the same values, the diagnostics from the normal equations match the SVD of the Jacobian.
+    weights = np.linspace(0.5, 1.5, references.size)
+    _, _, gram, _ = evaluator._normal_equations(start, references, weights)
+    jacobian = weights[:, np.newaxis] * differences.jacobian(start)
+    from_gram, _ = parameterisation._spectrum_of_gram(gram)
+    from_jacobian, _ = parameterisation._spectrum_of_jacobian(jacobian)
+    resolved = from_jacobian > 1e-3 * from_jacobian[0]
+    np.testing.assert_allclose(from_gram[resolved], from_jacobian[resolved], rtol=1e-4)
+
+
 def test_stable_hardness_pairs_each_entry_with_its_own_width(tmp_path: Path) -> None:
     # Two entries share a key; ChargeFW uses the first, and each has its own hardness and width.
     hydrogen = {"element": "H", "classifier": "plain", "type": "*"}
@@ -632,10 +666,16 @@ def test_fit_diagnostics_do_not_build_a_matrix_in_the_number_of_charges() -> Non
     evaluator = training_evaluator()
     references = evaluator.charges(TRUE_VALUES)
 
-    # A full SVD of the tall Jacobian would build a square matrix in the number of charges.
+    # With exact derivatives, the diagnostics come from the normal equations, without a Jacobian.
     with patch.object(np.linalg, "svd", wraps=np.linalg.svd) as svd:
-        fit(evaluator, references, start=FIT_START, free=FIT_FREE)
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, max_evaluations=5)
+    assert not svd.called
 
+    # With forward differences, a full SVD of the tall Jacobian would build a square matrix in the
+    # number of charges.
+    evaluator._exact = False
+    with patch.object(np.linalg, "svd", wraps=np.linalg.svd) as svd:
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, max_evaluations=5)
     assert svd.call_args.kwargs["full_matrices"] is False
 
 
