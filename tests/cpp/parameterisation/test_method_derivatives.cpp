@@ -1,3 +1,4 @@
+#include "parameterisation/method_derivatives.h"
 #include "support/test_parameters.h"
 
 #include <chargefw/charges/atomic_charges.h>
@@ -10,9 +11,9 @@
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_derivatives.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
+#include <chargefw/parameterisation/normal_equations.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_values.h>
@@ -32,9 +33,11 @@
 #include <utility>
 #include <vector>
 
-// Exact derivatives of the methods that have them (Method::linearize). The molecules use plain H
-// and O types, so atom entry 0 is hydrogen, entry 1 oxygen, and one bond entry covers every bond.
+// Exact derivatives of the methods that have them (parameterisation/method_derivatives.h). The
+// molecules use plain H and O types, so atom entry 0 is hydrogen, entry 1 oxygen, and one bond
+// entry covers every bond.
 
+namespace derivatives = chargefw::parameterisation::detail;
 namespace methods = chargefw::methods;
 namespace parameters = chargefw::parameters;
 namespace core = chargefw::core;
@@ -119,11 +122,13 @@ auto linearize(const core::Molecule& molecule, const std::string_view method_id,
                const parameters::ParameterSet& parameter_set,
                const std::span<const methods::FixedPointSource> sources,
                const std::span<const double> references = {})
-    -> std::unique_ptr<methods::LinearizedCharges> {
+    -> std::unique_ptr<derivatives::LinearizedCharges> {
     auto result =
         with_input(molecule, method_id, parameter_set, sources, references,
                    [](const methods::Method& selected, const methods::CalculationInput& input) {
-                       return selected.linearize(input);
+                       const auto* found = derivatives::derivatives_of(selected);
+                       REQUIRE(found != nullptr);
+                       return found->linearize(input);
                    });
     REQUIRE(result != nullptr);
     return result;
@@ -132,7 +137,7 @@ auto linearize(const core::Molecule& molecule, const std::string_view method_id,
 // Columns with one per slot of the parameter set's layout: atom entry 0 is hydrogen, entry 1
 // oxygen, and one bond entry covers every bond.
 auto slot_columns(const core::Molecule& molecule, const methods::Method& selected,
-                  const parameters::ParameterSet& parameter_set) -> methods::ParameterColumns {
+                  const parameters::ParameterSet& parameter_set) -> derivatives::ParameterColumns {
     const auto layout = parameters::parameter_layout(parameter_set);
     const auto slot_of = [&layout](const parameters::ParameterScope scope, const std::size_t entry,
                                    const std::string_view name) {
@@ -144,7 +149,7 @@ auto slot_columns(const core::Molecule& molecule, const methods::Method& selecte
     };
     const auto& requirements = selected.requirements();
     auto columns =
-        methods::ParameterColumns{.count = layout.size(), .atom = {}, .bond = {}, .common = {}};
+        derivatives::ParameterColumns{.count = layout.size(), .atom = {}, .bond = {}, .common = {}};
     for (const auto name : requirements.atom_parameters) {
         auto& assigned = columns.atom.emplace_back();
         for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
@@ -200,12 +205,21 @@ TEST_CASE("Linearization reproduces the calculated charges", "[methods][sqe][der
     }
 }
 
+TEST_CASE("Exact derivatives belong to the methods that have them", "[methods][derivatives]") {
+    for (const auto& [method_id, parameter_set] : cases()) {
+        CAPTURE(method_id);
+        CHECK(chargefw::parameterisation::has_exact_derivatives(method(method_id)));
+    }
+    // PEOE iterates instead of solving a system; it has no exact derivatives.
+    CHECK_FALSE(chargefw::parameterisation::has_exact_derivatives(method("peoe")));
+}
+
 TEST_CASE("Jacobian matches central differences of every slot", "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     constexpr auto step = 1e-6;
     for (const auto& [method_id, parameter_set] : cases()) {
         const auto& selected = method(method_id);
-        REQUIRE(selected.requirements().supports_exact_derivatives);
+        REQUIRE(chargefw::parameterisation::has_exact_derivatives(selected));
         for (const auto sources : source_choices) {
             const auto linearized = linearize(molecule, method_id, parameter_set, sources);
             const auto columns = slot_columns(molecule, selected, parameter_set);
@@ -233,9 +247,9 @@ TEST_CASE("Jacobian matches central differences of every slot", "[methods][sqe][
 // second atom's values belong to none, and the last column has no values. With `separate`, every
 // value has a column of its own instead.
 auto grouped_columns(const core::Molecule& molecule, const methods::Method& selected,
-                     const bool separate) -> methods::ParameterColumns {
+                     const bool separate) -> derivatives::ParameterColumns {
     const auto& requirements = selected.requirements();
-    auto columns = methods::ParameterColumns{.count = 4, .atom = {}, .bond = {}, .common = {}};
+    auto columns = derivatives::ParameterColumns{.count = 4, .atom = {}, .bond = {}, .common = {}};
     auto next = std::size_t{0};
     const auto column = [&next, separate](const std::size_t grouped) {
         return separate ? next++ : grouped;
@@ -243,7 +257,7 @@ auto grouped_columns(const core::Molecule& molecule, const methods::Method& sele
     for (std::size_t channel = 0; channel < requirements.atom_parameters.size(); ++channel) {
         auto& assigned = columns.atom.emplace_back();
         for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
-            assigned.push_back(atom == 1 && !separate ? methods::ParameterColumns::none
+            assigned.push_back(atom == 1 && !separate ? derivatives::ParameterColumns::none
                                                       : column((channel + atom) % 3));
         }
     }
@@ -263,8 +277,8 @@ auto grouped_columns(const core::Molecule& molecule, const methods::Method& sele
 }
 
 // Checks that each grouped column is the sum of the separate columns of the values it groups.
-auto check_grouping(const methods::LinearizedCharges& linearized, const core::Molecule& molecule,
-                    const methods::Method& selected) -> void {
+auto check_grouping(const derivatives::LinearizedCharges& linearized,
+                    const core::Molecule& molecule, const methods::Method& selected) -> void {
     const auto atom_count = molecule.atom_count();
     const auto grouped = grouped_columns(molecule, selected, false);
     const auto separate = grouped_columns(molecule, selected, true);
@@ -275,7 +289,7 @@ auto check_grouping(const methods::LinearizedCharges& linearized, const core::Mo
 
     auto expected = std::vector<double>(actual.size(), 0.0);
     const auto add = [&](const std::size_t group, const std::size_t value) {
-        if (group != methods::ParameterColumns::none) {
+        if (group != derivatives::ParameterColumns::none) {
             for (std::size_t atom = 0; atom < atom_count; ++atom) {
                 expected[group * atom_count + atom] += values[value * atom_count + atom];
             }

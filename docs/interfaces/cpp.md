@@ -295,10 +295,10 @@ charges with respect to the values of `parameters::parameter_layout(candidate)`,
 Give one reference charge and one weight per charge, in the order of the result's assignments with the
 charges of each assignment in atom order, fixed ions included. A weight of 0 leaves a charge out. Fixed
 ions keep their prescribed charges, so they change only the sum of squares. The plan must use full
-execution, and the method must have exact derivatives (`requirements().supports_exact_derivatives`):
-EEM, SQE, SQE+q0, and SQE+qp. The result is the same for any number of threads. Invalid arguments
-throw `std::invalid_argument`; a calculation that fails throws `std::runtime_error` or
-`std::logic_error` naming the molecule.
+execution, and the method must have exact derivatives, as
+`parameterisation::has_exact_derivatives(method)` reports: EEM, SQE, SQE+q0, and SQE+qp. The result
+is the same for any number of threads. Invalid arguments throw `std::invalid_argument`; a calculation
+that fails throws `std::runtime_error` or `std::logic_error` naming the molecule.
 
 `calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
 plan's approximate peak working memory and number of operations; [Threads and
@@ -364,19 +364,6 @@ set the target charge to the charge of the calculated atoms, supply finite charg
 with no source at an atom's position, and assemble the results; the method calculates only the atoms
 it is given. The last argument, reference charges, is used by ChargeFW's cutoff and cover execution;
 leave it empty.
-
-`Method::linearize()` takes the same input and returns the charges together with their derivatives
-with respect to the parameter values, as a `methods::LinearizedCharges`, or a null pointer for a
-method without exact derivatives; EEM, SQE, SQE+q0, and SQE+qp have them. Its `jacobian(columns)`
-returns how the charges change when groups of parameter values change, such as all atoms of one type
-in a parameter set. `methods::ParameterColumns` puts each value into one of `count` columns, or into
-none with `ParameterColumns::none`: one list per parameter in `requirements()`, in that order, with
-one entry per atom, per bond, or one common entry. The result has `atom_count × count` values,
-column after column, so entry `column * atom_count + atom` is the change of that atom's charge per
-unit change of every value in the column. The cost grows with the number of columns, not with the
-number of atoms. Geometry, classification, target charge, and fixed sources stay constant. The object
-keeps its own copies, so it stays valid after the input and the parameter set are destroyed, and
-`jacobian()` may be called from several threads at once.
 
 ## Methods and parameter sets
 

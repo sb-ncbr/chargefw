@@ -1,5 +1,7 @@
 #include <chargefw/parameterisation/normal_equations.h>
 
+#include "parameterisation/method_derivatives.h"
+
 #include "calculation/assessment_access.h"
 #include "calculation/fixed_charge_partition.h"
 #include "calculation/parallel_for.h"
@@ -13,7 +15,6 @@
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
-#include <chargefw/methods/method_derivatives.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_values.h>
@@ -106,21 +107,15 @@ struct TargetTerms {
     double sum_of_squares = 0.0;
 };
 
-[[nodiscard]] auto linearize_method(const methods::Method& method,
+[[nodiscard]] auto linearize_method(const detail::MethodDerivatives& derivatives,
                                     const methods::CalculationInput& input)
-    -> std::unique_ptr<methods::LinearizedCharges> {
-    auto result = std::unique_ptr<methods::LinearizedCharges>{};
+    -> std::unique_ptr<detail::LinearizedCharges> {
     try {
-        result = method.linearize(input);
+        return derivatives.linearize(input);
     } catch (const std::invalid_argument& error) {
         // As in ordinary calculation: invalid values for this target are a numerical failure.
         throw std::runtime_error{error.what()};
     }
-    if (result == nullptr) {
-        throw std::logic_error{"method '" + std::string{method.id()} +
-                               "' declares exact derivatives but returned none"};
-    }
-    return result;
 }
 
 auto require_finite(const std::span<const double> values) -> void {
@@ -129,18 +124,18 @@ auto require_finite(const std::span<const double> values) -> void {
     }
 }
 
-[[nodiscard]] auto
-target_terms(const methods::ApplicableMethod& selected, const features::PreparedMolecule& molecule,
-             const parameters::ParameterClassification& classification,
-             const std::optional<std::size_t> conformer_index,
-             const calculation::detail::FixedChargePartitionTarget* partition_target,
-             const SlotTable& table, const std::size_t slot_count,
-             const std::span<const double> references, const std::span<const double> weights)
-    -> TargetTerms {
+[[nodiscard]] auto target_terms(
+    const methods::ApplicableMethod& selected, const detail::MethodDerivatives& derivatives,
+    const features::PreparedMolecule& molecule,
+    const parameters::ParameterClassification& classification,
+    const std::optional<std::size_t> conformer_index,
+    const calculation::detail::FixedChargePartitionTarget* partition_target, const SlotTable& table,
+    const std::size_t slot_count, const std::span<const double> references,
+    const std::span<const double> weights) -> TargetTerms {
     const auto linearized = calculation::detail::with_target_input(
         selected, molecule, &classification, conformer_index, partition_target,
         [&](const methods::CalculationInput& input) {
-            return linearize_method(*selected.method, input);
+            return linearize_method(derivatives, input);
         });
     const auto active = linearized->charges();
     const auto atom_count = molecule.molecule().atom_count();
@@ -202,7 +197,7 @@ target_terms(const methods::ApplicableMethod& selected, const features::Prepared
     // then A = B^T B and g = B^T t.
     const auto locals = [&](const std::vector<std::size_t>& entries, const auto& classified,
                             const std::size_t count) {
-        auto columns = std::vector<std::size_t>(count, methods::ParameterColumns::none);
+        auto columns = std::vector<std::size_t>(count, detail::ParameterColumns::none);
         for (std::size_t index = 0; index < count; ++index) {
             const auto slot = entries[classified[index]];
             if (slot != no_slot) {
@@ -211,7 +206,7 @@ target_terms(const methods::ApplicableMethod& selected, const features::Prepared
         }
         return columns;
     };
-    auto columns = methods::ParameterColumns{.count = k, .atom = {}, .bond = {}, .common = {}};
+    auto columns = detail::ParameterColumns{.count = k, .atom = {}, .bond = {}, .common = {}};
     for (const auto& entries : table.atom) {
         columns.atom.push_back(locals(entries, classification.atom(), atom_count));
     }
@@ -219,13 +214,13 @@ target_terms(const methods::ApplicableMethod& selected, const features::Prepared
         columns.bond.push_back(locals(entries, classification.bond(), bond_count));
     }
     for (const auto slot : table.common) {
-        columns.common.push_back(slot == no_slot ? methods::ParameterColumns::none : local[slot]);
+        columns.common.push_back(slot == no_slot ? detail::ParameterColumns::none : local[slot]);
     }
     const auto jacobian = linearized->jacobian(columns);
     if (jacobian.size() != atom_count * k) {
         throw std::logic_error{"method jacobian does not have the shape of its parameters"};
     }
-    const Eigen::Map<const Eigen::MatrixXd> derivatives{
+    const Eigen::Map<const Eigen::MatrixXd> charge_derivatives{
         jacobian.data(), static_cast<Eigen::Index>(atom_count), static_cast<Eigen::Index>(k)};
 
     auto weighted = std::vector<std::size_t>{};
@@ -242,7 +237,7 @@ target_terms(const methods::ApplicableMethod& selected, const features::Prepared
         const auto weight = weights[row_of(atom)];
         residuals(r) = weight * (active[atom] - references[row_of(atom)]);
         result.sum_of_squares += residuals(r) * residuals(r);
-        rows.row(r) = weight * derivatives.row(static_cast<Eigen::Index>(atom));
+        rows.row(r) = weight * charge_derivatives.row(static_cast<Eigen::Index>(atom));
     }
     Eigen::Map<Eigen::MatrixXd>{result.gauss_newton.data(), static_cast<Eigen::Index>(k),
                                 static_cast<Eigen::Index>(k)}
@@ -278,6 +273,10 @@ auto check_rows(const std::span<const double> values, const std::size_t rows,
 
 } // namespace
 
+auto has_exact_derivatives(const methods::Method& method) -> bool {
+    return detail::derivatives_of(method) != nullptr;
+}
+
 auto normal_equations(const calculation::AssessmentResult& assessment,
                       const calculation::ExecutionPlan& plan,
                       const parameters::ParameterSet& candidate,
@@ -290,7 +289,8 @@ auto normal_equations(const calculation::AssessmentResult& assessment,
                                     std::string{to_string(plan.policy().mode())}};
     }
     const auto requirements = selected.method->requirements();
-    if (!requirements.supports_exact_derivatives) {
+    const auto* derivatives = detail::derivatives_of(*selected.method);
+    if (derivatives == nullptr) {
         throw std::invalid_argument{"method '" + std::string{selected.method->id()} +
                                     "' has no exact derivatives"};
     }
@@ -339,8 +339,8 @@ auto normal_equations(const calculation::AssessmentResult& assessment,
             const auto rows = offsets[target_index + 1] - offsets[target_index];
             try {
                 terms[index] = target_terms(
-                    selected, molecule, selected.classifications[target.molecule_index],
-                    target.conformer_index,
+                    selected, *derivatives, molecule,
+                    selected.classifications[target.molecule_index], target.conformer_index,
                     partition == nullptr ? nullptr : &partition->targets.at(target.molecule_index),
                     table, slot_count, references.subspan(offsets[target_index], rows),
                     weights.subspan(offsets[target_index], rows));

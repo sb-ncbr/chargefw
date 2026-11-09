@@ -28,8 +28,6 @@ target_sources(chargefw_core_objects
         qeq.cpp
         sqe.h
         sqe.cpp
-        sqe_derivatives.h
-        sqe_derivatives.cpp
         sqe_system.h
         sqeq0.h
         sqeq0.cpp
@@ -37,7 +35,6 @@ target_sources(chargefw_core_objects
         sqeqp.cpp
         eem.h
         eem.cpp
-        eem_derivatives.cpp
         eem_system.h
         smpqeq.h
         smpqeq.cpp

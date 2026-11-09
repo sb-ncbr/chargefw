@@ -2,13 +2,11 @@
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/methods/calculation_input.h>
-#include <chargefw/methods/method_derivatives.h>
 #include <chargefw/methods/method_metadata.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_prerequisites.h>
 #include <chargefw/methods/method_requirements.h>
 
-#include <memory>
 #include <span>
 #include <string_view>
 
@@ -42,12 +40,6 @@ class Method {
 
     [[nodiscard]] virtual auto calculate(const CalculationInput& input) const
         -> charges::AtomicCharges = 0;
-
-    // The charges at `input` with their first-order response to the parameter values, or nullptr
-    // when the method has no exact derivatives. Throws for invalid input and numerical failures,
-    // exactly as calculate() does; nullptr means only that the capability is missing.
-    [[nodiscard]] virtual auto linearize(const CalculationInput& input) const
-        -> std::unique_ptr<LinearizedCharges>;
 
     // Options are validated and complete. The leading-order terms match requirements().resources.
     [[nodiscard]] virtual auto estimate(const TargetSize& target,

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <chargefw/methods/method_derivatives.h>
+#include "parameterisation/method_derivatives.h"
 
 #include <Eigen/Core>
 
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace chargefw::methods::detail {
+namespace chargefw::parameterisation::detail {
 
 // Throws std::invalid_argument unless `columns` assigns every value of a method with these
 // parameters, on a molecule with these atoms and bonds, to a column below columns.count or to none.
@@ -73,4 +73,4 @@ struct ColumnBlock {
     return block;
 }
 
-} // namespace chargefw::methods::detail
+} // namespace chargefw::parameterisation::detail

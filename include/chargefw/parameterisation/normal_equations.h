@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chargefw/calculation/assessment.h>
+#include <chargefw/methods/method.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
@@ -23,6 +24,9 @@ struct NormalEquations {
     // J^T diag(w^2) r, one per slot.
     std::vector<double> gradient;
 };
+
+// Whether normal_equations() has exact derivatives for `method`: EEM, SQE, SQE+q0, and SQE+qp.
+[[nodiscard]] auto has_exact_derivatives(const methods::Method& method) -> bool;
 
 // The normal equations of `plan` with the values of `candidate`, from the exact derivatives of the
 // plan's method. `references` and `weights` have one finite value per row; weights are not

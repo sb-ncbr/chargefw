@@ -440,7 +440,7 @@ class NativePlan {
     }
 
     [[nodiscard]] auto exact_derivatives() const -> bool {
-        return plan().method().requirements().supports_exact_derivatives;
+        return parameterisation::has_exact_derivatives(plan().method());
     }
 
     [[nodiscard]] auto calculate(const std::optional<std::size_t> max_threads,

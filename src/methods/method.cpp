@@ -124,9 +124,4 @@ auto Method::add_method_specific_prerequisite_issues(const MethodPrerequisiteInp
                                                      PrerequisiteResult& /* unused */) const
     -> void {}
 
-auto Method::linearize(const CalculationInput& /* unused */) const
-    -> std::unique_ptr<LinearizedCharges> {
-    return nullptr;
-}
-
 } // namespace chargefw::methods

@@ -16,13 +16,13 @@
 // with q_split = T^T p, W_ij = dJ_ij/dwidth_i for i != j, and products taken per atom or per bond.
 // jacobian() takes one such change per column.
 
-#include "methods/builtin/sqe_derivatives.h"
+#include "parameterisation/method_derivatives.h"
+#include "parameterisation/parameter_columns.h"
 
+#include "features/topology_helpers.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
-
 #include "methods/fixed_source_validation.h"
-#include "methods/parameter_columns.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
@@ -31,6 +31,7 @@
 
 #include <Eigen/Core>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -41,8 +42,11 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::methods::builtin {
+namespace chargefw::parameterisation::detail {
 namespace {
+
+using methods::CalculationInput;
+namespace sqe_core = methods::builtin::sqe_core;
 
 // interaction() (sqe.cpp) depends on width_i through s = 2 width_i^2 + 2 width_j^2:
 // d/dwidth_i erf(d / sqrt(s)) / d = width_i * g with g = -(4 / sqrt(pi)) exp(-d^2 / s) / s^(3/2).
@@ -107,7 +111,7 @@ constexpr std::size_t electronegativity_channel = 0;
 constexpr std::size_t hardness_channel = 1;
 constexpr std::size_t width_channel = 2;
 
-class SqeLinearization final : public sqe_core::Linearization {
+class SqeLinearization final : public LinearizedCharges {
   public:
     // An input without bonds has no system.
     SqeLinearization(Eigen::VectorXd charges, std::optional<sqe_core::System> system,
@@ -132,13 +136,14 @@ class SqeLinearization final : public sqe_core::Linearization {
         return jacobian(columns, {});
     }
 
+    // jacobian(), with the initial charges changing too: by column j of initial_charges.values
+    // along column initial_charges.columns[j], for variants whose initial charges depend on
+    // parameters.
     [[nodiscard]] auto jacobian(const ParameterColumns& columns,
-                                const methods::detail::ColumnBlock& initial_charges) const
-        -> std::vector<double> override {
+                                const ColumnBlock& initial_charges) const -> std::vector<double> {
         const auto n = charges_.size();
         const auto bond_count = system_.has_value() ? system_->bonds.size() : 0;
-        methods::detail::check_columns(columns, 3, 1, 0, static_cast<std::size_t>(n), bond_count,
-                                       "SQE-family");
+        check_columns(columns, 3, 1, 0, static_cast<std::size_t>(n), bond_count, "SQE-family");
         const auto k = static_cast<Eigen::Index>(columns.count);
 
         // dq starts as d q_initial.
@@ -169,7 +174,7 @@ class SqeLinearization final : public sqe_core::Linearization {
             subtract(columns.atom[hardness_channel], split_atom_charges_);
             subtract(columns.atom[width_channel], width_terms_);
             // The dense products only for the columns that have widths or initial charges.
-            const auto widths = methods::detail::indicator_block(columns.atom[width_channel]);
+            const auto widths = indicator_block(columns.atom[width_channel]);
             const Eigen::MatrixXd width_products =
                 widths_.pairs.transpose() * (charges_.asDiagonal() * widths.values);
             for (std::size_t index = 0; index < widths.columns.size(); ++index) {
@@ -232,14 +237,13 @@ class SqeLinearization final : public sqe_core::Linearization {
     Eigen::VectorXd width_terms_;
 };
 
-} // namespace
-
-auto sqe_core::linearize(const CalculationInput& input,
-                         const std::span<const double> initial_charge_values)
-    -> std::unique_ptr<Linearization> {
+// The charges of sqe_core::calculate() with these initial charges, and their derivatives.
+[[nodiscard]] auto linearize_sqe(const CalculationInput& input,
+                                 const std::span<const double> initial_charge_values)
+    -> std::unique_ptr<SqeLinearization> {
     if (input.molecule().bond_count() == 0) {
         // calculate() returns the zero or initial charges.
-        const auto charges = calculate(input, initial_charge_values);
+        const auto charges = sqe_core::calculate(input, initial_charge_values);
         return std::make_unique<SqeLinearization>(
             Eigen::Map<const Eigen::VectorXd>{charges.data(),
                                               static_cast<Eigen::Index>(charges.size())},
@@ -252,9 +256,9 @@ auto sqe_core::linearize(const CalculationInput& input,
         initial_charge_values.size() != input.molecule().atom_count()) {
         throw std::logic_error{"SQE-family initial charge count must match atom count"};
     }
-    auto system = build_system(input, initial_charge_values);
-    solve(system);
-    Eigen::VectorXd charges = atom_charges(system);
+    auto system = sqe_core::build_system(input, initial_charge_values);
+    sqe_core::solve(system);
+    Eigen::VectorXd charges = sqe_core::atom_charges(system);
     // The check calculate() gets from AtomicCharges, which rejects non-finite charges.
     static_cast<void>(charges::AtomicCharges{
         std::vector<double>(charges.data(), charges.data() + charges.size())});
@@ -263,4 +267,117 @@ auto sqe_core::linearize(const CalculationInput& input,
                                               width_derivatives(input));
 }
 
-} // namespace chargefw::methods::builtin
+// The linear part of the SQE+qp normalization of q0 (component_normalized_charges()): subtracts
+// each bonded part's mean. The normalization is this projection plus a constant, so a change of q0
+// changes the initial charges by the projected change.
+auto remove_component_means(const std::vector<std::vector<std::size_t>>& components,
+                            const std::span<double> values) -> void {
+    for (const auto& component : components) {
+        auto sum = 0.0;
+        for (const auto atom_index : component) {
+            sum += values[atom_index];
+        }
+        const auto mean = sum / static_cast<double>(component.size());
+        for (const auto atom_index : component) {
+            values[atom_index] -= mean;
+        }
+    }
+}
+
+// SQE+qp's charges depend on q0 through the initial charges. Explicit reference charges replace
+// q0, which then has no effect.
+class SqeqpLinearization final : public LinearizedCharges {
+  public:
+    // `components` are the bonded parts, absent when q0 has no effect.
+    SqeqpLinearization(std::unique_ptr<SqeLinearization> sqe,
+                       std::optional<std::vector<std::vector<std::size_t>>> components)
+        : sqe_{std::move(sqe)}, components_{std::move(components)} {}
+
+    [[nodiscard]] auto charges() const noexcept -> std::span<const double> override {
+        return sqe_->charges();
+    }
+
+    [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
+        -> std::vector<double> override {
+        // q0 is the last atom parameter; SQE's columns are the others.
+        if (columns.atom.size() != 4) {
+            throw std::invalid_argument{
+                "SQE+qp jacobian: the columns do not match the method's parameters"};
+        }
+        auto sqe_columns = columns;
+        const auto q0 = std::move(sqe_columns.atom.back());
+        sqe_columns.atom.pop_back();
+        if (q0.size() != sqe_->charges().size() ||
+            !std::ranges::all_of(q0, [&columns](const std::size_t column) {
+                return column < columns.count || column == ParameterColumns::none;
+            })) {
+            throw std::invalid_argument{
+                "SQE+qp jacobian: the columns do not match the method's parameters"};
+        }
+        if (!components_.has_value()) {
+            return sqe_->jacobian(sqe_columns);
+        }
+        // A change of q0 changes the initial charges by its projection.
+        auto initial_charges = indicator_block(q0);
+        for (Eigen::Index index = 0; index < initial_charges.values.cols(); ++index) {
+            remove_component_means(
+                *components_, std::span{initial_charges.values.col(index).data(),
+                                        static_cast<std::size_t>(initial_charges.values.rows())});
+        }
+        return sqe_->jacobian(sqe_columns, initial_charges);
+    }
+
+  private:
+    std::unique_ptr<SqeLinearization> sqe_;
+    std::optional<std::vector<std::vector<std::size_t>>> components_;
+};
+
+class SqeDerivatives final : public MethodDerivatives {
+  public:
+    [[nodiscard]] auto linearize(const CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> override {
+        return linearize_sqe(input, {});
+    }
+};
+
+class Sqeq0Derivatives final : public MethodDerivatives {
+  public:
+    // The formal charges are input, not parameters: their derivative is zero.
+    [[nodiscard]] auto linearize(const CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> override {
+        return linearize_sqe(input, sqe_core::formal_initial_charges(input));
+    }
+};
+
+class SqeqpDerivatives final : public MethodDerivatives {
+  public:
+    [[nodiscard]] auto linearize(const CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> override {
+        const auto initial_charges = sqe_core::parameterized_initial_charges(input);
+        auto components = std::optional<std::vector<std::vector<std::size_t>>>{};
+        if (initial_charges.from_q0) {
+            components = features::connected_components(input.topology().adjacency());
+        }
+        return std::make_unique<SqeqpLinearization>(linearize_sqe(input, initial_charges.values),
+                                                    std::move(components));
+    }
+};
+
+} // namespace
+
+auto sqe_derivatives() -> const MethodDerivatives& {
+    static const SqeDerivatives derivatives;
+    return derivatives;
+}
+
+auto sqeq0_derivatives() -> const MethodDerivatives& {
+    static const Sqeq0Derivatives derivatives;
+    return derivatives;
+}
+
+auto sqeqp_derivatives() -> const MethodDerivatives& {
+    static const SqeqpDerivatives derivatives;
+    return derivatives;
+}
+
+} // namespace chargefw::parameterisation::detail

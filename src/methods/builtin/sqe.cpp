@@ -1,6 +1,5 @@
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/prerequisite_helpers.h"
-#include "methods/builtin/sqe_derivatives.h"
 #include "methods/builtin/sqe_system.h"
 
 #include "methods/fixed_source_validation.h"
@@ -14,7 +13,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -212,11 +210,6 @@ auto sqe_core::calculate(const CalculationInput& input,
 
 auto SQEMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
     return charges::AtomicCharges{sqe_core::calculate(input)};
-}
-
-auto SQEMethod::linearize(const CalculationInput& input) const
-    -> std::unique_ptr<LinearizedCharges> {
-    return sqe_core::linearize(input, {});
 }
 
 auto SQEMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const

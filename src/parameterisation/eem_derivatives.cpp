@@ -9,10 +9,11 @@
 // charges depend only on A / kappa and B / kappa, also with fixed sources, so scaling A, B, and
 // kappa together changes nothing. jacobian() takes one such change per column.
 
-#include "methods/builtin/eem.h"
+#include "parameterisation/method_derivatives.h"
+#include "parameterisation/parameter_columns.h"
+
 #include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
-#include "methods/parameter_columns.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
@@ -30,8 +31,11 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::methods::builtin {
+namespace chargefw::parameterisation::detail {
 namespace {
+
+using methods::CalculationInput;
+namespace eem_core = methods::builtin::eem_core;
 
 [[nodiscard]] auto to_vector(const Eigen::VectorXd& values) -> std::vector<double> {
     return {values.data(), values.data() + values.size()};
@@ -76,7 +80,7 @@ class EemLinearization final : public LinearizedCharges {
     [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
         -> std::vector<double> override {
         const auto n = charges_.size();
-        detail::check_columns(columns, 2, 0, 1, static_cast<std::size_t>(n), 0, "EEM");
+        check_columns(columns, 2, 0, 1, static_cast<std::size_t>(n), 0, "EEM");
         const auto k = static_cast<Eigen::Index>(columns.count);
         if (n == 0) {
             return {};
@@ -121,15 +125,23 @@ class EemLinearization final : public LinearizedCharges {
     Eigen::VectorXd kappa_terms_;
 };
 
+class EemDerivatives final : public MethodDerivatives {
+  public:
+    [[nodiscard]] auto linearize(const CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> override {
+        methods::detail::validate_fixed_source_input(input, "EEM");
+        if (input.molecule().atom_count() == 0) {
+            return std::make_unique<EemLinearization>(std::nullopt, input);
+        }
+        return std::make_unique<EemLinearization>(eem_core::build_system(input), input);
+    }
+};
+
 } // namespace
 
-auto EEMMethod::linearize(const CalculationInput& input) const
-    -> std::unique_ptr<LinearizedCharges> {
-    detail::validate_fixed_source_input(input, "EEM");
-    if (input.molecule().atom_count() == 0) {
-        return std::make_unique<EemLinearization>(std::nullopt, input);
-    }
-    return std::make_unique<EemLinearization>(eem_core::build_system(input), input);
+auto eem_derivatives() -> const MethodDerivatives& {
+    static const EemDerivatives derivatives;
+    return derivatives;
 }
 
-} // namespace chargefw::methods::builtin
+} // namespace chargefw::parameterisation::detail

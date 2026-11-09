@@ -1,11 +1,18 @@
 #pragma once
 
+#include <chargefw/methods/calculation_input.h>
+#include <chargefw/methods/method.h>
+
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <span>
 #include <vector>
 
-namespace chargefw::methods {
+// The exact derivatives of methods' charges with respect to their parameter values, private to the
+// library. They are attached to the built-in methods from outside: the methods know nothing of
+// them, and share with them only the systems they solve (sqe_system.h, eem_system.h).
+namespace chargefw::parameterisation::detail {
 
 // Groups a method's parameter values into columns for LinearizedCharges::jacobian(). Each atom
 // parameter value, bond parameter value, and common parameter belongs to one column, or to none
@@ -52,4 +59,33 @@ class LinearizedCharges {
     LinearizedCharges() = default;
 };
 
-} // namespace chargefw::methods
+// The exact derivatives of one method's charges.
+class MethodDerivatives {
+  public:
+    MethodDerivatives(const MethodDerivatives&) = delete;
+    auto operator=(const MethodDerivatives&) -> MethodDerivatives& = delete;
+    MethodDerivatives(MethodDerivatives&&) = delete;
+    auto operator=(MethodDerivatives&&) -> MethodDerivatives& = delete;
+    virtual ~MethodDerivatives() = default;
+
+    // The charges at `input`, equal to Method::calculate() of the method, with their derivatives.
+    // Throws for invalid input and numerical failures as calculate() does.
+    [[nodiscard]] virtual auto linearize(const methods::CalculationInput& input) const
+        -> std::unique_ptr<LinearizedCharges> = 0;
+
+  protected:
+    MethodDerivatives() = default;
+};
+
+// The derivatives of `method`, or nullptr when it has none. Matched by the method's concrete
+// built-in type, not by its ID.
+[[nodiscard]] auto derivatives_of(const methods::Method& method) -> const MethodDerivatives*;
+
+// The derivatives of each built-in method that has them (eem_derivatives.cpp,
+// sqe_derivatives.cpp).
+[[nodiscard]] auto eem_derivatives() -> const MethodDerivatives&;
+[[nodiscard]] auto sqe_derivatives() -> const MethodDerivatives&;
+[[nodiscard]] auto sqeq0_derivatives() -> const MethodDerivatives&;
+[[nodiscard]] auto sqeqp_derivatives() -> const MethodDerivatives&;
+
+} // namespace chargefw::parameterisation::detail

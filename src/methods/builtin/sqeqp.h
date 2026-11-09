@@ -2,8 +2,6 @@
 
 #include <chargefw/methods/method.h>
 
-#include <memory>
-
 namespace chargefw::methods::builtin {
 
 class SQEqpMethod final : public Method {
@@ -34,7 +32,6 @@ class SQEqpMethod final : public Method {
         requirements.resources.reduced_charge_policy =
             ReducedChargePolicy::parameterized_charge_components;
         requirements.supports_fixed_point_sources = true;
-        requirements.supports_exact_derivatives = true;
         return requirements;
     }
 
@@ -45,9 +42,6 @@ class SQEqpMethod final : public Method {
 
     [[nodiscard]] auto calculate(const CalculationInput& input) const
         -> charges::AtomicCharges override;
-
-    [[nodiscard]] auto linearize(const CalculationInput& input) const
-        -> std::unique_ptr<LinearizedCharges> override;
 
     [[nodiscard]] auto estimate(const TargetSize& target, const MethodOptions& options) const
         -> ResourceEstimate override;

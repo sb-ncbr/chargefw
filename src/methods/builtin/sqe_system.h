@@ -10,8 +10,8 @@
 
 namespace chargefw::methods::builtin::sqe_core {
 
-// The SQE equations of one input with at least one bond. Shared by calculate() and linearize(), so
-// both solve the same system.
+// The SQE equations of one input with at least one bond. Shared by calculate() and by the exact
+// derivatives (src/parameterisation), so that both solve the same system.
 struct System {
     // J: hardness on the diagonal, the atom-atom interactions off it.
     Eigen::MatrixXd charge_matrix;
@@ -35,5 +35,19 @@ auto solve(System& system) -> void;
 
 // q = T^T p + q_initial.
 [[nodiscard]] auto atom_charges(const System& system) -> Eigen::VectorXd;
+
+// The initial charges of SQE+q0 (sqeq0.cpp): the formal charges.
+[[nodiscard]] auto formal_initial_charges(const CalculationInput& input) -> std::vector<double>;
+
+// The initial charges of SQE+qp (sqeqp.cpp), as its calculate() uses them.
+struct ParameterizedInitialCharges {
+    // None without atoms; the reference charges when the input has them; otherwise the atom
+    // parameter q0, normalized per bonded part.
+    std::vector<double> values;
+    // Whether `values` come from q0, rather than from reference charges or no atoms.
+    bool from_q0 = false;
+};
+[[nodiscard]] auto parameterized_initial_charges(const CalculationInput& input)
+    -> ParameterizedInitialCharges;
 
 } // namespace chargefw::methods::builtin::sqe_core

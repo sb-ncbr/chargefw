@@ -22,7 +22,6 @@ target_sources(chargefw_core_objects
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/calculation_input.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method.h
-        ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_derivatives.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_requirements.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_metadata.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_options.h
