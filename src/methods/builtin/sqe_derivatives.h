@@ -1,8 +1,11 @@
 #pragma once
 
+#include "methods/parameter_columns.h"
+
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method_derivatives.h>
 
+#include <cstddef>
 #include <memory>
 #include <span>
 #include <vector>
@@ -24,6 +27,15 @@ class Linearization : public LinearizedCharges {
     // gradient(), together with the gradient with respect to the initial charges, for variants
     // whose initial charges depend on parameters.
     [[nodiscard]] virtual auto gradients(std::span<const double> cotangent) const -> Gradients = 0;
+
+    using LinearizedCharges::jacobian;
+
+    // jacobian(), with the initial charges changing too: by column j of initial_charges.values
+    // along column initial_charges.columns[j], for variants whose initial charges depend on
+    // parameters.
+    [[nodiscard]] virtual auto jacobian(const ParameterColumns& columns,
+                                        const methods::detail::ColumnBlock& initial_charges) const
+        -> std::vector<double> = 0;
 };
 
 [[nodiscard]] auto linearize(const CalculationInput& input,

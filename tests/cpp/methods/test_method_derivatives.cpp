@@ -237,6 +237,85 @@ TEST_CASE("Gradients match central differences of every slot", "[methods][sqe][d
     }
 }
 
+// Columns for jacobian() with the shape of `shape`, a gradient of the same linearization: values
+// share columns across parameters and atoms, the second atom's values belong to none, and the last
+// column has no values.
+auto mixed_columns(const methods::ParameterGradient& shape) -> methods::ParameterColumns {
+    auto columns = methods::ParameterColumns{.count = 4, .atom = {}, .bond = {}, .common = {}};
+    for (std::size_t channel = 0; channel < shape.atom.size(); ++channel) {
+        auto& assigned = columns.atom.emplace_back();
+        for (std::size_t atom = 0; atom < shape.atom[channel].size(); ++atom) {
+            assigned.push_back(atom == 1 ? methods::ParameterColumns::none : (channel + atom) % 3);
+        }
+    }
+    for (const auto& channel : shape.bond) {
+        auto& assigned = columns.bond.emplace_back();
+        for (std::size_t bond = 0; bond < channel.size(); ++bond) {
+            assigned.push_back(bond % 2);
+        }
+    }
+    columns.common.assign(shape.common.size(), 2);
+    return columns;
+}
+
+// Checks that column c of jacobian() is, for every atom, the sum of that charge's gradient over
+// the values in column c.
+auto check_columns(const methods::LinearizedCharges& linearized) -> void {
+    const auto gradients = charge_gradients(linearized);
+    const auto atom_count = gradients.size();
+    const auto columns = mixed_columns(gradients.front());
+    const auto jacobian = linearized.jacobian(columns);
+    REQUIRE(jacobian.size() == atom_count * columns.count);
+    for (std::size_t atom = 0; atom < atom_count; ++atom) {
+        auto expected = std::vector<double>(columns.count, 0.0);
+        const auto add = [&expected](const std::vector<std::vector<std::size_t>>& assigned,
+                                     const std::vector<std::vector<double>>& values) {
+            for (std::size_t channel = 0; channel < assigned.size(); ++channel) {
+                for (std::size_t index = 0; index < assigned[channel].size(); ++index) {
+                    if (assigned[channel][index] != methods::ParameterColumns::none) {
+                        expected[assigned[channel][index]] += values[channel][index];
+                    }
+                }
+            }
+        };
+        add(columns.atom, gradients[atom].atom);
+        add(columns.bond, gradients[atom].bond);
+        for (std::size_t channel = 0; channel < columns.common.size(); ++channel) {
+            expected[columns.common[channel]] += gradients[atom].common[channel];
+        }
+        for (std::size_t column = 0; column < columns.count; ++column) {
+            CAPTURE(atom, column);
+            const auto actual = jacobian[column * atom_count + atom];
+            CHECK(std::abs(actual - expected[column]) <=
+                  1e-12 * (1.0 + std::abs(expected[column])));
+        }
+    }
+}
+
+TEST_CASE("Jacobian columns are sums of the gradients", "[methods][derivatives]") {
+    const auto molecule = make_water_and_hydroxide();
+    for (const auto& [method_id, parameter_set] : cases()) {
+        for (const auto sources : source_choices) {
+            CAPTURE(method_id, sources.size());
+            const auto linearized = linearize(molecule, method_id, parameter_set, sources);
+            check_columns(*linearized);
+
+            const auto shape = linearized->gradient(std::vector<double>(5, 0.0));
+            auto outside = mixed_columns(shape);
+            outside.atom[0][0] = outside.count;
+            CHECK_THROWS_AS(linearized->jacobian(outside), std::invalid_argument);
+            auto missing = mixed_columns(shape);
+            missing.atom.pop_back();
+            CHECK_THROWS_AS(linearized->jacobian(missing), std::invalid_argument);
+        }
+        // Without bonds: SQE's bond parameter has no values, and SQE+qp still normalizes q0.
+        check_columns(*linearize(make_separate_atoms(), method_id, parameter_set, {}));
+    }
+    // References that bypass q0 leave SQE+qp's q0 without effect, as in gradient().
+    check_columns(*linearize(molecule, "sqeqp", cases()[2].parameter_set, {},
+                             std::vector{-0.6, 0.3, 0.3, -1.1, 0.1}));
+}
+
 TEST_CASE("SQE+qp q0 changes keep every bonded part's charge, and references bypass q0",
           "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();

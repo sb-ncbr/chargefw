@@ -3,10 +3,13 @@
 #include "features/topology_helpers.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_derivatives.h"
+#include "methods/parameter_columns.h"
 #include "methods/reference_charges.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/parameters/models/parameter_view.h>
+
+#include <Eigen/Core>
 
 #include <algorithm>
 #include <cmath>
@@ -62,6 +65,36 @@ class SQEqpLinearization final : public LinearizedCharges {
         }
         result.atom.push_back(std::move(q0));
         return result;
+    }
+
+    [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
+        -> std::vector<double> override {
+        // q0 is the last atom parameter; SQE's columns are the others.
+        if (columns.atom.size() != 4) {
+            throw std::invalid_argument{
+                "SQE+qp jacobian: the columns do not match the method's parameters"};
+        }
+        auto sqe_columns = columns;
+        const auto q0 = std::move(sqe_columns.atom.back());
+        sqe_columns.atom.pop_back();
+        if (q0.size() != sqe_->charges().size() ||
+            !std::ranges::all_of(q0, [&columns](const std::size_t column) {
+                return column < columns.count || column == ParameterColumns::none;
+            })) {
+            throw std::invalid_argument{
+                "SQE+qp jacobian: the columns do not match the method's parameters"};
+        }
+        if (!components_.has_value()) {
+            return sqe_->jacobian(sqe_columns);
+        }
+        // A change of q0 changes the initial charges by its projection, as in gradient().
+        auto initial_charges = methods::detail::indicator_block(q0);
+        for (Eigen::Index index = 0; index < initial_charges.values.cols(); ++index) {
+            methods::detail::remove_component_means(
+                *components_, std::span{initial_charges.values.col(index).data(),
+                                        static_cast<std::size_t>(initial_charges.values.rows())});
+        }
+        return sqe_->jacobian(sqe_columns, initial_charges);
     }
 
   private:

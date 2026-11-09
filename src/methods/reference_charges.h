@@ -6,6 +6,7 @@
 #include <chargefw/features/topology_features.h>
 
 #include <cstddef>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -58,7 +59,7 @@ namespace chargefw::methods::detail {
 // features::connected_components() returns them; a caller that outlives the topology keeps this
 // list.
 inline auto remove_component_means(const std::vector<std::vector<std::size_t>>& components,
-                                   std::vector<double>& values) -> void {
+                                   const std::span<double> values) -> void {
     for (const auto& component : components) {
         auto sum = 0.0;
         for (const auto atom_index : component) {

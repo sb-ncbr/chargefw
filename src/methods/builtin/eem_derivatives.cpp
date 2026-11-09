@@ -11,13 +11,17 @@
 //   d / d B_k   = -y_k q_k
 //   d / d kappa = -(sum_k A_k d/dA_k + sum_k B_k d/dB_k) / kappa = y . (A + B q) / kappa
 //
-// The last follows from an invariance: dividing every equation by kappa shows that the charges
-// depend only on A / kappa and B / kappa, also with fixed sources, so scaling A, B, and kappa
-// together changes nothing.
+// jacobian() goes the other way: the changes of the charges are the first n entries of
+// M^-1 (-dA - dB q + dkappa (A + B q) / kappa, 0).
+//
+// The last derivative follows from an invariance: dividing every equation by kappa shows that the
+// charges depend only on A / kappa and B / kappa, also with fixed sources, so scaling A, B, and
+// kappa together changes nothing.
 
 #include "methods/builtin/eem.h"
 #include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
+#include "methods/parameter_columns.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
@@ -108,6 +112,37 @@ class EemLinearization final : public LinearizedCharges {
         }
         require_finite(result.common);
         return result;
+    }
+
+    [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
+        -> std::vector<double> override {
+        const auto n = charges_.size();
+        detail::check_columns(columns, 2, 0, 1, static_cast<std::size_t>(n), 0, "EEM");
+        const auto k = static_cast<Eigen::Index>(columns.count);
+        if (n == 0) {
+            return {};
+        }
+
+        Eigen::MatrixXd rhs = Eigen::MatrixXd::Zero(n + 1, k);
+        for (Eigen::Index i = 0; i < n; ++i) {
+            const auto atom = static_cast<std::size_t>(i);
+            if (const auto column = columns.atom[A_channel][atom];
+                column != ParameterColumns::none) {
+                rhs(i, static_cast<Eigen::Index>(column)) -= 1.0;
+            }
+            if (const auto column = columns.atom[B_channel][atom];
+                column != ParameterColumns::none) {
+                rhs(i, static_cast<Eigen::Index>(column)) -= charges_(i);
+            }
+        }
+        if (const auto column = columns.common[kappa_channel]; column != ParameterColumns::none) {
+            rhs.col(static_cast<Eigen::Index>(column)).head(n) += kappa_terms_;
+        }
+        const Eigen::MatrixXd result = lu_->solve(rhs).topRows(n);
+
+        auto values = std::vector<double>(result.data(), result.data() + result.size());
+        require_finite(values);
+        return values;
     }
 
   private:

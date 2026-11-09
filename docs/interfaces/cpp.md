@@ -373,7 +373,15 @@ one weight per atom and returns the gradient of the weighted sum of the charges,
 atom, per bond, or one common value. A weight of 1 on one atom and 0 elsewhere gives that atom
 charge's gradient. Geometry, classification, target charge, and fixed sources stay constant. The
 object keeps its own copies, so it stays valid after the input and the parameter set are destroyed,
-and `gradient()` may be called from several threads at once.
+and its functions may be called from several threads at once.
+
+`jacobian(columns)` gives the derivatives of all charges at once when parameter values are grouped,
+as in a parameter set, where one value serves every atom of a type. `methods::ParameterColumns`
+assigns each atom, bond, and common parameter value to one of `count` columns, or to
+`ParameterColumns::none`; the result has one column per group, the change of every charge when all
+values of the group change together, stored column after column: entry `column * atom_count + atom`.
+Its cost grows with the number of columns, not the number of atoms, so use it for a few groups and
+`gradient()` for a few charges.
 
 ## Methods and parameter sets
 

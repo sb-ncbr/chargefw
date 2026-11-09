@@ -17,6 +17,8 @@
 #include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_values.h>
 
+#include <Eigen/Core>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -118,22 +120,6 @@ struct TargetTerms {
     return result;
 }
 
-auto check_gradient_shape(const methods::ParameterGradient& gradient,
-                          const methods::MethodRequirements& requirements,
-                          const std::size_t atom_count, const std::size_t bond_count) -> void {
-    const auto sized = [](const std::vector<std::vector<double>>& channels,
-                          const std::size_t size) {
-        return std::ranges::all_of(channels,
-                                   [size](const auto& values) { return values.size() == size; });
-    };
-    if (gradient.atom.size() != requirements.atom_parameters.size() ||
-        gradient.bond.size() != requirements.bond_parameters.size() ||
-        gradient.common.size() != requirements.common_parameters.size() ||
-        !sized(gradient.atom, atom_count) || !sized(gradient.bond, bond_count)) {
-        throw std::logic_error{"method gradient does not have the shape of its parameters"};
-    }
-}
-
 auto require_finite(const std::span<const double> values) -> void {
     if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
         throw std::runtime_error{"the normal equations are not finite"};
@@ -141,7 +127,6 @@ auto require_finite(const std::span<const double> values) -> void {
 }
 
 [[nodiscard]] auto target_terms(const methods::ApplicableMethod& selected,
-                                const methods::MethodRequirements& requirements,
                                 const features::PreparedMolecule& molecule,
                                 const parameters::ParameterClassification& classification,
                                 const std::optional<std::size_t> conformer_index,
@@ -208,56 +193,58 @@ auto require_finite(const std::span<const double> values) -> void {
     result.gauss_newton.assign(k * k, 0.0);
     result.gradient.assign(k, 0.0);
 
-    // One gradient per weighted row, summed into its slots: a = d q_atom / d slot. The weighted row
-    // b = w a and residual t = w r are formed first, so that w^2 is never computed on its own.
-    auto cotangent = std::vector<double>(atom_count, 0.0);
-    auto row = std::vector<double>(k, 0.0);
+    // jacobian() with the target's slots as columns gives J, one row per atom; the weighted rows
+    // B = W J and residuals t = W r are formed first, so that w^2 is never computed on its own;
+    // then A = B^T B and g = B^T t.
+    const auto locals = [&](const std::vector<std::size_t>& entries, const auto& classified,
+                            const std::size_t count) {
+        auto columns = std::vector<std::size_t>(count, methods::ParameterColumns::none);
+        for (std::size_t index = 0; index < count; ++index) {
+            const auto slot = entries[classified[index]];
+            if (slot != no_slot) {
+                columns[index] = local[slot];
+            }
+        }
+        return columns;
+    };
+    auto columns = methods::ParameterColumns{.count = k, .atom = {}, .bond = {}, .common = {}};
+    for (const auto& entries : table.atom) {
+        columns.atom.push_back(locals(entries, classification.atom(), atom_count));
+    }
+    for (const auto& entries : table.bond) {
+        columns.bond.push_back(locals(entries, classification.bond(), bond_count));
+    }
+    for (const auto slot : table.common) {
+        columns.common.push_back(slot == no_slot ? methods::ParameterColumns::none : local[slot]);
+    }
+    const auto jacobian = linearized->jacobian(columns);
+    if (jacobian.size() != atom_count * k) {
+        throw std::logic_error{"method jacobian does not have the shape of its parameters"};
+    }
+    const Eigen::Map<const Eigen::MatrixXd> derivatives{
+        jacobian.data(), static_cast<Eigen::Index>(atom_count), static_cast<Eigen::Index>(k)};
+
+    auto weighted = std::vector<std::size_t>{};
     for (std::size_t atom = 0; atom < atom_count; ++atom) {
-        const auto weight = weights[row_of(atom)];
-        if (weight == 0.0) {
-            continue;
-        }
-        const auto residual = weight * (active[atom] - references[row_of(atom)]);
-        result.sum_of_squares += residual * residual;
-
-        cotangent[atom] = 1.0;
-        const auto gradient = linearized->gradient(cotangent);
-        cotangent[atom] = 0.0;
-        check_gradient_shape(gradient, requirements, atom_count, bond_count);
-
-        std::ranges::fill(row, 0.0);
-        for (std::size_t channel = 0; channel < table.atom.size(); ++channel) {
-            for (std::size_t other = 0; other < atom_count; ++other) {
-                const auto slot = table.atom[channel][classification.atom()[other]];
-                if (slot != no_slot) {
-                    row[local[slot]] += gradient.atom[channel][other];
-                }
-            }
-        }
-        for (std::size_t channel = 0; channel < table.bond.size(); ++channel) {
-            for (std::size_t bond = 0; bond < bond_count; ++bond) {
-                const auto slot = table.bond[channel][classification.bond()[bond]];
-                if (slot != no_slot) {
-                    row[local[slot]] += gradient.bond[channel][bond];
-                }
-            }
-        }
-        for (std::size_t channel = 0; channel < table.common.size(); ++channel) {
-            if (table.common[channel] != no_slot) {
-                row[local[table.common[channel]]] += gradient.common[channel];
-            }
-        }
-
-        for (auto& value : row) {
-            value *= weight;
-        }
-        for (std::size_t first = 0; first < k; ++first) {
-            for (std::size_t second = 0; second < k; ++second) {
-                result.gauss_newton[first * k + second] += row[first] * row[second];
-            }
-            result.gradient[first] += residual * row[first];
+        if (weights[row_of(atom)] != 0.0) {
+            weighted.push_back(atom);
         }
     }
+    const auto rows_count = static_cast<Eigen::Index>(weighted.size());
+    Eigen::MatrixXd rows(rows_count, static_cast<Eigen::Index>(k));
+    Eigen::VectorXd residuals(rows_count);
+    for (Eigen::Index r = 0; r < rows_count; ++r) {
+        const auto atom = weighted[static_cast<std::size_t>(r)];
+        const auto weight = weights[row_of(atom)];
+        residuals(r) = weight * (active[atom] - references[row_of(atom)]);
+        result.sum_of_squares += residuals(r) * residuals(r);
+        rows.row(r) = weight * derivatives.row(static_cast<Eigen::Index>(atom));
+    }
+    Eigen::Map<Eigen::MatrixXd>{result.gauss_newton.data(), static_cast<Eigen::Index>(k),
+                                static_cast<Eigen::Index>(k)}
+        .noalias() = rows.transpose() * rows;
+    Eigen::Map<Eigen::VectorXd>{result.gradient.data(), static_cast<Eigen::Index>(k)}.noalias() =
+        rows.transpose() * residuals;
 
     for (const auto& source : sources) {
         const auto weight = weights[source.atom_index];
@@ -348,8 +335,8 @@ auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& p
             const auto rows = offsets[target_index + 1] - offsets[target_index];
             try {
                 terms[index] = target_terms(
-                    selected, requirements, molecule,
-                    selected.classifications[target.molecule_index], target.conformer_index,
+                    selected, molecule, selected.classifications[target.molecule_index],
+                    target.conformer_index,
                     partition == nullptr ? nullptr : &partition->targets.at(target.molecule_index),
                     table, slot_count, references.subspan(offsets[target_index], rows),
                     weights.subspan(offsets[target_index], rows));

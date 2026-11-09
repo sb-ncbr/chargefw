@@ -42,8 +42,9 @@
   set, without checking the molecules again.
 - `Method::linearize()` returns a method's charges with their exact derivatives with respect to its
   parameter values, as `methods::LinearizedCharges`, whose `gradient()` gives the gradient of a
-  weighted sum of the charges; EEM, SQE, SQE+q0, and SQE+qp provide it, as
-  `MethodRequirements::supports_exact_derivatives` reports.
+  weighted sum of the charges, and whose `jacobian()` gives the derivatives of all charges with
+  respect to groups of parameter values, such as the values of a parameter set; EEM, SQE, SQE+q0, and
+  SQE+qp provide it, as `MethodRequirements::supports_exact_derivatives` reports.
 - `calculation::normal_equations(assessment, plan, candidate, references, weights)` returns the
   charges, the weighted sum of squares, Jᵀ diag(w²) J, and Jᵀ diag(w²) r of a least-squares fit of
   the charges, from exact derivatives.
