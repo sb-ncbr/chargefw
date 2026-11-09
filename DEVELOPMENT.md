@@ -383,6 +383,37 @@ with other values.
   on (`single_bond_entries()`). `_compression.py` turns the normal equations into the small
   least-squares model that SciPy's optimizer steps on.
 
+The fitting profiles rest on these decisions:
+
+- **Invariances are fixed, not found.** Some changes of values leave every charge unchanged: the same
+  constant added to every EEM `A`, to every SQE electronegativity, or to every SQE+qp `q0`; EEM's `A`,
+  `B`, and `kappa` scaled together; and the sign of an SQE width. Each profile fixes one slot per
+  invariance, a default you can see and change, and
+  `tests/cpp/parameterization/test_parameter_invariances.cpp` checks every declared invariance on the
+  methods. Whatever else the data cannot determine shows in the diagnostics' rank; the fit reports it
+  and does not repair it, so that its behavior stays predictable.
+- **The SQE profiles guarantee a stable system.** Fitting the hardness as
+  u = √π·hardness·width − 1 ≥ 0, with `width ≥ 0.05` and `kappa ≥ 0.01`, makes the interaction matrix
+  the Coulomb energy of Gaussian charges plus a non-negative diagonal, so the split-charge matrix has
+  its smallest eigenvalue at least the smallest `kappa`, for every molecule and geometry. The condition
+  is sufficient, not necessary: published sets violate it and stay usable, but new fits meet it. EEM's
+  point-charge interaction allows no such guarantee without a minimum distance between atoms.
+- **An atom with one bond** exchanges charge only through that bond, so in the SQE methods its
+  hardness and the `kappa` of its bond act as one sum. When those bonds' entries belong to its type
+  alone and their `kappa` has no upper bound, the profile holds the hardness at u = 0 and lets the
+  `kappa` take up the difference, which removes the direction without costing accuracy.
+- **Validity limits stay in the methods; fitting bounds belong to the fit.** Methods reject only values
+  where a formula breaks, such as EEM `kappa <= 0`. Bounds and other fit settings live in the profiles
+  and `FitResult.bounds`, never in the fitted parameter file: how a set was fitted belongs in the
+  publication that presents it.
+
+Rejected along the way: derivatives from a reimplementation of each method in Python (it would drift
+from the native one), replacing a plan's parameter-set pointer without checking compatibility, validity
+ranges per parameter in method metadata (unknowable for most methods, and they would reject published
+sets), choosing anchors for invariances automatically, L-BFGS-B (it moves a start outside the bounds
+without notice), and a lower bound of 0 for strictly positive parameters (the optimizer's trial points
+then reach values a method accepts but cannot use meaningfully).
+
 ### Departures from method publications
 
 Where a method's publication does not cover an input, ChargeFW follows the method's construction and
