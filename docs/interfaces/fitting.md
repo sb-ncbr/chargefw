@@ -125,13 +125,21 @@ all out: for EEM and the SQE methods, the method's *profile* then provides sensi
 | Method | Fixed | Limits | Start values |
 | --- | --- | --- | --- |
 | EEM | `kappa`, and `A` of the first type | `B ≥ 0.001` | `kappa = 1`, `B = 2` |
-| SQE, SQE+q0 | `electronegativity` of the first type | `width ≥ 0.05`, `kappa ≥ 0.01`, a stable hardness | `hardness = 2`, `width = 1`, `kappa = 1` |
+| SQE, SQE+q0 | `electronegativity` of the first type, and the `hardness` of terminal types | `width ≥ 0.05`, `kappa ≥ 0.01`, a stable hardness | `hardness = 2`, `width = 1`, `kappa = 1` |
 | SQE+qp | as SQE, and `q0` of the first type | as SQE | as SQE, and `q0 = 0` |
 
 Some changes of the values do not change any charge. Adding the same amount to every
 electronegativity is one: only differences between electronegativities move charge. Such a direction
 cannot be fitted, so the profile fixes one value to remove it. The others are fitted relative to that
 one.
+
+In the SQE methods, a *terminal* type, one whose atoms all have exactly one bond in your molecules
+(hydrogen, usually halogens, often a carbonyl oxygen), has another: such an atom exchanges charge only
+through its bond, so its hardness and the `kappa` of its bonds act only as a sum. When those bonds
+have parameter entries of their own, as in a template, the profile holds the hardness of the terminal
+type at its stability limit and raises the `kappa` of its bonds by the difference, which leaves every
+charge unchanged, also of your start. This costs no accuracy, and it makes the fitted values
+reproducible. The width of a terminal type is still fitted.
 
 The limits keep the values where the method works. In the SQE methods, too small a hardness lets
 charge flow without limit; the profile fits each hardness so that √π·hardness·width ≥ 1, which keeps
@@ -255,9 +263,8 @@ meaningful values:
   extreme numbers. The values involved can still change during the fit, sometimes a lot, but the data
   does not decide them: another start can give quite different values with almost the same charges,
   so do not read their exact numbers as results. `weakest` names them, and `diagnostics.matches` shows how many atoms or bonds their types
-  have. Typical causes are a type that occurs once, or, in the SQE methods, a type whose atoms have
-  only one bond, such as hydrogen or a halogen: the hardness of such an atom and the `kappa` of its
-  bond then act as one. To determine them, fix one of the values involved with `free`, use coarser
+  have. A typical cause is a type that occurs once, or, in the SQE methods, a terminal type whose
+  hardness you fit yourself with `free`. To determine them, fix one of the values involved with `free`, use coarser
   types, or add training molecules in which those types occur in different surroundings.
 - **`at_bounds`.** These values ended at a limit. The fit wanted to go beyond it, so the limit is
   shaping the result.

@@ -27,8 +27,10 @@
 #include <nanobind/stl/tuple.h>
 #include <nanobind/stl/vector.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -486,6 +488,87 @@ class NativePlan {
         return {std::move(atoms), std::move(bonds)};
     }
 
+    // For each atom entry, whether its parameters can be held while its bonds' parameters take up
+    // the difference, and the bond entries of its bonds. That holds when every atom the entry
+    // matches has exactly one bond, and every bond entry at those atoms is used only by bonds whose
+    // one atom with a single bond belongs to this entry: each such bond entry then follows this
+    // atom entry alone. An entry that matches no atom, an atom of a molecule calculated without its
+    // fixed ions (whose atoms do not line up with the molecule's own), or an atom bonded to another
+    // atom with one bond, as in HCl, cannot be held.
+    [[nodiscard]] auto terminal_entries() const
+        -> std::vector<std::pair<bool, std::vector<std::size_t>>> {
+        const auto& set = parameter_set();
+        const auto& molecules = state_->assessment_.molecules();
+        const auto classifications = plan().classifications();
+        constexpr auto none = std::numeric_limits<std::size_t>::max();
+
+        auto matched = std::vector<bool>(set.atom().size(), false);
+        auto terminal = std::vector<bool>(set.atom().size(), true);
+        // The atom entry of the one-bond atoms of every bond of each bond entry, or none; a bond
+        // entry with several, or with bonds that disagree, follows no single atom entry.
+        auto follows = std::vector<std::optional<std::size_t>>(set.bond().size());
+        auto mixed = std::vector<bool>(set.bond().size(), false);
+        auto bonds_of = std::vector<std::vector<std::size_t>>(set.atom().size());
+
+        for (std::size_t index = 0; index < classifications.size(); ++index) {
+            const auto& molecule = molecules.at(index);
+            const auto atoms = classifications[index].atom().parameter_entry_indices();
+            const auto bonds = classifications[index].bond().parameter_entry_indices();
+            const auto aligned = atoms.size() == molecule.atom_count() &&
+                                 (bonds.empty() || bonds.size() == molecule.bond_count());
+            auto degree = std::vector<std::size_t>(molecule.atom_count(), 0);
+            for (std::size_t bond = 0; bond < molecule.bond_count(); ++bond) {
+                ++degree[molecule.bond(bond).first_atom_index()];
+                ++degree[molecule.bond(bond).second_atom_index()];
+            }
+            for (std::size_t atom = 0; atom < atoms.size(); ++atom) {
+                matched[atoms[atom]] = true;
+                if (!aligned || degree[atom] != 1) {
+                    terminal[atoms[atom]] = false;
+                }
+            }
+            if (!aligned || bonds.empty()) {
+                continue;
+            }
+            for (std::size_t bond = 0; bond < molecule.bond_count(); ++bond) {
+                const auto first = molecule.bond(bond).first_atom_index();
+                const auto second = molecule.bond(bond).second_atom_index();
+                const auto ends =
+                    static_cast<int>(degree[first] == 1) + static_cast<int>(degree[second] == 1);
+                const auto end = ends != 1            ? none
+                                 : degree[first] == 1 ? atoms[first]
+                                                      : atoms[second];
+                const auto entry = bonds[bond];
+                if (ends == 2) {
+                    // Both atoms would be held; neither type is.
+                    terminal[atoms[first]] = false;
+                    terminal[atoms[second]] = false;
+                }
+                if (end != none) {
+                    bonds_of[end].push_back(entry);
+                }
+                if (!follows[entry].has_value()) {
+                    follows[entry] = end;
+                } else if (*follows[entry] != end) {
+                    mixed[entry] = true;
+                }
+            }
+        }
+
+        auto result = std::vector<std::pair<bool, std::vector<std::size_t>>>(set.atom().size());
+        for (std::size_t entry = 0; entry < result.size(); ++entry) {
+            auto own = bonds_of[entry];
+            std::ranges::sort(own);
+            own.erase(std::ranges::unique(own).begin(), own.end());
+            const auto holdable = matched[entry] && terminal[entry] && !own.empty() &&
+                                  std::ranges::all_of(own, [&](const std::size_t bond) {
+                                      return !mixed[bond] && follows[bond] == entry;
+                                  });
+            result[entry] = {holdable, std::move(own)};
+        }
+        return result;
+    }
+
   private:
     [[nodiscard]] auto plan() const -> const calculation::ExecutionPlan& {
         return state_->assessment_.plans()[index_];
@@ -688,6 +771,7 @@ void bind_calculation(nb::module_& module) {
         .def("_calculate_values", &NativePlan::calculate_values, nb::arg("values"),
              nb::arg("max_threads") = nb::none())
         .def("_entry_counts", &NativePlan::entry_counts)
+        .def("_terminal_entries", &NativePlan::terminal_entries)
         .def("_normal_equations", &NativePlan::normal_equations, nb::arg("values"),
              nb::arg("references"), nb::arg("weights"), nb::arg("max_threads") = nb::none())
         .def("_exact_derivatives", &NativePlan::exact_derivatives);

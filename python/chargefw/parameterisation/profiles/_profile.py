@@ -54,10 +54,16 @@ class Profile:
     zero in the plan's parameter set, as in a template. ``fixed`` names parameters whose first slot
     is held at its start value: one per invariance of the method, a change of values that changes no
     charge. ``transforms`` are changes of variables the fit applies; a transformed slot takes its
-    bounds from the transform, not from ``bounds``.
+    bounds from the transform, not from ``bounds``. ``terminal`` maps an atom parameter to a bond
+    parameter that acts on the charges only in its sum with it at an atom with one bond, as SQE's
+    hardness and kappa do. For an atom type whose atoms all have one bond, and whose bonds' entries
+    belong to no other type, the atom parameter is held at the lower bound of what the fit varies for
+    it, and the bond parameter of those bonds takes up the difference: this removes the change of
+    both that changes no charge.
     """
 
     bounds: Mapping[str, tuple[float, float]] = field(default_factory=dict)
     start: Mapping[str, float] = field(default_factory=dict)
     fixed: tuple[str, ...] = ()
     transforms: tuple[Transform, ...] = ()
+    terminal: Mapping[str, str] = field(default_factory=dict)

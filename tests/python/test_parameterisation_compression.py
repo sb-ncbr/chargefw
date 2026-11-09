@@ -123,6 +123,18 @@ def test_compressed_fit_does_not_follow_a_combination_the_data_barely_sees() -> 
     assert residuals(x) @ residuals(x) == pytest.approx(1.0, rel=1e-3)
 
 
+def test_compression_keeps_the_sum_of_squares_exact() -> None:
+    # The weakest direction is kept, and the rounding of its eigenvector makes the gradient explain
+    # a little more than F; the residuals still have exactly the sum of squares F.
+    J = np.array([[1.0, 1.0], [0.0, 2.2e-6]])
+    r = np.array([0.0, 1.0])
+
+    f, matrix = compress(float(r @ r), J.T @ J, J.T @ r)
+
+    assert f @ f == pytest.approx(1.0, rel=1e-14)
+    np.testing.assert_allclose(matrix.T @ f, J.T @ r, rtol=1e-4, atol=1e-12)
+
+
 @pytest.mark.parametrize(
     ("total", "gram", "gradient"),
     [

@@ -526,9 +526,10 @@ def test_sqe_profile_keeps_every_fitted_type_stable() -> None:
     assert np.all(np.sqrt(np.pi) * hardness * width >= 1.0 - 1e-12)
     assert np.all(result.values[12:] >= 0.01)
 
+    # Carbon (C/2) is not terminal, so its hardness is fitted and must start stable.
     soft = dict(start)
-    soft[(evaluator.layout[1].key, "hardness")] = 0.5
-    with pytest.raises(ValueError, match="slot 1 \\(atom hardness of .*, fitted as u"):
+    soft[(evaluator.layout[4].key, "hardness")] = 0.5
+    with pytest.raises(ValueError, match="slot 4 \\(atom hardness of .*, fitted as u"):
         fit(evaluator, references, start=soft)
 
     # Narrow widths with a large hardness are stable; a width then moves the charges through the
@@ -561,6 +562,118 @@ def test_exact_and_forward_difference_fits_agree() -> None:
     from_jacobian, _ = parameterisation._spectrum_of_jacobian(jacobian)
     resolved = from_jacobian > 1e-3 * from_jacobian[0]
     np.testing.assert_allclose(from_gram[resolved], from_jacobian[resolved], rtol=1e-4)
+
+
+def test_sqe_profile_holds_the_hardness_of_terminal_types_at_its_limit() -> None:
+    # In water and formaldehyde, every H/1 and O/2 atom has one bond: their hardness acts only
+    # together with the kappa of their bonds. The profile holds it at the stability limit, u = 0,
+    # and still fits the width it depends on.
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    differences = template_evaluator("sqe", "hbo", "bo")
+    differences._exact = False
+    references = evaluator.charges(SQE_TRUE_VALUES)
+    terminal_hardness = [1, 10]  # H/1 and O/2
+
+    for path in (evaluator, differences):
+        result = fit(path, references, start=sqe_start(path), max_evaluations=10)
+
+        assert not set(terminal_hardness) & set(result.free)
+        assert {2, 11} <= set(result.free)  # their widths
+        for values in (result.start, result.values):
+            hardness, width = values[terminal_hardness], values[[2, 11]]
+            np.testing.assert_allclose(np.sqrt(np.pi) * hardness * width, 1.0, rtol=1e-12)
+
+    # A start that already fits keeps its charges: the kappa of the terminal types' bonds take up
+    # what their hardness gives away.
+    for path in (evaluator, differences):
+        warm = fit(path, references, start=SQE_TRUE_VALUES, max_evaluations=1)
+        np.testing.assert_allclose(path.charges(warm.start), references, atol=1e-10)
+        assert warm.rmsd < 1e-8
+
+    # Fitting those slots yourself is still possible.
+    every = fit(
+        evaluator,
+        references,
+        start=sqe_start(evaluator),
+        free=range(1, len(evaluator.layout)),
+        max_evaluations=3,
+    )
+    assert set(terminal_hardness) <= set(every.free)
+
+
+def test_sqe_profile_holds_no_hardness_whose_kappa_other_types_share(tmp_path: Path) -> None:
+    # One kappa entry for every bond: the C-H and O-H bonds end in a terminal hydrogen, the C=O bond
+    # does not, so no kappa change can take up a change of the hydrogen hardness alone.
+    atom = {element: {"element": element, "classifier": "plain", "type": "*"} for element in "HCO"}
+    anything = {"element": "*", "classifier": "plain", "type": "*"}
+    document = {
+        "metadata": {"id": "shared-kappa", "method": "sqe"},
+        "atom": {
+            "names": ["electronegativity", "hardness", "width"],
+            "data": [
+                {"key": atom["H"], "values": [4.5, 13.0, 1.0]},
+                {"key": atom["C"], "values": [5.5, 10.0, 1.0]},
+                {"key": atom["O"], "values": [8.7, 13.0, 1.0]},
+            ],
+        },
+        "bond": {
+            "names": ["kappa"],
+            "data": [
+                {
+                    "key": {
+                        "atoms": [anything, anything],
+                        "bond": {"classifier": "plain", "type": "*"},
+                    },
+                    "values": [1.0],
+                }
+            ],
+        },
+    }
+    path = tmp_path / "shared.json"
+    path.write_text(json.dumps(document))
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    plan = chargefw.assess(
+        molecules,
+        method="sqe",
+        parameter_set=chargefw.read_parameter_set(path),
+        execution="full",
+    ).default_plan
+    assert plan is not None
+    evaluator = Evaluator(plan, threads=1)
+
+    result = fit(evaluator, evaluator.charges(evaluator.values), max_evaluations=1)
+
+    hardness = [index for index, slot in enumerate(evaluator.layout) if slot.name == "hardness"]
+    assert set(hardness) <= set(result.free)
+
+
+def test_sqe_profile_holds_no_hardness_of_an_atom_bonded_to_a_terminal_atom() -> None:
+    # In HCl, both atoms have one bond, so no single kappa change takes up a change of the hydrogen
+    # hardness there, although water's hydrogens alone would allow it.
+    hydrogen_chloride = chargefw.Molecule(
+        [17, 1],
+        bonds=np.array([[0, 1, 1]], dtype=np.int32),
+        coordinates=np.array([[0.0, 0.0, 0.0], [1.27, 0.0, 0.0]]),
+    )
+    molecules = chargefw.MoleculeCollection((water(), hydrogen_chloride))
+    template = make_parameter_template(molecules, "sqe", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="sqe", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    evaluator = Evaluator(plan, threads=1)
+    pauling = {"H": 2.20, "O": 3.44, "Cl": 3.16}
+    start: dict[tuple[chargefw.AtomParameterKey | chargefw.BondParameterKey | None, str], float] = {
+        (slot.key, slot.name): pauling[slot.key.element]
+        for slot in evaluator.layout
+        if slot.name == "electronegativity" and isinstance(slot.key, chargefw.AtomParameterKey)
+    }
+    references = np.array([-0.6, 0.3, 0.3, -0.2, 0.2])
+
+    result = fit(evaluator, references, start=start, max_evaluations=1)
+
+    hardness = [index for index, slot in enumerate(evaluator.layout) if slot.name == "hardness"]
+    assert set(hardness) <= set(result.free)
 
 
 def test_stable_hardness_pairs_each_entry_with_its_own_width(tmp_path: Path) -> None:

@@ -25,7 +25,8 @@ from numpy.typing import NDArray
 __all__ = ["CompressionError", "compress"]
 
 _EPSILON = float(np.finfo(np.float64).eps)
-# How much more than F the residuals may explain, relative to F: rounding, not a different model.
+# How much more than F the residuals may explain, relative to F, at least: rounding, not a different
+# model.
 _SUM_OF_SQUARES_TOLERANCE = 1e-8
 
 
@@ -85,15 +86,22 @@ def compress(
     # R = Λ^(1/2) Vᵀ S⁻¹, so RᵀR = S⁻¹ V Λ Vᵀ S⁻¹ = H on the directions kept.
     matrix = root[:, np.newaxis] * vectors.T
     np.divide(matrix, scale[np.newaxis, :], out=matrix)
-    # In exact arithmetic |small|² is the part of F the model explains, at most F. More than that
-    # means a direction just above the resolution whose eigenvector is too inaccurate for its part of
-    # the gradient; neither the remainder nor f can then be adjusted without changing the sum of
-    # squares or the gradient the optimizer sees.
+    # In exact arithmetic |small|² is the part of F the model explains, at most F. Rounding in the
+    # eigenvectors of the kept directions, about n·ε times the largest over the smallest kept
+    # eigenvalue, can push it above F by that much, and the gradient Rᵀ·small is then off by as much.
+    # Within that, small is scaled down to |small|² = F, so that the optimizer sees the exact sum of
+    # squares and a gradient within its rounding. More means normal equations that do not belong
+    # together.
     explained = float(small @ small)
-    if explained > sum_of_squares * (1.0 + _SUM_OF_SQUARES_TOLERANCE):
+    kept = eigenvalues[~dropped]
+    rounding = 64.0 * n * _EPSILON * float(eigenvalues[-1] / kept[0]) if kept.size else 0.0
+    if explained > sum_of_squares * (1.0 + max(_SUM_OF_SQUARES_TOLERANCE, rounding)):
         raise CompressionError(
             f"the gradient implies a sum of squares of {explained:.6e}, not {sum_of_squares:.6e}"
         )
+    if explained > sum_of_squares:
+        small *= np.sqrt(sum_of_squares / explained)
+        explained = float(small @ small)
     remainder = sum_of_squares - explained
     residuals = np.append(small, np.sqrt(max(remainder, 0.0)))
     return residuals, np.vstack([matrix, np.zeros(n)])

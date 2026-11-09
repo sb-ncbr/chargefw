@@ -92,6 +92,8 @@ class Evaluator:
         "_exact",
         "_layout",
         "_matches",
+        "_entry_of",
+        "_terminal",
         "_native",
         "_parameter_set",
         "_threads",
@@ -134,6 +136,16 @@ class Evaluator:
             else None
             for scope, index, _ in self._native._layout()
         )
+        # Per atom slot of a type whose atoms all have one bond and whose bonds' entries follow it
+        # alone, those bond entries; None otherwise.
+        terminal_entries = self._native._terminal_entries()
+        self._terminal = tuple(
+            tuple(terminal_entries[index][1])
+            if scope == "atom" and terminal_entries[index][0]
+            else None
+            for scope, index, _ in self._native._layout()
+        )
+        self._entry_of = tuple(index for _, index, _ in self._native._layout())
 
     @property
     def layout(self) -> tuple[Slot, ...]:
@@ -484,23 +496,27 @@ def fit(
         profiles.PROFILES.get(evaluator._parameter_set.method) if profile == "default" else profile
     )
     layout = evaluator.layout
+    lower, upper = evaluator._bounds(
+        bounds if bounds is not None else _profile_bounds(layout, chosen)
+    )
+    coordinates = _Coordinates(chosen.transforms if chosen is not None else (), layout)
+    # The fit works in internal coordinates: the values, except that transformed slots hold the
+    # transformed quantity, which carries the transform's bounds.
+    internal_lower, internal_upper = coordinates.bounds(lower, upper)
+    # Slots the profile holds at the lower bound of what the fit varies, each with the slots that
+    # take up the difference; only by default.
+    compensation = _terminal_slots(evaluator, chosen, internal_lower, upper) if free is None else {}
+    held = set(compensation)
     if free is not None:
         free_slots = evaluator._slot_indices(free)
     else:
-        fixed = _fixed_slots(layout, chosen)
+        fixed = _fixed_slots(layout, chosen) | held
         free_slots = [slot for slot in range(len(layout)) if slot not in fixed]
     if not free_slots:
         raise ValueError("fit needs at least one free slot")
     if len(set(free_slots)) != len(free_slots):
         raise ValueError("free slots must not repeat")
-    lower, upper = evaluator._bounds(
-        bounds if bounds is not None else _profile_bounds(layout, chosen)
-    )
-    coordinates = _Coordinates(chosen.transforms if chosen is not None else (), layout)
-    coordinates.check(evaluator, free_slots, lower, upper)
-    # The fit works in internal coordinates: the values, except that transformed slots hold the
-    # transformed quantity, which carries the transform's bounds.
-    internal_lower, internal_upper = coordinates.bounds(lower, upper)
+    coordinates.check(evaluator, free_slots, lower, upper, held)
     initial, missing = _start_values(evaluator, start, chosen)
     missing_free = [slot for slot in free_slots if slot in missing]
     if missing_free:
@@ -510,6 +526,18 @@ def fit(
             + "; ".join(f"slot {slot} ({evaluator._describe(slot)})" for slot in missing_free)
         )
     internal_initial = coordinates.to_internal(initial)
+    if held:
+        # Each held value goes onto its limit, and its compensating slots change by the difference,
+        # so the start keeps its charges. The result reports this start.
+        slots = sorted(held)
+        before = initial[slots].copy()
+        internal_initial[slots] = internal_lower[slots]
+        initial[slots] = coordinates.to_values(internal_initial)[slots]
+        for slot, old in zip(slots, before, strict=True):
+            for other in compensation[slot]:
+                initial[other] += old - initial[slot]
+        internal_initial = coordinates.to_internal(initial)
+        internal_initial[slots] = internal_lower[slots]
     _check_start_in_bounds(
         coordinates.describe(evaluator),
         internal_initial,
@@ -535,16 +563,22 @@ def fit(
 
     exact = evaluator._exact
     free_index = np.ix_(free_slots, free_slots)
+    # The values that change with the free internal coordinates: the free slots, and the slots the
+    # profile holds in internal coordinates, whose values follow the free slots they depend on. The
+    # chain rule maps derivatives in these values onto the free internal coordinates.
+    moving = free_slots + sorted(held)
+    moving_index = np.ix_(moving, moving)
+    chain_index = np.ix_(moving, free_slots)
     # Sensitivity counts in the coordinates the optimizer varies: with a transform, a slot whose own
     # value does not move the charges can still move them through the slots that depend on it.
     # Charges with weight zero do not count.
-    start_derivative = coordinates.derivative(internal_initial)[free_index]
+    start_derivative = coordinates.derivative(internal_initial)[chain_index]
     if exact:
         _, _, start_gram, _ = evaluator._normal_equations(feasible, reference, weight)
-        sensitivity = np.diag(start_derivative.T @ start_gram[free_index] @ start_derivative)
+        sensitivity = np.diag(start_derivative.T @ start_gram[moving_index] @ start_derivative)
         sensitive = sensitivity != 0.0
     else:
-        start_jacobian = evaluator.jacobian(feasible, free_slots, (lower, upper))
+        start_jacobian = evaluator.jacobian(feasible, moving, (lower, upper))
         internal_start_jacobian = (weight[:, np.newaxis] * start_jacobian) @ start_derivative
         sensitive = internal_start_jacobian.any(axis=0)
     insensitive = [slot for column, slot in enumerate(free_slots) if not sensitive[column]]
@@ -596,12 +630,12 @@ def fit(
                     record(error)
                     represented = (np.full(size + 1, np.nan), np.zeros((size + 1, size)))
                 else:
-                    derivative = coordinates.derivative(internal)[free_index]
+                    derivative = coordinates.derivative(internal)[chain_index]
                     try:
                         represented = compress(
                             total,
-                            derivative.T @ gram[free_index] @ derivative,
-                            derivative.T @ gradient[free_slots],
+                            derivative.T @ gram[moving_index] @ derivative,
+                            derivative.T @ gradient[moving],
                         )
                     except CompressionError as error:
                         raise EvaluationError(
@@ -634,9 +668,9 @@ def fit(
             if np.array_equal(internal, internal_initial):
                 charges_jacobian = start_jacobian
             else:
-                charges_jacobian = evaluator.jacobian(values, free_slots, (lower, upper))
+                charges_jacobian = evaluator.jacobian(values, moving, (lower, upper))
             # The chain rule from values to the internal coordinates the optimizer varies.
-            derivative = coordinates.derivative(internal)[free_index]
+            derivative = coordinates.derivative(internal)[chain_index]
             return weight[:, np.newaxis] * (charges_jacobian @ derivative)
 
     solution = least_squares(
@@ -791,6 +825,39 @@ def _r2(charges: NDArray[np.float64], reference: NDArray[np.float64]) -> float:
     return 1.0 - residual / total if total > 0.0 else math.nan
 
 
+def _terminal_slots(
+    evaluator: Evaluator,
+    profile: profiles.Profile | None,
+    internal_lower: NDArray[np.float64],
+    upper: NDArray[np.float64],
+) -> dict[int, tuple[int, ...]]:
+    """The slots the profile's ``terminal`` holds, each with the bond slots that take up the
+    difference: those of its type's bonds with the named parameter. A slot is held only when the
+    lower bound of what the fit varies for it is finite and none of those bond slots has an upper
+    bound, so that the difference can always be taken up."""
+
+    if profile is None:
+        return {}
+    bond_slots: dict[tuple[int, str], int] = {}
+    for index, slot in enumerate(evaluator.layout):
+        if slot.scope == "bond":
+            bond_slots[(evaluator._entry_of[index], slot.name)] = index
+    result = {}
+    for index, slot in enumerate(evaluator.layout):
+        bonds = evaluator._terminal[index]
+        if slot.name not in profile.terminal or bonds is None:
+            continue
+        name = profile.terminal[slot.name]
+        others = tuple(bond_slots[(bond, name)] for bond in bonds if (bond, name) in bond_slots)
+        if (
+            len(others) == len(bonds)
+            and math.isfinite(internal_lower[index])
+            and not any(math.isfinite(upper[other]) for other in others)
+        ):
+            result[index] = others
+    return result
+
+
 def _fixed_slots(layout: Sequence[Slot], profile: profiles.Profile | None) -> set[int]:
     if profile is None:
         return set()
@@ -911,8 +978,10 @@ class _Coordinates:
         free: Sequence[int],
         lower: NDArray[np.float64],
         upper: NDArray[np.float64],
+        held: set[int],
     ) -> None:
-        """A transformed slot is unbounded, and is free whenever a slot it depends on is free."""
+        """A transformed slot is unbounded, and is free whenever a slot it depends on is free,
+        unless the profile holds what the fit varies for it (``held``)."""
 
         bounded = [s for s in self._owner if math.isfinite(lower[s]) or math.isfinite(upper[s])]
         if bounded:
@@ -922,16 +991,16 @@ class _Coordinates:
                 + "; ".join(f"slot {s} ({self.describe(evaluator)(s)})" for s in bounded)
             )
         free_set = set(free)
-        held = [
+        following = [
             s
             for s, depends_on in self._dependencies.items()
-            if s not in free_set and any(d in free_set for d in depends_on)
+            if s not in free_set and s not in held and any(d in free_set for d in depends_on)
         ]
-        if held:
+        if following:
             raise ValueError(
                 "these slots are not free, but slots their transform depends on are, so their "
                 "values would change anyway; free them too, or fix the slots they depend on: "
-                + "; ".join(f"slot {s} ({self.describe(evaluator)(s)})" for s in held)
+                + "; ".join(f"slot {s} ({self.describe(evaluator)(s)})" for s in following)
             )
 
     def bounds(

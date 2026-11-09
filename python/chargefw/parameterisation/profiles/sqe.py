@@ -85,18 +85,31 @@ _START = {"hardness": 2.0, "width": 1.0, "kappa": 1.0}
 _BOUNDS = {"width": (0.05, math.inf), "kappa": (0.01, math.inf)}
 
 # The fixed slots remove the invariances: a constant added to every electronegativity, and in SQE+qp
-# also to every q0.
+# also to every q0. An atom with one bond moves charge only through that bond, so its hardness and
+# the kappa of its bond act as one sum; the hardness of a type whose atoms all have one bond is
+# therefore held at its stability limit, u = 0, and the kappa of its bonds take up the rest. When
+# those bonds' entries belong to that type alone and their kappa has no upper bound, any stable values
+# can be shifted there by raising those kappa, so this costs no accuracy; otherwise nothing is held.
 PROFILES = {
     "sqe": Profile(
-        bounds=_BOUNDS, start=_START, fixed=("electronegativity",), transforms=(StableHardness(),)
+        bounds=_BOUNDS,
+        start=_START,
+        fixed=("electronegativity",),
+        transforms=(StableHardness(),),
+        terminal={"hardness": "kappa"},
     ),
     "sqeq0": Profile(
-        bounds=_BOUNDS, start=_START, fixed=("electronegativity",), transforms=(StableHardness(),)
+        bounds=_BOUNDS,
+        start=_START,
+        fixed=("electronegativity",),
+        transforms=(StableHardness(),),
+        terminal={"hardness": "kappa"},
     ),
     "sqeqp": Profile(
         bounds=_BOUNDS,
         start={**_START, "q0": 0.0},
         fixed=("electronegativity", "q0"),
         transforms=(StableHardness(),),
+        terminal={"hardness": "kappa"},
     ),
 }
