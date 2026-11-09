@@ -203,21 +203,3 @@ class ParameterSetDescriptorPayload(TypedDict):
     notes: str
     atom_keys: list[AtomParameterKeyPayload]
     bond_keys: list[BondParameterKeyPayload]
-
-
-class CandidateChargesPayload(TypedDict):
-    status: ExecutionStatus
-    charges: NDArray[np.float64] | None
-    assignment_sizes: list[int] | None
-    assignment_molecules: list[int] | None
-    failure_message: str | None
-
-
-class NormalEquationsPayload(TypedDict):
-    status: ExecutionStatus
-    failure_message: str | None
-    charges: NDArray[np.float64] | None
-    sum_of_squares: float | None
-    # Slots x slots, flattened row by row.
-    gauss_newton: NDArray[np.float64] | None
-    gradient: NDArray[np.float64] | None

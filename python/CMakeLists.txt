@@ -110,6 +110,12 @@ endforeach()
 set(CHARGEFW_PYTHON_PARAMETERISATION_SOURCES
     __init__.py
     _compression.py
+    _coordinates.py
+    _diagnostics.py
+    _evaluator.py
+    _fit.py
+    _payloads.py
+    _template.py
     profiles/__init__.py
     profiles/_profile.py
     profiles/eem.py

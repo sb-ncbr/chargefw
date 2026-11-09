@@ -3,8 +3,8 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from .._payloads import CandidateChargesPayload, NormalEquationsPayload
 from .._types import AtomClassifier, BondClassifier, ParameterScope
+from ..parameterisation._payloads import CandidateChargesPayload, NormalEquationsPayload
 from .calculation import _NativePlan
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog

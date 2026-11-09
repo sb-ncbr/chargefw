@@ -7,19 +7,23 @@ quality on real data is qualified outside the test suite.
 
 import json
 from pathlib import Path
+from typing import get_type_hints
 from unittest.mock import patch
 
 import chargefw
 import numpy as np
 import pytest
-from chargefw import parameterisation
 from chargefw.parameterisation import (
+    Diagnostics,
+    ElementDiagnostics,
     EvaluationError,
     Evaluator,
+    FitResult,
     Slot,
     fit,
     make_parameter_template,
 )
+from chargefw.parameterisation._diagnostics import _spectrum_of_gram, _spectrum_of_jacobian
 from chargefw.parameterisation.profiles import PROFILES, Profile, StableHardness
 from numpy.typing import ArrayLike, NDArray
 
@@ -262,6 +266,21 @@ FIT_START = np.array([0.5, 2.0, 0.9, 2.2, 1.0, 2.6, 1.0])
 FIT_FREE = [2, 3, 4, 5, 6]
 # The slots these charges determine: carbon stays fixed too.
 DETERMINED_FREE = [2, 5, 6]
+
+
+def test_public_annotations_resolve() -> None:
+    # Introspection such as typing.get_type_hints() finds every name the annotations use.
+    for public in (
+        Slot,
+        Diagnostics,
+        ElementDiagnostics,
+        FitResult,
+        Evaluator.__init__,
+        Evaluator.charges,
+        fit,
+        make_parameter_template,
+    ):
+        assert get_type_hints(public), public
 
 
 def test_fit_recovers_the_charges_of_known_values() -> None:
@@ -594,8 +613,8 @@ def test_exact_and_forward_difference_fits_agree() -> None:
     weights = np.linspace(0.5, 1.5, references.size)
     _, _, gram, _ = evaluator._normal_equations(start, references, weights)
     jacobian = weights[:, np.newaxis] * differences.jacobian(start)
-    from_gram, _ = parameterisation._spectrum_of_gram(gram)
-    from_jacobian, _ = parameterisation._spectrum_of_jacobian(jacobian)
+    from_gram, _ = _spectrum_of_gram(gram)
+    from_jacobian, _ = _spectrum_of_jacobian(jacobian)
     resolved = from_jacobian > 1e-3 * from_jacobian[0]
     np.testing.assert_allclose(from_gram[resolved], from_jacobian[resolved], rtol=1e-4)
 
