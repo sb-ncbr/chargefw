@@ -32,7 +32,8 @@ Checks: >
   -readability-convert-member-functions-to-static,
   -readability-named-parameter,
   -cppcoreguidelines-missing-std-forward,
-  -readability-redundant-lambda-parameter-list
+  -readability-redundant-lambda-parameter-list,
+  -readability-trailing-comma
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'

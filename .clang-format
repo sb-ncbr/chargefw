@@ -17,3 +17,6 @@ PointerAlignment: Left
 ReferenceAlignment: Left
 
 SortIncludes: true
+
+# Every enumerator line ends in a comma, so adding one changes a single line (clang-format 21).
+EnumTrailingComma: Insert

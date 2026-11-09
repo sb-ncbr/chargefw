@@ -12,7 +12,11 @@
 
 namespace chargefw::parameterization {
 
-enum class ParameterScope : std::uint8_t { common, atom, bond };
+enum class ParameterScope : std::uint8_t {
+    common,
+    atom,
+    bond,
+};
 
 [[nodiscard]] auto to_string(ParameterScope value) -> std::string_view;
 
