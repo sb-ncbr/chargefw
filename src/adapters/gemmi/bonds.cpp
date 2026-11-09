@@ -109,7 +109,8 @@ class ResidueIndex {
     // gemmi compares insertion codes ignoring case and treats a blank code as no code.
     [[nodiscard]] static auto key(const std::string_view chain_name, const ::gemmi::SeqId& seqid)
         -> Key {
-        return {chain_name, seqid.num.value, static_cast<char>(seqid.icode | 0x20)};
+        return {chain_name, seqid.num.value,
+                static_cast<char>(static_cast<unsigned char>(seqid.icode) | 0x20U)};
     }
 
     std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;

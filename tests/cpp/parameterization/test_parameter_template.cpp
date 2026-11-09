@@ -41,8 +41,9 @@ auto make_collection() -> core::MoleculeCollection {
         std::vector{chargefw::test::make_water_graph(), make_formaldehyde()}, "training"};
 }
 
-const auto sqe_names =
-    parameterization::ParameterNames{.atom = {"electronegativity", "hardness"}, .bond = {"kappa"}};
+auto sqe_names() -> parameterization::ParameterNames {
+    return {.atom = {"electronegativity", "hardness"}, .bond = {"kappa"}};
+}
 
 } // namespace
 
@@ -52,7 +53,7 @@ TEST_CASE("parameter template has one zero entry per occurring type, in key orde
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
     const auto set = parameterization::make_parameter_template(
-        prepared, sqe_names, AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
+        prepared, sqe_names(), AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
         BondParameterClassificationKind::BOND_ORDER, {.id = "template", .method_id = "sqe"});
 
     using chargefw::test::hbo_atom_key;
@@ -100,7 +101,7 @@ TEST_CASE("parameter template matches every atom and bond of its molecules",
                               BondParameterClassificationKind::BOND_ORDER}}) {
         CAPTURE(parameters::to_string(atom_types), parameters::to_string(bond_types));
         const auto set = parameterization::make_parameter_template(
-            prepared, sqe_names, atom_types, bond_types, {.id = "template", .method_id = "sqe"});
+            prepared, sqe_names(), atom_types, bond_types, {.id = "template", .method_id = "sqe"});
 
         for (const auto& molecule : prepared.molecules()) {
             CAPTURE(molecule.molecule().name());

@@ -32,7 +32,7 @@ auto peoe_file() -> std::filesystem::path {
     return std::filesystem::path{CHARGEFW_TEST_PARAMETER_DIR} / "PEOE_original.json";
 }
 
-auto bad_length_json() -> std::string {
+auto bad_length_json() -> std::string_view {
     return R"json(
 {
   "metadata": {
@@ -53,7 +53,7 @@ auto bad_length_json() -> std::string {
 )json";
 }
 
-auto missing_id_json() -> std::string {
+auto missing_id_json() -> std::string_view {
     return R"json(
 {
   "metadata": {
@@ -64,7 +64,7 @@ auto missing_id_json() -> std::string {
 )json";
 }
 
-auto named_bond_key_json() -> std::string {
+auto named_bond_key_json() -> std::string_view {
     return R"json(
 {
   "metadata": {
@@ -91,7 +91,7 @@ auto named_bond_key_json() -> std::string {
 )json";
 }
 
-auto unknown_element_json() -> std::string {
+auto unknown_element_json() -> std::string_view {
     return R"json(
 {
   "metadata": {
@@ -112,7 +112,7 @@ auto unknown_element_json() -> std::string {
 )json";
 }
 
-auto unknown_classification_json() -> std::string {
+auto unknown_classification_json() -> std::string_view {
     return R"json(
 {
   "metadata": {
@@ -225,25 +225,25 @@ TEST_CASE("bundled parameter sets identify registered methods and satisfy their 
 
 TEST_CASE("parameter set rejects malformed JSON", "[parameters][io]") {
     const auto load_missing_id = [] {
-        std::istringstream input{missing_id_json()};
+        std::istringstream input{std::string{missing_id_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
     CHECK_THROWS_AS(load_missing_id(), std::invalid_argument);
 
     const auto load_bad_length = [] {
-        std::istringstream input{bad_length_json()};
+        std::istringstream input{std::string{bad_length_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
     CHECK_THROWS_AS(load_bad_length(), std::invalid_argument);
 
     const auto load_unknown_element = [] {
-        std::istringstream input{unknown_element_json()};
+        std::istringstream input{std::string{unknown_element_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
     CHECK_THROWS_AS(load_unknown_element(), std::invalid_argument);
 
     const auto load_unknown_classification = [] {
-        std::istringstream input{unknown_classification_json()};
+        std::istringstream input{std::string{unknown_classification_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
     CHECK_THROWS_MATCHES(load_unknown_classification(), std::invalid_argument,
@@ -283,7 +283,7 @@ TEST_CASE("parameter set rejects priorities outside uint16 range", "[parameters]
 }
 
 TEST_CASE("parameter set loads named unordered bond keys", "[parameters][io]") {
-    std::istringstream input{named_bond_key_json()};
+    std::istringstream input{std::string{named_bond_key_json()}};
     const auto parameter_set = parameters::load_parameter_set_json(input);
 
     REQUIRE(parameter_set.bond().size() == 1);

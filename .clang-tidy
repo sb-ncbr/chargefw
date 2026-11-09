@@ -31,7 +31,8 @@ Checks: >
   -readability-avoid-nested-conditional-operator,
   -readability-convert-member-functions-to-static,
   -readability-named-parameter,
-  -cppcoreguidelines-missing-std-forward
+  -cppcoreguidelines-missing-std-forward,
+  -readability-redundant-lambda-parameter-list
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
