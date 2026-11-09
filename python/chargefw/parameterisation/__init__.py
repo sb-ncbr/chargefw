@@ -20,7 +20,7 @@ from .._types import AtomClassifier, BondClassifier, ParameterScope
 from ..calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
 from ..core import Molecule, MoleculeCollection
 from . import profiles
-from ._compression import CompressionError, compress, resolution
+from ._compression import CompressionError, compress, undetermined
 
 __all__ = [
     "Diagnostics",
@@ -348,11 +348,12 @@ class Diagnostics:
 
     ``singular_values`` come from the weighted Jacobian at the fitted values, for the free slots,
     with each column scaled to unit length, so they compare slots whatever their units; they are in
-    decreasing order. ``rank`` counts those above ``1e-6`` times the largest, well above rounding
-    and the noise of a finite-difference Jacobian. A rank below the number of free slots means the
-    data cannot determine some combination of them. ``weakest`` lists the
-    free slots that dominate the direction of the smallest singular value: those whose share of it is
-    at least half the largest share.
+    decreasing order. ``rank`` counts those above ``1e-6`` times the largest (somewhat more with
+    thousands of free slots, where rounding is larger), well above the noise of a finite-difference
+    Jacobian. A rank below the number of free slots means the data cannot determine some combination
+    of them; a fit with exact derivatives leaves out combinations it finds this weak. ``weakest``
+    lists the free slots that dominate the direction of the smallest singular value: those whose
+    share of it is at least half the largest share.
 
     ``matches`` gives, for each free slot in the order of ``FitResult.free``, the number of
     calculated atoms or bonds of its type, or ``None`` for a common parameter. ``by_element`` maps
@@ -457,8 +458,10 @@ def fit(
 
     The fit takes SciPy's trust-region reflective steps. For a method with exact derivatives (EEM,
     SQE, SQE+q0, SQE+qp), each step uses them in the form of the normal equations, whose size
-    depends on the free slots and not on the number of charges. Other methods use the forward
-    differences of ``Evaluator.jacobian()``.
+    depends on the free slots and not on the number of charges. The fit then does not try to improve
+    the charges through combinations of free slots that the data barely determines, which the
+    diagnostics usually report through ``rank``; plain least squares would follow them, usually to
+    extreme values. Other methods use the forward differences of ``Evaluator.jacobian()``.
 
     Before fitting, the start is checked: it must lie strictly inside the bounds of every free slot,
     at least ``1e-10 * max(1, |bound|)`` from a finite bound, so that SciPy uses it unchanged; the
@@ -708,7 +711,7 @@ def _spectrum_of_gram(
     scale = np.ones(norms.size)
     np.divide(1.0, norms, out=scale, where=norms > 0.0)
     eigenvalues, vectors = np.linalg.eigh(scale[:, np.newaxis] * gram * scale[np.newaxis, :])
-    if eigenvalues[0] < -resolution(norms.size) * max(float(eigenvalues[-1]), 0.0):
+    if eigenvalues[0] < -undetermined(norms.size) * max(float(eigenvalues[-1]), 0.0):
         raise EvaluationError(
             "the normal equations at the fitted values are not positive semidefinite "
             f"(eigenvalue {eigenvalues[0]:.3e})"
@@ -748,7 +751,10 @@ def _diagnostics(
     )
 
     singular_values, smallest_direction = spectrum
-    rank = int(np.sum(singular_values > 1e-6 * singular_values[0])) if singular_values[0] else 0
+    # The threshold by which the compressed fit leaves combinations out, here applied to the
+    # parameter values rather than the optimizer's coordinates.
+    threshold = np.sqrt(undetermined(singular_values.size)) * singular_values[0]
+    rank = int(np.sum(singular_values > threshold)) if singular_values[0] else 0
     weakest_direction = np.abs(smallest_direction)
     weakest = tuple(
         free[index]

@@ -90,21 +90,49 @@ def test_compressed_model_reproduces_the_normal_equations() -> None:
     assert f @ f == pytest.approx(F, rel=1e-12)
 
 
+def test_compression_accepts_a_converged_fit_with_an_undetermined_direction() -> None:
+    # Columns 1 and 2 add up to column 3, and r is almost explained: near the minimum the gradient is
+    # tiny, while its rounding in the undetermined direction is not.
+    rng = np.random.default_rng(2)
+    J = rng.normal(size=(30, 3))
+    J[:, 2] = J[:, 0] + J[:, 1]
+    r = J @ np.array([1.0, -2.0, 0.5]) * 1e-9 + rng.normal(size=30)
+    r -= J @ np.linalg.lstsq(J, r, rcond=None)[0]  # the residual at the minimum
+    r += J @ np.array([1e-9, 0.0, 0.0])  # a small step from it
+    # Rounding of 1e-7 in the undetermined direction: large next to the gradient, but within what
+    # the derivatives allow there.
+    z = J.T @ r + 1e-7 * np.array([1.0, 1.0, -1.0]) / np.sqrt(3.0)
+
+    f, matrix = compress(float(r @ r), J.T @ J, z)
+
+    assert f @ f == pytest.approx(r @ r, rel=1e-12)
+
+
+def test_compressed_fit_does_not_follow_a_combination_the_data_barely_sees() -> None:
+    # The data determines x0 - x1 only through a derivative of 1e-7. Plain least squares follows it
+    # to x = (-9999999, 10000000); the compressed fit leaves it, as documented, and stays at sensible
+    # values with half of the sum of squares left.
+    J = np.array([[1.0, 1.0], [0.0, 1e-7]])
+
+    def residuals(x: Vector) -> Vector:
+        return J @ x - np.ones(2)
+
+    _, x = steps(residuals, lambda x: J, np.zeros(2), compressed=True)
+
+    np.testing.assert_allclose(x, [0.5, 0.5], atol=1e-3)
+    assert residuals(x) @ residuals(x) == pytest.approx(1.0, rel=1e-3)
+
+
 @pytest.mark.parametrize(
     ("total", "gram", "gradient"),
     [
         (1.0, np.array([[1.0, 2.0], [2.0, 1.0]]), np.array([0.1, 0.1])),  # indefinite
         (0.4, np.eye(2), np.array([1.0, 0.0])),  # the gradient implies |f|^2 = 1, not 0.4
-        # Nearly dependent columns: the weakest direction is kept, but its eigenvector is too
-        # inaccurate for its part of the gradient, which would overstate F = 1.
-        (
-            1.0,
-            np.array([[1.0, 1.0], [1.0, 1.0 + 3.8062979230107953e-7**2]]),
-            np.array([0.0, 3.8062979230107953e-7]),
-        ),
         (1.0, np.diag([1.0, 0.0]), np.array([0.1, 0.2])),  # a gradient without derivatives
         (np.nan, np.eye(2), np.zeros(2)),
         (1.0, np.diag([1.0, -1e-3]), np.zeros(2)),
+        # A gradient in the undetermined direction (1, -1) that no derivatives could produce.
+        (1.0, np.ones((2, 2)), np.array([0.5, -0.5])),
     ],
 )
 def test_compression_rejects_inconsistent_normal_equations(

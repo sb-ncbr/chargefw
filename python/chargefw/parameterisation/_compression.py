@@ -1,14 +1,20 @@
 """The fit's least-squares model in the size of the free slots instead of the number of charges.
 
 From the normal equations of the weighted residuals at one point, F = |r|², H = JᵀJ and z = Jᵀr in
-n free slots, compress() builds n + 1 residuals f and their (n + 1) × n matrix J̃ with J̃ᵀJ̃ = H,
-J̃ᵀf = z and |f|² = F. SciPy's TRF method with the linear loss uses only these quantities, so it
-takes the steps of the full problem. J̃ is not the derivative of f; it represents the model at that
-point only.
+n free slots, compress() builds n + 1 residuals f and their (n + 1) × n matrix J̃ with |f|² = F,
+and with J̃ᵀJ̃ = H and J̃ᵀf = z except in the dropped directions described below. SciPy's TRF method
+with the linear loss uses only these quantities, so it sees the local quadratic model of the full
+problem in the directions kept; with directions dropped, its steps can differ from those on the full
+problem. J̃ is not the derivative of f; it represents the model at that point only.
 
-H is scaled to unit diagonal first, so that a slot with small derivatives keeps its direction. Only
-directions that the scaled H cannot resolve in floating point are dropped, and only when the
-gradient has no material part in them.
+H is scaled to unit diagonal first, so that a slot with small derivatives keeps its direction. Its
+directions with an eigenvalue at or below undetermined() of the largest are dropped: combinations of
+slots that the data determines less than about 1e-6 as strongly as the best determined one, in the
+coordinates the optimizer uses. The fit's diagnostics count such combinations by the same threshold,
+but in the parameter values themselves, so the two usually, not always, agree. The optimizer takes no
+step to reduce the
+residual along them, which differs from plain least squares: that would follow such a combination,
+usually to extreme parameter values. Its steps can still move along them within bounds.
 """
 
 from __future__ import annotations
@@ -19,8 +25,6 @@ from numpy.typing import NDArray
 __all__ = ["CompressionError", "compress"]
 
 _EPSILON = float(np.finfo(np.float64).eps)
-# The largest share of the scaled gradient allowed in directions that are dropped.
-_GRADIENT_TOLERANCE = 1e-6
 # How much more than F the residuals may explain, relative to F: rounding, not a different model.
 _SUM_OF_SQUARES_TOLERANCE = 1e-8
 
@@ -29,10 +33,12 @@ class CompressionError(ArithmeticError):
     """The normal equations cannot represent the least-squares model in floating point."""
 
 
-def resolution(size: int) -> float:
-    """Eigenvalues of a unit-diagonal Gram matrix below this times the largest are rounding."""
+def undetermined(size: int) -> float:
+    """The relative eigenvalue of a unit-diagonal Gram matrix in `size` slots at or below which a
+    direction counts as not determined: singular values below 1e-6 of the largest, or below what
+    floating point resolves when that is more, as with thousands of slots."""
 
-    return 64.0 * size * _EPSILON
+    return max(1e-12, 64.0 * size * _EPSILON)
 
 
 def compress(
@@ -56,18 +62,22 @@ def compress(
     scaled_gradient = scale * gradient
 
     eigenvalues, vectors = np.linalg.eigh(scaled)
-    threshold = resolution(n) * max(float(eigenvalues[-1]), 0.0)
+    threshold = undetermined(n) * max(float(eigenvalues[-1]), 0.0)
     if eigenvalues[0] < -threshold:
         raise CompressionError(
             f"the normal equations are not positive semidefinite (eigenvalue {eigenvalues[0]:.3e})"
         )
     dropped = eigenvalues <= threshold
-    gradient_norm = float(np.linalg.norm(scaled_gradient))
-    if np.any(dropped) and gradient_norm > 0.0:
-        share = float(np.linalg.norm(vectors[:, dropped].T @ scaled_gradient)) / gradient_norm
-        if share > _GRADIENT_TOLERANCE:
+    # A direction v with singular value σ carries at most σ·√F of the gradient: |vᵀz| = |(Jv)ᵀr|
+    # ≤ |Jv|·|r| (Cauchy-Schwarz). Dropped directions have σ² ≤ threshold, so more than that, with
+    # room for rounding, means normal equations that do not belong together.
+    if np.any(dropped):
+        projected = float(np.linalg.norm(vectors[:, dropped].T @ scaled_gradient))
+        bound = np.sqrt(float(np.sum(dropped)) * threshold * sum_of_squares)
+        if projected > 4.0 * bound + 64.0 * _EPSILON * float(np.linalg.norm(scaled_gradient)):
             raise CompressionError(
-                f"{share:.1e} of the gradient lies in directions the normal equations cannot resolve"
+                "the gradient in directions the normal equations cannot resolve exceeds what their "
+                f"derivatives allow ({projected:.3e} > {bound:.3e})"
             )
 
     root = np.sqrt(np.where(dropped, 0.0, eigenvalues))
