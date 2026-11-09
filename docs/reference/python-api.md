@@ -11,6 +11,8 @@ indices of molecules, atoms, bonds, and conformers count from zero.
 | `chargefw.calculate(molecules, *, method=None, parameter_set=None, ...)` | `CalculationResult`; the arguments are listed in [Calculating charges](../interfaces/python.md#calculating-charges) |
 | `chargefw.calculate(molecules, plan, *, threads=None, observer=None)` | `CalculationResult` of a `Plan` from `assess()`; omit `plan` rather than passing `None` |
 | `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `plan` and `observer` |
+| `chargefw.read_parameter_set(path)` | `ParameterSet` read from your own JSON file |
+| `chargefw.write_parameter_set(parameter_set, path)` | Writes a parameter set as JSON |
 | `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a file |
 | `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a string |
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
@@ -338,6 +340,59 @@ The [parameter-set format](parameter-format.md#classifiers) explains classifiers
 `atomic_number`, `symbol`, `name`, `period`, and `group`, as described in
 [Periodic table](../interfaces/python.md#periodic-table).
 
+## Fitting
+
+`chargefw.parameterisation` fits parameter values to reference charges; [Fitting
+parameters](../interfaces/fitting.md) shows how.
+
+| Function | Returns |
+| --- | --- |
+| `make_parameter_template(molecules, method, *, atom_types, bond_types="plain", id="template")` | `ParameterSet` with an entry for every atom and bond type of the molecules, all values zero |
+| `fit(evaluator, references, *, weights=None, start=None, free=None, bounds=None, profile="default", max_evaluations=None)` | `FitResult` |
+
+`chargefw.parameterisation.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
+start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`.
+
+### Evaluator
+
+`Evaluator(plan, *, threads=None)` for a `Plan` with full execution and a parameter set.
+
+| Attribute | Content |
+| --- | --- |
+| `layout` | Tuple of `Slot`, the order of every value vector |
+| `values` | The plan's parameter values |
+| `matches` | Per slot, the number of atoms or bonds of its type; `None` for common parameters |
+| `charges(values)` | The charges of every assignment, concatenated in assignment order |
+| `jacobian(values, slots=None, bounds=None)` | Derivatives of the charges by finite differences, one column per slot |
+
+A `Slot` has `scope` (`"common"`, `"atom"`, or `"bond"`), `key` (an `AtomParameterKey`, a
+`BondParameterKey`, or `None`), and `name`.
+
+### FitResult
+
+| Attribute | Content |
+| --- | --- |
+| `values`, `start` | Fitted and starting values of every slot |
+| `free` | Indices of the fitted slots |
+| `bounds` | Lower and upper values per slot |
+| `success`, `message` | Whether and why the optimizer stopped |
+| `evaluations`, `failed_evaluations` | Trial values the optimizer evaluated, and those whose calculation failed |
+| `rmsd` | RMSD of the charges at `values` against the references, without weights |
+| `diagnostics` | `Diagnostics` |
+| `parameter_set(*, id, name="", publication="", notes="")` | The fitted values as a `ParameterSet` |
+
+### Diagnostics and ElementDiagnostics
+
+| Attribute | Content |
+| --- | --- |
+| `r2` | R² of the charges against the references |
+| `by_element` | Mapping of element symbol to `ElementDiagnostics` with `count`, `rmsd`, and `r2` |
+| `matches` | Per free slot, the number of atoms or bonds of its type |
+| `at_bounds` | Free slots at a bound |
+| `singular_values`, `rank` | How strongly, and in how many independent combinations, the data determines the free slots |
+| `weakest` | Free slots of the least determined combination |
+| `failed_messages` | Messages of failed trial calculations, at most 20 |
+
 ## Progress
 
 ### CalculationObserver
@@ -366,6 +421,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |
 | `chargefw.CalculationCancelledError` | The observer cancelled the calculation |
+| `chargefw.parameterisation.EvaluationError` | A calculation for parameter values failed during fitting or evaluation |
 
 Invalid arguments raise `TypeError` or `ValueError`, files that cannot be read or written raise
 `OSError`, and a calculation that runs out of memory raises `MemoryError`.

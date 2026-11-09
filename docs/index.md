@@ -58,6 +58,7 @@ guide/results
 :caption: Interfaces
 
 interfaces/python
+interfaces/fitting
 interfaces/cli
 interfaces/cpp
 ```

@@ -362,7 +362,8 @@ raises `ValueError`, as does a file that does not follow the format. Such a set 
 `chargefw.parameter_sets`; results report it in `plan.parameter_set`.
 
 `chargefw.write_parameter_set(parameter_set, path)` writes any parameter set, bundled or your own, to a
-JSON file in the same format.
+JSON file in the same format. To fit the values of a parameter set to your own reference charges, see
+[Fitting parameters](fitting.md).
 
 ## Assessing before calculating
 
