@@ -463,9 +463,10 @@ def fit(
     diagnostics usually report through ``rank``; plain least squares would follow them, usually to
     extreme values. Other methods use the forward differences of ``Evaluator.jacobian()``.
 
-    Before fitting, the start is checked: it must lie strictly inside the bounds of every free slot,
-    at least ``1e-10 * max(1, |bound|)`` from a finite bound, so that SciPy uses it unchanged; the
-    charges must be calculable; and every free slot must change a charge whose weight is not zero.
+    Before fitting, the start is checked: it must lie within the bounds of every free slot; the
+    charges must be calculable; and every free slot must change a charge whose weight is not zero. A
+    start on a bound, as from an earlier fit that ended there, or beyond it by no more than
+    ``1e-10 * max(1, |bound|)``, is accepted; SciPy moves it just inside the bound.
     Calculations that fail at trial values are rejected, and the optimizer tries a shorter step. A
     finite-difference step that fails is tried the other way; if that fails too, the fit stops with
     ``EvaluationError``. So does a fit whose normal equations cannot represent its least-squares
@@ -516,9 +517,15 @@ def fit(
         internal_lower,
         internal_upper,
     )
+    # A start on a bound, or beyond it by rounding, goes onto the bound, which every calculation from
+    # here on uses; SciPy then moves it just inside. The result reports the start as given.
+    internal_initial[free_slots] = np.clip(
+        internal_initial[free_slots], internal_lower[free_slots], internal_upper[free_slots]
+    )
+    feasible = coordinates.to_values(internal_initial)
 
     try:
-        start_charges = evaluator.charges(initial)
+        start_charges = evaluator.charges(feasible)
     except EvaluationError as error:
         raise EvaluationError(f"the charges cannot be calculated at the start: {error}") from error
     assert evaluator._assignment_sizes is not None
@@ -533,11 +540,11 @@ def fit(
     # Charges with weight zero do not count.
     start_derivative = coordinates.derivative(internal_initial)[free_index]
     if exact:
-        _, _, start_gram, _ = evaluator._normal_equations(initial, reference, weight)
+        _, _, start_gram, _ = evaluator._normal_equations(feasible, reference, weight)
         sensitivity = np.diag(start_derivative.T @ start_gram[free_index] @ start_derivative)
         sensitive = sensitivity != 0.0
     else:
-        start_jacobian = evaluator.jacobian(initial, free_slots, (lower, upper))
+        start_jacobian = evaluator.jacobian(feasible, free_slots, (lower, upper))
         internal_start_jacobian = (weight[:, np.newaxis] * start_jacobian) @ start_derivative
         sensitive = internal_start_jacobian.any(axis=0)
     insensitive = [slot for column, slot in enumerate(free_slots) if not sensitive[column]]
@@ -855,20 +862,22 @@ def _check_start_in_bounds(
     lower: NDArray[np.float64],
     upper: NDArray[np.float64],
 ) -> None:
-    # SciPy's TRF method moves a start closer to a finite bound than 1e-10 * max(1, |bound|) away
-    # from it. A start at least that far inside is used exactly as given.
-    def margin(bound: float) -> float:
+    # A value an earlier fit left on a bound can come back across it by rounding, for example after
+    # a transform; beyond that, the start is outside.
+    def tolerance(bound: float) -> float:
         return 1e-10 * max(1.0, abs(bound)) if math.isfinite(bound) else 0.0
 
     outside = [
         slot
         for slot in free
-        if not lower[slot] + margin(lower[slot]) < start[slot] < upper[slot] - margin(upper[slot])
+        if not lower[slot] - tolerance(lower[slot])
+        <= start[slot]
+        <= upper[slot] + tolerance(upper[slot])
     ]
     if outside:
         raise ValueError(
-            "the start must lie strictly inside the bounds of every free slot, at least "
-            "1e-10 * max(1, |bound|) from a finite bound; change the start or the bounds of: "
+            "the start must lie within the bounds of every free slot; change the start or the "
+            "bounds of: "
             + "; ".join(
                 f"slot {slot} ({describe(slot)}) = {start[slot]!r} in "
                 f"[{lower[slot]!r}, {upper[slot]!r}]"

@@ -316,13 +316,26 @@ def test_fit_checks_the_start_before_fitting() -> None:
     upper[5] = 2.0
     with pytest.raises(ValueError, match="slot 5 \\(atom A of"):
         fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
-    upper[5] = FIT_START[5]
-    with pytest.raises(ValueError, match="strictly inside"):
+    # A start on a bound, as an earlier fit can leave it, or beyond it by rounding, is accepted with
+    # exact derivatives and with finite differences.
+    differences = training_evaluator()
+    differences._exact = False
+    for path in (evaluator, differences):
+        for bound in (FIT_START[5], FIT_START[5] - 1e-12):
+            upper[5] = bound
+            result = fit(
+                path,
+                references,
+                start=FIT_START,
+                free=FIT_FREE,
+                bounds=(lower, upper),
+                max_evaluations=3,
+            )
+            assert result.start[5] == FIT_START[5] and result.values[5] <= bound
+    upper[5] = FIT_START[5] - 1e-6
+    with pytest.raises(ValueError, match="within the bounds"):
         fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
-    # So close to a bound that SciPy would move the start itself.
-    upper[5] = FIT_START[5] + 1e-12
-    with pytest.raises(ValueError, match="strictly inside"):
-        fit(evaluator, references, start=FIT_START, free=FIT_FREE, bounds=(lower, upper))
+    upper[5] = np.inf
 
     zero_kappa = FIT_START.copy()
     zero_kappa[0] = 0.0
