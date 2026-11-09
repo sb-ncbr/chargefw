@@ -188,6 +188,11 @@ class Evaluator:
         step. If the calculation fails there, the same step the other way is tried, within the
         bounds. Each column costs one calculation, or two after such a failure. Raises
         ``EvaluationError`` naming the slot when no step can be calculated.
+
+        The step is ``sqrt(eps) * max(1, |value|)``, shortened when needed to stay within the bounds,
+        so the derivatives are approximate; their accuracy depends on the calculation and the step.
+        ``fit()`` uses them only for methods without exact derivatives; for EEM, SQE, SQE+q0, and
+        SQE+qp it uses the exact ones.
         """
 
         point = self._vector(values)
