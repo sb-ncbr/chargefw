@@ -1,7 +1,10 @@
+#include "calculation.h"
+
 #include "bindings.h"
 #include "native_execution_result.h"
 #include "native_input_metadata.h"
 #include "native_parameter_catalog.h"
+#include "numpy_values.h"
 
 #include "adapters/fixed_ions.h"
 
@@ -15,10 +18,6 @@
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
-#include <chargefw/parameterisation/normal_equations.h>
-#include <chargefw/parameterisation/parameter_entries.h>
-#include <chargefw/parameterisation/parameter_vector.h>
-#include <chargefw/parameters/models/parameter_set.h>
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
@@ -49,7 +48,6 @@ namespace chargefw::python {
 namespace {
 
 // Parameter values passed from Python, one per slot in layout order.
-using value_array = nb::ndarray<const double, nb::ndim<1>, nb::c_contig, nb::device::cpu>;
 
 auto method_options(const nb::dict& values)
     -> std::unordered_map<std::string, methods::MethodOptions> {
@@ -186,16 +184,6 @@ auto effective_calculation(const calculation::EffectiveCalculation& effective) -
     return result;
 }
 
-auto numpy_values(const std::span<const double> values)
-    -> nb::ndarray<nb::numpy, const double, nb::shape<-1>> {
-    auto owned_values = std::make_unique<std::vector<double>>(values.begin(), values.end());
-    auto owner = nb::capsule{owned_values.get(), [](void* pointer) noexcept {
-                                 delete static_cast<std::vector<double>*>(pointer);
-                             }};
-    auto* released_values = owned_values.release();
-    return {released_values->data(), {released_values->size()}, owner};
-}
-
 auto rejection(const calculation::Rejection& rejected) -> nb::dict {
     auto result = nb::dict{};
     result["method_id"] = rejected.method_id;
@@ -300,21 +288,6 @@ class PythonCalculationObserver final : public calculation::CalculationObserver 
     nb::object observer_;
 };
 
-class NativeAssessmentState {
-  public:
-    NativeAssessmentState(calculation::AssessmentResult assessment,
-                          std::vector<adapters::ImportedMoleculeRecord> inputs,
-                          adapters::RequestedCalculationProvenance requested,
-                          const std::size_t max_threads)
-        : assessment_{std::move(assessment)}, inputs_{std::move(inputs)},
-          requested_{std::move(requested)}, max_threads_{max_threads} {}
-
-    calculation::AssessmentResult assessment_;
-    std::vector<adapters::ImportedMoleculeRecord> inputs_;
-    adapters::RequestedCalculationProvenance requested_;
-    std::size_t max_threads_ = 0;
-};
-
 auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     auto result = nb::dict{};
     result["method_id"] = std::string{plan.method().id()};
@@ -330,191 +303,6 @@ auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     result["warnings"] = std::move(warnings);
     return result;
 }
-
-class NativePlan {
-  public:
-    NativePlan(std::shared_ptr<NativeAssessmentState> state, const std::size_t index)
-        : state_{std::move(state)}, index_{index} {}
-
-    [[nodiscard]] auto report() const -> nb::dict {
-        return execution_plan(plan());
-    }
-
-    // The slots of the plan's parameter set, as (scope, entry index, name).
-    [[nodiscard]] auto layout() const -> nb::list {
-        auto result = nb::list{};
-        for (const auto& slot : parameterisation::parameter_layout(parameter_set())) {
-            result.append(nb::make_tuple(std::string{parameterisation::to_string(slot.scope)},
-                                         slot.entry_index, slot.name));
-        }
-        return result;
-    }
-
-    [[nodiscard]] auto values() const -> nb::ndarray<nb::numpy, const double, nb::shape<-1>> {
-        return numpy_values(parameterisation::parameter_values(parameter_set()));
-    }
-
-    // Charges of every assignment, concatenated in assignment order, for candidate values in
-    // layout order. Only the status, the charges with the size and molecule of each assignment, and
-    // the failure message are returned: a fit evaluates many candidates and needs no other result
-    // data.
-    [[nodiscard]] auto calculate_values(const value_array& values,
-                                        const std::optional<std::size_t> max_threads) const
-        -> nb::dict {
-        auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
-        auto result = [&] {
-            nb::gil_scoped_release release;
-            return calculation::calculate(state_->assessment_, plan(), candidate(candidate_values),
-                                          max_threads.value_or(state_->max_threads_));
-        }();
-
-        auto payload = nb::dict{};
-        payload["status"] = std::string{calculation::to_string(result.status)};
-        payload["failure_message"] =
-            result.failure_message.has_value() ? nb::cast(*result.failure_message) : nb::none();
-        if (!result.charges.has_value()) {
-            payload["charges"] = nb::none();
-            payload["assignment_sizes"] = nb::none();
-            payload["assignment_molecules"] = nb::none();
-            return payload;
-        }
-        auto charges = std::vector<double>{};
-        auto assignment_sizes = nb::list{};
-        auto assignment_molecules = nb::list{};
-        for (const auto& assignment : result.charges->assignments()) {
-            const auto assignment_values = assignment.charges.values();
-            charges.insert(charges.end(), assignment_values.begin(), assignment_values.end());
-            assignment_sizes.append(assignment_values.size());
-            assignment_molecules.append(assignment.target.molecule_index);
-        }
-        payload["charges"] = numpy_values(charges);
-        payload["assignment_sizes"] = std::move(assignment_sizes);
-        payload["assignment_molecules"] = std::move(assignment_molecules);
-        return payload;
-    }
-
-    // The normal equations of a least-squares fit at candidate values in layout order
-    // (parameterisation::normal_equations); "gauss_newton" is flattened row by row. A failing
-    // calculation is reported in "status" and "failure_message", as by calculate_values().
-    [[nodiscard]] auto normal_equations(const value_array& values, const value_array& references,
-                                        const value_array& weights,
-                                        const std::optional<std::size_t> max_threads) const
-        -> nb::dict {
-        auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
-        auto result = std::optional<parameterisation::NormalEquations>{};
-        auto failure_message = std::optional<std::string>{};
-        {
-            nb::gil_scoped_release release;
-            try {
-                result = parameterisation::normal_equations(
-                    state_->assessment_, plan(), candidate(candidate_values),
-                    std::span{references.data(), references.size()},
-                    std::span{weights.data(), weights.size()},
-                    max_threads.value_or(state_->max_threads_));
-            } catch (const std::invalid_argument&) {
-                throw;
-            } catch (const std::logic_error& error) {
-                failure_message = error.what();
-            } catch (const std::runtime_error& error) {
-                failure_message = error.what();
-            }
-        }
-
-        auto payload = nb::dict{};
-        payload["status"] = result.has_value() ? "success" : "numerical_failure";
-        payload["failure_message"] =
-            failure_message.has_value() ? nb::cast(*failure_message) : nb::none();
-        if (!result.has_value()) {
-            payload["charges"] = nb::none();
-            payload["sum_of_squares"] = nb::none();
-            payload["gauss_newton"] = nb::none();
-            payload["gradient"] = nb::none();
-            return payload;
-        }
-        payload["charges"] = numpy_values(result->charges);
-        payload["sum_of_squares"] = result->sum_of_squares;
-        payload["gauss_newton"] = numpy_values(result->gauss_newton);
-        payload["gradient"] = numpy_values(result->gradient);
-        return payload;
-    }
-
-    [[nodiscard]] auto exact_derivatives() const -> bool {
-        return parameterisation::has_exact_derivatives(plan().method());
-    }
-
-    [[nodiscard]] auto calculate(const std::optional<std::size_t> max_threads,
-                                 nb::object observer) const -> NativeExecutionResult {
-        auto python_observer = std::optional<PythonCalculationObserver>{};
-        const auto* native_observer = std::addressof(calculation::default_calculation_observer());
-        if (!observer.is_none()) {
-            python_observer.emplace(std::move(observer));
-            native_observer = std::addressof(*python_observer);
-        }
-        auto result = [&] {
-            nb::gil_scoped_release release;
-            return calculation::calculate(state_->assessment_, plan(),
-                                          max_threads.value_or(state_->max_threads_),
-                                          *native_observer);
-        }();
-        auto requested = state_->requested_;
-        requested.max_threads = max_threads.value_or(state_->max_threads_);
-        return NativeExecutionResult{adapters::make_charge_calculation_result(
-            state_->inputs_, std::move(requested), std::move(result))};
-    }
-
-    [[nodiscard]] auto estimate(const std::optional<std::size_t> max_threads) const
-        -> std::pair<double, double> {
-        const auto estimate = calculation::estimate(state_->assessment_, plan(),
-                                                    max_threads.value_or(state_->max_threads_));
-        return {estimate.memory_bytes, estimate.operations};
-    }
-
-    // The number of calculated atoms matched to each atom entry and of bonds matched to each bond
-    // entry of the plan's parameter set (parameterisation::entry_counts()).
-    [[nodiscard]] auto entry_counts() const
-        -> std::pair<std::vector<std::size_t>, std::vector<std::size_t>> {
-        auto counts = parameterisation::entry_counts(state_->assessment_, plan());
-        return {std::move(counts.atoms), std::move(counts.bonds)};
-    }
-
-    // Per atom entry: (single_bonded, exclusive_bonds, bond_entries), as
-    // parameterisation::single_bond_entries() reports them.
-    [[nodiscard]] auto single_bond_entries() const
-        -> std::vector<std::tuple<bool, bool, std::vector<std::size_t>>> {
-        auto result = std::vector<std::tuple<bool, bool, std::vector<std::size_t>>>{};
-        for (auto& entry : parameterisation::single_bond_entries(state_->assessment_, plan())) {
-            result.emplace_back(entry.single_bonded, entry.exclusive_bonds,
-                                std::move(entry.bond_entries));
-        }
-        return result;
-    }
-
-  private:
-    [[nodiscard]] auto plan() const -> const calculation::ExecutionPlan& {
-        return state_->assessment_.plans()[index_];
-    }
-
-    // The plan's parameter set with `values`, under an ID of its own.
-    [[nodiscard]] auto candidate(const std::span<const double> values) const
-        -> parameters::ParameterSet {
-        const auto& assessed = parameter_set();
-        auto metadata = parameters::ParameterSetMetadata{};
-        metadata.id = std::string{assessed.id()} + ":candidate";
-        return parameterisation::with_parameter_values(assessed, values, std::move(metadata));
-    }
-
-    [[nodiscard]] auto parameter_set() const -> const parameters::ParameterSet& {
-        const auto* parameter_set = plan().parameter_set();
-        if (parameter_set == nullptr) {
-            throw std::invalid_argument{"method '" + std::string{plan().method().id()} +
-                                        "' has no parameters"};
-        }
-        return *parameter_set;
-    }
-
-    std::shared_ptr<NativeAssessmentState> state_;
-    std::size_t index_ = 0;
-};
 
 class NativeAssessment {
   public:
@@ -668,6 +456,36 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
 
 } // namespace
 
+auto NativePlan::report() const -> nb::dict {
+    return execution_plan(plan());
+}
+
+auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::object observer) const
+    -> NativeExecutionResult {
+    auto python_observer = std::optional<PythonCalculationObserver>{};
+    const auto* native_observer = std::addressof(calculation::default_calculation_observer());
+    if (!observer.is_none()) {
+        python_observer.emplace(std::move(observer));
+        native_observer = std::addressof(*python_observer);
+    }
+    auto result = [&] {
+        nb::gil_scoped_release release;
+        return calculation::calculate(state_->assessment_, plan(),
+                                      max_threads.value_or(state_->max_threads_), *native_observer);
+    }();
+    auto requested = state_->requested_;
+    requested.max_threads = max_threads.value_or(state_->max_threads_);
+    return NativeExecutionResult{adapters::make_charge_calculation_result(
+        state_->inputs_, std::move(requested), std::move(result))};
+}
+
+auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
+    -> std::pair<double, double> {
+    const auto estimate = calculation::estimate(state_->assessment_, plan(),
+                                                max_threads.value_or(state_->max_threads_));
+    return {estimate.memory_bytes, estimate.operations};
+}
+
 void bind_calculation(nb::module_& module) {
     module.def("_fixed_ion_names", [](const bool common_only) {
         nb::list names;
@@ -685,16 +503,7 @@ void bind_calculation(nb::module_& module) {
         .def("report", &NativePlan::report)
         .def("calculate", &NativePlan::calculate, nb::arg("max_threads") = nb::none(),
              nb::arg("observer") = nb::none())
-        .def("estimate", &NativePlan::estimate, nb::arg("max_threads") = nb::none())
-        .def("_layout", &NativePlan::layout)
-        .def("_values", &NativePlan::values)
-        .def("_calculate_values", &NativePlan::calculate_values, nb::arg("values"),
-             nb::arg("max_threads") = nb::none())
-        .def("_entry_counts", &NativePlan::entry_counts)
-        .def("_single_bond_entries", &NativePlan::single_bond_entries)
-        .def("_normal_equations", &NativePlan::normal_equations, nb::arg("values"),
-             nb::arg("references"), nb::arg("weights"), nb::arg("max_threads") = nb::none())
-        .def("_exact_derivatives", &NativePlan::exact_derivatives);
+        .def("estimate", &NativePlan::estimate, nb::arg("max_threads") = nb::none());
     nb::class_<NativeAssessment>(module, "_NativeAssessment")
         .def("report", &NativeAssessment::report)
         .def("plans", &NativeAssessment::plans)

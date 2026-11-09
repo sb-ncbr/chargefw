@@ -1,16 +1,7 @@
 from collections.abc import Sequence
 
-import numpy as np
-from numpy.typing import NDArray
-
-from .._payloads import (
-    AssessmentReportPayload,
-    CandidateChargesPayload,
-    ExecutionPlanPayload,
-    ExecutionResultPayload,
-    NormalEquationsPayload,
-)
-from .._types import MethodScope, ParameterScope, PortableId, RequestedExecution
+from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
+from .._types import MethodScope, PortableId, RequestedExecution
 from .adapters import _NativeInputMetadata
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog
@@ -26,21 +17,6 @@ class _NativePlan:
         self, max_threads: int | None = None, observer: object | None = None
     ) -> _NativeExecutionResult: ...
     def estimate(self, max_threads: int | None = None) -> tuple[float, float]: ...
-    def _layout(self) -> list[tuple[ParameterScope, int, str]]: ...
-    def _values(self) -> NDArray[np.float64]: ...
-    def _calculate_values(
-        self, values: NDArray[np.float64], max_threads: int | None = None
-    ) -> CandidateChargesPayload: ...
-    def _entry_counts(self) -> tuple[list[int], list[int]]: ...
-    def _single_bond_entries(self) -> list[tuple[bool, bool, list[int]]]: ...
-    def _normal_equations(
-        self,
-        values: NDArray[np.float64],
-        references: NDArray[np.float64],
-        weights: NDArray[np.float64],
-        max_threads: int | None = None,
-    ) -> NormalEquationsPayload: ...
-    def _exact_derivatives(self) -> bool: ...
 
 class _NativeAssessment:
     def report(self) -> AssessmentReportPayload: ...

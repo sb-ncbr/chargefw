@@ -12,7 +12,7 @@ from typing import Literal, SupportsIndex
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .._chargefw import parameters as _native_parameters
+from .._chargefw import parameterisation as _native_parameterisation
 from .._elements import periodic_table
 from .._methods import Method
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
@@ -70,7 +70,7 @@ def make_parameter_template(
         raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
     method_id = method.id if isinstance(method, Method) else method
     collection = _as_collection(molecules)
-    native = _native_parameters._make_parameter_template_catalog(
+    native = _native_parameterisation._make_parameter_template_catalog(
         collection._native_molecules, method_id, atom_types, bond_types, id
     )
     (descriptor,) = native._descriptors()
@@ -109,7 +109,7 @@ class Evaluator:
                 f"fitting needs full execution, but the plan uses {plan.execution.mode}; "
                 "assess with execution='full'"
             )
-        self._native = plan._native
+        self._native = _native_parameterisation._NativeEvaluator(plan._native)
         self._parameter_set = parameter_set
         self._threads = threads
         self._layout = tuple(
@@ -427,8 +427,8 @@ class FitResult:
             raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
         source = self._parameter_set
         catalog = source._native or _default_parameter_catalog()
-        native = catalog._with_values(
-            source.id, np.ascontiguousarray(self.values), id, name, publication, notes
+        native = _native_parameterisation._with_values(
+            catalog, source.id, np.ascontiguousarray(self.values), id, name, publication, notes
         )
         (descriptor,) = native._descriptors()
         return _parameter_set(descriptor, native)

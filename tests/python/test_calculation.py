@@ -11,6 +11,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
+from chargefw.parameterisation import EvaluationError, Evaluator
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:
@@ -972,47 +973,42 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
         chargefw.read_parameter_set(malformed)
 
 
-def test_native_plan_calculates_charges_for_parameter_values(tmp_path: Any) -> None:
+def test_plan_calculates_charges_for_other_parameter_values(tmp_path: Any) -> None:
     parameter_set = chargefw.read_parameter_set(
         write_eem_set(tmp_path / "set.json", "water-native", 3.0)
     )
     molecule = water(conformers=2)
-    plan = chargefw.assess(molecule, method="eem", parameter_set=parameter_set).default_plan
+    plan = chargefw.assess(
+        molecule, method="eem", parameter_set=parameter_set, execution="full"
+    ).default_plan
     assert plan is not None
-    native = plan._native
+    evaluator = Evaluator(plan, threads=1)
 
-    assert native._layout() == [
-        ("common", 0, "kappa"),
-        ("atom", 0, "A"),
-        ("atom", 0, "B"),
-        ("atom", 1, "A"),
-        ("atom", 1, "B"),
+    assert [(slot.scope, slot.name) for slot in evaluator.layout] == [
+        ("common", "kappa"),
+        ("atom", "A"),
+        ("atom", "B"),
+        ("atom", "A"),
+        ("atom", "B"),
     ]
-    values = native._values()
-    np.testing.assert_array_equal(values, [0.5, 2.0, 1.0, 3.0, 1.0])
+    np.testing.assert_array_equal(evaluator.values, [0.5, 2.0, 1.0, 3.0, 1.0])
 
     # The set's own values reproduce a normal calculation, with both conformers concatenated.
     expected = chargefw.calculate(molecule, plan, threads=1)
-    candidate = native._calculate_values(values, 1)
-    assert candidate["status"] == "success" and candidate["failure_message"] is None
-    assert candidate["charges"] is not None
     np.testing.assert_array_equal(
-        candidate["charges"],
+        evaluator.charges(evaluator.values),
         np.concatenate([assignment.values for assignment in expected.assignments]),
     )
-
-    equal = native._calculate_values(np.array([0.5, 2.0, 1.0, 2.0, 1.0]), 1)
-    assert equal["charges"] is not None
-    np.testing.assert_allclose(equal["charges"], np.zeros(6), atol=1e-12)
+    np.testing.assert_allclose(
+        evaluator.charges(np.array([0.5, 2.0, 1.0, 2.0, 1.0])), np.zeros(6), atol=1e-12
+    )
 
     # EEM rejects kappa <= 0 during the calculation.
-    failed = native._calculate_values(np.array([0.0, 2.0, 1.0, 3.0, 1.0]), 1)
-    assert failed["status"] == "numerical_failure" and failed["charges"] is None
-    assert failed["failure_message"] is not None and "kappa" in failed["failure_message"]
-
+    with pytest.raises(EvaluationError, match="kappa"):
+        evaluator.charges(np.array([0.0, 2.0, 1.0, 3.0, 1.0]))
     with pytest.raises(ValueError):
-        native._calculate_values(np.array([0.5]), 1)
-    formal = chargefw.assess(water(), method="formal").default_plan
+        evaluator.charges(np.array([0.5]))
+    formal = chargefw.assess(water(), method="formal", execution="full").default_plan
     assert formal is not None
     with pytest.raises(ValueError):
-        formal._native._layout()
+        Evaluator(formal)

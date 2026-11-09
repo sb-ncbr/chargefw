@@ -69,6 +69,7 @@ set(CHARGEFW_PYTHON_STUB_SOURCES
     calculation.pyi
     core.pyi
     methods.pyi
+    parameterisation.pyi
     parameters.pyi
 )
 foreach(stub_source IN LISTS CHARGEFW_PYTHON_STUB_SOURCES)
@@ -130,6 +131,7 @@ nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
     src/methods.cpp
     src/module.cpp
     src/parameters.cpp
+    src/parameterisation.cpp
 )
 set_target_properties(chargefw_python PROPERTIES
     OUTPUT_NAME _chargefw
