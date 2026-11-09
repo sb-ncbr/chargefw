@@ -21,9 +21,13 @@ class PortableId {
     using Value = std::variant<std::int64_t, std::string>;
 
     PortableId() = default;
+    // Implicit on purpose: an ID is written as the integer or string it holds, and every integer or
+    // string is a valid ID.
+    // NOLINTBEGIN(cppcoreguidelines-explicit-constructor)
     PortableId(std::int64_t value) : value_{value} {}
     PortableId(std::string value) : value_{std::move(value)} {}
     PortableId(const char* value) : value_{std::string{value}} {}
+    // NOLINTEND(cppcoreguidelines-explicit-constructor)
 
     [[nodiscard]] auto empty() const noexcept -> bool {
         return !value_.has_value();

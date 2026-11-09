@@ -12,7 +12,8 @@
 namespace chargefw::calculation {
 
 auto to_string(const ChargeIssueKind value) -> std::string_view {
-    switch (value) {
+    // A switch over all enumerators, so that the compiler reports a new kind not named here.
+    switch (value) { // NOLINT(readability-trivial-switch)
     case ChargeIssueKind::charge_out_of_range:
         return "charge_out_of_range";
     }
