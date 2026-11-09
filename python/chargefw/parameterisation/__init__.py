@@ -138,10 +138,13 @@ class Evaluator:
         )
         # Per atom slot of a type whose atoms all have one bond and whose bonds' entries follow it
         # alone, those bond entries; None otherwise.
-        terminal_entries = self._native._terminal_entries()
+        single_bond_entries = self._native._single_bond_entries()
         self._terminal = tuple(
-            tuple(terminal_entries[index][1])
-            if scope == "atom" and terminal_entries[index][0]
+            tuple(single_bond_entries[index][2])
+            if scope == "atom"
+            and single_bond_entries[index][0]
+            and single_bond_entries[index][1]
+            and single_bond_entries[index][2]
             else None
             for scope, index, _ in self._native._layout()
         )

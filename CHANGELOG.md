@@ -35,8 +35,9 @@
   `ParameterScope`. `parameters::compatible()` tells whether two sets differ only in their values and
   descriptive metadata, and parameter keys can be compared with `==`.
 - `calculation::to_string()` names a `CalculationPhase`.
-- `ExecutionPlan::classifications()` gives the parameter-set entries matched to the atoms and bonds
-  the plan calculates.
+- `parameterisation::entry_counts()` counts the atoms and bonds of a plan that each entry of its
+  parameter set matches, and `single_bond_entries()` reports the atom entries whose atoms all have
+  one bond, with the bond entries of those bonds.
 - `adapters::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
   `molecular_source_format_from_string()` reads a format name.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter

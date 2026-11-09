@@ -5,7 +5,10 @@
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method_applicability.h>
+#include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_set.h>
+
+#include <span>
 
 namespace chargefw::calculation::detail {
 
@@ -22,6 +25,15 @@ struct AssessmentAccess {
     [[nodiscard]] static auto partition(const AssessmentResult& assessment)
         -> const FixedChargePartition* {
         return assessment.fixed_charge_partition_.get();
+    }
+
+    // The parameter entries matched to the atoms and bonds `plan` calculates, one classification
+    // per calculated molecule (ExecutionPlan::classifications()).
+    [[nodiscard]] static auto classifications(const AssessmentResult& assessment,
+                                              const ExecutionPlan& plan)
+        -> std::span<const parameters::ParameterClassification> {
+        assessment.check_plan(plan);
+        return plan.classifications();
     }
 
     // The method of `plan` with the values of `candidate`, checked as calculate(assessment, plan,

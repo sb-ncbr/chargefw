@@ -4,6 +4,7 @@ target_sources(chargefw_core_objects
         method_derivatives.cpp
         method_derivatives.h
         normal_equations.cpp
+        parameter_entries.cpp
         parameter_columns.h
         parameter_template.cpp
         parameter_vector.cpp
@@ -14,6 +15,7 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/normal_equations.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/parameter_entries.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/parameter_template.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameterisation/parameter_vector.h
 )

@@ -48,6 +48,12 @@ class ExecutionPlan {
     [[nodiscard]] auto method_options() const noexcept -> const methods::MethodOptions&;
     [[nodiscard]] auto policy() const noexcept -> const ExecutionPolicy&;
     [[nodiscard]] auto warnings() const noexcept -> std::span<const methods::ExecutionIssue>;
+
+  private:
+    ExecutionPlan(std::shared_ptr<const PlanIdentity> identity,
+                  const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
+                  std::vector<methods::ExecutionIssue> warnings);
+
     // The parameter entries matched during assessment, one classification per calculated molecule.
     // Its atom indices cover every atom when the parameter set has atom entries, and its bond
     // indices every bond when it has bond entries; otherwise that list is empty, as the bond list
@@ -56,12 +62,8 @@ class ExecutionPlan {
     [[nodiscard]] auto classifications() const noexcept
         -> std::span<const parameters::ParameterClassification>;
 
-  private:
-    ExecutionPlan(std::shared_ptr<const PlanIdentity> identity,
-                  const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
-                  std::vector<methods::ExecutionIssue> warnings);
-
     friend class AssessmentResult;
+    friend struct detail::AssessmentAccess;
     friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                           std::size_t max_threads, const CalculationObserver& observer)
         -> ExecutionResult;

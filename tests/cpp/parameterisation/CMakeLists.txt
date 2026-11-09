@@ -20,3 +20,7 @@ chargefw_add_snitch_test(test_parameter_template
 chargefw_add_snitch_test(test_parameter_vector
         test_parameter_vector.cpp
 )
+
+chargefw_add_snitch_test(test_parameter_entries
+        test_parameter_entries.cpp
+)
