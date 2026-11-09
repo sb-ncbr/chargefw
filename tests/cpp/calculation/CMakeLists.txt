@@ -52,7 +52,3 @@ chargefw_add_snitch_test(test_cover_execution
 target_include_directories(test_cover_execution PRIVATE
         ${PROJECT_SOURCE_DIR}/src
 )
-
-chargefw_add_snitch_test(test_derivatives
-        test_derivatives.cpp
-)

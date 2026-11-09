@@ -2,7 +2,6 @@
 
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/calculation/derivatives.h>
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
@@ -10,6 +9,7 @@
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/core/position.h>
+#include <chargefw/parameterisation/normal_equations.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_values.h>
@@ -25,11 +25,12 @@
 #include <utility>
 #include <vector>
 
-// Normal equations from exact derivatives (calculation::normal_equations), checked against a
+// Normal equations from exact derivatives (parameterisation::normal_equations), checked against a
 // Jacobian from central differences of ordinary calculation with candidate values.
 
 namespace calculation = chargefw::calculation;
 namespace core = chargefw::core;
+namespace parameterisation = chargefw::parameterisation;
 namespace parameters = chargefw::parameters;
 
 namespace {
@@ -154,13 +155,14 @@ auto close(const std::vector<double>& actual, const std::vector<double>& expecte
 // Compares normal_equations() with J^T W^2 J, J^T W^2 r, and sum (w r)^2 from central differences.
 auto check_against_differences(const calculation::AssessmentResult& assessment,
                                const std::vector<double>& references,
-                               const std::vector<double>& weights) -> calculation::NormalEquations {
+                               const std::vector<double>& weights)
+    -> parameterisation::NormalEquations {
     const auto& plan = *assessment.default_plan();
     const auto candidate = parameters::with_parameter_values(
         *plan.parameter_set(), parameters::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
     const auto result =
-        calculation::normal_equations(assessment, plan, candidate, references, weights);
+        parameterisation::normal_equations(assessment, plan, candidate, references, weights);
 
     const auto charges = charges_of(assessment, plan, candidate);
     CHECK(result.charges == charges);
@@ -267,9 +269,9 @@ TEST_CASE("Normal equations do not depend on the number of threads", "[calculati
         *plan.parameter_set(), parameters::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
     const auto one =
-        calculation::normal_equations(assessment, plan, candidate, references, weights, 1);
+        parameterisation::normal_equations(assessment, plan, candidate, references, weights, 1);
     const auto four =
-        calculation::normal_equations(assessment, plan, candidate, references, weights, 4);
+        parameterisation::normal_equations(assessment, plan, candidate, references, weights, 4);
     CHECK(one.charges == four.charges);
     CHECK(one.gauss_newton == four.gauss_newton);
     CHECK(one.gradient == four.gradient);
@@ -297,28 +299,30 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
     constexpr auto nan = std::numeric_limits<double>::quiet_NaN();
 
     // Malformed references and weights.
-    CHECK_THROWS_AS(calculation::normal_equations(assessment, plan, candidate,
-                                                  std::vector<double>(7, 0.0), weights),
+    CHECK_THROWS_AS(parameterisation::normal_equations(assessment, plan, candidate,
+                                                       std::vector<double>(7, 0.0), weights),
                     std::invalid_argument);
     auto bad = references;
     bad[2] = nan;
-    CHECK_THROWS_AS(calculation::normal_equations(assessment, plan, candidate, bad, weights),
+    CHECK_THROWS_AS(parameterisation::normal_equations(assessment, plan, candidate, bad, weights),
                     std::invalid_argument);
     bad = weights;
     bad[2] = nan;
-    CHECK_THROWS_AS(calculation::normal_equations(assessment, plan, candidate, references, bad),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(
+        parameterisation::normal_equations(assessment, plan, candidate, references, bad),
+        std::invalid_argument);
     bad[2] = -1.0;
-    CHECK_THROWS_AS(calculation::normal_equations(assessment, plan, candidate, references, bad),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(
+        parameterisation::normal_equations(assessment, plan, candidate, references, bad),
+        std::invalid_argument);
 
     // A plan of another assessment, and the plan's own parameter set ID.
     const auto other = assess(sqe_molecules(), unusual_sqeqp_parameters());
-    CHECK_THROWS_AS(calculation::normal_equations(other, plan, candidate, references, weights),
+    CHECK_THROWS_AS(parameterisation::normal_equations(other, plan, candidate, references, weights),
                     std::invalid_argument);
-    CHECK_THROWS_AS(
-        calculation::normal_equations(assessment, plan, *plan.parameter_set(), references, weights),
-        std::invalid_argument);
+    CHECK_THROWS_AS(parameterisation::normal_equations(assessment, plan, *plan.parameter_set(),
+                                                       references, weights),
+                    std::invalid_argument);
 
     // Cutoff execution, and a method without exact derivatives.
     const auto cutoff =
@@ -326,7 +330,7 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
                calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff, 8.0});
     const auto& cutoff_plan = *cutoff.default_plan();
     CHECK_THROWS_AS(
-        calculation::normal_equations(
+        parameterisation::normal_equations(
             cutoff, cutoff_plan,
             parameters::with_parameter_values(
                 *cutoff_plan.parameter_set(),
@@ -336,16 +340,16 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
     const auto qeq = assess(sqe_molecules(), chargefw::test::make_qeq_ho_parameters());
     const auto& qeq_plan = *qeq.default_plan();
     CHECK_THROWS_AS(
-        calculation::normal_equations(qeq, qeq_plan,
-                                      parameters::with_parameter_values(
-                                          *qeq_plan.parameter_set(),
-                                          parameters::parameter_values(*qeq_plan.parameter_set()),
-                                          {.id = "candidate"}),
-                                      references, weights),
+        parameterisation::normal_equations(
+            qeq, qeq_plan,
+            parameters::with_parameter_values(
+                *qeq_plan.parameter_set(), parameters::parameter_values(*qeq_plan.parameter_set()),
+                {.id = "candidate"}),
+            references, weights),
         std::invalid_argument);
 
     // Weights so large that the weighted sums overflow.
-    CHECK_THROWS_AS(calculation::normal_equations(assessment, plan, candidate, references,
-                                                  std::vector<double>(8, 1e200)),
+    CHECK_THROWS_AS(parameterisation::normal_equations(assessment, plan, candidate, references,
+                                                       std::vector<double>(8, 1e200)),
                     std::runtime_error);
 }

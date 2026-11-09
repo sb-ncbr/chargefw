@@ -27,11 +27,11 @@ class AssessmentResult;
 class CalculationObserver;
 class PlanIdentity;
 namespace detail {
+struct AssessmentAccess;
 struct FixedChargePartition;
-}
+} // namespace detail
 struct AssessmentRequest;
 struct ExecutionResult;
-struct NormalEquations;
 // Copies the owned molecule and parameter inputs into the assessment result.
 [[nodiscard]] auto assess(const AssessmentRequest& request) -> AssessmentResult;
 // Snapshots selection configuration and transfers execution inputs into the assessment result.
@@ -188,11 +188,7 @@ class AssessmentResult {
                           const CalculationObserver& observer) -> ExecutionResult;
     friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                          std::size_t max_threads) -> methods::ResourceEstimate;
-    friend auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                                 const parameters::ParameterSet& candidate,
-                                 std::span<const double> references,
-                                 std::span<const double> weights, std::size_t max_threads)
-        -> NormalEquations;
+    friend struct detail::AssessmentAccess;
 
     std::vector<parameters::ParameterSet> parameter_sets_;
     methods::ApplicabilityResult applicability_;

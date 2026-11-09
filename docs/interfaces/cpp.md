@@ -282,9 +282,9 @@ sets](#methods-and-parameter-sets), and give it an ID of its own. The result rep
 candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
 method has no parameters throws `std::invalid_argument`.
 
-`calculation::normal_equations(assessment, plan, candidate, references, weights, max_threads)` returns
-what a weighted least-squares fit of the charges needs at the candidate's values, from exact
-derivatives. With the charges q, your reference charges y, your weights w, and the derivatives J of the
+`parameterisation::normal_equations(assessment, plan, candidate, references, weights, max_threads)`,
+declared in `<chargefw/parameterisation/normal_equations.h>`, returns what a weighted least-squares fit
+of the charges needs at the candidate's values, from exact derivatives. With the charges q, your reference charges y, your weights w, and the derivatives J of the
 charges with respect to the values of `parameters::parameter_layout(candidate)`, the result holds:
 
 - `charges`: q;

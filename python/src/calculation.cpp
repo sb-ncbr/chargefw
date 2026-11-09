@@ -8,7 +8,6 @@
 #include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/calculation/derivatives.h>
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/calculation/observer.h>
@@ -16,6 +15,7 @@
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
+#include <chargefw/parameterisation/normal_equations.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_values.h>
 
@@ -395,19 +395,19 @@ class NativePlan {
     }
 
     // The normal equations of a least-squares fit at candidate values in layout order
-    // (calculation::normal_equations); "gauss_newton" is flattened row by row. A failing
+    // (parameterisation::normal_equations); "gauss_newton" is flattened row by row. A failing
     // calculation is reported in "status" and "failure_message", as by calculate_values().
     [[nodiscard]] auto normal_equations(const value_array& values, const value_array& references,
                                         const value_array& weights,
                                         const std::optional<std::size_t> max_threads) const
         -> nb::dict {
         auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
-        auto result = std::optional<calculation::NormalEquations>{};
+        auto result = std::optional<parameterisation::NormalEquations>{};
         auto failure_message = std::optional<std::string>{};
         {
             nb::gil_scoped_release release;
             try {
-                result = calculation::normal_equations(
+                result = parameterisation::normal_equations(
                     state_->assessment_, plan(), candidate(candidate_values),
                     std::span{references.data(), references.size()},
                     std::span{weights.data(), weights.size()},

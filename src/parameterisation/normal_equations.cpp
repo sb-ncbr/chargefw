@@ -1,5 +1,6 @@
-#include <chargefw/calculation/derivatives.h>
+#include <chargefw/parameterisation/normal_equations.h>
 
+#include "calculation/assessment_access.h"
 #include "calculation/fixed_charge_partition.h"
 #include "calculation/parallel_for.h"
 #include "calculation/target_execution.h"
@@ -31,8 +32,10 @@
 #include <string_view>
 #include <vector>
 
-namespace chargefw::calculation {
+namespace chargefw::parameterisation {
 namespace {
+
+using calculation::detail::AssessmentAccess;
 
 constexpr auto no_slot = std::numeric_limits<std::size_t>::max();
 
@@ -126,19 +129,19 @@ auto require_finite(const std::span<const double> values) -> void {
     }
 }
 
-[[nodiscard]] auto target_terms(const methods::ApplicableMethod& selected,
-                                const features::PreparedMolecule& molecule,
-                                const parameters::ParameterClassification& classification,
-                                const std::optional<std::size_t> conformer_index,
-                                const detail::FixedChargePartitionTarget* partition_target,
-                                const SlotTable& table, const std::size_t slot_count,
-                                const std::span<const double> references,
-                                const std::span<const double> weights) -> TargetTerms {
-    const auto linearized =
-        detail::with_target_input(selected, molecule, &classification, conformer_index,
-                                  partition_target, [&](const methods::CalculationInput& input) {
-                                      return linearize_method(*selected.method, input);
-                                  });
+[[nodiscard]] auto
+target_terms(const methods::ApplicableMethod& selected, const features::PreparedMolecule& molecule,
+             const parameters::ParameterClassification& classification,
+             const std::optional<std::size_t> conformer_index,
+             const calculation::detail::FixedChargePartitionTarget* partition_target,
+             const SlotTable& table, const std::size_t slot_count,
+             const std::span<const double> references, const std::span<const double> weights)
+    -> TargetTerms {
+    const auto linearized = calculation::detail::with_target_input(
+        selected, molecule, &classification, conformer_index, partition_target,
+        [&](const methods::CalculationInput& input) {
+            return linearize_method(*selected.method, input);
+        });
     const auto active = linearized->charges();
     const auto atom_count = molecule.molecule().atom_count();
     const auto bond_count = molecule.molecule().bond_count();
@@ -157,9 +160,10 @@ auto require_finite(const std::span<const double> values) -> void {
     for (std::size_t atom = 0; atom < atom_count; ++atom) {
         result.charges[row_of(atom)] = active[atom];
     }
-    const auto sources = partition_target == nullptr
-                             ? std::span<const FixedAtomCharge>{}
-                             : std::span<const FixedAtomCharge>{partition_target->sources};
+    const auto sources =
+        partition_target == nullptr
+            ? std::span<const calculation::FixedAtomCharge>{}
+            : std::span<const calculation::FixedAtomCharge>{partition_target->sources};
     for (const auto& source : sources) {
         result.charges[source.atom_index] = source.charge;
     }
@@ -274,15 +278,14 @@ auto check_rows(const std::span<const double> values, const std::size_t rows,
 
 } // namespace
 
-auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& plan,
+auto normal_equations(const calculation::AssessmentResult& assessment,
+                      const calculation::ExecutionPlan& plan,
                       const parameters::ParameterSet& candidate,
                       const std::span<const double> references,
                       const std::span<const double> weights, const std::size_t max_threads)
     -> NormalEquations {
-    assessment.check_plan(plan);
-    const auto replaced = AssessmentResult::replace_values(plan, &candidate);
-    const auto& selected = *replaced;
-    if (plan.policy().mode() != ExecutionMode::full) {
+    const auto selected = AssessmentAccess::with_values(assessment, plan, candidate);
+    if (plan.policy().mode() != calculation::ExecutionMode::full) {
         throw std::invalid_argument{"normal equations need full execution, but the plan uses " +
                                     std::string{to_string(plan.policy().mode())}};
     }
@@ -292,16 +295,17 @@ auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& p
                                     "' has no exact derivatives"};
     }
 
-    const auto& molecules = assessment.prepared_molecules();
-    const auto* partition = assessment.fixed_charge_partition_.get();
+    const auto& molecules = AssessmentAccess::molecules(assessment);
+    const auto* partition = AssessmentAccess::partition(assessment);
     methods::detail::validate_selected_candidate(selected, molecules, partition != nullptr);
     if (partition != nullptr) {
-        detail::validate_partition_active_molecules(molecules, *partition);
+        calculation::detail::validate_partition_active_molecules(molecules, *partition);
     }
     methods::detail::validate_coordinate_targets(selected, molecules);
 
     // Each target's rows follow the previous target's.
-    const auto targets = detail::make_calculation_targets(molecules, requirements.coordinates);
+    const auto targets =
+        calculation::detail::make_calculation_targets(molecules, requirements.coordinates);
     auto offsets = std::vector<std::size_t>{0};
     for (const auto& target : targets) {
         const auto rows =
@@ -328,7 +332,7 @@ auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& p
     for (std::size_t first = 0; first < targets.size(); first += batch_size) {
         const auto count = std::min(batch_size, targets.size() - first);
         auto terms = std::vector<TargetTerms>(count);
-        detail::parallel_for_indexed(count, max_threads, [&](const std::size_t index) {
+        calculation::detail::parallel_for_indexed(count, max_threads, [&](const std::size_t index) {
             const auto target_index = first + index;
             const auto& target = targets[target_index];
             const auto& molecule = molecules[target.molecule_index];
@@ -341,14 +345,14 @@ auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& p
                     table, slot_count, references.subspan(offsets[target_index], rows),
                     weights.subspan(offsets[target_index], rows));
             } catch (const std::invalid_argument& error) {
-                throw std::invalid_argument{
-                    detail::make_target_failure_message(selected, molecule, target, error)};
+                throw std::invalid_argument{calculation::detail::make_target_failure_message(
+                    selected, molecule, target, error)};
             } catch (const std::logic_error& error) {
-                throw std::logic_error{
-                    detail::make_target_failure_message(selected, molecule, target, error)};
+                throw std::logic_error{calculation::detail::make_target_failure_message(
+                    selected, molecule, target, error)};
             } catch (const std::runtime_error& error) {
-                throw std::runtime_error{
-                    detail::make_target_failure_message(selected, molecule, target, error)};
+                throw std::runtime_error{calculation::detail::make_target_failure_message(
+                    selected, molecule, target, error)};
             }
         });
 
@@ -375,4 +379,4 @@ auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& p
     return result;
 }
 
-} // namespace chargefw::calculation
+} // namespace chargefw::parameterisation

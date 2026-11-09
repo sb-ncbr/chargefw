@@ -7,7 +7,7 @@
 #include <span>
 #include <vector>
 
-namespace chargefw::calculation {
+namespace chargefw::parameterisation {
 
 // The quantities of a weighted least-squares fit of charges at one set of parameter values. Rows
 // are every charge of every assignment, concatenated in assignment order, fixed ions included;
@@ -31,15 +31,16 @@ struct NormalEquations {
 // environment, the result does not depend on `max_threads`. The calculation cannot be cancelled.
 //
 // Throws std::invalid_argument for a plan of another assessment, a candidate that
-// calculate(assessment, plan, candidate) would reject, a plan without full execution, a method
-// without exact derivatives, or malformed references or weights. A failing calculation, or one
-// whose contribution is not finite, throws std::runtime_error or std::logic_error naming the
+// calculation::calculate(assessment, plan, candidate) would reject, a plan without full execution,
+// a method without exact derivatives, or malformed references or weights. A failing calculation, or
+// one whose contribution is not finite, throws std::runtime_error or std::logic_error naming the
 // molecule and conformer: the failures ExecutionResult reports as numerical_failure. Finite
 // contributions whose sum is not finite throw std::runtime_error without naming a molecule.
-[[nodiscard]] auto normal_equations(const AssessmentResult& assessment, const ExecutionPlan& plan,
+[[nodiscard]] auto normal_equations(const calculation::AssessmentResult& assessment,
+                                    const calculation::ExecutionPlan& plan,
                                     const parameters::ParameterSet& candidate,
                                     std::span<const double> references,
                                     std::span<const double> weights, std::size_t max_threads = 0)
     -> NormalEquations;
 
-} // namespace chargefw::calculation
+} // namespace chargefw::parameterisation
