@@ -79,7 +79,7 @@ class StableHardness:
         return list(pairs), [width for (width,) in pairs.values()]
 
 
-_START = {"hardness": 2.0, "width": 1.0, "kappa": 1.0}
+_START = {"electronegativity": 0.0, "hardness": 2.0, "width": 1.0, "kappa": 1.0}
 # A width must stay positive for the hardness to follow from u; kappa >= 0.01 is the margin that keeps
 # the system away from singular.
 _BOUNDS = {"width": (0.05, math.inf), "kappa": (0.01, math.inf)}
@@ -97,6 +97,7 @@ PROFILES = {
         fixed=("electronegativity",),
         transforms=(StableHardness(),),
         terminal={"hardness": "kappa"},
+        linear=("electronegativity",),
     ),
     "sqeq0": Profile(
         bounds=_BOUNDS,
@@ -104,6 +105,7 @@ PROFILES = {
         fixed=("electronegativity",),
         transforms=(StableHardness(),),
         terminal={"hardness": "kappa"},
+        linear=("electronegativity",),
     ),
     "sqeqp": Profile(
         bounds=_BOUNDS,
@@ -111,5 +113,6 @@ PROFILES = {
         fixed=("electronegativity", "q0"),
         transforms=(StableHardness(),),
         terminal={"hardness": "kappa"},
+        linear=("electronegativity", "q0"),
     ),
 }

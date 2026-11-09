@@ -13,7 +13,8 @@ __all__ = ["PROFILES"]
 PROFILES = {
     "eem": Profile(
         bounds={"B": (1e-3, math.inf)},
-        start={"kappa": 1.0, "B": 2.0},
+        start={"kappa": 1.0, "A": 0.0, "B": 2.0},
         fixed=("kappa", "A"),
+        linear=("A",),
     ),
 }

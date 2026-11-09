@@ -20,7 +20,8 @@
   `parameter_set()` turns the fitted values into a parameter set. Profiles for EEM and the SQE
   methods give default bounds, starting values, and fixed parameters; the SQE profiles fit each
   hardness as √π·hardness·width − 1 ≥ 0, which keeps the system stable for every molecule and
-  geometry. Fit diagnostics report R² and the error per element,
+  geometry, and start the electronegativities (EEM's A, and SQE+qp's q0) from their best values for
+  the start of the other parameters, so they need no start. Fit diagnostics report R² and the error per element,
   parameters at a bound, failed calculations, which parameters the data cannot determine, and how many
   atoms or bonds each type has. Install SciPy 1.18 or newer with the `parameterisation` extra.
 - `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and

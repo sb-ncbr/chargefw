@@ -59,7 +59,11 @@ class Profile:
     hardness and kappa do. For an atom type whose atoms all have one bond, and whose bonds' entries
     belong to no other type, the atom parameter is held at the lower bound of what the fit varies for
     it, and the bond parameter of those bonds takes up the difference: this removes the change of
-    both that changes no charge.
+    both that changes no charge. ``linear`` names parameters on which the charges depend linearly
+    when all other values are fixed, such as electronegativities. Unless told which slots to fit,
+    the fit first sets their free, unbounded slots to the values that fit the references best for
+    the start of the others, and then fits them with the rest. They need no start; only
+    combinations of them that the data does not determine keep the start they had.
     """
 
     bounds: Mapping[str, tuple[float, float]] = field(default_factory=dict)
@@ -67,3 +71,4 @@ class Profile:
     fixed: tuple[str, ...] = ()
     transforms: tuple[Transform, ...] = ()
     terminal: Mapping[str, str] = field(default_factory=dict)
+    linear: tuple[str, ...] = ()

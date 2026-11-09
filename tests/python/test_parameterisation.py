@@ -20,7 +20,7 @@ from chargefw.parameterisation import (
     fit,
     make_parameter_template,
 )
-from chargefw.parameterisation.profiles import PROFILES, StableHardness
+from chargefw.parameterisation.profiles import PROFILES, Profile, StableHardness
 from numpy.typing import ArrayLike, NDArray
 
 
@@ -462,32 +462,68 @@ def template_evaluator(method: str, atom_types: str, bond_types: str = "plain") 
     return Evaluator(plan, threads=1)
 
 
-def test_eem_profile_fits_a_template_from_the_electronegativities_alone() -> None:
+def test_eem_profile_fits_a_template_without_a_start() -> None:
     evaluator = template_evaluator("eem", "plain")
     references = training_evaluator().charges(TRUE_VALUES)
-    carbon = chargefw.AtomParameterKey(element="C", classifier="plain", type="*")
-    oxygen = chargefw.AtomParameterKey(element="O", classifier="plain", type="*")
 
-    # Hydrogen A is the fixed slot, so it needs no value; kappa and B start from the profile.
-    result = fit(
-        evaluator, references, start={(carbon, "A"): 0.5, (oxygen, "A"): 1.5}, max_evaluations=5
-    )
+    # Hydrogen A is the fixed slot; kappa and B start from the profile, and the free A from their
+    # best values for that start.
+    result = fit(evaluator, references, max_evaluations=5)
 
     assert result.free == (2, 3, 4, 5, 6)
     profile = PROFILES["eem"].start
     np.testing.assert_array_equal(
-        result.start, [profile["kappa"], 0.0, profile["B"], 0.5, profile["B"], 1.5, profile["B"]]
+        result.start[[0, 1, 2, 4, 6]],
+        [profile["kappa"], profile["A"], profile["B"], profile["B"], profile["B"]],
     )
-    assert result.values[0] == profile["kappa"] and result.values[1] == 0.0
+    assert result.values[0] == profile["kappa"] and result.values[1] == profile["A"]
     np.testing.assert_array_equal(result.bounds[0][[2, 4, 6]], [1e-3, 1e-3, 1e-3])
+
+
+def test_profile_starts_linear_parameters_from_their_best_values() -> None:
+    evaluator = template_evaluator("sqeqp", "hbo", "bo")
+    references = training_evaluator().charges(TRUE_VALUES)
+    weights = np.ones(references.size)
+    linear = [
+        slot
+        for slot, entry in enumerate(evaluator.layout)
+        if entry.name in ("electronegativity", "q0") and entry.key != evaluator.layout[0].key
+    ]
+
+    result = fit(evaluator, references, max_evaluations=1)
+
+    # At the reported start, no change of the free linear slots lowers the sum of squares.
+    assert set(linear) <= set(result.free)
+    _, total, gram, gradient = evaluator._normal_equations(result.start, references, weights)
+    scale = np.sqrt(np.diag(gram)[linear] * total)
+    assert np.all(np.abs(gradient[linear]) <= 1e-8 * scale)
+    # So the charges at the start do not depend on a start given for them, with exact derivatives
+    # and with finite differences; values the data does not determine keep their start.
+    charges = evaluator.charges(result.start)
+    given = {(evaluator.layout[slot].key, evaluator.layout[slot].name): 3.0 for slot in linear}
+    from_given = fit(evaluator, references, start=given, max_evaluations=1).start
+    np.testing.assert_allclose(evaluator.charges(from_given), charges, atol=1e-10)
+    differences = template_evaluator("sqeqp", "hbo", "bo")
+    differences._exact = False
+    from_differences = fit(differences, references, max_evaluations=1).start
+    np.testing.assert_allclose(evaluator.charges(from_differences), charges, atol=1e-6)
+
+    # A bounded linear slot keeps its start, and the others still fit around it.
+    lower = np.full(len(evaluator.layout), -np.inf)
+    upper = np.full(len(evaluator.layout), np.inf)
+    lower[linear[0]], upper[linear[0]] = -10.0, 10.0
+    bounded = fit(evaluator, references, start=given, bounds=(lower, upper), max_evaluations=1)
+    assert bounded.start[linear[0]] == 3.0
+    assert np.all(bounded.start[linear[1:]] != 3.0)
 
 
 def test_profile_reports_free_slots_without_a_start_value() -> None:
     evaluator = template_evaluator("eem", "plain")
     references = training_evaluator().charges(TRUE_VALUES)
+    without_a = Profile(start={"kappa": 1.0, "B": 2.0}, fixed=("kappa", "A"))
 
     with pytest.raises(ValueError, match="no start value") as error:
-        fit(evaluator, references)
+        fit(evaluator, references, profile=without_a)
     message = str(error.value)
     assert "slot 3 (atom A of" in message and "slot 5 (atom A of" in message
     assert "slot 1 " not in message

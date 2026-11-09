@@ -26,15 +26,7 @@ plan = chargefw.assess(
 ).default_plan
 evaluator = Evaluator(plan)
 
-# Electronegativities start from the Pauling values of the elements in your molecules.
-pauling = {"H": 2.20, "C": 2.55, "N": 3.04, "O": 3.44, "S": 2.58}
-start = {
-    (slot.key, slot.name): pauling[slot.key.element]
-    for slot in evaluator.layout
-    if slot.name == "electronegativity"
-}
-
-result = fit(evaluator, references, start=start)
+result = fit(evaluator, references)
 print(result.message, result.rmsd, result.diagnostics.rank, len(result.free))
 
 fitted = result.parameter_set(id="my-sqeqp", name="SQE+qp for my molecules")
@@ -124,9 +116,9 @@ all out: for EEM and the SQE methods, the method's *profile* then provides sensi
 
 | Method | Fixed | Limits | Start values |
 | --- | --- | --- | --- |
-| EEM | `kappa`, and `A` of the first type | `B ≥ 0.001` | `kappa = 1`, `B = 2` |
-| SQE, SQE+q0 | `electronegativity` of the first type, and the `hardness` of terminal types | `width ≥ 0.05`, `kappa ≥ 0.01`, a stable hardness | `hardness = 2`, `width = 1`, `kappa = 1` |
-| SQE+qp | as SQE, and `q0` of the first type | as SQE | as SQE, and `q0 = 0` |
+| EEM | `kappa`, and `A` of the first type | `B ≥ 0.001` | `kappa = 1`, `B = 2`, `A` from your data |
+| SQE, SQE+q0 | `electronegativity` of the first type, and the `hardness` of terminal types | `width ≥ 0.05`, `kappa ≥ 0.01`, a stable hardness | `hardness = 2`, `width = 1`, `kappa = 1`, `electronegativity` from your data |
+| SQE+qp | as SQE, and `q0` of the first type | as SQE | as SQE, and `q0` from your data |
 
 Some changes of the values do not change any charge. Adding the same amount to every
 electronegativity is one: only differences between electronegativities move charge. Such a direction
@@ -145,17 +137,22 @@ The limits keep the values where the method works. In the SQE methods, too small
 charge flow without limit; the profile fits each hardness so that √π·hardness·width ≥ 1, which keeps
 the calculation stable for every molecule and geometry, also for molecules you calculate later.
 
-Electronegativities have no default start. Give them in `start`, with different values for different
-elements, such as the Pauling electronegativities in the first example. With equal
-electronegativities, neutral molecules get zero charges, and no other parameter changes that, so the
-fit could not start.
+The charges depend on the electronegativities (`A` in EEM), and in SQE+qp also on `q0`, in the
+simplest way: with every other value fixed, the best electronegativities follow from your references
+in one step. So you do not give them a start. Before fitting, `fit()` sets them to the best values for
+the start of the other parameters, also when you start from an earlier set or give them in `start`,
+and then fits them together with the rest; `result.start` shows the values it started from. If your
+data cannot tell some of them apart, for example two types that always occur together, those keep
+the start they had.
 
 To set everything yourself, pass `profile=None`.
 
 ### Choosing what to fit
 
 `free` lists the slots to fit, as indices into `evaluator.layout`; the other slots keep their start
-values. Use it when you trust some values and want to fit only the rest. For example, to add sulfur
+values. Use it when you trust some values and want to fit only the rest. With `free`, the fit starts
+from your values exactly as they are, the electronegativities included, and holds no terminal
+hardness. For example, to add sulfur
 to a parameter set that already describes your other elements, fit only the sulfur types and their
 bonds:
 
@@ -200,7 +197,7 @@ for symbols in elements:
     for symbol in symbols:
         counts[symbol] = counts.get(symbol, 0) + 1
 weights = [np.array([counts[symbol] ** -0.5 for symbol in symbols]) for symbols in elements]
-result = fit(evaluator, references, start=start, weights=weights)
+result = fit(evaluator, references, weights=weights)
 ```
 
 `result.rmsd` and the errors in the [diagnostics](#reading-the-result) are reported without weights,
@@ -210,7 +207,8 @@ so you can compare fits with different weights.
 
 `bounds` gives a lower and an upper value per slot, as two arrays in layout order; use `-np.inf` and
 `np.inf` for no limit. Use it to keep a value in a range you consider meaningful, for example a
-positive `kappa`. Bounds you give replace the profile's, with one exception: in the SQE methods, the
+positive `kappa`. An electronegativity with a limit keeps the start you give it. Bounds you give
+replace the profile's, with one exception: in the SQE methods, the
 stability limit of each hardness stays, and a hardness takes no bounds of its own. To set every limit
 yourself, pass `profile=None`; the fit then no longer guarantees stable values.
 

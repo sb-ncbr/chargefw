@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["CompressionError", "compress"]
+__all__ = ["CompressionError", "compress", "determined_step", "undetermined"]
 
 _EPSILON = float(np.finfo(np.float64).eps)
 # How much more than F the residuals may explain, relative to F, at least: rounding, not a different
@@ -42,6 +42,47 @@ def undetermined(size: int) -> float:
     return max(1e-12, 64.0 * size * _EPSILON)
 
 
+def _decompose(
+    gram: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.bool_], float]:
+    """H scaled to unit diagonal, S H S, decomposed: the scale S per slot, the eigenvalues and
+    eigenvectors, the directions undetermined(), and the threshold for them."""
+
+    diagonal = np.diag(gram)
+    if np.any(diagonal < 0.0):
+        raise CompressionError("the normal equations have a negative diagonal")
+    norms = np.sqrt(diagonal)
+    scale = np.ones(diagonal.size)
+    np.divide(1.0, norms, out=scale, where=norms != 0.0)
+    scaled = scale[:, np.newaxis] * gram * scale[np.newaxis, :]
+    eigenvalues, vectors = np.linalg.eigh(scaled)
+    threshold = undetermined(diagonal.size) * max(float(eigenvalues[-1]), 0.0)
+    if eigenvalues[0] < -threshold:
+        raise CompressionError(
+            f"the normal equations are not positive semidefinite (eigenvalue {eigenvalues[0]:.3e})"
+        )
+    return scale, eigenvalues, vectors, eigenvalues <= threshold, threshold
+
+
+def determined_step(
+    gram: NDArray[np.float64], gradient: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """The Gauss-Newton step in the directions compress() keeps, and no step in the others: the
+    shortest step to the least-squares minimum of the linear model in the coordinates scaled to unit
+    diagonal, which is in general not the shortest one in the slots themselves. For residuals that
+    are affine in the slots, it reaches their least-squares minimum along the directions the data
+    determines; components in the other directions keep their start."""
+
+    if not (np.all(np.isfinite(gram)) and np.all(np.isfinite(gradient))):
+        raise CompressionError("the normal equations are not finite")
+    scale, eigenvalues, vectors, dropped, _ = _decompose(gram)
+    kept = vectors[:, ~dropped]
+    # In scaled coordinates y = S⁻¹x the Gram matrix is V Λ Vᵀ; the step there is -V Λ⁻¹ Vᵀ S z on
+    # the kept directions, and x = S y.
+    step = kept @ ((kept.T @ (scale * gradient)) / eigenvalues[~dropped])
+    return -scale * step
+
+
 def compress(
     sum_of_squares: float, gram: NDArray[np.float64], gradient: NDArray[np.float64]
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
@@ -50,25 +91,11 @@ def compress(
         np.isfinite(sum_of_squares) and np.all(np.isfinite(gram)) and np.all(np.isfinite(gradient))
     ):
         raise CompressionError("the normal equations are not finite")
-    diagonal = np.diag(gram)
-    if np.any(diagonal < 0.0):
-        raise CompressionError("the normal equations have a negative diagonal")
-    norms = np.sqrt(diagonal)
-    without = norms == 0.0
-    if np.any(gradient[without] != 0.0):
+    scale, eigenvalues, vectors, dropped, threshold = _decompose(gram)
+    if np.any(gradient[np.diag(gram) == 0.0] != 0.0):
         raise CompressionError("the gradient is not zero for a slot without derivatives")
-    scale = np.ones(n)
-    np.divide(1.0, norms, out=scale, where=~without)
-    scaled = scale[:, np.newaxis] * gram * scale[np.newaxis, :]
     scaled_gradient = scale * gradient
 
-    eigenvalues, vectors = np.linalg.eigh(scaled)
-    threshold = undetermined(n) * max(float(eigenvalues[-1]), 0.0)
-    if eigenvalues[0] < -threshold:
-        raise CompressionError(
-            f"the normal equations are not positive semidefinite (eigenvalue {eigenvalues[0]:.3e})"
-        )
-    dropped = eigenvalues <= threshold
     # A direction v with singular value σ carries at most σ·√F of the gradient: |vᵀz| = |(Jv)ᵀr|
     # ≤ |Jv|·|r| (Cauchy-Schwarz). Dropped directions have σ² ≤ threshold, so more than that, with
     # room for rounding, means normal equations that do not belong together.

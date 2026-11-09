@@ -20,7 +20,7 @@ from .._types import AtomClassifier, BondClassifier, ParameterScope
 from ..calculation import Plan, _as_collection, _default_parameter_catalog, parameter_sets
 from ..core import Molecule, MoleculeCollection
 from . import profiles
-from ._compression import CompressionError, compress, undetermined
+from ._compression import CompressionError, compress, determined_step, undetermined
 
 __all__ = [
     "Diagnostics",
@@ -561,6 +561,32 @@ def fit(
     reference = _flat(references, "references", sizes)
     weight = np.ones(start_charges.size) if weights is None else _flat(weights, "weights", sizes)
 
+    # By default, the free slots of the profile's linear parameters start from their best values for
+    # the start of the others; the result reports this start.
+    linear = (
+        [
+            slot
+            for slot in free_slots
+            if layout[slot].name in chosen.linear
+            and coordinates.plain(slot)
+            and np.isneginf(lower[slot])
+            and np.isposinf(upper[slot])
+        ]
+        if free is None and chosen is not None
+        else []
+    )
+    if linear:
+        try:
+            feasible[linear] += _linear_step(
+                evaluator, feasible, linear, reference, weight, (lower, upper)
+            )
+        except CompressionError as error:
+            raise EvaluationError(
+                f"the best start of the linear parameters cannot be calculated: {error}"
+            ) from error
+        initial[linear] = feasible[linear]
+        internal_initial[linear] = feasible[linear]
+
     exact = evaluator._exact
     free_index = np.ix_(free_slots, free_slots)
     # The values that change with the free internal coordinates: the free slots, and the slots the
@@ -916,6 +942,25 @@ def _start_values(
     return evaluator._vector(values).copy(), missing
 
 
+def _linear_step(
+    evaluator: Evaluator,
+    values: NDArray[np.float64],
+    slots: list[int],
+    reference: NDArray[np.float64],
+    weight: NDArray[np.float64],
+    bounds: tuple[NDArray[np.float64], NDArray[np.float64]],
+) -> NDArray[np.float64]:
+    """The change of `slots` that minimizes the weighted sum of squares when the charges are affine
+    in them, in the directions the data determines."""
+
+    if evaluator._exact:
+        _, _, gram, gradient = evaluator._normal_equations(values, reference, weight)
+        return determined_step(gram[np.ix_(slots, slots)], gradient[slots])
+    jacobian = weight[:, np.newaxis] * evaluator.jacobian(values, slots, bounds)
+    residuals = weight * (evaluator.charges(values) - reference)
+    return determined_step(jacobian.T @ jacobian, jacobian.T @ residuals)
+
+
 def _read_only(values: NDArray[np.float64]) -> NDArray[np.float64]:
     copy = np.array(values)
     copy.setflags(write=False)
@@ -1030,6 +1075,13 @@ class _Coordinates:
             result = transform.derivative(point, self._layout) @ result
             point = transform.to_values(point, self._layout)
         return result
+
+    def plain(self, slot: int) -> bool:
+        """Whether the fit varies the slot's value itself, and no transformed slot depends on it."""
+
+        return slot not in self._owner and not any(
+            slot in depends_on for depends_on in self._dependencies.values()
+        )
 
     def describe(self, evaluator: Evaluator) -> Callable[[int], str]:
         def described(slot: int) -> str:
