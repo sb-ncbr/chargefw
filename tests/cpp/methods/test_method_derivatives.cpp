@@ -129,47 +129,44 @@ auto linearize(const core::Molecule& molecule, const std::string_view method_id,
     return result;
 }
 
-// The derivative of every charge with respect to one slot of the parameter set: the sum of the
-// charge's gradient over every atom or bond the slot's entry matches.
-auto slot_derivatives(const core::Molecule& molecule, const methods::Method& selected,
-                      const std::span<const methods::ParameterGradient> charge_gradients,
-                      const parameters::ParameterSlot& slot) -> std::vector<double> {
-    const auto& requirements = selected.requirements();
-    const auto channel = [&slot](const std::vector<std::string_view>& names) {
-        return static_cast<std::size_t>(std::ranges::find(names, slot.name) - names.begin());
+// Columns with one per slot of the parameter set's layout: atom entry 0 is hydrogen, entry 1
+// oxygen, and one bond entry covers every bond.
+auto slot_columns(const core::Molecule& molecule, const methods::Method& selected,
+                  const parameters::ParameterSet& parameter_set) -> methods::ParameterColumns {
+    const auto layout = parameters::parameter_layout(parameter_set);
+    const auto slot_of = [&layout](const parameters::ParameterScope scope, const std::size_t entry,
+                                   const std::string_view name) {
+        const auto found = std::ranges::find_if(layout, [&](const parameters::ParameterSlot& slot) {
+            return slot.scope == scope && slot.entry_index == entry && slot.name == name;
+        });
+        REQUIRE(found != layout.end());
+        return static_cast<std::size_t>(found - layout.begin());
     };
-    auto result = std::vector<double>{};
-    for (const auto& gradient : charge_gradients) {
-        auto sum = 0.0;
-        if (slot.scope == parameters::ParameterScope::atom) {
-            const auto element = slot.entry_index == 0 ? 1 : 8;
-            for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
-                if (molecule.atom(atom).atomic_number() == element) {
-                    sum += gradient.atom[channel(requirements.atom_parameters)][atom];
-                }
-            }
-        } else if (slot.scope == parameters::ParameterScope::bond) {
-            for (const auto value : gradient.bond[channel(requirements.bond_parameters)]) {
-                sum += value;
-            }
-        } else {
-            sum = gradient.common[channel(requirements.common_parameters)];
+    const auto& requirements = selected.requirements();
+    auto columns =
+        methods::ParameterColumns{.count = layout.size(), .atom = {}, .bond = {}, .common = {}};
+    for (const auto name : requirements.atom_parameters) {
+        auto& assigned = columns.atom.emplace_back();
+        for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
+            const auto entry =
+                molecule.atom(atom).atomic_number() == 1 ? std::size_t{0} : std::size_t{1};
+            assigned.push_back(slot_of(parameters::ParameterScope::atom, entry, name));
         }
-        result.push_back(sum);
     }
-    return result;
+    for (const auto name : requirements.bond_parameters) {
+        columns.bond.emplace_back(molecule.bond_count(),
+                                  slot_of(parameters::ParameterScope::bond, 0, name));
+    }
+    for (const auto name : requirements.common_parameters) {
+        columns.common.push_back(slot_of(parameters::ParameterScope::common, 0, name));
+    }
+    return columns;
 }
 
-auto charge_gradients(const methods::LinearizedCharges& linearized)
-    -> std::vector<methods::ParameterGradient> {
-    const auto atom_count = linearized.charges().size();
-    auto result = std::vector<methods::ParameterGradient>{};
-    for (std::size_t atom = 0; atom < atom_count; ++atom) {
-        auto cotangent = std::vector<double>(atom_count, 0.0);
-        cotangent[atom] = 1.0;
-        result.push_back(linearized.gradient(cotangent));
-    }
-    return result;
+// Column `column` of a jacobian() result for `atom_count` atoms.
+auto column_of(const std::vector<double>& jacobian, const std::size_t atom_count,
+               const std::size_t column) -> std::span<const double> {
+    return std::span{jacobian}.subspan(column * atom_count, atom_count);
 }
 
 auto shifted(const parameters::ParameterSet& parameter_set, const std::size_t slot,
@@ -203,27 +200,22 @@ TEST_CASE("Linearization reproduces the calculated charges", "[methods][sqe][der
     }
 }
 
-TEST_CASE("Gradients match central differences of every slot", "[methods][sqe][derivatives]") {
+TEST_CASE("Jacobian matches central differences of every slot", "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     constexpr auto step = 1e-6;
     for (const auto& [method_id, parameter_set] : cases()) {
         const auto& selected = method(method_id);
+        REQUIRE(selected.requirements().supports_exact_derivatives);
         for (const auto sources : source_choices) {
-            REQUIRE(selected.requirements().supports_exact_derivatives);
             const auto linearized = linearize(molecule, method_id, parameter_set, sources);
-            const auto gradients = charge_gradients(*linearized);
-            // The channels are the method's parameters, in its order.
-            REQUIRE(gradients.front().atom.size() ==
-                    selected.requirements().atom_parameters.size());
-            REQUIRE(gradients.front().bond.size() ==
-                    selected.requirements().bond_parameters.size());
-            REQUIRE(gradients.front().common.size() ==
-                    selected.requirements().common_parameters.size());
+            const auto columns = slot_columns(molecule, selected, parameter_set);
+            const auto jacobian = linearized->jacobian(columns);
+            REQUIRE(jacobian.size() == molecule.atom_count() * columns.count);
 
             const auto layout = parameters::parameter_layout(parameter_set);
             for (std::size_t slot = 0; slot < layout.size(); ++slot) {
                 CAPTURE(method_id, sources.size(), layout[slot].name, layout[slot].entry_index);
-                const auto exact = slot_derivatives(molecule, selected, gradients, layout[slot]);
+                const auto exact = column_of(jacobian, molecule.atom_count(), slot);
                 const auto up =
                     charges_of(molecule, method_id, shifted(parameter_set, slot, step), sources);
                 const auto down =
@@ -237,106 +229,117 @@ TEST_CASE("Gradients match central differences of every slot", "[methods][sqe][d
     }
 }
 
-// Columns for jacobian() with the shape of `shape`, a gradient of the same linearization: values
-// share columns across parameters and atoms, the second atom's values belong to none, and the last
-// column has no values.
-auto mixed_columns(const methods::ParameterGradient& shape) -> methods::ParameterColumns {
+// Columns for `selected` on `molecule`: values share columns across parameters and atoms, the
+// second atom's values belong to none, and the last column has no values. With `separate`, every
+// value has a column of its own instead.
+auto grouped_columns(const core::Molecule& molecule, const methods::Method& selected,
+                     const bool separate) -> methods::ParameterColumns {
+    const auto& requirements = selected.requirements();
     auto columns = methods::ParameterColumns{.count = 4, .atom = {}, .bond = {}, .common = {}};
-    for (std::size_t channel = 0; channel < shape.atom.size(); ++channel) {
+    auto next = std::size_t{0};
+    const auto column = [&next, separate](const std::size_t grouped) {
+        return separate ? next++ : grouped;
+    };
+    for (std::size_t channel = 0; channel < requirements.atom_parameters.size(); ++channel) {
         auto& assigned = columns.atom.emplace_back();
-        for (std::size_t atom = 0; atom < shape.atom[channel].size(); ++atom) {
-            assigned.push_back(atom == 1 ? methods::ParameterColumns::none : (channel + atom) % 3);
+        for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
+            assigned.push_back(atom == 1 && !separate ? methods::ParameterColumns::none
+                                                      : column((channel + atom) % 3));
         }
     }
-    for (const auto& channel : shape.bond) {
+    for (std::size_t channel = 0; channel < requirements.bond_parameters.size(); ++channel) {
         auto& assigned = columns.bond.emplace_back();
-        for (std::size_t bond = 0; bond < channel.size(); ++bond) {
-            assigned.push_back(bond % 2);
+        for (std::size_t bond = 0; bond < molecule.bond_count(); ++bond) {
+            assigned.push_back(column(bond % 2));
         }
     }
-    columns.common.assign(shape.common.size(), 2);
+    for (std::size_t channel = 0; channel < requirements.common_parameters.size(); ++channel) {
+        columns.common.push_back(column(2));
+    }
+    if (separate) {
+        columns.count = next;
+    }
     return columns;
 }
 
-// Checks that column c of jacobian() is, for every atom, the sum of that charge's gradient over
-// the values in column c.
-auto check_columns(const methods::LinearizedCharges& linearized) -> void {
-    const auto gradients = charge_gradients(linearized);
-    const auto atom_count = gradients.size();
-    const auto columns = mixed_columns(gradients.front());
-    const auto jacobian = linearized.jacobian(columns);
-    REQUIRE(jacobian.size() == atom_count * columns.count);
-    for (std::size_t atom = 0; atom < atom_count; ++atom) {
-        auto expected = std::vector<double>(columns.count, 0.0);
-        const auto add = [&expected](const std::vector<std::vector<std::size_t>>& assigned,
-                                     const std::vector<std::vector<double>>& values) {
-            for (std::size_t channel = 0; channel < assigned.size(); ++channel) {
-                for (std::size_t index = 0; index < assigned[channel].size(); ++index) {
-                    if (assigned[channel][index] != methods::ParameterColumns::none) {
-                        expected[assigned[channel][index]] += values[channel][index];
-                    }
-                }
+// Checks that each grouped column is the sum of the separate columns of the values it groups.
+auto check_grouping(const methods::LinearizedCharges& linearized, const core::Molecule& molecule,
+                    const methods::Method& selected) -> void {
+    const auto atom_count = molecule.atom_count();
+    const auto grouped = grouped_columns(molecule, selected, false);
+    const auto separate = grouped_columns(molecule, selected, true);
+    const auto actual = linearized.jacobian(grouped);
+    const auto values = linearized.jacobian(separate);
+    REQUIRE(actual.size() == atom_count * grouped.count);
+    REQUIRE(values.size() == atom_count * separate.count);
+
+    auto expected = std::vector<double>(actual.size(), 0.0);
+    const auto add = [&](const std::size_t group, const std::size_t value) {
+        if (group != methods::ParameterColumns::none) {
+            for (std::size_t atom = 0; atom < atom_count; ++atom) {
+                expected[group * atom_count + atom] += values[value * atom_count + atom];
             }
-        };
-        add(columns.atom, gradients[atom].atom);
-        add(columns.bond, gradients[atom].bond);
-        for (std::size_t channel = 0; channel < columns.common.size(); ++channel) {
-            expected[columns.common[channel]] += gradients[atom].common[channel];
         }
-        for (std::size_t column = 0; column < columns.count; ++column) {
-            CAPTURE(atom, column);
-            const auto actual = jacobian[column * atom_count + atom];
-            CHECK(std::abs(actual - expected[column]) <=
-                  1e-12 * (1.0 + std::abs(expected[column])));
+    };
+    for (std::size_t channel = 0; channel < grouped.atom.size(); ++channel) {
+        for (std::size_t atom = 0; atom < atom_count; ++atom) {
+            add(grouped.atom[channel][atom], separate.atom[channel][atom]);
         }
+    }
+    for (std::size_t channel = 0; channel < grouped.bond.size(); ++channel) {
+        for (std::size_t bond = 0; bond < grouped.bond[channel].size(); ++bond) {
+            add(grouped.bond[channel][bond], separate.bond[channel][bond]);
+        }
+    }
+    for (std::size_t channel = 0; channel < grouped.common.size(); ++channel) {
+        add(grouped.common[channel], separate.common[channel]);
+    }
+    for (std::size_t index = 0; index < actual.size(); ++index) {
+        CAPTURE(index);
+        CHECK(std::abs(actual[index] - expected[index]) <=
+              1e-12 * (1.0 + std::abs(expected[index])));
     }
 }
 
-TEST_CASE("Jacobian columns are sums of the gradients", "[methods][derivatives]") {
+TEST_CASE("Jacobian columns add up the values they group", "[methods][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     for (const auto& [method_id, parameter_set] : cases()) {
+        const auto& selected = method(method_id);
         for (const auto sources : source_choices) {
             CAPTURE(method_id, sources.size());
-            const auto linearized = linearize(molecule, method_id, parameter_set, sources);
-            check_columns(*linearized);
-
-            const auto shape = linearized->gradient(std::vector<double>(5, 0.0));
-            auto outside = mixed_columns(shape);
-            outside.atom[0][0] = outside.count;
-            CHECK_THROWS_AS(linearized->jacobian(outside), std::invalid_argument);
-            auto missing = mixed_columns(shape);
-            missing.atom.pop_back();
-            CHECK_THROWS_AS(linearized->jacobian(missing), std::invalid_argument);
+            check_grouping(*linearize(molecule, method_id, parameter_set, sources), molecule,
+                           selected);
         }
         // Without bonds: SQE's bond parameter has no values, and SQE+qp still normalizes q0.
-        check_columns(*linearize(make_separate_atoms(), method_id, parameter_set, {}));
+        const auto separate_atoms = make_separate_atoms();
+        check_grouping(*linearize(separate_atoms, method_id, parameter_set, {}), separate_atoms,
+                       selected);
     }
-    // References that bypass q0 leave SQE+qp's q0 without effect, as in gradient().
-    check_columns(*linearize(molecule, "sqeqp", cases()[2].parameter_set, {},
-                             std::vector{-0.6, 0.3, 0.3, -1.1, 0.1}));
 }
 
 TEST_CASE("SQE+qp q0 changes keep every bonded part's charge, and references bypass q0",
           "[methods][sqe][derivatives]") {
     const auto molecule = make_water_and_hydroxide();
     const auto parameter_set = cases()[2].parameter_set;
-    const auto linearized = linearize(molecule, "sqeqp", parameter_set, {});
-    constexpr std::size_t q0 = 3; // The channel order of SQE+qp's requirements().
+    const auto& selected = method("sqeqp");
+    const auto columns = slot_columns(molecule, selected, parameter_set);
+    const auto q0_slots = std::array{columns.atom[3][1], columns.atom[3][0]}; // H, then O.
 
     // The total charge of each bonded part does not depend on any q0, while single charges do.
-    const auto water = linearized->gradient(std::vector{1.0, 1.0, 1.0, 0.0, 0.0});
-    const auto hydroxide = linearized->gradient(std::vector{0.0, 0.0, 0.0, 1.0, 1.0});
-    for (std::size_t atom = 0; atom < molecule.atom_count(); ++atom) {
-        CHECK(std::abs(water.atom[q0][atom]) < 1e-12);
-        CHECK(std::abs(hydroxide.atom[q0][atom]) < 1e-12);
+    const auto jacobian = linearize(molecule, "sqeqp", parameter_set, {})->jacobian(columns);
+    for (const auto slot : q0_slots) {
+        const auto change = column_of(jacobian, molecule.atom_count(), slot);
+        CHECK(std::abs(change[0] + change[1] + change[2]) < 1e-12);
+        CHECK(std::abs(change[3] + change[4]) < 1e-12);
+        CHECK(std::abs(change[0]) > 1e-3);
     }
-    const auto oxygen = linearized->gradient(std::vector{1.0, 0.0, 0.0, 0.0, 0.0});
-    CHECK(std::ranges::any_of(oxygen.atom[q0],
-                              [](const double value) { return std::abs(value) > 1e-3; }));
 
     const auto references = std::vector{-0.6, 0.3, 0.3, -1.1, 0.1};
-    const auto bypassed = linearize(molecule, "sqeqp", parameter_set, {}, references);
-    CHECK(all_zero(bypassed->gradient(std::vector{1.0, 0.0, -1.0, 0.5, 0.2}).atom[q0]));
+    const auto bypassed =
+        linearize(molecule, "sqeqp", parameter_set, {}, references)->jacobian(columns);
+    for (const auto slot : q0_slots) {
+        CHECK(all_zero(column_of(bypassed, molecule.atom_count(), slot)));
+    }
 }
 
 TEST_CASE("SQE-family linearization covers molecules without bonds",
@@ -345,46 +348,48 @@ TEST_CASE("SQE-family linearization covers molecules without bonds",
     // change can move.
     const auto separate = make_separate_atoms();
     for (const auto& [method_id, parameter_set] : cases()) {
-        if (!method(method_id).requirements().bonds) {
+        const auto& selected = method(method_id);
+        if (!selected.requirements().bonds) {
             continue;
         }
         CAPTURE(method_id);
         const auto linearized = linearize(separate, method_id, parameter_set, {});
-        const auto gradient = linearized->gradient(std::vector{1.0, -2.0});
-        CHECK(gradient.atom.size() == method(method_id).requirements().atom_parameters.size());
-        for (const auto& channel : gradient.atom) {
-            CHECK(all_zero(channel));
-        }
+        CHECK(all_zero(linearized->jacobian(slot_columns(separate, selected, parameter_set))));
     }
 }
 
-TEST_CASE("Linearization outlives its input and rejects malformed cotangents",
+TEST_CASE("Linearization outlives its input and rejects malformed columns",
           "[methods][derivatives]") {
     const auto all_cases = cases();
+    const auto molecule = make_water_and_hydroxide();
     for (std::size_t index = 0; index < all_cases.size(); ++index) {
         const auto& [method_id, parameter_set] = all_cases[index];
+        const auto& selected = method(method_id);
         CAPTURE(method_id);
-        const auto charges =
-            charges_of(make_water_and_hydroxide(), method_id, parameter_set, source);
+        const auto charges = charges_of(molecule, method_id, parameter_set, source);
         // The molecule, the parameter set, and the input objects are destroyed before any use.
         const auto linearized = [&method_id, index] {
-            const auto molecule = make_water_and_hydroxide();
+            const auto temporary_molecule = make_water_and_hydroxide();
             const auto temporary_parameters = cases()[index].parameter_set;
-            return linearize(molecule, method_id, temporary_parameters, source);
+            return linearize(temporary_molecule, method_id, temporary_parameters, source);
         }();
         CHECK(std::ranges::equal(linearized->charges(), charges));
-        const auto gradient = linearized->gradient(std::vector{0.4, -1.1, 0.7, 0.25, -0.9});
-        for (const auto& channel : gradient.atom) {
-            CHECK_FALSE(all_zero(channel));
+        const auto columns = slot_columns(molecule, selected, parameter_set);
+        const auto jacobian = linearized->jacobian(columns);
+        for (std::size_t slot = 0; slot < columns.count; ++slot) {
+            CAPTURE(slot);
+            CHECK_FALSE(all_zero(column_of(jacobian, molecule.atom_count(), slot)));
         }
 
-        CHECK_THROWS_AS(linearized->gradient(std::vector{1.0}), std::invalid_argument);
-        CHECK_THROWS_AS(linearized->gradient(std::vector{1.0, 0.0, std::nan(""), 0.0, 0.0}),
-                        std::invalid_argument);
-        if (method_id == "sqeqp") {
-            // Summing each bonded part's q0 gradient overflows; the gradient is not finite.
-            CHECK_THROWS_AS(linearized->gradient(std::vector(5, 1e308)), std::runtime_error);
-        }
+        auto outside = columns;
+        outside.atom[0][0] = outside.count;
+        CHECK_THROWS_AS(linearized->jacobian(outside), std::invalid_argument);
+        auto missing = columns;
+        missing.atom.pop_back();
+        CHECK_THROWS_AS(linearized->jacobian(missing), std::invalid_argument);
+        auto short_channel = columns;
+        short_channel.atom[0].pop_back();
+        CHECK_THROWS_AS(linearized->jacobian(short_channel), std::invalid_argument);
     }
 }
 

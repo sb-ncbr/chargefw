@@ -367,21 +367,16 @@ leave it empty.
 
 `Method::linearize()` takes the same input and returns the charges together with their derivatives
 with respect to the parameter values, as a `methods::LinearizedCharges`, or a null pointer for a
-method without exact derivatives; EEM, SQE, SQE+q0, and SQE+qp have them. `gradient(weights)` takes
-one weight per atom and returns the gradient of the weighted sum of the charges, Σ wᵢ qᵢ, as a
-`methods::ParameterGradient`: for each parameter in `requirements()`, in that order, one value per
-atom, per bond, or one common value. A weight of 1 on one atom and 0 elsewhere gives that atom
-charge's gradient. Geometry, classification, target charge, and fixed sources stay constant. The
-object keeps its own copies, so it stays valid after the input and the parameter set are destroyed,
-and its functions may be called from several threads at once.
-
-`jacobian(columns)` gives the derivatives of all charges at once when parameter values are grouped,
-as in a parameter set, where one value serves every atom of a type. `methods::ParameterColumns`
-assigns each atom, bond, and common parameter value to one of `count` columns, or to
-`ParameterColumns::none`; the result has one column per group, the change of every charge when all
-values of the group change together, stored column after column: entry `column * atom_count + atom`.
-Its cost grows with the number of columns, not the number of atoms, so use it for a few groups and
-`gradient()` for a few charges.
+method without exact derivatives; EEM, SQE, SQE+q0, and SQE+qp have them. Its `jacobian(columns)`
+returns how the charges change when groups of parameter values change, such as all atoms of one type
+in a parameter set. `methods::ParameterColumns` puts each value into one of `count` columns, or into
+none with `ParameterColumns::none`: one list per parameter in `requirements()`, in that order, with
+one entry per atom, per bond, or one common entry. The result has `atom_count × count` values,
+column after column, so entry `column * atom_count + atom` is the change of that atom's charge per
+unit change of every value in the column. The cost grows with the number of columns, not with the
+number of atoms. Geometry, classification, target charge, and fixed sources stay constant. The object
+keeps its own copies, so it stays valid after the input and the parameter set are destroyed, and
+`jacobian()` may be called from several threads at once.
 
 ## Methods and parameter sets
 

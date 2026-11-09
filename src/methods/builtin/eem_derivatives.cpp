@@ -1,22 +1,13 @@
 // Exact derivatives of the EEM charges.
 //
-// calculate() (eem.cpp) solves M x = b with x = (q, chi_equalized) (eem_system.h). For a weighted
-// sum c . q, let
+// calculate() (eem.cpp) solves M x = b with x = (q, chi_equalized) (eem_system.h). A change of
+// the parameters changes the charges by the first n entries of
 //
-//   y = the first n entries of M^-1 (c, 0)      (M is symmetric).
+//   M^-1 (-dA - dB q + dkappa (A + B q) / kappa, 0).
 //
-// The derivatives are:
-//
-//   d / d A_k   = -y_k
-//   d / d B_k   = -y_k q_k
-//   d / d kappa = -(sum_k A_k d/dA_k + sum_k B_k d/dB_k) / kappa = y . (A + B q) / kappa
-//
-// jacobian() goes the other way: the changes of the charges are the first n entries of
-// M^-1 (-dA - dB q + dkappa (A + B q) / kappa, 0).
-//
-// The last derivative follows from an invariance: dividing every equation by kappa shows that the
+// The kappa term follows from an invariance: dividing every equation by kappa shows that the
 // charges depend only on A / kappa and B / kappa, also with fixed sources, so scaling A, B, and
-// kappa together changes nothing.
+// kappa together changes nothing. jacobian() takes one such change per column.
 
 #include "methods/builtin/eem.h"
 #include "methods/builtin/eem_system.h"
@@ -80,38 +71,6 @@ class EemLinearization final : public LinearizedCharges {
 
     [[nodiscard]] auto charges() const noexcept -> std::span<const double> override {
         return {charges_.data(), static_cast<std::size_t>(charges_.size())};
-    }
-
-    [[nodiscard]] auto gradient(const std::span<const double> cotangent) const
-        -> ParameterGradient override {
-        if (cotangent.size() != static_cast<std::size_t>(charges_.size())) {
-            throw std::invalid_argument{"EEM gradient: the cotangent has the wrong size"};
-        }
-        for (const auto value : cotangent) {
-            if (!std::isfinite(value)) {
-                throw std::invalid_argument{"EEM gradient: cotangents must be finite"};
-            }
-        }
-
-        const auto n = charges_.size();
-        if (n == 0) {
-            return {.atom = {{}, {}}, .bond = {}, .common = {0.0}};
-        }
-
-        Eigen::VectorXd rhs = Eigen::VectorXd::Zero(n + 1);
-        rhs.head(n) = Eigen::Map<const Eigen::VectorXd>{cotangent.data(), n};
-        const Eigen::VectorXd y = lu_->solve(rhs).head(n);
-
-        auto result = ParameterGradient{.atom = {{}, {}}, .bond = {}, .common = {0.0}};
-        result.atom[A_channel] = to_vector(-y);
-        result.atom[B_channel] = to_vector(-y.cwiseProduct(charges_));
-        result.common[kappa_channel] = y.dot(kappa_terms_);
-
-        for (const auto& channel : result.atom) {
-            require_finite(channel);
-        }
-        require_finite(result.common);
-        return result;
     }
 
     [[nodiscard]] auto jacobian(const ParameterColumns& columns) const

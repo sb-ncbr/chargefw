@@ -38,8 +38,9 @@ namespace {
 }
 
 // SQE+qp's charges depend on q0 through the initial charges. The normalization adds a constant to
-// q0 and subtracts each bonded part's mean, so q0's gradient is the initial charges' gradient with
-// each part's mean subtracted. Explicit reference charges replace q0, which then has no effect.
+// q0 and subtracts each bonded part's mean, so a change of q0 changes the initial charges by that
+// change with each part's mean subtracted. Explicit reference charges replace q0, which then has no
+// effect.
 class SQEqpLinearization final : public LinearizedCharges {
   public:
     // `components` is absent when explicit reference charges replace q0.
@@ -49,22 +50,6 @@ class SQEqpLinearization final : public LinearizedCharges {
 
     [[nodiscard]] auto charges() const noexcept -> std::span<const double> override {
         return sqe_->charges();
-    }
-
-    [[nodiscard]] auto gradient(const std::span<const double> cotangent) const
-        -> ParameterGradient override {
-        if (!components_.has_value()) {
-            auto result = sqe_->gradient(cotangent);
-            result.atom.emplace_back(cotangent.size(), 0.0);
-            return result;
-        }
-        auto [result, q0] = sqe_->gradients(cotangent);
-        methods::detail::remove_component_means(*components_, q0);
-        if (!std::ranges::all_of(q0, [](const double value) { return std::isfinite(value); })) {
-            throw std::runtime_error{"SQE+qp derivative is not finite"};
-        }
-        result.atom.push_back(std::move(q0));
-        return result;
     }
 
     [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
@@ -87,7 +72,7 @@ class SQEqpLinearization final : public LinearizedCharges {
         if (!components_.has_value()) {
             return sqe_->jacobian(sqe_columns);
         }
-        // A change of q0 changes the initial charges by its projection, as in gradient().
+        // A change of q0 changes the initial charges by its projection.
         auto initial_charges = methods::detail::indicator_block(q0);
         for (Eigen::Index index = 0; index < initial_charges.values.cols(); ++index) {
             methods::detail::remove_component_means(

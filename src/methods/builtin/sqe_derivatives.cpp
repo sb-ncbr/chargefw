@@ -6,27 +6,15 @@
 //   J_ii = hardness_i,   J_ij = I(d_ij, width_i, width_j),
 //   r_i = -electronegativity_i - phi_i(width_i) - sum_{j != i} J_ij q_initial_j,
 //
-// with phi the fixed sources' potential and the last sum only with initial charges. For a weighted
-// sum c . q, let
+// with phi the fixed sources' potential and the last sum only with initial charges. Differentiating
+// both equations, a change of the parameters and initial charges changes the charges by
 //
-//   lambda = S^-1 T c,   mu = T^T lambda,   q_split = T^T p.
-//
-// Its derivatives are:
-//
-//   d / d electronegativity_k = -mu_k
-//   d / d hardness_k          = -mu_k q_split_k
-//   d / d width_k             = -mu_k (dphi_k/dwidth_k + sum_{j != k} dJ_kj/dwidth_k q_j)
-//                               - q_k sum_{j != k} dJ_kj/dwidth_k mu_j
-//   d / d kappa_a             = -lambda_a p_a
-//   d / d q_initial_i         = c_i - sum_{j != i} J_ij mu_j
-//
-// jacobian() goes the other way: for changes of the parameters and initial charges together,
-//
+//   S dp = T u - d kappa p,   dq = T^T dp + d q_initial,
 //   u = -d electronegativity - d hardness q_split - d width (dphi/dwidth + W q) - W^T (d width q)
 //       - J_offdiagonal d q_initial,
-//   S dp = T u - d kappa p,   dq = T^T dp + d q_initial,
 //
-// with W_ij = dJ_ij/dwidth_i, products taken per atom or per bond.
+// with q_split = T^T p, W_ij = dJ_ij/dwidth_i for i != j, and products taken per atom or per bond.
+// jacobian() takes one such change per column.
 
 #include "methods/builtin/sqe_derivatives.h"
 
@@ -119,10 +107,6 @@ constexpr std::size_t electronegativity_channel = 0;
 constexpr std::size_t hardness_channel = 1;
 constexpr std::size_t width_channel = 2;
 
-[[nodiscard]] auto to_vector(const Eigen::VectorXd& values) -> std::vector<double> {
-    return {values.data(), values.data() + values.size()};
-}
-
 class SqeLinearization final : public sqe_core::Linearization {
   public:
     // An input without bonds has no system.
@@ -130,7 +114,7 @@ class SqeLinearization final : public sqe_core::Linearization {
                      WidthDerivatives widths)
         : charges_{std::move(charges)}, system_{std::move(system)}, widths_{std::move(widths)} {
         if (system_.has_value()) {
-            // The parts of the gradient that do not depend on the cotangent.
+            // The parts of u that do not depend on the column.
             split_atom_charges_ = charges_;
             if (system_->initial_charges.size() != 0) {
                 split_atom_charges_ -= system_->initial_charges;
@@ -141,16 +125,6 @@ class SqeLinearization final : public sqe_core::Linearization {
 
     [[nodiscard]] auto charges() const noexcept -> std::span<const double> override {
         return {charges_.data(), static_cast<std::size_t>(charges_.size())};
-    }
-
-    [[nodiscard]] auto gradient(const std::span<const double> cotangent) const
-        -> ParameterGradient override {
-        return compute(cotangent, false).parameters;
-    }
-
-    [[nodiscard]] auto gradients(const std::span<const double> cotangent) const
-        -> sqe_core::Gradients override {
-        return compute(cotangent, true);
     }
 
     [[nodiscard]] auto jacobian(const ParameterColumns& columns) const
@@ -241,76 +215,6 @@ class SqeLinearization final : public sqe_core::Linearization {
     }
 
   private:
-    [[nodiscard]] auto compute(const std::span<const double> cotangent,
-                               const bool initial_charges) const -> sqe_core::Gradients {
-        if (cotangent.size() != static_cast<std::size_t>(charges_.size())) {
-            throw std::invalid_argument{"SQE-family gradient: the cotangent has the wrong size"};
-        }
-        for (const auto value : cotangent) {
-            if (!std::isfinite(value)) {
-                throw std::invalid_argument{"SQE-family gradient: cotangents must be finite"};
-            }
-        }
-
-        const auto n = charges_.size();
-        const Eigen::Map<const Eigen::VectorXd> c{cotangent.data(), n};
-        const auto& q = charges_;
-        const Eigen::VectorXd zero = Eigen::VectorXd::Zero(n);
-        auto result = ParameterGradient{.atom = {to_vector(zero), to_vector(zero), to_vector(zero)},
-                                        .bond = {{}},
-                                        .common = {}};
-
-        Eigen::VectorXd mu = zero;
-        if (system_.has_value()) {
-            const auto& bonds = system_->bonds;
-            const auto& p = system_->split_charges;
-            const auto m = p.size();
-
-            // lambda = S^-1 T c, with the Cholesky factor L of S = L L^T.
-            Eigen::VectorXd lambda(m);
-            for (Eigen::Index a = 0; a < m; ++a) {
-                const auto [i, j] = bonds[static_cast<std::size_t>(a)];
-                lambda(a) = c(i) - c(j);
-            }
-            const auto factor = system_->split_matrix.triangularView<Eigen::Lower>();
-            factor.solveInPlace(lambda);
-            factor.transpose().solveInPlace(lambda);
-
-            // mu = T^T lambda.
-            for (Eigen::Index a = 0; a < m; ++a) {
-                const auto [i, j] = bonds[static_cast<std::size_t>(a)];
-                mu(i) += lambda(a);
-                mu(j) -= lambda(a);
-            }
-
-            const Eigen::VectorXd width =
-                -mu.cwiseProduct(width_terms_) - q.cwiseProduct(widths_.pairs * mu);
-            result.atom[electronegativity_channel] = to_vector(-mu);
-            result.atom[hardness_channel] = to_vector(-mu.cwiseProduct(split_atom_charges_));
-            result.atom[width_channel] = to_vector(width);
-            result.bond[0] = to_vector(-lambda.cwiseProduct(p));
-        }
-
-        auto initial_charge_gradient = std::vector<double>{};
-        if (initial_charges) {
-            Eigen::VectorXd values = c;
-            if (system_.has_value()) {
-                // J_offdiagonal mu, as build_system() applies J to the initial charges.
-                const auto& charge_matrix = system_->charge_matrix;
-                values -= charge_matrix * mu - charge_matrix.diagonal().cwiseProduct(mu);
-            }
-            initial_charge_gradient = to_vector(values);
-            require_finite(initial_charge_gradient);
-        }
-
-        for (const auto& channel : result.atom) {
-            require_finite(channel);
-        }
-        require_finite(result.bond[0]);
-        return {.parameters = std::move(result),
-                .initial_charges = std::move(initial_charge_gradient)};
-    }
-
     static auto require_finite(const std::span<const double> values) -> void {
         for (const auto value : values) {
             if (!std::isfinite(value)) {
@@ -352,7 +256,8 @@ auto sqe_core::linearize(const CalculationInput& input,
     solve(system);
     Eigen::VectorXd charges = atom_charges(system);
     // The check calculate() gets from AtomicCharges, which rejects non-finite charges.
-    static_cast<void>(charges::AtomicCharges{to_vector(charges)});
+    static_cast<void>(charges::AtomicCharges{
+        std::vector<double>(charges.data(), charges.data() + charges.size())});
 
     return std::make_unique<SqeLinearization>(std::move(charges), std::move(system),
                                               width_derivatives(input));
