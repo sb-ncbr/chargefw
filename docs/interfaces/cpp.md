@@ -220,6 +220,7 @@ defaults to `"auto"`, so set it when you request another execution mode.
 | `chargefw::parameters` | Parameter sets, loading, and atom and bond classification |
 | `chargefw::methods` | Method metadata, options, requirements, applicability, and algorithms |
 | `chargefw::calculation` | Assessment, plans, execution policy, progress, and calculation |
+| `chargefw::parameterization` | Fitting parameter values: templates, value vectors, and normal equations |
 | `chargefw::charges` | Charge assignments and charge sets |
 | `chargefw::adapters` | File readers and writers |
 
@@ -271,6 +272,13 @@ auto assessment = calculation::assess(std::move(request));
 auto serial = calculation::calculate(assessment, 1);
 auto parallel = calculation::calculate(assessment, 4);
 ```
+
+`calculate(assessment, plan, candidate)` runs a plan with other values for its parameter set, still
+without checking the molecules again; fitting parameters calls it many times. Make the candidate with
+`parameterization::with_parameter_values()` from `plan.parameter_set()`, described in [Fitting
+parameters](#fitting-parameters), and give it an ID of its own. The result reports that ID. A
+candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
+method has no parameters throws `std::invalid_argument`.
 
 `calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
 plan's approximate peak working memory and number of operations; [Threads and
@@ -354,14 +362,70 @@ options instead, or assessment refuses the method.
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
 sets by method ID and order each method's sets by descending priority, then ID.
 `parameters::load_parameter_set_json_file()` loads one file, and `load_parameter_set_json()` one set
-from a `std::istream`. These functions are declared in
+from a `std::istream`. `save_parameter_set_json()` writes a set to a `std::ostream` in the same
+format, which loads back as an equal set. The format lists the parameter names once for all atom
+entries and once for all bond entries, so writing a set whose entries have different names throws
+`std::invalid_argument`. These functions are declared in
 `<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
 format](../reference/parameter-format.md) describes the files.
+
+`parameters::compatible()`, declared in `<chargefw/parameters/models/parameter_set.h>`, tells whether
+two sets have the same method, entry keys, and parameter names, in the same order, so that they differ
+only in their values and descriptive metadata.
 
 `<chargefw/parameters/io/parameter_data_paths.h>` declares
 `parameters::bundled_parameter_directory()`, the directory with the bundled sets of the installed
 library, and `parameters::default_parameter_directories()`, every directory
 `load_default_parameter_sets()` searches.
+
+## Fitting parameters
+
+`chargefw::parameterization` provides the pieces for fitting parameter values to reference charges;
+from Python, `fit()` does the whole fit, as [Fitting parameters](fitting.md) describes. Start from a
+template:
+`parameterization::make_parameter_template()`, declared in
+`<chargefw/parameterization/parameter_template.h>`, makes one entry for every atom type and bond type
+that occurs in a `PreparedMoleculeCollection` under the classifiers you choose, gives each entry the
+parameter names you pass in a `ParameterNames`, and sets all values to zero. Pass the names the
+method's `requirements()` lists, and the method ID in the metadata. Every atom and bond of those
+molecules matches an entry.
+
+`parameter_layout()` and `parameter_values()`, declared in
+`<chargefw/parameterization/parameter_vector.h>`, list the values of a set in a fixed order: the common
+parameters, then each atom entry, then each bond entry, each with its parameters in stored order. Each
+value is a `ParameterSlot` with its `ParameterScope`, entry index, and name. `with_parameter_values()`
+copies a set with new values in that order and new metadata, keeping its keys, names, and method. Pass
+such a copy to `calculation::calculate(assessment, plan, candidate)` to calculate with other values.
+
+`normal_equations(assessment, plan, candidate, references, weights, max_threads)`, declared in
+`<chargefw/parameterization/normal_equations.h>`, returns what a weighted least-squares fit of the
+charges needs at the candidate's values, from exact derivatives. With the charges q, your
+reference charges y, your weights w, and the derivatives J of the charges with respect to the values
+of `parameter_layout(candidate)`, the result holds:
+
+- `charges`: q;
+- `sum_of_squares`: Σ (wᵢ (qᵢ − yᵢ))²;
+- `gauss_newton`: Jᵀ diag(w²) J, one row and one column per value, row by row;
+- `gradient`: Jᵀ diag(w²) (q − y), one per value.
+
+Give one reference charge and one weight per charge, in the order of the result's assignments with the
+charges of each assignment in atom order, fixed ions included. A weight of 0 leaves a charge out. Fixed
+ions keep their prescribed charges, so they change only the sum of squares. The plan must use full
+execution, and the method must have exact derivatives, as `has_exact_derivatives(method)` reports:
+EEM, SQE, SQE+q0, and SQE+qp. The result is the same for any number of threads. Invalid arguments
+throw `std::invalid_argument`; a calculation that fails throws `std::runtime_error` or
+`std::logic_error` naming the molecule.
+
+`entry_counts(assessment, plan)`, declared in `<chargefw/parameterization/parameter_entries.h>`, counts
+the calculated atoms and bonds that each entry of the plan's set matches; fixed ions are not counted. A
+type with few atoms is poorly determined by your molecules. `single_bond_entries(assessment, plan)`
+returns, for each atom entry, a `SingleBondEntry` with three facts about your molecules:
+`single_bonded`, whether every atom of the entry has exactly one bond and none is bonded to another
+atom with one bond; `bond_entries`, the bond entries of those bonds; and `exclusive_bonds`, whether
+those bond entries match only such bonds of this entry. What follows from them depends on the method.
+In the SQE methods, such an atom exchanges charge only through its bond, so when the entry is single
+bonded and has bond entries that are exclusive, the Python fitting profile holds its hardness and lets
+the `kappa` of those bonds take up the difference.
 
 ## Progress and cancellation
 

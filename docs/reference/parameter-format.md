@@ -3,8 +3,9 @@
 ChargeFW's parameter sets are JSON files installed with ChargeFW; the
 [parameter-set reference](parameter-sets.md) lists them. This page describes the file format and how a
 parameter set matches atoms and bonds, for people who write or check parameter sets. The command line
-and Python use the installed sets; C++ applications can also load their own files, as described in
-[Methods and parameter sets](../interfaces/cpp.md#methods-and-parameter-sets).
+uses the installed sets. Python and C++ can also load your own files, as described in [Methods and
+parameter sets](../interfaces/python.md#methods-and-parameter-sets) for Python and for
+[C++](../interfaces/cpp.md#methods-and-parameter-sets).
 
 A parameter set holds the values for one method. The method determines which common, atom, and bond
 parameter names must be present. Before a calculation, ChargeFW checks the required names and matches

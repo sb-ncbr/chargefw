@@ -21,9 +21,13 @@ class PortableId {
     using Value = std::variant<std::int64_t, std::string>;
 
     PortableId() = default;
+    // Implicit on purpose: an ID is written as the integer or string it holds, and every integer or
+    // string is a valid ID.
+    // NOLINTBEGIN(cppcoreguidelines-explicit-constructor)
     PortableId(std::int64_t value) : value_{value} {}
     PortableId(std::string value) : value_{std::move(value)} {}
     PortableId(const char* value) : value_{std::string{value}} {}
+    // NOLINTEND(cppcoreguidelines-explicit-constructor)
 
     [[nodiscard]] auto empty() const noexcept -> bool {
         return !value_.has_value();
@@ -81,11 +85,21 @@ enum class MolecularSourceFormat : std::uint8_t {
     mmcif,
 };
 
+// The name of the format in result JSON and in Python, such as "molecule-json".
+[[nodiscard]] auto to_string(MolecularSourceFormat value) -> std::string_view;
+
+// The format with the given name. Throws std::invalid_argument for an unknown name.
+[[nodiscard]] auto molecular_source_format_from_string(std::string_view value)
+    -> MolecularSourceFormat;
+
 enum class SourceConnectivity : std::uint8_t {
     absent,
     explicitly_empty,
     present,
 };
+
+// The name of the connectivity state in result JSON and in Python, such as "explicitly-empty".
+[[nodiscard]] auto to_string(SourceConnectivity value) -> std::string_view;
 
 struct SourceHierarchyLabels {
     std::optional<std::string> atom;

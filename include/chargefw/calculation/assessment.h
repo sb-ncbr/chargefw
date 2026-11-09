@@ -7,6 +7,7 @@
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/classification_result.h>
+#include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
@@ -26,8 +27,9 @@ class AssessmentResult;
 class CalculationObserver;
 class PlanIdentity;
 namespace detail {
+struct AssessmentAccess;
 struct FixedChargePartition;
-}
+} // namespace detail
 struct AssessmentRequest;
 struct ExecutionResult;
 // Copies the owned molecule and parameter inputs into the assessment result.
@@ -52,7 +54,16 @@ class ExecutionPlan {
                   const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
                   std::vector<methods::ExecutionIssue> warnings);
 
+    // The parameter entries matched during assessment, one classification per calculated molecule.
+    // Its atom indices cover every atom when the parameter set has atom entries, and its bond
+    // indices every bond when it has bond entries; otherwise that list is empty, as the bond list
+    // is for EEM. Empty for a method without parameters. With fixed ions, the molecules are the
+    // calculated parts, without the ions.
+    [[nodiscard]] auto classifications() const noexcept
+        -> std::span<const parameters::ParameterClassification>;
+
     friend class AssessmentResult;
+    friend struct detail::AssessmentAccess;
     friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                           std::size_t max_threads, const CalculationObserver& observer)
         -> ExecutionResult;
@@ -145,6 +156,21 @@ class AssessmentResult {
     [[nodiscard]] auto prepared_molecules() const noexcept
         -> const features::PreparedMoleculeCollection&;
 
+    // Throws unless `plan` belongs to this assessment.
+    auto check_plan(const ExecutionPlan& plan) const -> void;
+
+    // The method of `plan` with the parameter set `candidate`, which must have the method, keys,
+    // and parameter names of the plan's set and another ID; nothing without a candidate. The
+    // classifications of the plan stay valid for the candidate.
+    [[nodiscard]] static auto replace_values(const ExecutionPlan& plan,
+                                             const parameters::ParameterSet* candidate)
+        -> std::optional<methods::ApplicableMethod>;
+
+    // Executes `plan` with its own parameter set, or with the values of `candidate` when given.
+    [[nodiscard]] auto execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
+                               std::size_t max_threads, const CalculationObserver& observer) const
+        -> ExecutionResult;
+
     auto
     assess_prepared(std::span<const methods::Method* const> selected_methods,
                     const parameters::ClassificationOptions& classification_options,
@@ -159,8 +185,12 @@ class AssessmentResult {
     friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                           std::size_t max_threads, const CalculationObserver& observer)
         -> ExecutionResult;
+    friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+                          const parameters::ParameterSet& candidate, std::size_t max_threads,
+                          const CalculationObserver& observer) -> ExecutionResult;
     friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                          std::size_t max_threads) -> methods::ResourceEstimate;
+    friend struct detail::AssessmentAccess;
 
     std::vector<parameters::ParameterSet> parameter_sets_;
     methods::ApplicabilityResult applicability_;

@@ -39,6 +39,7 @@ type PrerequisiteIssueKind = Literal[
     "unsupported_fixed_ions",
 ]
 type MethodOptionType = Literal["boolean", "integer", "floating_point", "string"]
+type ParameterScope = Literal["common", "atom", "bond"]
 type ExecutionStatus = Literal[
     "success",
     "no_executable_plan",

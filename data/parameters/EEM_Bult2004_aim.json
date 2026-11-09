@@ -4,7 +4,7 @@
     "name": "Bultinck 2004 (AIM)",
     "method": "eem",
     "publication": "10.1021/jp046928l",
-    "notes": "Parameterised to reproduce B3LYP/6-31G*/AIM charges",
+    "notes": "Parameterized to reproduce B3LYP/6-31G*/AIM charges",
     "priority": 20
   },
   "common": {

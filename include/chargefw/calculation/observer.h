@@ -26,6 +26,8 @@ enum class CalculationPhase : std::uint8_t {
     fragment_progress,
 };
 
+[[nodiscard]] auto to_string(CalculationPhase value) -> std::string_view;
+
 // Structured progress snapshot. Fields are only populated for the phase that produced the event.
 // The non-owning method_id view is valid only during the on_progress callback; callers that need to
 // retain it must copy into owned storage.

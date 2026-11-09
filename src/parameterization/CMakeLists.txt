@@ -1,0 +1,21 @@
+target_sources(chargefw_core_objects
+        PRIVATE
+        eem_derivatives.cpp
+        method_derivatives.cpp
+        method_derivatives.h
+        normal_equations.cpp
+        parameter_entries.cpp
+        parameter_columns.h
+        parameter_template.cpp
+        parameter_vector.cpp
+        sqe_derivatives.cpp
+        PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+        ${PROJECT_SOURCE_DIR}/include
+        FILES
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterization/normal_equations.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterization/parameter_entries.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterization/parameter_template.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameterization/parameter_vector.h
+)

@@ -1,7 +1,10 @@
+#include "calculation.h"
+
 #include "bindings.h"
 #include "native_execution_result.h"
 #include "native_input_metadata.h"
 #include "native_parameter_catalog.h"
+#include "numpy_values.h"
 
 #include "adapters/fixed_ions.h"
 
@@ -43,6 +46,8 @@ namespace nb = nanobind;
 
 namespace chargefw::python {
 namespace {
+
+// Parameter values passed from Python, one per slot in layout order.
 
 auto method_options(const nb::dict& values)
     -> std::unordered_map<std::string, methods::MethodOptions> {
@@ -179,16 +184,6 @@ auto effective_calculation(const calculation::EffectiveCalculation& effective) -
     return result;
 }
 
-auto numpy_charge_values(const std::span<const double> values)
-    -> nb::ndarray<nb::numpy, const double, nb::shape<-1>> {
-    auto owned_values = std::make_unique<std::vector<double>>(values.begin(), values.end());
-    auto owner = nb::capsule{owned_values.get(), [](void* pointer) noexcept {
-                                 delete static_cast<std::vector<double>*>(pointer);
-                             }};
-    auto* released_values = owned_values.release();
-    return {released_values->data(), {released_values->size()}, owner};
-}
-
 auto rejection(const calculation::Rejection& rejected) -> nb::dict {
     auto result = nb::dict{};
     result["method_id"] = rejected.method_id;
@@ -242,7 +237,7 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
         auto item = nb::dict{};
         item["molecule_index"] = assignment.target.molecule_index;
         item["conformer_index"] = assignment.target.conformer_index;
-        item["values"] = numpy_charge_values(assignment.charges.values());
+        item["values"] = numpy_values(assignment.charges.values());
         assignments.append(std::move(item));
     }
     charge_set["assignments"] = std::move(assignments);
@@ -250,25 +245,9 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
     return result;
 }
 
-auto calculation_phase(const calculation::CalculationPhase phase) -> std::string_view {
-    switch (phase) {
-    case calculation::CalculationPhase::computation_started:
-        return "computation_started";
-    case calculation::CalculationPhase::computation_finished:
-        return "computation_finished";
-    case calculation::CalculationPhase::target_started:
-        return "target_started";
-    case calculation::CalculationPhase::target_finished:
-        return "target_finished";
-    case calculation::CalculationPhase::fragment_progress:
-        return "fragment_progress";
-    }
-    throw std::invalid_argument{"unknown calculation phase"};
-}
-
 auto calculation_progress(const calculation::CalculationProgress& progress) -> nb::dict {
     auto result = nb::dict{};
-    result["phase"] = std::string{calculation_phase(progress.phase)};
+    result["phase"] = std::string{calculation::to_string(progress.phase)};
     result["mode"] = std::string{calculation::to_string(progress.mode)};
     result["method_id"] = std::string{progress.method_id};
     result["target_index"] = progress.target_index;
@@ -309,21 +288,6 @@ class PythonCalculationObserver final : public calculation::CalculationObserver 
     nb::object observer_;
 };
 
-class NativeAssessmentState {
-  public:
-    NativeAssessmentState(calculation::AssessmentResult assessment,
-                          std::vector<adapters::ImportedMoleculeRecord> inputs,
-                          adapters::RequestedCalculationProvenance requested,
-                          const std::size_t max_threads)
-        : assessment_{std::move(assessment)}, inputs_{std::move(inputs)},
-          requested_{std::move(requested)}, max_threads_{max_threads} {}
-
-    calculation::AssessmentResult assessment_;
-    std::vector<adapters::ImportedMoleculeRecord> inputs_;
-    adapters::RequestedCalculationProvenance requested_;
-    std::size_t max_threads_ = 0;
-};
-
 auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     auto result = nb::dict{};
     result["method_id"] = std::string{plan.method().id()};
@@ -339,48 +303,6 @@ auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     result["warnings"] = std::move(warnings);
     return result;
 }
-
-class NativePlan {
-  public:
-    NativePlan(std::shared_ptr<NativeAssessmentState> state, const std::size_t index)
-        : state_{std::move(state)}, index_{index} {}
-
-    [[nodiscard]] auto report() const -> nb::dict {
-        return execution_plan(state_->assessment_.plans()[index_]);
-    }
-
-    [[nodiscard]] auto calculate(const std::optional<std::size_t> max_threads,
-                                 nb::object observer) const -> NativeExecutionResult {
-        auto python_observer = std::optional<PythonCalculationObserver>{};
-        const auto* native_observer = std::addressof(calculation::default_calculation_observer());
-        if (!observer.is_none()) {
-            python_observer.emplace(std::move(observer));
-            native_observer = std::addressof(*python_observer);
-        }
-        auto result = [&] {
-            nb::gil_scoped_release release;
-            return calculation::calculate(state_->assessment_, state_->assessment_.plans()[index_],
-                                          max_threads.value_or(state_->max_threads_),
-                                          *native_observer);
-        }();
-        auto requested = state_->requested_;
-        requested.max_threads = max_threads.value_or(state_->max_threads_);
-        return NativeExecutionResult{adapters::make_charge_calculation_result(
-            state_->inputs_, std::move(requested), std::move(result))};
-    }
-
-    [[nodiscard]] auto estimate(const std::optional<std::size_t> max_threads) const
-        -> std::pair<double, double> {
-        const auto estimate =
-            calculation::estimate(state_->assessment_, state_->assessment_.plans()[index_],
-                                  max_threads.value_or(state_->max_threads_));
-        return {estimate.memory_bytes, estimate.operations};
-    }
-
-  private:
-    std::shared_ptr<NativeAssessmentState> state_;
-    std::size_t index_ = 0;
-};
 
 class NativeAssessment {
   public:
@@ -533,6 +455,36 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
 }
 
 } // namespace
+
+auto NativePlan::report() const -> nb::dict {
+    return execution_plan(plan());
+}
+
+auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::object observer) const
+    -> NativeExecutionResult {
+    auto python_observer = std::optional<PythonCalculationObserver>{};
+    const auto* native_observer = std::addressof(calculation::default_calculation_observer());
+    if (!observer.is_none()) {
+        python_observer.emplace(std::move(observer));
+        native_observer = std::addressof(*python_observer);
+    }
+    auto result = [&] {
+        nb::gil_scoped_release release;
+        return calculation::calculate(state_->assessment_, plan(),
+                                      max_threads.value_or(state_->max_threads_), *native_observer);
+    }();
+    auto requested = state_->requested_;
+    requested.max_threads = max_threads.value_or(state_->max_threads_);
+    return NativeExecutionResult{adapters::make_charge_calculation_result(
+        state_->inputs_, std::move(requested), std::move(result))};
+}
+
+auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
+    -> std::pair<double, double> {
+    const auto estimate = calculation::estimate(state_->assessment_, plan(),
+                                                max_threads.value_or(state_->max_threads_));
+    return {estimate.memory_bytes, estimate.operations};
+}
 
 void bind_calculation(nb::module_& module) {
     module.def("_fixed_ion_names", [](const bool common_only) {

@@ -20,7 +20,10 @@ namespace chargefw::adapters::gemmi::bonds {
 
 // Whether explicit bonds carry source bond orders (mmCIF component bonds) or only connectivity
 // (PDB CONECT). The hybrid strategy lets source orders override template orders for the same pair.
-enum class ExplicitBondOrders : std::uint8_t { connectivity_only, from_source };
+enum class ExplicitBondOrders : std::uint8_t {
+    connectivity_only,
+    from_source,
+};
 
 [[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
                           std::vector<core::Bond> explicit_bonds,

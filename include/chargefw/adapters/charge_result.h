@@ -19,7 +19,11 @@
 
 namespace chargefw::adapters {
 
-enum class DiagnosticSeverity : std::uint8_t { info, warning, error };
+enum class DiagnosticSeverity : std::uint8_t {
+    info,
+    warning,
+    error,
+};
 
 // The outcome an application reports for its request. Unlike calculation::ExecutionStatus, it
 // includes a request that failed with an exception, so that no execution result exists.

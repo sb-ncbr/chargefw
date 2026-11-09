@@ -1,6 +1,7 @@
 #include <chargefw/adapters/conformer_selection.h>
 #include <chargefw/adapters/gemmi/input_options.h>
 #include <chargefw/adapters/gemmi/pdb_input.h>
+#include <chargefw/adapters/molecule_record.h>
 #include <chargefw/core/bond.h>
 #include <snitch/snitch.hpp>
 
@@ -185,7 +186,8 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
     CHECK(record.issues.empty());
 }
 
-TEST_CASE("structural input options share stable string conversion", "[adapters][options]") {
+TEST_CASE("input options and source descriptions share stable string conversion",
+          "[adapters][options]") {
     CHECK(gemmi_adapter::record_selection_from_string("polymers-and-ligands") ==
           gemmi_adapter::RecordSelection::polymers_and_ligands);
     CHECK(gemmi_adapter::to_string(gemmi_adapter::RecordSelection::polymers_and_ligands) ==
@@ -197,7 +199,16 @@ TEST_CASE("structural input options share stable string conversion", "[adapters]
           chargefw::adapters::ConformerSelection::first);
     CHECK(chargefw::adapters::to_string(chargefw::adapters::ConformerSelection::all) == "all");
 
+    CHECK(chargefw::adapters::molecular_source_format_from_string("molecule-json") ==
+          chargefw::adapters::MolecularSourceFormat::molecule_json);
+    CHECK(chargefw::adapters::to_string(chargefw::adapters::MolecularSourceFormat::mmcif) ==
+          "mmcif");
+    CHECK(chargefw::adapters::to_string(chargefw::adapters::SourceConnectivity::explicitly_empty) ==
+          "explicitly-empty");
+
     CHECK_THROWS_AS(gemmi_adapter::record_selection_from_string("unknown"), std::invalid_argument);
+    CHECK_THROWS_AS(chargefw::adapters::molecular_source_format_from_string("cif"),
+                    std::invalid_argument);
 }
 
 TEST_CASE("PDB input preserves selected model identity and connectivity", "[adapters][pdb]") {

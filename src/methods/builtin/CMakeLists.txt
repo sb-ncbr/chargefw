@@ -28,12 +28,14 @@ target_sources(chargefw_core_objects
         qeq.cpp
         sqe.h
         sqe.cpp
+        sqe_system.h
         sqeq0.h
         sqeq0.cpp
         sqeqp.h
         sqeqp.cpp
         eem.h
         eem.cpp
+        eem_system.h
         smpqeq.h
         smpqeq.cpp
         sfkeem.h

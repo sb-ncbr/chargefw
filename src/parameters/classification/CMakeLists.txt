@@ -3,6 +3,7 @@ target_sources(chargefw_core_objects
         classification_result.cpp
         parameter_classification.cpp
         parameter_classifier.cpp
+        type_keys.h
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS

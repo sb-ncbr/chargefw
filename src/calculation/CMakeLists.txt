@@ -2,6 +2,7 @@ target_sources(chargefw_core_objects
         PRIVATE
         assessment.cpp
         calculation.cpp
+        assessment_access.h
         calculation_request.h
         charge_issues.cpp
         cover_execution.cpp
@@ -10,6 +11,7 @@ target_sources(chargefw_core_objects
         fixed_charge_partition.cpp
         full_execution.cpp
         input_issues.cpp
+        observer.cpp
         execution_policy.cpp
         reduced_execution.cpp
         charge_checks.h
@@ -21,6 +23,7 @@ target_sources(chargefw_core_objects
         parallel_for.h
         reduced_execution.h
         target_execution.h
+        target_input.h
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS

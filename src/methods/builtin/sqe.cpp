@@ -1,5 +1,6 @@
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/prerequisite_helpers.h"
+#include "methods/builtin/sqe_system.h"
 
 #include "methods/fixed_source_validation.h"
 
@@ -54,10 +55,8 @@ auto sqe_core::estimate(const TargetSize& target, const bool initial_charges) ->
                           (initial_charges ? 2.0 * n * n : 0.0)};
 }
 
-auto sqe_core::calculate(const CalculationInput& input,
-                         const std::span<const double> initial_charge_values)
-    -> std::vector<double> {
-    methods::detail::validate_fixed_source_input(input, "SQE-family");
+auto sqe_core::build_system(const CalculationInput& input,
+                            const std::span<const double> initial_charge_values) -> System {
     const auto& molecule = input.molecule();
     const auto& geometry = input.geometry();
     const auto& parameters = input.parameters();
@@ -65,22 +64,6 @@ auto sqe_core::calculate(const CalculationInput& input,
 
     const auto atom_count = molecule.atom_count();
     const auto bond_count = molecule.bond_count();
-
-    if (atom_count == 0) {
-        return {};
-    }
-
-    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
-        throw std::logic_error{"SQE-family initial charge count must match atom count"};
-    }
-
-    if (bond_count == 0) {
-        if (initial_charge_values.empty()) {
-            return std::vector<double>(atom_count, 0.0);
-        }
-
-        return {initial_charge_values.begin(), initial_charge_values.end()};
-    }
 
     const auto electronegativity = parameters.atom("electronegativity");
     const auto hardness = parameters.atom("hardness");
@@ -95,11 +78,14 @@ auto sqe_core::calculate(const CalculationInput& input,
     const auto n = static_cast<Eigen::Index>(atom_count);
     const auto m = static_cast<Eigen::Index>(bond_count);
 
-    Eigen::MatrixXd charge_matrix = Eigen::MatrixXd::Zero(n, n);
+    auto system = System{};
+    auto& charge_matrix = system.charge_matrix;
+    auto& initial_charges = system.initial_charges;
+    charge_matrix = Eigen::MatrixXd::Zero(n, n);
     Eigen::VectorXd charge_rhs = Eigen::VectorXd::Zero(n);
-    Eigen::VectorXd initial_charges = Eigen::VectorXd::Zero(n);
 
     if (!initial_charge_values.empty()) {
+        initial_charges.resize(n);
         for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
             initial_charges(static_cast<Eigen::Index>(atom_index)) =
                 initial_charge_values[atom_index];
@@ -131,11 +117,11 @@ auto sqe_core::calculate(const CalculationInput& input,
         charge_rhs += charge_matrix.diagonal().cwiseProduct(initial_charges);
     }
 
-    const auto endpoints = [&molecule](const Eigen::Index bond_index) {
-        const auto& bond = molecule.bond(static_cast<std::size_t>(bond_index));
-        return std::pair{static_cast<Eigen::Index>(bond.first_atom_index()),
-                         static_cast<Eigen::Index>(bond.second_atom_index())};
-    };
+    for (std::size_t bond_index = 0; bond_index < bond_count; ++bond_index) {
+        const auto& bond = molecule.bond(bond_index);
+        system.bonds.emplace_back(static_cast<Eigen::Index>(bond.first_atom_index()),
+                                  static_cast<Eigen::Index>(bond.second_atom_index()));
+    }
 
     // Split-charge system S p = T r with S = T J T^T + diag(kappa), where the transfer matrix T has
     // row a = +1 at atom i and -1 at atom j for bond a = (i, j). T is not formed; for bonds
@@ -143,13 +129,15 @@ auto sqe_core::calculate(const CalculationInput& input,
     //   S(a, b) = J(i, k) - J(i, l) - J(j, k) + J(j, l)  (+ kappa(a) if a == b)
     //   (T r)(a) = r(i) - r(j)
     // Atom charges are q = T^T p: q(i) += p(a), q(j) -= p(a).
-    Eigen::MatrixXd split_matrix(m, m);
-    Eigen::VectorXd split_rhs(m);
+    auto& split_matrix = system.split_matrix;
+    auto& split_rhs = system.split_rhs;
+    split_matrix.resize(m, m);
+    split_rhs.resize(m);
     for (Eigen::Index a = 0; a < m; ++a) {
-        const auto [i, j] = endpoints(a);
+        const auto [i, j] = system.bonds[static_cast<std::size_t>(a)];
         split_rhs(a) = charge_rhs(i) - charge_rhs(j);
         for (Eigen::Index b = a; b < m; ++b) {
-            const auto [k, l] = endpoints(b);
+            const auto [k, l] = system.bonds[static_cast<std::size_t>(b)];
             const auto value = charge_matrix(i, k) - charge_matrix(i, l) - charge_matrix(j, k) +
                                charge_matrix(j, l);
             split_matrix(a, b) = value;
@@ -158,27 +146,65 @@ auto sqe_core::calculate(const CalculationInput& input,
         split_matrix(a, a) += kappa[static_cast<std::size_t>(a)];
     }
 
+    return system;
+}
+
+auto sqe_core::solve(System& system) -> void {
     // S is symmetric; a positive definite S means the energy has a unique minimum. Any other
     // system (indefinite, semidefinite, or nearly singular to working precision) is rejected
     // rather than solved. The calling execution adds the molecule, conformer, and fragment.
-    const Eigen::LLT<Eigen::Ref<Eigen::MatrixXd>> llt{split_matrix};
+    const Eigen::LLT<Eigen::Ref<Eigen::MatrixXd>> llt{system.split_matrix};
     if (llt.info() != Eigen::Success) {
         throw std::runtime_error{
             "SQE split-charge system could not be factorized as positive definite; no charges were "
             "returned. Check the geometry or use another parameter set"};
     }
-    const Eigen::VectorXd split_charge = llt.solve(split_rhs);
-    Eigen::VectorXd charges = Eigen::VectorXd::Zero(n);
-    for (Eigen::Index a = 0; a < m; ++a) {
-        const auto [i, j] = endpoints(a);
-        charges(i) += split_charge(a);
-        charges(j) -= split_charge(a);
+    system.split_charges = llt.solve(system.split_rhs);
+}
+
+auto sqe_core::atom_charges(const System& system) -> Eigen::VectorXd {
+    Eigen::VectorXd charges = Eigen::VectorXd::Zero(system.charge_matrix.rows());
+    for (Eigen::Index a = 0; a < system.split_charges.size(); ++a) {
+        const auto [i, j] = system.bonds[static_cast<std::size_t>(a)];
+        charges(i) += system.split_charges(a);
+        charges(j) -= system.split_charges(a);
     }
 
-    if (!initial_charge_values.empty()) {
-        charges += initial_charges;
+    if (system.initial_charges.size() != 0) {
+        charges += system.initial_charges;
     }
 
+    return charges;
+}
+
+auto sqe_core::calculate(const CalculationInput& input,
+                         const std::span<const double> initial_charge_values)
+    -> std::vector<double> {
+    methods::detail::validate_fixed_source_input(input, "SQE-family");
+    const auto& molecule = input.molecule();
+
+    const auto atom_count = molecule.atom_count();
+    const auto bond_count = molecule.bond_count();
+
+    if (atom_count == 0) {
+        return {};
+    }
+
+    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
+        throw std::logic_error{"SQE-family initial charge count must match atom count"};
+    }
+
+    if (bond_count == 0) {
+        if (initial_charge_values.empty()) {
+            return std::vector<double>(atom_count, 0.0);
+        }
+
+        return {initial_charge_values.begin(), initial_charge_values.end()};
+    }
+
+    auto system = build_system(input, initial_charge_values);
+    solve(system);
+    const Eigen::VectorXd charges = atom_charges(system);
     return {charges.data(), charges.data() + charges.size()};
 }
 

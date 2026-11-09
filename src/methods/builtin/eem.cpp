@@ -1,5 +1,6 @@
 #include "methods/builtin/eem.h"
 #include "methods/builtin/dense_solve.h"
+#include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
 
 #include <chargefw/core/molecule.h>
@@ -36,16 +37,11 @@ namespace {
 
 } // namespace
 
-auto EEMMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
-    detail::validate_fixed_source_input(input, "EEM");
+auto eem_core::build_system(const CalculationInput& input) -> System {
     const auto& molecule = input.molecule();
     const auto& parameters = input.parameters();
     const auto& geometry = input.geometry();
     const auto atom_count = molecule.atom_count();
-
-    if (atom_count == 0) {
-        return charges::AtomicCharges{std::vector<double>{}};
-    }
 
     const auto kappa = parameters.common("kappa");
     if (kappa <= 0.0) {
@@ -58,8 +54,10 @@ auto EEMMethod::calculate(const CalculationInput& input) const -> charges::Atomi
 
     const auto n = static_cast<Eigen::Index>(atom_count);
 
-    Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n + 1, n + 1);
-    Eigen::VectorXd b = Eigen::VectorXd::Zero(n + 1);
+    auto system =
+        System{.matrix = Eigen::MatrixXd::Zero(n + 1, n + 1), .rhs = Eigen::VectorXd::Zero(n + 1)};
+    auto& A = system.matrix;
+    auto& b = system.rhs;
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
         const auto i = static_cast<Eigen::Index>(atom_index);
@@ -86,7 +84,20 @@ auto EEMMethod::calculate(const CalculationInput& input) const -> charges::Atomi
     A(n, n) = 0.0;
     b(n) = input.target_charge();
 
-    const Eigen::VectorXd q = solve_in_place(A, b).head(n);
+    return system;
+}
+
+auto EEMMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
+    detail::validate_fixed_source_input(input, "EEM");
+    const auto atom_count = input.molecule().atom_count();
+
+    if (atom_count == 0) {
+        return charges::AtomicCharges{std::vector<double>{}};
+    }
+
+    auto system = eem_core::build_system(input);
+    const Eigen::VectorXd q =
+        solve_in_place(system.matrix, system.rhs).head(static_cast<Eigen::Index>(atom_count));
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
 }

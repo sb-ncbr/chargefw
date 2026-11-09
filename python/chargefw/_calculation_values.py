@@ -121,6 +121,7 @@ class Plan:
         "_native",
         "_molecules",
         "_requested",
+        "_parameter_sets",
     )
 
     def __init__(
@@ -140,6 +141,8 @@ class Plan:
         self._native = native
         self._molecules = molecules
         self._requested = requested
+        # Resolves the parameter set of results, including a set that is not bundled.
+        self._parameter_sets = parameter_sets
 
     @property
     def method(self) -> Method:

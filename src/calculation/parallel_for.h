@@ -159,10 +159,9 @@ auto progress_for_indexed(const std::size_t count, const std::size_t max_threads
                                 std::chrono::steady_clock::now().time_since_epoch())
                                 .count();
         auto last = last_emit_ns.load(std::memory_order_relaxed);
-        if (last == no_fragment_event || now_ns - last >= fragment_throttle_ns) {
-            if (last_emit_ns.compare_exchange_strong(last, now_ns, std::memory_order_relaxed)) {
-                emit_progress(done);
-            }
+        if ((last == no_fragment_event || now_ns - last >= fragment_throttle_ns) &&
+            last_emit_ns.compare_exchange_strong(last, now_ns, std::memory_order_relaxed)) {
+            emit_progress(done);
         }
     };
     parallel_for_indexed(count, max_threads, wrapped);

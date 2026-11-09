@@ -4,10 +4,14 @@
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/parameters/models/parameter_key.h>
+#include <chargefw/parameters/models/parameter_set.h>
 
 #include <nanobind/stl/string.h>
 
+#include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace nb = nanobind;
 
@@ -16,6 +20,21 @@ namespace {
 
 auto make_bundled_parameter_catalog() -> NativeParameterCatalog {
     return NativeParameterCatalog{parameters::load_default_parameter_sets()};
+}
+
+// A catalog with the one parameter set of a JSON file, for sets that are not bundled.
+auto load_parameter_set_catalog(const std::string& path) -> NativeParameterCatalog {
+    auto parameter_sets = std::vector<parameters::ParameterSet>{};
+    parameter_sets.push_back(parameters::load_parameter_set_json_file(path));
+    return NativeParameterCatalog{std::move(parameter_sets)};
+}
+
+// The JSON text of the catalog's parameter set with the given ID.
+auto parameter_set_json(const NativeParameterCatalog& catalog, const std::string& id)
+    -> std::string {
+    auto output = std::ostringstream{};
+    parameters::save_parameter_set_json(catalog.find(id), output);
+    return output.str();
 }
 
 auto atom_key_payload(const parameters::AtomParameterKey& key) -> nb::dict {
@@ -63,8 +82,11 @@ auto parameter_set_descriptors(const NativeParameterCatalog& catalog) -> nb::lis
 
 void bind_parameters(nb::module_& module) {
     nb::class_<NativeParameterCatalog>(module, "_NativeParameterCatalog")
-        .def("_descriptors", &parameter_set_descriptors);
+        .def("_descriptors", &parameter_set_descriptors)
+        .def("_json", &parameter_set_json, nb::arg("id"));
     module.def("_load_bundled_parameter_catalog", &make_bundled_parameter_catalog,
+               nb::call_guard<nb::gil_scoped_release>());
+    module.def("_load_parameter_set_catalog", &load_parameter_set_catalog, nb::arg("path"),
                nb::call_guard<nb::gil_scoped_release>());
 }
 

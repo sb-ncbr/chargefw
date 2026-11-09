@@ -1,6 +1,7 @@
 #include "methods/builtin/sqeq0.h"
 
 #include "methods/builtin/sqe.h"
+#include "methods/builtin/sqe_system.h"
 
 #include <chargefw/core/molecule.h>
 
@@ -9,7 +10,7 @@
 
 namespace chargefw::methods::builtin {
 
-auto SQEq0Method::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
+auto sqe_core::formal_initial_charges(const CalculationInput& input) -> std::vector<double> {
     const auto& molecule = input.molecule();
     const auto atom_count = molecule.atom_count();
     auto initial_charges = std::vector<double>(atom_count, 0.0);
@@ -18,7 +19,12 @@ auto SQEq0Method::calculate(const CalculationInput& input) const -> charges::Ato
         initial_charges[atom_index] = molecule.atom(atom_index).formal_charge();
     }
 
-    return charges::AtomicCharges{sqe_core::calculate(input, initial_charges)};
+    return initial_charges;
+}
+
+auto SQEq0Method::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
+    return charges::AtomicCharges{
+        sqe_core::calculate(input, sqe_core::formal_initial_charges(input))};
 }
 
 auto SQEq0Method::estimate(const TargetSize& target, const MethodOptions& /*options*/) const

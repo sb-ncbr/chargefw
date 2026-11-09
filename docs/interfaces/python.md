@@ -347,8 +347,23 @@ for key in peptide.bond_keys:
 ```
 
 Element `"*"` matches every element. The [parameter-set format](../reference/parameter-format.md)
-explains classifiers and types. Python offers the parameter sets installed with ChargeFW; it cannot load
-other parameter files.
+explains classifiers and types.
+
+To use a parameter set from your own file, read it with `chargefw.read_parameter_set()` and pass the
+result together with its method:
+
+```python
+my_set = chargefw.read_parameter_set("my_eem_set.json")
+result = chargefw.calculate(molecules, method=my_set.method, parameter_set=my_set)
+```
+
+The set's ID must differ from the IDs in `chargefw.parameter_sets`; reading a file that reuses one
+raises `ValueError`, as does a file that does not follow the format. Such a set is not added to
+`chargefw.parameter_sets`; results report it in `plan.parameter_set`.
+
+`chargefw.write_parameter_set(parameter_set, path)` writes any parameter set, bundled or your own, to a
+JSON file in the same format. To fit the values of a parameter set to your own reference charges, see
+[Fitting parameters](fitting.md).
 
 ## Assessing before calculating
 

@@ -2,11 +2,14 @@
 #include <chargefw/parameters/classification/parameter_classifier.h>
 
 #include "core/diagnostic_description.h"
+#include "parameters/classification/type_keys.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -196,6 +199,39 @@ auto find_bond_parameter_entry(const core::Molecule& molecule,
 }
 
 } // namespace
+
+namespace detail {
+
+auto atom_key_less(const AtomParameterKey& first, const AtomParameterKey& second) -> bool {
+    return std::tie(first.atomic_number, first.classification, first.type) <
+           std::tie(second.atomic_number, second.classification, second.type);
+}
+
+auto atom_type_key(const core::Molecule& molecule, const features::TopologyFeatures& topology,
+                   const std::size_t atom_index,
+                   const AtomParameterClassificationKind classification) -> AtomParameterKey {
+    return {.atomic_number = molecule.atom(atom_index).atomic_number(),
+            .classification = classification,
+            .type = atom_type_for(molecule, topology, atom_index, classification, false)};
+}
+
+auto bond_type_key(const core::Molecule& molecule, const features::TopologyFeatures& topology,
+                   const std::size_t bond_index,
+                   const AtomParameterClassificationKind atom_classification,
+                   const BondParameterClassificationKind bond_classification) -> BondParameterKey {
+    const auto& bond = molecule.bond(bond_index);
+    auto lower = atom_type_key(molecule, topology, bond.first_atom_index(), atom_classification);
+    auto upper = atom_type_key(molecule, topology, bond.second_atom_index(), atom_classification);
+    if (atom_key_less(upper, lower)) {
+        std::swap(lower, upper);
+    }
+    return {.first_atom = std::move(lower),
+            .second_atom = std::move(upper),
+            .bond = {.classification = bond_classification,
+                     .type = bond_type_for(molecule, bond_index, bond_classification, false)}};
+}
+
+} // namespace detail
 
 auto try_classify_parameters(const core::Molecule& molecule,
                              const features::TopologyFeatures& topology,

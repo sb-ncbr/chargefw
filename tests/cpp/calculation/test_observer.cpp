@@ -155,7 +155,11 @@ class ThrowOnEveryCallbackObserver final : public calculation::CalculationObserv
     mutable std::atomic<std::size_t> callbacks_{0};
 };
 
-enum class DirectFailure : std::uint8_t { none, logic_error, allocation };
+enum class DirectFailure : std::uint8_t {
+    none,
+    logic_error,
+    allocation,
+};
 
 class DirectTestMethod final : public chargefw::test::StubMethod {
   public:

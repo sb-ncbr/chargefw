@@ -4,7 +4,7 @@
     "name": "Svobodova 2007 (chal2)",
     "method": "eem",
     "publication": "10.3390/i8070572",
-    "notes": "Parameterised to reproduce HF/STO-3G/MPA charges",
+    "notes": "Parameterized to reproduce HF/STO-3G/MPA charges",
     "priority": 40
   },
   "common": {

@@ -10,9 +10,12 @@
 #include "calculation/observer_notifications.h"
 
 #include <chargefw/methods/method.h>
+#include <chargefw/methods/method_applicability.h>
+#include <chargefw/parameters/models/parameter_set.h>
 
 #include <chrono>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -141,14 +144,47 @@ auto calculate(const CalculationRequest& request) -> CalculationResult {
     return calculate_request(request);
 }
 
-auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-               const std::size_t max_threads, const CalculationObserver& observer)
-    -> ExecutionResult {
-    if (plan.identity_ != assessment.plan_identity_) {
+auto AssessmentResult::check_plan(const ExecutionPlan& plan) const -> void {
+    if (plan.identity_ != plan_identity_) {
         throw std::invalid_argument{"execution plan belongs to a different assessment"};
     }
+}
 
-    const auto& selected = *plan.candidate_;
+auto AssessmentResult::replace_values(const ExecutionPlan& plan,
+                                      const parameters::ParameterSet* candidate)
+    -> std::optional<methods::ApplicableMethod> {
+    if (candidate == nullptr) {
+        return std::nullopt;
+    }
+    const auto* assessed = plan.parameter_set();
+    if (assessed == nullptr) {
+        throw std::invalid_argument{"method '" + std::string{plan.method().id()} +
+                                    "' has no parameters to replace"};
+    }
+    if (!parameters::compatible(*assessed, *candidate)) {
+        throw std::invalid_argument{
+            "parameter set '" + std::string{candidate->id()} +
+            "' does not have the method, keys, and parameter names of parameter set '" +
+            std::string{assessed->id()} + "'"};
+    }
+    if (candidate->id() == assessed->id()) {
+        throw std::invalid_argument{"parameter set with changed values must not keep the ID '" +
+                                    std::string{assessed->id()} + "'"};
+    }
+    // The executors, the charge set, and the provenance all read the candidate through this copy.
+    auto replaced = *plan.candidate_;
+    replaced.parameter_set = candidate;
+    return replaced;
+}
+
+auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
+                               const std::size_t max_threads,
+                               const CalculationObserver& observer) const -> ExecutionResult {
+    check_plan(plan);
+    const auto with_candidate = replace_values(plan, candidate);
+
+    const auto& assessment = *this;
+    const auto& selected = with_candidate.has_value() ? *with_candidate : *plan.candidate_;
     const auto fixed_charge_partition = assessment.fixed_charge_partition_.get();
     const auto effective = EffectiveCalculation{
         .method_id = std::string{selected.method->id()},
@@ -216,6 +252,18 @@ auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                     .computation_seconds = computation_seconds},
         .input_warnings = std::move(input_warnings),
         .charge_warnings = std::move(charge_warnings)};
+}
+
+auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+               const std::size_t max_threads, const CalculationObserver& observer)
+    -> ExecutionResult {
+    return assessment.execute(plan, nullptr, max_threads, observer);
+}
+
+auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+               const parameters::ParameterSet& candidate, const std::size_t max_threads,
+               const CalculationObserver& observer) -> ExecutionResult {
+    return assessment.execute(plan, &candidate, max_threads, observer);
 }
 
 auto calculate(const AssessmentResult& assessment, const std::size_t max_threads,

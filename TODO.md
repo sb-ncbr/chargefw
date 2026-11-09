@@ -28,6 +28,18 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
+## Parameterization
+
+- [ ] Fit to several targets at once: electrostatic potentials at points, and the response of the
+  charges to external charges, which needs a second plan with fixed sources. The targets share one
+  parameter layout (`parameters::compatible()`); `fit()` takes a list of them and reports diagnostics
+  per target, and `fit(evaluator, references)` stays the shorthand for one charge target.
+- [ ] Charged groups: find resonance groups and formal charges shared within them (carboxylate,
+  guanidinium) from the bond graph into `features::TopologyFeatures`, independent of atom order and of
+  the resonance form in the input; add an ionic-group atom classifier and a resonance bond
+  classification; and give SQE with shared initial charges its own method ID, because sets fitted with
+  sharing are valid only with it. Decide first which groups count.
+
 ## Project infrastructure
 
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel

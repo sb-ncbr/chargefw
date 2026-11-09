@@ -1,8 +1,9 @@
-"""Immutable bundled parameter-set descriptors and catalogs."""
+"""Immutable parameter-set descriptors and catalogs."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from ._catalog import _Catalog
 from ._payloads import (
@@ -11,6 +12,9 @@ from ._payloads import (
     ParameterSetDescriptorPayload,
 )
 from ._types import AtomClassifier, BondClassifier
+
+if TYPE_CHECKING:
+    from ._chargefw.parameters import _NativeParameterCatalog
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +37,7 @@ class BondParameterKey:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class ParameterSet:
-    """Metadata for an installed immutable parameter set."""
+    """Metadata for an immutable parameter set, bundled or read from a file."""
 
     id: str
     method: str
@@ -42,6 +46,10 @@ class ParameterSet:
     notes: str
     atom_keys: tuple[AtomParameterKey, ...]
     bond_keys: tuple[BondParameterKey, ...]
+    # The native set of a parameter set that is not bundled; None for bundled sets. It takes part in
+    # equality and hashing by identity: the fields above do not include the values, so a set read
+    # from a file equals only itself, and two reads with the same keys but other values never do.
+    _native: _NativeParameterCatalog | None = field(default=None, repr=False)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(id={self.id!r}, method={self.method!r}, name={self.name!r})"
@@ -71,7 +79,9 @@ def _bond_key(value: BondParameterKeyPayload) -> BondParameterKey:
     )
 
 
-def _parameter_set(value: ParameterSetDescriptorPayload) -> ParameterSet:
+def _parameter_set(
+    value: ParameterSetDescriptorPayload, native: _NativeParameterCatalog | None = None
+) -> ParameterSet:
     return ParameterSet(
         id=value["id"],
         method=value["method_id"],
@@ -80,6 +90,7 @@ def _parameter_set(value: ParameterSetDescriptorPayload) -> ParameterSet:
         notes=value["notes"],
         atom_keys=tuple(_atom_key(key) for key in value["atom_keys"]),
         bond_keys=tuple(_bond_key(key) for key in value["bond_keys"]),
+        _native=native,
     )
 
 

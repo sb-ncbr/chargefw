@@ -11,6 +11,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
+from chargefw.parameterization import EvaluationError, Evaluator
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:
@@ -907,3 +908,107 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     executed = result.plan
     assert executed is not None, "successful calculation must report plan provenance"
     assert executed.parameter_set == parameter_set
+
+
+def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
+    path.write_text(
+        f"""{{
+  "metadata": {{"id": "{set_id}", "method": "eem", "name": "Water EEM"}},
+  "common": {{"names": ["kappa"], "values": [0.5]}},
+  "atom": {{
+    "names": ["A", "B"],
+    "data": [
+      {{"key": {{"element": "H", "classifier": "plain", "type": "*"}}, "values": [2.0, 1.0]}},
+      {{"key": {{"element": "O", "classifier": "plain", "type": "*"}}, "values": [{oxygen_a}, 1.0]}}
+    ]
+  }}
+}}
+"""
+    )
+    return path
+
+
+def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> None:
+    equal = chargefw.read_parameter_set(write_eem_set(tmp_path / "equal.json", "water-equal", 2.0))
+    polar = chargefw.read_parameter_set(write_eem_set(tmp_path / "polar.json", "water-polar", 3.0))
+    assert equal.id == "water-equal" and equal.method == "eem"
+    assert "water-equal" not in chargefw.parameter_sets
+
+    # Equal electronegativities give zero charges; a higher one for oxygen makes it negative.
+    neutral = chargefw.calculate(water(), method="eem", parameter_set=equal, threads=1)
+    np.testing.assert_allclose(neutral.assignments[0].values, [0.0] * 3, atol=1e-12)
+    charged = chargefw.calculate(water(), method="eem", parameter_set=polar, threads=1)
+    assert charged.assignments[0].values[0] < 0.0
+    assert charged.plan is not None and charged.plan.parameter_set == polar
+
+    molecule = water()
+    assessment = chargefw.assess(molecule, method="eem", parameter_set=polar, threads=1)
+    plan = assessment.default_plan
+    assert plan is not None and plan.parameter_set == polar
+    from_plan = chargefw.calculate(molecule, plan, threads=1)
+    assert from_plan.plan is not None and from_plan.plan.parameter_set == polar
+    np.testing.assert_array_equal(from_plan.assignments[0].values, charged.assignments[0].values)
+
+
+def test_parameter_sets_read_from_files_with_other_values_are_distinct(tmp_path: Any) -> None:
+    first = chargefw.read_parameter_set(write_eem_set(tmp_path / "first.json", "water", 2.0))
+    second = chargefw.read_parameter_set(write_eem_set(tmp_path / "second.json", "water", 3.0))
+
+    # Same ID, metadata, and keys; only the values differ.
+    assert (first.id, first.atom_keys) == (second.id, second.atom_keys)
+    assert first != second
+    assert first == first
+    assert len({first, second}) == 2
+    assert chargefw.parameter_sets["EEM_Baek1991"] == chargefw.parameter_sets["EEM_Baek1991"]
+
+
+def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path: Any) -> None:
+    bundled_id = next(iter(chargefw.parameter_sets))
+    with pytest.raises(ValueError, match="bundled"):
+        chargefw.read_parameter_set(write_eem_set(tmp_path / "taken.json", bundled_id, 3.0))
+
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text('{"metadata": {"id": "broken"}}')
+    with pytest.raises(ValueError):
+        chargefw.read_parameter_set(malformed)
+
+
+def test_plan_calculates_charges_for_other_parameter_values(tmp_path: Any) -> None:
+    parameter_set = chargefw.read_parameter_set(
+        write_eem_set(tmp_path / "set.json", "water-native", 3.0)
+    )
+    molecule = water(conformers=2)
+    plan = chargefw.assess(
+        molecule, method="eem", parameter_set=parameter_set, execution="full"
+    ).default_plan
+    assert plan is not None
+    evaluator = Evaluator(plan, threads=1)
+
+    assert [(slot.scope, slot.name) for slot in evaluator.layout] == [
+        ("common", "kappa"),
+        ("atom", "A"),
+        ("atom", "B"),
+        ("atom", "A"),
+        ("atom", "B"),
+    ]
+    np.testing.assert_array_equal(evaluator.values, [0.5, 2.0, 1.0, 3.0, 1.0])
+
+    # The set's own values reproduce a normal calculation, with both conformers concatenated.
+    expected = chargefw.calculate(molecule, plan, threads=1)
+    np.testing.assert_array_equal(
+        evaluator.charges(evaluator.values),
+        np.concatenate([assignment.values for assignment in expected.assignments]),
+    )
+    np.testing.assert_allclose(
+        evaluator.charges(np.array([0.5, 2.0, 1.0, 2.0, 1.0])), np.zeros(6), atol=1e-12
+    )
+
+    # EEM rejects kappa <= 0 during the calculation.
+    with pytest.raises(EvaluationError, match="kappa"):
+        evaluator.charges(np.array([0.0, 2.0, 1.0, 3.0, 1.0]))
+    with pytest.raises(ValueError):
+        evaluator.charges(np.array([0.5]))
+    formal = chargefw.assess(water(), method="formal", execution="full").default_plan
+    assert formal is not None
+    with pytest.raises(ValueError):
+        Evaluator(formal)

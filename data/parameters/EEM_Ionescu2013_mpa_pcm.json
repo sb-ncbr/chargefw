@@ -4,7 +4,7 @@
     "name": "Ionescu 2013 (EX-MPA_6-31Gd_PCM)",
     "method": "eem",
     "publication": "10.1021/ci400448n",
-    "notes": "Parameterised to reproduce HF/6-31G**/MPA/polarisable-continuum-model charges",
+    "notes": "Parameterized to reproduce HF/6-31G**/MPA/polarizable-continuum-model charges",
     "priority": 65
   },
   "common": {

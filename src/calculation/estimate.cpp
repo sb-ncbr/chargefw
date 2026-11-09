@@ -11,7 +11,6 @@
 #include <functional>
 #include <numbers>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
 namespace chargefw::calculation {
@@ -31,9 +30,7 @@ constexpr double charge_bytes_per_atom = 8.0;
 
 auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
               const std::size_t max_threads) -> methods::ResourceEstimate {
-    if (plan.identity_ != assessment.plan_identity_) {
-        throw std::invalid_argument{"execution plan belongs to a different assessment"};
-    }
+    assessment.check_plan(plan);
 
     const auto& selected = *plan.candidate_;
     const auto& policy = plan.policy();

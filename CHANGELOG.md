@@ -9,8 +9,46 @@
   with the wheels. On an older CPU, `import chargefw` raises an `ImportError`; build from source with
   `CHARGEFW_ENABLE_NATIVE_OPTIMIZATIONS=ON`, which now defaults to `OFF`.
 
+### Python
+
+- `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
+  makes a parameter set with an entry for every atom and bond type of your molecules, `Evaluator`
+  calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
+  `fit()` fits the values to reference charges with SciPy's least squares, using exact derivatives
+  for EEM, SQE, SQE+q0, and SQE+qp, whose cost then does not grow with the number of charges in each
+  step of the optimizer; the result's
+  `parameter_set()` turns the fitted values into a parameter set. Profiles for EEM and the SQE
+  methods give default bounds, starting values, and fixed parameters; the SQE profiles fit each
+  hardness as √π·hardness·width − 1 ≥ 0, which keeps the system stable for every molecule and
+  geometry, and start the electronegativities (EEM's A, and SQE+qp's q0) from their best values for
+  the start of the other parameters, so they need no start. Fit diagnostics report R² and the error
+  per element, parameters at a bound, failed calculations, which parameters the data cannot
+  determine, and how many atoms or bonds each type has. Install SciPy 1.18 or newer with the `parameterization` extra.
+- `chargefw.read_parameter_set()` reads a parameter set from your own JSON file, which `assess()` and
+  `calculate()` accept as `parameter_set`. Its ID must differ from the IDs of the bundled sets.
+  `chargefw.write_parameter_set()` writes any parameter set to a JSON file.
+
 ### C++
 
+- The new `chargefw::parameterization` namespace has what fitting parameter values needs:
+  `make_parameter_template()` makes a parameter set with an entry for every atom and bond type of a
+  molecule collection under chosen classifiers, with the given parameter names and zero values;
+  `parameter_layout()` and `parameter_values()` list the values of a set in a fixed order, and
+  `with_parameter_values()` copies a set with new values; `normal_equations(assessment, plan,
+  candidate, references, weights)` returns the charges, the weighted sum of squares, Jᵀ diag(w²) J,
+  and Jᵀ diag(w²) r of a least-squares fit of the charges, from exact derivatives, for the methods
+  `has_exact_derivatives()` names: EEM, SQE, SQE+q0, and SQE+qp; `entry_counts()` counts the atoms
+  and bonds of a plan that each entry of its set matches, and `single_bond_entries()` reports the
+  atom entries whose atoms all have one bond, with the bond entries of those bonds.
+- `parameters::compatible()` tells whether two parameter sets differ only in their values and
+  descriptive metadata, and parameter keys can be compared with `==`.
+- `calculation::to_string()` names a `CalculationPhase`.
+- `adapters::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
+  `molecular_source_format_from_string()` reads a format name.
+- `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter
+  set, without checking the molecules again.
+- `parameters::save_parameter_set_json()` writes a parameter set in the JSON format that the loading
+  functions read.
 - `MethodRegistry` cannot be constructed; `method_registry()` is the catalog of built-in methods.
   `find_applicable_methods()`, `ApplicabilityRequest`, `CalculationRequest`, `CalculationResult`, and
   the `calculate()` overload that takes a `CalculationRequest` are removed. Calculate charges with
