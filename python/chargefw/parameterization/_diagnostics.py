@@ -11,19 +11,22 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .._elements import periodic_table
+from .._parameters import AtomParameterKey
 from ._compression import undetermined
 from ._evaluator import EvaluationError
 
 
 @dataclass(frozen=True, slots=True)
-class ElementDiagnostics:
-    """How well the charges of one element match the references.
+class ChargeDiagnostics:
+    """How well a group of charges, those of one element or one atom type, match the references.
 
-    ``r2`` is ``nan`` when every reference of the element is the same, which leaves it undefined.
+    ``mean_error`` is the mean of the calculated charge minus the reference. ``r2`` is ``nan`` when
+    every reference of the group is the same, which leaves it undefined.
     """
 
     count: int
     rmsd: float
+    mean_error: float
     r2: float
 
 
@@ -48,13 +51,17 @@ class Diagnostics:
     share of it is at least half the largest share.
 
     ``matches`` gives, for each free slot in the order of ``FitResult.free``, the number of
-    calculated atoms or bonds of its type, or ``None`` for a common parameter. ``by_element`` maps
-    each element symbol, in atomic-number order, to the number of charges of that element and their
-    RMSD and R² against the references.
+    calculated atoms or bonds of its type, or ``None`` for a common parameter; it counts every atom
+    and bond, as one without a reference still changes the charges of others. ``by_element`` maps
+    each element symbol, in atomic-number order, and ``by_atom_type`` each atom key, in the
+    parameter set's order, to how well the charges match the references; both include only elements
+    and keys with at least one charge that has a reference. Charges without a reference are left out
+    of ``r2``, ``by_element``, and ``by_atom_type``.
     """
 
     r2: float
-    by_element: Mapping[str, ElementDiagnostics]
+    by_element: Mapping[str, ChargeDiagnostics]
+    by_atom_type: Mapping[AtomParameterKey, ChargeDiagnostics]
     matches: tuple[int | None, ...]
     at_bounds: tuple[int, ...]
     failed_messages: tuple[str, ...]
@@ -109,15 +116,26 @@ def _diagnostics(
     upper: NDArray[np.float64],
     failed_messages: Sequence[str],
     elements: NDArray[np.int64],
+    atom_entries: NDArray[np.int64],
+    atom_keys: Sequence[AtomParameterKey],
     matches: tuple[int | None, ...],
 ) -> Diagnostics:
+    # Only charges with a reference count; atom_entries is -1 for a charge no atom entry matched.
+    present = ~np.isnan(reference)
+    charges, reference = charges[present], reference[present]
+    elements, atom_entries = elements[present], atom_entries[present]
     by_element = {
-        periodic_table[int(atomic_number)].symbol: ElementDiagnostics(
-            count=int(np.count_nonzero(elements == atomic_number)),
-            rmsd=_rmsd(charges[elements == atomic_number], reference[elements == atomic_number]),
-            r2=_r2(charges[elements == atomic_number], reference[elements == atomic_number]),
+        periodic_table[int(atomic_number)].symbol: _group(
+            charges[elements == atomic_number], reference[elements == atomic_number]
         )
         for atomic_number in np.unique(elements)
+    }
+    by_atom_type = {
+        atom_keys[int(entry)]: _group(
+            charges[atom_entries == entry], reference[atom_entries == entry]
+        )
+        for entry in np.unique(atom_entries)
+        if entry >= 0
     }
     r2 = _r2(charges, reference)
 
@@ -145,12 +163,22 @@ def _diagnostics(
     return Diagnostics(
         r2=r2,
         by_element=MappingProxyType(by_element),
+        by_atom_type=MappingProxyType(by_atom_type),
         matches=matches,
         at_bounds=at_bounds,
         failed_messages=tuple(failed_messages),
         singular_values=singular_values,
         rank=rank,
         weakest=weakest,
+    )
+
+
+def _group(charges: NDArray[np.float64], reference: NDArray[np.float64]) -> ChargeDiagnostics:
+    return ChargeDiagnostics(
+        count=int(charges.size),
+        rmsd=_rmsd(charges, reference),
+        mean_error=float(np.mean(charges - reference)),
+        r2=_r2(charges, reference),
     )
 
 

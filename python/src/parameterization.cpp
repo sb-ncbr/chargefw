@@ -26,6 +26,7 @@
 #include <nanobind/stl/vector.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
@@ -41,6 +42,16 @@ namespace nb = nanobind;
 namespace chargefw::python {
 namespace {
 
+// The slots of a parameter set, as (scope, entry index, name).
+auto layout_list(const parameters::ParameterSet& parameter_set) -> nb::list {
+    auto result = nb::list{};
+    for (const auto& slot : parameterization::parameter_layout(parameter_set)) {
+        result.append(nb::make_tuple(std::string{parameterization::to_string(slot.scope)},
+                                     slot.entry_index, slot.name));
+    }
+    return result;
+}
+
 // The fitting view of one plan: its parameter values, the charges and normal equations at other
 // values, and what the molecules show about its parameter entries. Shares the plan's assessment
 // state, which it keeps alive.
@@ -53,12 +64,7 @@ class NativeEvaluator {
 
     // The slots of the plan's parameter set, as (scope, entry index, name).
     [[nodiscard]] auto layout() const -> nb::list {
-        auto result = nb::list{};
-        for (const auto& slot : parameterization::parameter_layout(parameter_set())) {
-            result.append(nb::make_tuple(std::string{parameterization::to_string(slot.scope)},
-                                         slot.entry_index, slot.name));
-        }
-        return result;
+        return layout_list(parameter_set());
     }
 
     [[nodiscard]] auto values() const -> nb::ndarray<nb::numpy, const double, nb::shape<-1>> {
@@ -161,6 +167,21 @@ class NativeEvaluator {
         return {std::move(counts.atoms), std::move(counts.bonds)};
     }
 
+    // Per molecule of the plan, the atom entry of every atom, -1 where none matches, as
+    // parameterization::atom_entries() reports them.
+    [[nodiscard]] auto atom_entries() const -> nb::list {
+        auto result = nb::list{};
+        for (const auto& molecule : parameterization::atom_entries(state_->assessment_, plan())) {
+            auto entries = std::vector<std::int64_t>{};
+            entries.reserve(molecule.size());
+            for (const auto& entry : molecule) {
+                entries.push_back(entry.has_value() ? static_cast<std::int64_t>(*entry) : -1);
+            }
+            result.append(numpy_integers(std::move(entries)));
+        }
+        return result;
+    }
+
     // Per atom entry: (single_bonded, exclusive_bonds, bond_entries), as
     // parameterization::single_bond_entries() reports them.
     [[nodiscard]] auto single_bond_entries() const
@@ -241,6 +262,14 @@ auto make_parameter_template_catalog(const nb::sequence& molecules, const std::s
     return NativeParameterCatalog{std::move(parameter_sets)};
 }
 
+// The slots and values of the parameter set `id`, in layout order.
+auto parameter_set_values(const NativeParameterCatalog& catalog, const std::string& id)
+    -> nb::tuple {
+    const auto& parameter_set = catalog.find(id);
+    return nb::make_tuple(layout_list(parameter_set),
+                          numpy_values(parameterization::parameter_values(parameter_set)));
+}
+
 // A catalog with a copy of the parameter set `id`, with `values` in layout order and new metadata;
 // the method stays the same.
 auto parameter_set_with_values(const NativeParameterCatalog& catalog, const std::string& id,
@@ -268,6 +297,7 @@ void bind_parameterization(nb::module_& module) {
         .def("_calculate_values", &NativeEvaluator::calculate_values, nb::arg("values"),
              nb::arg("max_threads") = nb::none())
         .def("_entry_counts", &NativeEvaluator::entry_counts)
+        .def("_atom_entries", &NativeEvaluator::atom_entries)
         .def("_single_bond_entries", &NativeEvaluator::single_bond_entries)
         .def("_normal_equations", &NativeEvaluator::normal_equations, nb::arg("values"),
              nb::arg("references"), nb::arg("weights"), nb::arg("max_threads") = nb::none())
@@ -275,6 +305,7 @@ void bind_parameterization(nb::module_& module) {
     module.def("_make_parameter_template_catalog", &make_parameter_template_catalog,
                nb::arg("molecules"), nb::arg("method_id"), nb::arg("atom_types"),
                nb::arg("bond_types"), nb::arg("id"));
+    module.def("_parameter_values", &parameter_set_values, nb::arg("catalog"), nb::arg("id"));
     module.def("_with_values", &parameter_set_with_values, nb::arg("catalog"), nb::arg("id"),
                nb::arg("values"), nb::arg("new_id"), nb::arg("name"), nb::arg("publication"),
                nb::arg("notes"));

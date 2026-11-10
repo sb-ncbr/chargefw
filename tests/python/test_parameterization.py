@@ -6,6 +6,7 @@ quality on real data is qualified outside the test suite.
 """
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import get_type_hints
 from unittest.mock import patch
@@ -14,10 +15,12 @@ import chargefw
 import numpy as np
 import pytest
 from chargefw.parameterization import (
+    ChargeDiagnostics,
     Diagnostics,
-    ElementDiagnostics,
     EvaluationError,
     Evaluator,
+    FitObserver,
+    FitProgress,
     FitResult,
     Slot,
     fit,
@@ -273,7 +276,8 @@ def test_public_annotations_resolve() -> None:
     for public in (
         Slot,
         Diagnostics,
-        ElementDiagnostics,
+        ChargeDiagnostics,
+        FitProgress,
         FitResult,
         Evaluator.__init__,
         Evaluator.charges,
@@ -933,3 +937,357 @@ def test_matches_count_bonds_and_conformers_line_up_with_elements() -> None:
     assert evaluator.matches == (None, 2, 2, 1, 1)
     by_element = result.diagnostics.by_element
     assert (by_element["H"].count, by_element["O"].count) == (4, 2)
+    by_type = {key.element: value for key, value in result.diagnostics.by_atom_type.items()}
+    assert (by_type["H"].count, by_type["O"].count) == (4, 2)
+
+
+def test_fit_diagnostics_separate_atom_types_of_one_element() -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    references = evaluator.charges(SQE_TRUE_VALUES) + 0.01
+
+    result = fit(evaluator, references, start=SQE_TRUE_VALUES, max_evaluations=3)
+
+    # Water oxygen has single bonds only, formaldehyde oxygen a double bond: one element, two types.
+    by_type = result.diagnostics.by_atom_type
+    oxygen = {key.type: diagnostics for key, diagnostics in by_type.items() if key.element == "O"}
+    assert set(oxygen) == {"1", "2"}
+    assert (oxygen["1"].count, oxygen["2"].count) == (1, 1)
+    assert result.diagnostics.by_element["O"].count == 2
+    charges = evaluator.charges(result.values)
+    # Water's oxygen comes first among the charges, formaldehyde's fifth.
+    assert oxygen["1"].mean_error == pytest.approx(charges[0] - references[0])
+    assert oxygen["2"].mean_error == pytest.approx(charges[4] - references[4])
+
+
+class RecordingFitObserver(FitObserver):
+    def __init__(self, stop_when: Callable[[FitProgress], bool] = lambda _: False) -> None:
+        self.events: list[FitProgress] = []
+        self._stop_when = stop_when
+
+    def on_evaluation(self, progress: FitProgress) -> None:
+        self.events.append(progress)
+
+    def cancelled(self) -> bool:
+        return self._stop_when(self.events[-1])
+
+
+def test_observer_follows_every_trial_point_and_the_best_so_far() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    weights = np.array([1.0, 2.0, 2.0, 1.0, 3.0, 0.5, 0.5])
+    observer = RecordingFitObserver()
+
+    result = fit(
+        evaluator,
+        references,
+        weights=weights,
+        start=FIT_START,
+        free=FIT_FREE,
+        max_evaluations=8,
+        observer=observer,
+    )
+
+    events = observer.events
+    assert [event.evaluation for event in events] == list(range(1, len(events) + 1))
+    assert len(events) == result.evaluations
+    # The first trial point is the start.
+    start_residuals = weights * (evaluator.charges(FIT_START) - references)
+    assert events[0].objective == pytest.approx(start_residuals @ start_residuals)
+    # The best point is the one with the lowest weighted objective, which the RMSD need not follow.
+    for index, event in enumerate(events):
+        lowest = min(range(index + 1), key=lambda earlier: events[earlier].objective)
+        assert event.best_objective == events[lowest].objective
+        assert event.best_rmsd == events[lowest].rmsd
+    np.testing.assert_allclose(events[-1].best_values, result.values)
+    assert all(
+        later.elapsed_seconds >= earlier.elapsed_seconds
+        for earlier, later in zip(events, events[1:])
+    )
+
+
+def test_cancelled_fit_returns_the_best_values_as_a_checkpoint() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    observer = RecordingFitObserver(lambda progress: progress.evaluation == 3)
+
+    result = fit(evaluator, references, start=FIT_START, free=FIT_FREE, observer=observer)
+
+    assert not result.success and "cancelled" in result.message
+    assert result.evaluations == 3
+    np.testing.assert_array_equal(result.values, observer.events[-1].best_values)
+    # The best values so far, written as a parameter set, start another fit where this one stopped.
+    checkpoint = observer.events[-1].parameter_set(id="checkpoint")
+    resumed = fit(evaluator, references, start=checkpoint, free=FIT_FREE, max_evaluations=1)
+    np.testing.assert_allclose(resumed.start, observer.events[-1].best_values)
+
+    # Cancelled at a trial point whose calculation failed, the fit keeps the last one that worked.
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    failing = RecordingFitObserver(lambda progress: np.isnan(progress.objective))
+    stopped = fit(
+        FailingEvaluator(plan, threads=1),
+        references,
+        start=FIT_START,
+        free=FIT_FREE,
+        observer=failing,
+    )
+    assert np.isnan(failing.events[-1].objective) and failing.events[-1].failed_evaluations == 1
+    assert not stopped.success
+    np.testing.assert_array_equal(stopped.values, failing.events[-1].best_values)
+    assert stopped.values[5] <= 2.9
+
+
+def test_missing_references_leave_the_fit_and_the_errors() -> None:
+    evaluator = training_evaluator()
+    references = evaluator.charges(TRUE_VALUES)
+    # The second water hydrogen has no reference.
+    missing = references.copy()
+    missing[2] = np.nan
+    excluded = references.copy()
+    excluded[2] = 5.0
+    weights = np.ones(7)
+    weights[2] = 0.0
+
+    without = fit(evaluator, missing, start=FIT_START, free=FIT_FREE, max_evaluations=5)
+    # A missing reference ignores its weight; a zero weight leaves a known reference out of the fit.
+    weighted = fit(
+        evaluator,
+        missing,
+        weights=np.where(np.isnan(missing), 7.0, 1.0),
+        start=FIT_START,
+        free=FIT_FREE,
+        max_evaluations=5,
+    )
+    zero = fit(
+        evaluator, excluded, weights=weights, start=FIT_START, free=FIT_FREE, max_evaluations=5
+    )
+
+    np.testing.assert_allclose(without.values, zero.values)
+    np.testing.assert_allclose(without.values, weighted.values)
+    charges = evaluator.charges(without.values)
+    present = [0, 1, 3, 4, 5, 6]
+    assert without.rmsd == pytest.approx(
+        np.sqrt(np.mean((charges[present] - references[present]) ** 2))
+    )
+    assert without.diagnostics.by_element["H"].count == 3
+    # A zero weight still reports the charge, against its reference.
+    assert zero.diagnostics.by_element["H"].count == 4
+    assert zero.rmsd > 1.0
+
+    # Without any hydrogen reference, the hydrogen type leaves the errors but keeps its count; the
+    # carbon charge, with weight 0 but a reference, is still reported.
+    no_hydrogen = references.copy()
+    no_hydrogen[[1, 2, 5, 6]] = np.nan
+    without_carbon = np.ones(7)
+    without_carbon[3] = 0.0
+    partial = fit(
+        evaluator,
+        no_hydrogen,
+        weights=without_carbon,
+        start=FIT_START,
+        free=FIT_FREE,
+        max_evaluations=5,
+    )
+    assert {key.element for key in partial.diagnostics.by_atom_type} == {"C", "O"}
+    assert set(partial.diagnostics.by_element) == {"C", "O"}
+    assert partial.diagnostics.by_element["C"].count == 1
+    assert partial.diagnostics.matches == without.diagnostics.matches
+
+    infinite = references.copy()
+    infinite[2] = np.inf
+    with pytest.raises(ValueError, match="finite, or nan"):
+        fit(evaluator, infinite, start=FIT_START, free=FIT_FREE)
+    with pytest.raises(ValueError, match="no value at all"):
+        fit(evaluator, np.full(7, np.nan), start=FIT_START, free=FIT_FREE)
+
+
+def test_start_from_a_parameter_set_matches_bonds_in_either_order(tmp_path: Path) -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    references = evaluator.charges(SQE_TRUE_VALUES)
+    written = fit(evaluator, references, start=SQE_TRUE_VALUES, free=[0], max_evaluations=1)
+    path = tmp_path / "reversed.json"
+    chargefw.write_parameter_set(written.parameter_set(id="reversed"), path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    for entry in document["bond"]["data"]:
+        entry["key"]["atoms"].reverse()
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    template = template_evaluator("sqe", "hbo", "bo")
+    started = fit(
+        template,
+        references,
+        start=chargefw.read_parameter_set(path),
+        free=[0],
+        max_evaluations=1,
+    )
+
+    np.testing.assert_allclose(started.start, written.values)
+
+
+def test_start_from_a_parameter_set_fills_only_the_slots_it_shares() -> None:
+    evaluator = template_evaluator("sqe", "hbo", "bo")
+    references = evaluator.charges(SQE_TRUE_VALUES)
+    profile = PROFILES["sqe"].start
+
+    def water_set(atom_types: str) -> chargefw.ParameterSet:
+        # A set for water alone: none of formaldehyde's types.
+        template = make_parameter_template(
+            water(),
+            "sqe",
+            atom_types=atom_types,  # type: ignore[arg-type]
+            bond_types="bo",
+            id=f"water-{atom_types}",
+        )
+        plan = chargefw.assess(
+            water(), method="sqe", parameter_set=template, execution="full"
+        ).default_plan
+        assert plan is not None
+        water_evaluator = Evaluator(plan, threads=1)
+        positions = {(slot.key, slot.name): index for index, slot in enumerate(evaluator.layout)}
+        values = np.array(
+            [
+                SQE_TRUE_VALUES[positions[(slot.key, slot.name)]]
+                if (slot.key, slot.name) in positions
+                else profile[slot.name]
+                for slot in water_evaluator.layout
+            ]
+        )
+        written = fit(water_evaluator, water_evaluator.charges(values), start=values, free=[0])
+        return written.parameter_set(id=f"water-{atom_types}-fitted")
+
+    # The electronegativity of water's hydrogen is in both layouts, so the fit can vary it.
+    free = [
+        index
+        for index, slot in enumerate(evaluator.layout)
+        if slot.name == "electronegativity"
+        and isinstance(slot.key, chargefw.AtomParameterKey)
+        and slot.key.element == "H"
+    ]
+    hbo = water_set("hbo")
+    shared = fit(evaluator, references, start=hbo, free=free, max_evaluations=1)
+    water_keys = set(hbo.atom_keys) | set(hbo.bond_keys)
+    for index, slot in enumerate(evaluator.layout):
+        if slot.key in water_keys and index not in free:
+            assert shared.start[index] == SQE_TRUE_VALUES[index], slot
+        elif slot.key not in water_keys:
+            assert shared.start[index] == profile[slot.name], slot
+
+    # bonded types share no key with hbo types, so every slot starts as from the template.
+    unrelated = fit(evaluator, references, start=water_set("bonded"), free=free, max_evaluations=1)
+    np.testing.assert_array_equal(
+        unrelated.start, [profile[slot.name] for slot in evaluator.layout]
+    )
+
+
+class FailingAfterCancellation(Evaluator):
+    """Fails every calculation once ``failing`` is set."""
+
+    failing = False
+
+    def _normal_equations(
+        self,
+        values: NDArray[np.float64],
+        references: NDArray[np.float64],
+        weights: NDArray[np.float64],
+    ) -> tuple[NDArray[np.float64], float, NDArray[np.float64], NDArray[np.float64]]:
+        if self.failing:
+            raise EvaluationError("calculation lost after cancellation")
+        return super()._normal_equations(values, references, weights)
+
+
+def test_cancelled_fit_whose_diagnostics_fail_leaves_the_checkpoint() -> None:
+    molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full"
+    ).default_plan
+    assert plan is not None
+    evaluator = FailingAfterCancellation(plan, threads=1)
+    references = training_evaluator().charges(TRUE_VALUES)
+
+    def stop_and_break(progress: FitProgress) -> bool:
+        if progress.evaluation < 2:
+            return False
+        evaluator.failing = True
+        return True
+
+    observer = RecordingFitObserver(stop_and_break)
+    with pytest.raises(EvaluationError, match="lost after cancellation"):
+        fit(evaluator, references, start=FIT_START, free=FIT_FREE, observer=observer)
+
+    checkpoint = observer.events[-1].parameter_set(id="checkpoint")
+    resumed = fit(
+        training_evaluator(), references, start=checkpoint, free=FIT_FREE, max_evaluations=1
+    )
+    np.testing.assert_allclose(resumed.start, observer.events[-1].best_values)
+
+
+FIXED_ION_BETWEEN_WATERS = """data_ion_between_waters
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.pdbx_formal_charge
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+HETATM 1 O O . HOH W . ? 0 0 0 1 20 0 5 HOH W O 1
+HETATM 2 H H1 . HOH W . ? 0.96 0 0 1 20 0 5 HOH W H1 1
+HETATM 3 H H2 . HOH W . ? -0.24 0.93 0 1 20 0 5 HOH W H2 1
+HETATM 4 Mg MG . MG I . ? 0 0 3 1 20 0 9 MG I MG 1
+HETATM 5 O O . HOH W . ? 0 0 6 1 20 0 6 HOH W O 1
+HETATM 6 H H1 . HOH W . ? 0.96 0 6 1 20 0 6 HOH W H1 1
+HETATM 7 H H2 . HOH W . ? -0.24 0.93 6 1 20 0 6 HOH W H2 1
+#
+"""
+
+
+def test_atom_types_line_up_with_atoms_around_a_fixed_ion() -> None:
+    molecules = chargefw.io.parse(FIXED_ION_BETWEEN_WATERS, format="mmcif", bonds="templates")
+    assert [int(z) for z in molecules[0].atomic_numbers] == [8, 1, 1, 12, 8, 1, 1]
+    template = make_parameter_template(molecules, "eem", atom_types="plain")
+    plan = chargefw.assess(
+        molecules, method="eem", parameter_set=template, execution="full", fixed_ions=["MG"]
+    ).default_plan
+    assert plan is not None
+    evaluator = Evaluator(plan, threads=1)
+    values = evaluator.values.copy()
+    for index, slot in enumerate(evaluator.layout):
+        values[index] = {"kappa": 0.5, "A": 2.0, "B": 1.0}[slot.name]
+        if isinstance(slot.key, chargefw.AtomParameterKey) and slot.key.element == "O":
+            values[index] = {"A": 3.0, "B": 1.0}[slot.name]
+    charges = evaluator.charges(values)
+    assert charges[3] == 2.0
+    # Each element gets its own offset; misaligned types would mix them, or take in the ion.
+    references = charges + np.array([0.01, 0.02, 0.02, 0.5, 0.01, 0.02, 0.02])
+
+    result = fit(evaluator, references, start=values, free=[1], max_evaluations=1)
+
+    by_type = {
+        key.element: diagnostics for key, diagnostics in result.diagnostics.by_atom_type.items()
+    }
+    assert set(by_type) == {"H", "O"}
+    assert (by_type["H"].count, by_type["O"].count) == (4, 2)
+    fitted = evaluator.charges(result.values)
+    hydrogens, oxygens = [1, 2, 5, 6], [0, 4]
+    assert by_type["H"].mean_error == pytest.approx(
+        np.mean(fitted[hydrogens] - references[hydrogens])
+    )
+    assert by_type["O"].mean_error == pytest.approx(np.mean(fitted[oxygens] - references[oxygens]))

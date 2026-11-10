@@ -114,6 +114,7 @@ set(CHARGEFW_PYTHON_PARAMETERIZATION_SOURCES
     _diagnostics.py
     _evaluator.py
     _fit.py
+    _observer.py
     _payloads.py
     _template.py
     profiles/__init__.py

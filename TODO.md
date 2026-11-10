@@ -39,6 +39,15 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   the resonance form in the input; add an ionic-group atom classifier and a resonance bond
   classification; and give SQE with shared initial charges its own method ID, because sets fitted with
   sharing are valid only with it. Decide first which groups count.
+- [ ] Profile `fit()` with many small molecules: a fit to 25,628 fragments of at most 257 atoms used
+  about 6 of 16 cores. Measure where the time goes before changing anything.
+- [ ] Investigate an atom classifier that sees beyond the first neighbors, such as the neighbors' bond
+  orders and formal charges or the second shell, as a new classifier value. Hydroxyl oxygens of
+  carboxylic acids and of alcohols share every first-neighbor type. Whether it is worth adding depends
+  on the accuracy finer types can give, which is still to be measured.
+- [ ] Investigate metal–ligand coordination as bonds, so that SQE-family methods can move charge
+  between a bound metal and its ligands instead of holding the metal as a fixed ion. This is a
+  chemistry policy: no coordination bonds are inferred automatically until the policy is decided.
 
 ## Project infrastructure
 

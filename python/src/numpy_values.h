@@ -3,8 +3,10 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 
+#include <cstdint>
 #include <memory>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace chargefw::python {
@@ -20,6 +22,17 @@ using value_array =
     auto owned_values = std::make_unique<std::vector<double>>(values.begin(), values.end());
     auto owner = nanobind::capsule{owned_values.get(), [](void* pointer) noexcept {
                                        delete static_cast<std::vector<double>*>(pointer);
+                                   }};
+    auto* released_values = owned_values.release();
+    return {released_values->data(), {released_values->size()}, owner};
+}
+
+// A NumPy array of integers that takes over `values`, such as indices with -1 for none.
+[[nodiscard]] inline auto numpy_integers(std::vector<std::int64_t> values)
+    -> nanobind::ndarray<nanobind::numpy, const std::int64_t, nanobind::shape<-1>> {
+    auto owned_values = std::make_unique<std::vector<std::int64_t>>(std::move(values));
+    auto owner = nanobind::capsule{owned_values.get(), [](void* pointer) noexcept {
+                                       delete static_cast<std::vector<std::int64_t>*>(pointer);
                                    }};
     auto* released_values = owned_values.release();
     return {released_values->data(), {released_values->size()}, owner};
