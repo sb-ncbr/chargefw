@@ -7,6 +7,7 @@ quality on real data is qualified outside the test suite.
 
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import get_type_hints
 from unittest.mock import patch
@@ -538,6 +539,27 @@ def test_profile_starts_linear_parameters_from_their_best_values() -> None:
     bounded = fit(evaluator, references, start=given, bounds=(lower, upper), max_evaluations=1)
     assert bounded.start[linear[0]] == 3.0
     assert np.all(bounded.start[linear[1:]] != 3.0)
+
+
+def test_profile_mappings_are_read_only_copies() -> None:
+    bounds = {"B": (0.001, 10.0)}
+    start = {"B": 2.0}
+    terminal = {"hardness": "kappa"}
+    profile = Profile(bounds=bounds, start=start, terminal=terminal)
+
+    for name, source in (("bounds", bounds), ("start", start), ("terminal", terminal)):
+        values = getattr(profile, name)
+        expected = dict(source)
+        source.clear()
+        assert values == expected
+        key = next(iter(values))
+        with pytest.raises(TypeError):
+            values[key] = values[key]
+
+    customized = replace(profile, start={"B": 3.0})
+    assert customized.start["B"] == 3.0
+    assert profile.start["B"] == 2.0
+    assert customized.bounds == profile.bounds
 
 
 def test_profile_reports_free_slots_without_a_start_value() -> None:

@@ -426,18 +426,6 @@ for realistic input.
 - **Fix:** export the two constants from `bind_calculation` (as `_fixed_ion_names` is exported) and
   use them at the three default sites; update the `.pyi` stub.
 
-### A9. Fitting profiles are editable global state
-
-- **Status:** reported.
-- **Where:** `python/chargefw/parameterization/profiles/_profile.py:69-73`, `profiles/eem.py:15-16`,
-  `profiles/sqe.py:82-85` (used at `:95-96, 103-104, 111`).
-- **Problem:** `Profile` is frozen and `PROFILES` is a `MappingProxyType`, but `bounds`, `start`, and
-  `terminal` are plain dicts. `profiles.PROFILES["eem"].bounds["B"] = ...` changes the default for
-  every later fit. In `sqe.py` the same `_BOUNDS` and `_START` objects are shared by `sqe`, `sqeq0`,
-  and (bounds only) `sqeqp`.
-- **Fix:** a `__post_init__` that wraps the three fields in `MappingProxyType(dict(...))`, as
-  `ExecutedPlan.__post_init__` does (`python/chargefw/_calculation_values.py:230-231`).
-
 ### A10. "Read-only" fit arrays can be made writable again
 
 - **Status:** reported; the NumPy behaviour was reproduced with plain NumPy.

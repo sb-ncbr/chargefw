@@ -356,7 +356,16 @@ name) to values, or a `ParameterSet` whose values are copied to the slots with t
 parameter name.
 
 `chargefw.parameterization.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
-start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`.
+start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`. A profile's `bounds`,
+`start`, and `terminal` are read-only. To customize a profile, use `dataclasses.replace()` and pass
+the result as `fit(..., profile=...)`:
+
+```python
+from dataclasses import replace
+from chargefw.parameterization.profiles import PROFILES
+
+profile = replace(PROFILES["eem"], start={**PROFILES["eem"].start, "B": 3.0})
+```
 
 ### Evaluator
 
