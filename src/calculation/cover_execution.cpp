@@ -132,9 +132,6 @@ auto calculate_cover_charges(const methods::ApplicableMethod& selected,
     methods::detail::validate_coordinate_targets(selected, molecules);
     detail::validate_reduced_request(selected, policy, ExecutionMode::cover);
     const auto radius = policy.radius();
-    if (!radius.has_value()) {
-        throw std::logic_error{"validated cover execution policy has no radius"};
-    }
     return detail::execute_calculation_targets(
         selected, molecules, ExecutionMode::cover, true, detail::ParallelizationLevel::fragments,
         max_threads, observer,

@@ -85,9 +85,6 @@ auto calculate_cutoff_charges(const methods::ApplicableMethod& selected,
     methods::detail::validate_coordinate_targets(selected, molecules);
     detail::validate_reduced_request(selected, policy, ExecutionMode::cutoff);
     const auto radius = policy.radius();
-    if (!radius.has_value()) {
-        throw std::logic_error{"validated cutoff execution policy has no radius"};
-    }
 
     return detail::execute_calculation_targets(
         selected, molecules, ExecutionMode::cutoff, true, detail::ParallelizationLevel::fragments,
