@@ -15,6 +15,7 @@
 #include <chargefw/parameters/models/parameter_set_metadata.h>
 
 #include <cstddef>
+#include <optional>
 #include <snitch/snitch.hpp>
 #include <stdexcept>
 #include <string>
@@ -97,6 +98,9 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
     const auto counts = parameterization::entry_counts(separate, *separate.default_plan());
     CHECK(counts.atoms == std::vector<std::size_t>{4, 3});
     CHECK(counts.bonds == std::vector<std::size_t>{4, 1});
+    using Entries = std::vector<std::optional<std::size_t>>;
+    CHECK(parameterization::atom_entries(separate, *separate.default_plan()) ==
+          std::vector{Entries{1, 0, 0}, Entries{0, 1, 1, 0}});
     const auto entries = parameterization::single_bond_entries(separate, *separate.default_plan());
     REQUIRE(entries.size() == 2);
     CHECK(entries[0].single_bonded);
@@ -138,12 +142,13 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
 
 TEST_CASE("Entries count the calculated atoms, not fixed ions",
           "[parameterization][parameter-entries]") {
-    // Water (O, H, H) and a magnesium ion with a fixed charge; the H/O set has no entry for it.
+    // Water (O, H, H) with a magnesium ion between its oxygen and hydrogens in atom order, held at
+    // a fixed charge; the H/O set has no entry for it.
     auto atoms =
-        std::vector{core::Atom{8, 0}, core::Atom{1, 0}, core::Atom{1, 0}, core::Atom{12, 2}};
+        std::vector{core::Atom{8, 0}, core::Atom{12, 2}, core::Atom{1, 0}, core::Atom{1, 0}};
     auto positions = std::vector<core::Position>{
-        {0.0, 0.0, 0.0}, {0.96, 0.0, 0.0}, {-0.24, 0.93, 0.0}, {5.0, 0.0, 0.0}};
-    const auto water_with_ion = molecule(std::move(atoms), {core::Bond{0, 1}, core::Bond{0, 2}},
+        {0.0, 0.0, 0.0}, {5.0, 0.0, 0.0}, {0.96, 0.0, 0.0}, {-0.24, 0.93, 0.0}};
+    const auto water_with_ion = molecule(std::move(atoms), {core::Bond{0, 2}, core::Bond{0, 3}},
                                          std::move(positions), "water-with-ion");
     const auto assessment = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{water_with_ion}},
@@ -151,13 +156,16 @@ TEST_CASE("Entries count the calculated atoms, not fixed ions",
         .method_id = "eem",
         .parameter_set_id = "test-eem-ho",
         .fixed_ions = calculation::FixedIons{
-            .sources = {{.molecule_index = 0, .atom_index = 3, .charge = 2.0}}}});
+            .sources = {{.molecule_index = 0, .atom_index = 1, .charge = 2.0}}}});
     const auto* plan = assessment.default_plan();
     REQUIRE(plan != nullptr);
 
     const auto counts = parameterization::entry_counts(assessment, *plan);
     CHECK(counts.atoms == std::vector<std::size_t>{2, 1});
     CHECK(counts.bonds.empty());
+    // Entries follow the molecule's atoms, with none for the ion.
+    CHECK(parameterization::atom_entries(assessment, *plan) ==
+          std::vector<std::vector<std::optional<std::size_t>>>{{1, std::nullopt, 0, 0}});
     // The calculated part does not line up with the molecule, so no entry is single-bonded.
     for (const auto& entry : parameterization::single_bond_entries(assessment, *plan)) {
         CHECK_FALSE(entry.single_bonded);
@@ -170,5 +178,7 @@ TEST_CASE("Entries count the calculated atoms, not fixed ions",
     CHECK_THROWS_AS(parameterization::entry_counts(formal, *formal.default_plan()),
                     std::invalid_argument);
     CHECK_THROWS_AS(parameterization::single_bond_entries(assessment, *formal.default_plan()),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(parameterization::atom_entries(formal, *formal.default_plan()),
                     std::invalid_argument);
 }

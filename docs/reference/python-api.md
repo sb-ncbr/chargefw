@@ -348,7 +348,12 @@ parameters](../interfaces/fitting.md) shows how.
 | Function | Returns |
 | --- | --- |
 | `make_parameter_template(molecules, method, *, atom_types, bond_types="plain", id="template")` | `ParameterSet` with an entry for every atom and bond type of the molecules, all values zero |
-| `fit(evaluator, references, *, weights=None, start=None, free=None, bounds=None, profile="default", max_evaluations=None)` | `FitResult` |
+| `fit(evaluator, references, *, weights=None, start=None, free=None, bounds=None, profile="default", max_evaluations=None, observer=None)` | `FitResult` |
+
+`references` and `weights` hold one array per assignment or one array for all charges; a reference of
+`nan` marks a charge without one. `start` is a vector in layout order, a mapping from (key, parameter
+name) to values, or a `ParameterSet` whose values are copied to the slots with the same key and
+parameter name.
 
 `chargefw.parameterization.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
 start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`.
@@ -377,21 +382,41 @@ A `Slot` has `scope` (`"common"`, `"atom"`, or `"bond"`), `key` (an `AtomParamet
 | `bounds` | Lower and upper values per slot |
 | `success`, `message` | Whether and why the optimizer stopped |
 | `evaluations`, `failed_evaluations` | Trial values the optimizer evaluated, and those whose calculation failed |
-| `rmsd` | RMSD of the charges at `values` against the references, without weights |
+| `rmsd` | RMSD of the charges at `values` against the references, without weights, over the charges that have a reference |
 | `diagnostics` | `Diagnostics` |
 | `parameter_set(*, id, name="", publication="", notes="")` | The fitted values as a `ParameterSet` |
 
-### Diagnostics and ElementDiagnostics
+### Diagnostics and ChargeDiagnostics
 
 | Attribute | Content |
 | --- | --- |
 | `r2` | R² of the charges against the references |
-| `by_element` | Mapping of element symbol to `ElementDiagnostics` with `count`, `rmsd`, and `r2` |
+| `by_element` | Mapping of element symbol to `ChargeDiagnostics` |
+| `by_atom_type` | Mapping of `AtomParameterKey` to `ChargeDiagnostics` |
 | `matches` | Per free slot, the number of atoms or bonds of its type |
 | `at_bounds` | Free slots at a bound |
 | `singular_values`, `rank` | How strongly, and in how many independent combinations, the data determines the free slots |
 | `weakest` | Free slots of the least determined combination |
 | `failed_messages` | Messages of failed trial calculations, at most 20 |
+
+`ChargeDiagnostics` has `count`, `rmsd`, `mean_error` (calculated minus reference), and `r2`. `r2`,
+`by_element`, and `by_atom_type` cover only charges that have a reference, and `by_atom_type` only
+types that such a charge belongs to; fixed ions belong to no type. `matches` counts every atom and
+bond.
+
+### FitObserver and FitProgress
+
+Subclass `FitObserver` and override `on_evaluation(progress)` to receive a `FitProgress` after each
+trial value of a fit, and `cancelled()` to return `True` when the fit should stop. See [Following a
+long fit](../interfaces/fitting.md#following-a-long-fit).
+
+| Attribute | Content |
+| --- | --- |
+| `evaluation`, `failed_evaluations` | Trial values evaluated so far, and those whose calculation failed |
+| `objective`, `rmsd` | Weighted sum of squares and RMSD without weights at this trial value; `nan` when its calculation failed |
+| `best_objective`, `best_rmsd`, `best_values` | The lowest weighted sum of squares so far, the RMSD there, and the values of every slot there |
+| `elapsed_seconds` | Time since `fit()` was called |
+| `parameter_set(*, id, name="", publication="", notes="")` | The best values so far as a `ParameterSet` |
 
 ## Progress
 

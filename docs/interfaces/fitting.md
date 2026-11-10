@@ -75,6 +75,24 @@ set works the same way, but its values must satisfy the profile's limits: some p
 have a hardness below the stability limit described below, and `fit()` then names those values and
 stops before fitting.
 
+If your molecules have types the earlier set lacks, or you have split a type into finer ones, make a
+template for your molecules and pass the earlier set as `start`:
+
+```python
+template = make_parameter_template(molecules, "sqeqp", atom_types="hbo", bond_types="bo")
+plan = chargefw.assess(
+    molecules, method="sqeqp", parameter_set=template, execution="full"
+).default_plan
+evaluator = Evaluator(plan)
+result = fit(evaluator, references, start=chargefw.read_parameter_set("my-sqeqp.json"))
+```
+
+Every value whose type and parameter name the earlier set has starts from that set; the others start
+as in a fit from a template. Types must match exactly: an `hbo` type gives no value to a `bonded`
+type of the same element. The earlier set may be for another method, such as an SQE set for an
+SQE+qp fit; values are copied by parameter name, so check that the names mean the same in both
+methods.
+
 ## Calculating with candidate values
 
 `Evaluator(plan)` calculates the charges of your molecules for any parameter values. It reads and
@@ -187,6 +205,12 @@ does not fit your purpose:
   reported. This keeps the template and the plan unchanged, for example when you compare fits on
   different subsets.
 
+A charge without a reference gets `nan` in `references`. The atom stays in the calculation, but its
+charge does not enter the fit, whatever its weight, and `result.rmsd` and the errors in the
+[diagnostics](#reading-the-result) leave it out. Use it when your reference data lack some charges,
+or when you fit fragments cut out of larger structures and only some of their atoms have a reference.
+A charge with weight 0 differs: it has a reference, and the diagnostics report it.
+
 ```python
 elements = [
     np.array([chargefw.periodic_table[z].symbol for z in molecule.atomic_numbers])
@@ -222,6 +246,48 @@ gives a quick first result, which shows whether the start, the types, and the we
 before you spend time on a full fit. Calculations for checking the start, for the derivatives, and
 for the diagnostics come on top of that number.
 
+### Following a long fit
+
+A fit on many molecules can take hours. `observer` lets you follow it, save the best values as you
+go, and stop it. Subclass `chargefw.parameterization.FitObserver`:
+
+```python
+from pathlib import Path
+
+from chargefw.parameterization import FitObserver
+
+
+class Progress(FitObserver):
+    def on_evaluation(self, progress):
+        print(f"{progress.evaluation}: RMSD {progress.rmsd:.4f} e, best {progress.best_rmsd:.4f} e, "
+              f"{progress.elapsed_seconds:.0f} s")
+        if progress.evaluation % 20 == 0:
+            checkpoint = progress.parameter_set(id="checkpoint")
+            chargefw.write_parameter_set(checkpoint, "checkpoint.json")
+
+    def cancelled(self):
+        return Path("stop").exists()
+
+
+result = fit(evaluator, references, observer=Progress())
+```
+
+`on_evaluation()` receives a `FitProgress` after each trial value the optimizer evaluates, also when
+its calculation fails. It holds the RMSD there and the best values so far: those with the lowest
+weighted sum of squares, which the fit minimizes, with their RMSD. There is no event while `fit()`
+checks the start, while it calculates finite differences for a method without exact derivatives, or
+while it calculates the diagnostics at the end.
+
+`progress.parameter_set(id=...)` turns the best values so far into a parameter set. Write it to a
+file, and a later fit can start from it with `start=chargefw.read_parameter_set(...)`, as shown in
+[making a template](#making-a-template). Such a fit starts from the saved values; it does not
+continue the optimizer's steps.
+
+When `cancelled()` returns `True`, the fit stops after the current trial value. It calculates the
+diagnostics at the best values so far, which costs one more calculation of the charges and their
+derivatives, and returns a `FitResult` with `success` false. If that calculation fails,
+`fit()` raises `EvaluationError`; your last checkpoint keeps the values.
+
 ### Checks and failures
 
 Before it starts, `fit()` checks that the start lies within the limits (a value on a limit, as an
@@ -251,6 +317,22 @@ for symbol, element in result.diagnostics.by_element.items():
 `result.rmsd` and `r2` compare the charges at the fitted values with your references, without weights.
 `by_element` shows whether one element is fitted much worse than the others, which often means it
 needs finer types, more molecules, or a larger weight.
+
+`by_atom_type` gives the same for each atom type that at least one charge with a reference belongs
+to, with `mean_error`, the average of the calculated charge minus the reference:
+
+```python
+for key, errors in result.diagnostics.by_atom_type.items():
+    print(f"{key.element}/{key.type}: {errors.count} charges, RMSD {errors.rmsd:.4f} e, "
+          f"mean error {errors.mean_error:+.4f} e")
+```
+
+A type with a large mean error is off in one direction for most of its atoms. That often means the
+type covers chemistry whose charges differ, such as hydroxyl oxygens of alcohols and of carboxylic
+acids, and finer types may help. Both `by_element` and `by_atom_type` count only charges with a
+reference. A [fixed ion](../guide/fixed-ions.md) belongs to no atom type: with a reference, it counts in
+`by_element` and in `result.rmsd`, but not in `by_atom_type`, so the counts there can add up to less
+than those in `by_element`.
 
 Then check whether the values can be trusted. A good fit of the charges does not guarantee
 meaningful values:

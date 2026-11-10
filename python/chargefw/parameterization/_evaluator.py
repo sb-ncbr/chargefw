@@ -44,6 +44,7 @@ class Evaluator:
     __slots__ = (
         "_assignment_molecules",
         "_assignment_sizes",
+        "_atom_entries",
         "_atomic_numbers",
         "_exact",
         "_layout",
@@ -83,6 +84,7 @@ class Evaluator:
         self._atomic_numbers = tuple(
             np.array(molecule.atomic_numbers) for molecule in plan._molecules
         )
+        self._atom_entries = tuple(np.asarray(entries) for entries in self._native._atom_entries())
         atom_counts, bond_counts = self._native._entry_counts()
         self._matches = tuple(
             atom_counts[index]
@@ -246,6 +248,15 @@ class Evaluator:
             [self._atomic_numbers[molecule] for molecule in self._assignment_molecules]
         )
 
+    def _charge_atom_entries(self) -> NDArray[np.int64]:
+        """The atom entry of every charge, in the order of ``charges()``; -1 for none."""
+
+        if self._assignment_molecules is None:
+            raise RuntimeError("the atom entries of the charges are known after a calculation")
+        return np.concatenate(
+            [self._atom_entries[molecule] for molecule in self._assignment_molecules]
+        )
+
     def _slot_indices(self, slots: Sequence[SupportsIndex] | None) -> list[int]:
         if slots is None:
             return list(range(len(self._layout)))
@@ -303,6 +314,22 @@ def _step_within_bounds(value: float, lower: float, upper: float) -> float:
     if value - lower >= step:
         return value - step
     return upper if upper - value >= value - lower else lower
+
+
+def _slot_values(
+    parameter_set: ParameterSet,
+) -> dict[tuple[AtomParameterKey | BondParameterKey | None, str], float]:
+    """Every value of a parameter set, by (key, parameter name); the key is None for common
+    parameters."""
+
+    from ..calculation import _default_parameter_catalog
+
+    catalog = parameter_set._native or _default_parameter_catalog()
+    layout, values = _native_parameterization._parameter_values(catalog, parameter_set.id)
+    return {
+        (_slot(scope, index, name, parameter_set).key, name): float(value)
+        for (scope, index, name), value in zip(layout, values, strict=True)
+    }
 
 
 def _slot(scope: ParameterScope, index: int, name: str, parameter_set: ParameterSet) -> Slot:

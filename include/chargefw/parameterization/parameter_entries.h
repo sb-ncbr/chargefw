@@ -3,6 +3,7 @@
 #include <chargefw/calculation/assessment.h>
 
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 namespace chargefw::parameterization {
@@ -17,6 +18,13 @@ struct EntryCounts {
 // Throws std::invalid_argument for a plan of another assessment or a method without parameters.
 [[nodiscard]] auto entry_counts(const calculation::AssessmentResult& assessment,
                                 const calculation::ExecutionPlan& plan) -> EntryCounts;
+
+// The atom entry matched to every atom of every molecule of the assessment, in the molecules' own
+// atom order; std::nullopt for an atom that no entry matches: a fixed ion, or every atom when the
+// parameter set has no atom entries. Throws as entry_counts().
+[[nodiscard]] auto atom_entries(const calculation::AssessmentResult& assessment,
+                                const calculation::ExecutionPlan& plan)
+    -> std::vector<std::vector<std::optional<std::size_t>>>;
 
 // What the molecules show about the atoms of one atom entry and their bonds.
 struct SingleBondEntry {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, SupportsIndex
@@ -18,7 +19,8 @@ from . import profiles
 from ._compression import CompressionError, compress, determined_step
 from ._coordinates import _Coordinates
 from ._diagnostics import Diagnostics, _diagnostics, _spectrum_of_gram, _spectrum_of_jacobian
-from ._evaluator import EvaluationError, Evaluator, Slot
+from ._evaluator import EvaluationError, Evaluator, Slot, _slot_values
+from ._observer import FitObserver, FitProgress
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,9 +30,9 @@ class FitResult:
     ``values`` and ``start`` hold every slot in the order of the evaluator's layout; ``free`` lists
     the slots the fit changed, and ``bounds`` the lower and upper values it used per slot; a slot the
     profile transforms has no bounds of its own there, as its bound applies to the transformed
-    quantity. ``rmsd``
-    compares the charges at ``values`` with the references, without weights.
-    ``failed_evaluations`` counts trial values whose calculation failed and were therefore rejected.
+    quantity. ``rmsd`` compares the charges at ``values`` with the references, without weights,
+    leaving out charges without a reference. ``failed_evaluations`` counts trial values whose
+    calculation failed and were therefore rejected.
     ``diagnostics`` shows whether the values can be trusted. ``parameter_set()`` turns the fitted
     values into a parameter set.
     """
@@ -58,15 +60,31 @@ class FitResult:
         The ID must differ from the IDs of the bundled parameter sets.
         """
 
-        if id in parameter_sets:
-            raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
-        source = self._parameter_set
-        catalog = source._native or _default_parameter_catalog()
-        native = _native_parameterization._with_values(
-            catalog, source.id, np.ascontiguousarray(self.values), id, name, publication, notes
-        )
-        (descriptor,) = native._descriptors()
-        return _parameter_set(descriptor, native)
+        return _with_values(self._parameter_set, self.values, id, name, publication, notes)
+
+
+def _with_values(
+    source: ParameterSet,
+    values: NDArray[np.float64],
+    id: str,
+    name: str,
+    publication: str,
+    notes: str,
+) -> ParameterSet:
+    """A copy of `source` with `values` in layout order and new metadata."""
+
+    if id in parameter_sets:
+        raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
+    catalog = source._native or _default_parameter_catalog()
+    native = _native_parameterization._with_values(
+        catalog, source.id, np.ascontiguousarray(values), id, name, publication, notes
+    )
+    (descriptor,) = native._descriptors()
+    return _parameter_set(descriptor, native)
+
+
+class _Cancelled(Exception):
+    """Raised inside an evaluation when the observer asks the fit to stop."""
 
 
 def fit(
@@ -76,20 +94,36 @@ def fit(
     weights: Sequence[ArrayLike] | ArrayLike | None = None,
     start: ArrayLike
     | Mapping[tuple[AtomParameterKey | BondParameterKey | None, str], float]
+    | ParameterSet
     | None = None,
     free: Sequence[SupportsIndex] | None = None,
     bounds: tuple[ArrayLike, ArrayLike] | None = None,
     profile: profiles.Profile | Literal["default"] | None = "default",
     max_evaluations: int | None = None,
+    observer: FitObserver | None = None,
 ) -> FitResult:
     """Fit parameter values so that the charges match reference charges in the least-squares sense.
 
     ``references`` holds the reference charges of every assignment, in assignment order: one array
-    per assignment, or one array for all. ``weights`` has the same shape, or is omitted for equal
-    weights. ``start`` is a vector in layout order, or a mapping from (key, parameter name) to the
-    values that differ from the evaluator's values; the key is ``None`` for common parameters.
-    ``free`` lists the slots to fit; the others keep their start values. ``bounds`` gives lower and
-    upper values per slot.
+    per assignment, or one array for all. A reference of ``nan`` means the charge has none: it does
+    not enter the fit, whatever its weight, and the RMSD and the reference-based error statistics of
+    the diagnostics leave it out.
+    ``weights`` has the same shape, or is omitted for equal weights. ``start`` is a vector in layout
+    order; a mapping from (key, parameter name) to the values that differ from the evaluator's
+    values, the key being ``None`` for common parameters; or a parameter set, such as an earlier
+    fit or a checkpoint, whose values are used for every slot with the same key and parameter name,
+    for any method and layout, a bond in either endpoint order; slots it lacks start as without
+    ``start``. This copies values; it does not resume an earlier fit, and the profile's start of the
+    linear parameters applies as with any other start. ``free`` lists the slots to fit; the others
+    keep their start values. ``bounds`` gives lower and upper values per slot.
+
+    ``observer`` receives a ``FitProgress`` after every trial point the optimizer evaluates, failed
+    ones included; not during the checks and the start before the first trial point, the derivatives
+    of a method without exact ones, or the final diagnostics. When it asks the fit to stop, the fit
+    calculates the diagnostics at the best values so far, which costs one more evaluation (and, for a
+    method without exact derivatives, its forward differences), and returns them with ``success``
+    false. If that calculation fails, the fit raises ``EvaluationError``; the observer has received
+    the best values before.
 
     ``profile`` gives the defaults for what is omitted: by default the method's entry in
     ``profiles.PROFILES``, or nothing for a method without one, or for ``profile=None``. Without ``free``,
@@ -123,6 +157,7 @@ def fit(
     model in floating point. Needs SciPy.
     """
 
+    started = time.perf_counter()
     try:
         from scipy.optimize import least_squares  # type: ignore[import-untyped, unused-ignore]
     except ImportError as error:
@@ -196,8 +231,13 @@ def fit(
         raise EvaluationError(f"the charges cannot be calculated at the start: {error}") from error
     assert evaluator._assignment_sizes is not None
     sizes = evaluator._assignment_sizes
-    reference = _flat(references, "references", sizes)
+    reference = _flat(references, "references", sizes, allow_missing=True)
     weight = np.ones(start_charges.size) if weights is None else _flat(weights, "weights", sizes)
+    # A charge without a reference gets weight zero; `target` holds a placeholder there, which the
+    # weight removes from every sum the fit forms. `reference` keeps the nan for the diagnostics.
+    present = ~np.isnan(reference)
+    weight = np.where(present, weight, 0.0)
+    target = np.where(present, reference, 0.0)
 
     # By default, the free slots of the profile's linear parameters start from their best values for
     # the start of the others; the result reports this start.
@@ -216,7 +256,7 @@ def fit(
     if linear:
         try:
             feasible[linear] += _linear_step(
-                evaluator, feasible, linear, reference, weight, (lower, upper)
+                evaluator, feasible, linear, target, weight, (lower, upper)
             )
         except CompressionError as error:
             raise EvaluationError(
@@ -238,7 +278,7 @@ def fit(
     # Charges with weight zero do not count.
     start_derivative = coordinates.derivative(internal_initial)[chain_index]
     if exact:
-        _, _, start_gram, _ = evaluator._normal_equations(feasible, reference, weight)
+        _, _, start_gram, _ = evaluator._normal_equations(feasible, target, weight)
         sensitivity = np.diag(start_derivative.T @ start_gram[moving_index] @ start_derivative)
         sensitive = sensitivity != 0.0
     else:
@@ -257,6 +297,10 @@ def fit(
 
     failed = 0
     failed_messages: list[str] = []
+    count = 0
+    best_objective = math.inf
+    best_rmsd = math.nan
+    best_free: NDArray[np.float64] | None = None
 
     def internal_of(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
         internal = internal_initial.copy()
@@ -272,6 +316,36 @@ def fit(
         if len(failed_messages) < 20 and str(error) not in failed_messages:
             failed_messages.append(str(error))
 
+    def observe(
+        free_values: NDArray[np.float64], objective: float, charges: NDArray[np.float64] | None
+    ) -> None:
+        """Keeps the best point, tells the observer, and stops the fit when it asks to."""
+
+        nonlocal count, best_objective, best_rmsd, best_free
+        count += 1
+        rmsd = math.nan if charges is None else _rmsd(charges, reference)
+        if math.isfinite(objective) and objective < best_objective:
+            best_objective, best_rmsd, best_free = objective, rmsd, free_values.copy()
+        if observer is None:
+            return
+        best_values = values_of(best_free) if best_free is not None else initial.copy()
+        best_values.setflags(write=False)
+        observer.on_evaluation(
+            FitProgress(
+                evaluation=count,
+                failed_evaluations=failed,
+                objective=objective,
+                rmsd=rmsd,
+                best_objective=best_objective,
+                best_rmsd=best_rmsd,
+                best_values=best_values,
+                elapsed_seconds=time.perf_counter() - started,
+                _parameter_set=evaluator._parameter_set,
+            )
+        )
+        if observer.cancelled():
+            raise _Cancelled
+
     if exact:
         # The least-squares model in the size of the free slots, from the normal equations; see
         # _compression. Cached, so that the residuals and the matrix of one point share one call.
@@ -285,15 +359,17 @@ def fit(
             if key not in cache:
                 internal = internal_of(free_values)
                 try:
-                    _, total, gram, gradient = evaluator._normal_equations(
-                        coordinates.to_values(internal), reference, weight
+                    charges, total, gram, gradient = evaluator._normal_equations(
+                        coordinates.to_values(internal), target, weight
                     )
                 except EvaluationError as error:
                     # Non-finite residuals make the TRF method reject the trial and shorten its
                     # step.
                     record(error)
+                    observe(free_values, math.nan, None)
                     represented = (np.full(size + 1, np.nan), np.zeros((size + 1, size)))
                 else:
+                    observe(free_values, total, charges)
                     derivative = coordinates.derivative(internal)[chain_index]
                     try:
                         represented = compress(
@@ -323,8 +399,11 @@ def fit(
             except EvaluationError as error:
                 # Non-finite residuals make the TRF method reject the trial and shorten its step.
                 record(error)
+                observe(free_values, math.nan, None)
                 return np.full(reference.size, np.nan)
-            return weight * (charges - reference)
+            residual = weight * (charges - target)
+            observe(free_values, float(residual @ residual), charges)
+            return residual
 
         def jacobian(free_values: NDArray[np.float64]) -> NDArray[np.float64]:
             internal = internal_of(free_values)
@@ -337,24 +416,40 @@ def fit(
             derivative = coordinates.derivative(internal)[chain_index]
             return weight[:, np.newaxis] * (charges_jacobian @ derivative)
 
-    solution = least_squares(
-        residuals,
-        internal_initial[free_slots],
-        jac=jacobian,
-        bounds=(internal_lower[free_slots], internal_upper[free_slots]),
-        method="trf",
-        x_scale="jac",
-        loss="linear",
-        tr_solver="exact",
-        max_nfev=max_evaluations,
-    )
-    fitted = values_of(solution.x)
+    try:
+        solution = least_squares(
+            residuals,
+            internal_initial[free_slots],
+            jac=jacobian,
+            bounds=(internal_lower[free_slots], internal_upper[free_slots]),
+            method="trf",
+            x_scale="jac",
+            loss="linear",
+            tr_solver="exact",
+            max_nfev=max_evaluations,
+        )
+        solved, success, message, evaluations = (
+            solution.x,
+            bool(solution.success),
+            str(solution.message),
+            int(solution.nfev),
+        )
+    except _Cancelled:
+        if best_free is None:
+            raise EvaluationError("the fit was cancelled before any evaluation succeeded") from None
+        solved, success, message, evaluations = (
+            best_free,
+            False,
+            "cancelled by the observer; the values are the best so far",
+            count,
+        )
+    fitted = values_of(solved)
     fitted.setflags(write=False)
     initial.setflags(write=False)
     # The diagnostics use the weighted derivatives in the parameter values, not the internal
     # coordinates.
     if exact:
-        final_charges, _, final_gram, _ = evaluator._normal_equations(fitted, reference, weight)
+        final_charges, _, final_gram, _ = evaluator._normal_equations(fitted, target, weight)
         spectrum = _spectrum_of_gram(final_gram[free_index])
     else:
         final_charges = evaluator.charges(fitted)
@@ -365,12 +460,14 @@ def fit(
         final_charges,
         reference,
         spectrum,
-        internal_of(solution.x),
+        internal_of(solved),
         free_slots,
         internal_lower,
         internal_upper,
         failed_messages,
         evaluator._charge_elements(),
+        evaluator._charge_atom_entries(),
+        evaluator._parameter_set.atom_keys,
         tuple(evaluator.matches[slot] for slot in free_slots),
     )
     return FitResult(
@@ -378,11 +475,11 @@ def fit(
         start=initial,
         free=tuple(free_slots),
         bounds=(_read_only(lower), _read_only(upper)),
-        success=bool(solution.success),
-        message=str(solution.message),
-        evaluations=int(solution.nfev),
+        success=success,
+        message=message,
+        evaluations=evaluations,
         failed_evaluations=failed,
-        rmsd=float(np.sqrt(np.mean((final_charges - reference) ** 2))),
+        rmsd=_rmsd(final_charges, reference),
         diagnostics=diagnostics,
         _parameter_set=evaluator._parameter_set,
     )
@@ -449,11 +546,21 @@ def _start_values(
     evaluator: Evaluator,
     start: ArrayLike
     | Mapping[tuple[AtomParameterKey | BondParameterKey | None, str], float]
+    | ParameterSet
     | None,
     profile: profiles.Profile | None,
 ) -> tuple[NDArray[np.float64], set[int]]:
     """The start values, and the slots that have none."""
 
+    if isinstance(start, ParameterSet):
+        # The values of the slots the set shares with the layout; the set's other entries do not
+        # matter, and the layout's other slots start as without a start.
+        layout_keys = {_unordered(slot.key, slot.name) for slot in evaluator.layout}
+        start = {
+            key: value
+            for key, value in _slot_values(start).items()
+            if _unordered(*key) in layout_keys
+        }
     if start is not None and not isinstance(start, Mapping):
         return evaluator._vector(start).copy(), set()
 
@@ -470,13 +577,30 @@ def _start_values(
                 else:
                     missing.update(slots)
     if start is not None:
-        positions = {(slot.key, slot.name): index for index, slot in enumerate(evaluator.layout)}
+        positions = {
+            _unordered(slot.key, slot.name): index for index, slot in enumerate(evaluator.layout)
+        }
         for (key, name), value in start.items():
-            if (key, name) not in positions:
+            position = positions.get(_unordered(key, name))
+            if position is None:
                 raise KeyError(f"no slot for parameter {name!r} of {key!r} in the layout")
-            values[positions[(key, name)]] = value
-            missing.discard(positions[(key, name)])
+            values[position] = value
+            missing.discard(position)
     return evaluator._vector(values).copy(), missing
+
+
+def _unordered(
+    key: AtomParameterKey | BondParameterKey | None, name: str
+) -> tuple[AtomParameterKey | BondParameterKey | None, str]:
+    """A slot's key and parameter name, with a bond's endpoints in a fixed order: a bond key means
+    the same in either order, and parameter files keep the order they were written in."""
+
+    if isinstance(key, BondParameterKey):
+        first, second = sorted(
+            key.atoms, key=lambda atom: (atom.element, atom.classifier, atom.type)
+        )
+        return (BondParameterKey((first, second), key.classifier, key.type), name)
+    return (key, name)
 
 
 def _linear_step(
@@ -535,10 +659,26 @@ def _check_start_in_bounds(
         )
 
 
+def _rmsd(charges: NDArray[np.float64], reference: NDArray[np.float64]) -> float:
+    """The RMSD over the charges that have a reference; nan when none has."""
+
+    present = ~np.isnan(reference)
+    return (
+        float(np.sqrt(np.mean((charges[present] - reference[present]) ** 2)))
+        if present.any()
+        else math.nan
+    )
+
+
 def _flat(
-    value: Sequence[ArrayLike] | ArrayLike, name: str, sizes: Sequence[int]
+    value: Sequence[ArrayLike] | ArrayLike,
+    name: str,
+    sizes: Sequence[int],
+    *,
+    allow_missing: bool = False,
 ) -> NDArray[np.float64]:
-    """One value per calculated charge, from one array per assignment or one array for all."""
+    """One value per calculated charge, from one array per assignment or one array for all; with
+    ``allow_missing``, nan marks a missing value."""
 
     if (
         isinstance(value, Sequence)
@@ -563,6 +703,11 @@ def _flat(
             raise ValueError(
                 f"{name} must have {sum(sizes)} values, one per calculated charge, not {flat.size}"
             )
-    if not np.all(np.isfinite(flat)):
+    if allow_missing:
+        if np.any(np.isinf(flat)):
+            raise ValueError(f"{name} must be finite, or nan where there is none")
+        if np.all(np.isnan(flat)):
+            raise ValueError(f"{name} has no value at all")
+    elif not np.all(np.isfinite(flat)):
         raise ValueError(f"{name} must be finite")
     return flat

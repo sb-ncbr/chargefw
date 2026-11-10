@@ -51,6 +51,44 @@ auto entry_counts(const calculation::AssessmentResult& assessment,
     return result;
 }
 
+auto atom_entries(const calculation::AssessmentResult& assessment,
+                  const calculation::ExecutionPlan& plan)
+    -> std::vector<std::vector<std::optional<std::size_t>>> {
+    const auto classifications = AssessmentAccess::classifications(assessment, plan);
+    static_cast<void>(parameter_set(plan));
+    const auto& molecules = assessment.molecules();
+    // With fixed ions, each classification covers the active part of its molecule, whose atoms
+    // map back to the molecule's atoms through the partition.
+    const auto* partition = AssessmentAccess::partition(assessment);
+    if (classifications.size() != molecules.size()) {
+        throw std::logic_error{"the plan does not classify every molecule of its assessment"};
+    }
+    auto result = std::vector<std::vector<std::optional<std::size_t>>>{};
+    result.reserve(molecules.size());
+    for (std::size_t index = 0; index < molecules.size(); ++index) {
+        auto& entries = result.emplace_back(molecules[index].atom_count());
+        const auto atoms = classifications[index].atom().parameter_entry_indices();
+        if (atoms.empty()) {
+            continue;
+        }
+        if (partition == nullptr) {
+            if (atoms.size() != entries.size()) {
+                throw std::logic_error{"an atom classification does not cover its molecule"};
+            }
+            std::ranges::copy(atoms, entries.begin());
+            continue;
+        }
+        const auto& active = partition->targets.at(index).active_atom_indices;
+        if (atoms.size() != active.size()) {
+            throw std::logic_error{"an atom classification does not cover the active atoms"};
+        }
+        for (std::size_t atom = 0; atom < atoms.size(); ++atom) {
+            entries.at(active[atom]) = atoms[atom];
+        }
+    }
+    return result;
+}
+
 auto single_bond_entries(const calculation::AssessmentResult& assessment,
                          const calculation::ExecutionPlan& plan) -> std::vector<SingleBondEntry> {
     const auto classifications = AssessmentAccess::classifications(assessment, plan);
