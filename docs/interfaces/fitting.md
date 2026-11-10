@@ -259,8 +259,10 @@ from chargefw.parameterization import FitObserver
 
 class Progress(FitObserver):
     def on_evaluation(self, progress):
-        print(f"{progress.evaluation}: RMSD {progress.rmsd:.4f} e, best {progress.best_rmsd:.4f} e, "
-              f"{progress.elapsed_seconds:.0f} s")
+        print(
+            f"{progress.evaluation}: RMSD {progress.rmsd:.4f} e, best {progress.best_rmsd:.4f} e, "
+            f"{progress.elapsed_seconds:.0f} s"
+        )
         if progress.evaluation % 20 == 0:
             checkpoint = progress.parameter_set(id="checkpoint")
             chargefw.write_parameter_set(checkpoint, "checkpoint.json")
@@ -323,8 +325,10 @@ to, with `mean_error`, the average of the calculated charge minus the reference:
 
 ```python
 for key, errors in result.diagnostics.by_atom_type.items():
-    print(f"{key.element}/{key.type}: {errors.count} charges, RMSD {errors.rmsd:.4f} e, "
-          f"mean error {errors.mean_error:+.4f} e")
+    print(
+        f"{key.element}/{key.type}: {errors.count} charges, RMSD {errors.rmsd:.4f} e, "
+        f"mean error {errors.mean_error:+.4f} e"
+    )
 ```
 
 A type with a large mean error is off in one direction for most of its atoms. That often means the
