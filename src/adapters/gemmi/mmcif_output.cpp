@@ -6,6 +6,7 @@
 #include "adapters/gemmi/mmcif_labels.h"
 #include "adapters/record_assignments.h"
 
+#include <chargefw/config.h>
 #include <chargefw/core/periodic_table.h>
 
 #include <gemmi/cif.hpp>
@@ -709,12 +710,11 @@ auto validate_results_output(const ResultSpan results) -> void {
 }
 
 auto append_charge_metadata(::gemmi::cif::Table& metadata, const std::string_view id,
-                            const charges::ChargeSet& charge_set,
-                            const std::string_view generator_version) -> void {
+                            const charges::ChargeSet& charge_set) -> void {
     const auto parameter_set = charge_set.parameter_set_id();
     metadata.append_row({std::string{id}, "empirical", quote(charge_set.method_id()),
                          parameter_set.has_value() ? quote(*parameter_set) : ".", quote("ChargeFW"),
-                         quote(generator_version.empty() ? "unknown" : generator_version)});
+                         quote(CHARGEFW_VERSION_STRING)});
 }
 
 // Appends one metadata row per charge set and its charges for one record. Charge set k has id
@@ -722,8 +722,7 @@ auto append_charge_metadata(::gemmi::cif::Table& metadata, const std::string_vie
 // values.
 auto append_charge_sets(::gemmi::cif::Block& block, const ResultSpan results,
                         const std::size_t record_index,
-                        const std::vector<std::vector<std::string>>& site_ids,
-                        const std::string_view generator_version) -> void {
+                        const std::vector<std::vector<std::string>>& site_ids) -> void {
     ensure_dictionary(block);
     block.init_mmcif_loop(metadata_category, metadata_columns());
     block.init_mmcif_loop(charges_category, charge_columns());
@@ -734,7 +733,7 @@ auto append_charge_sets(::gemmi::cif::Block& block, const ResultSpan results,
     for (std::size_t result_index = 0; result_index < results.size(); ++result_index) {
         const auto& result = *results[result_index];
         const auto id = std::to_string(result_index + 1);
-        append_charge_metadata(metadata, id, *result.charges(), generator_version);
+        append_charge_metadata(metadata, id, *result.charges());
         const auto assignments = assignments_for_result(result, record_index);
         for (std::size_t conformer = 0; conformer < site_ids.size(); ++conformer) {
             const auto* assignment = assignments.molecule != nullptr
@@ -752,8 +751,7 @@ auto append_charge_sets(::gemmi::cif::Block& block, const ResultSpan results,
 }
 
 auto write_result_block(::gemmi::cif::Block& block, const ResultSpan results,
-                        const std::size_t record_index, const std::string_view generator_version)
-    -> void {
+                        const std::size_t record_index) -> void {
     const auto& record = results.front()->inputs()[record_index];
     const auto& molecule = record.molecule;
     const auto generated_atom_ids = atom_ids(molecule);
@@ -798,7 +796,7 @@ auto write_result_block(::gemmi::cif::Block& block, const ResultSpan results,
                  model_id});
         }
     }
-    append_charge_sets(block, results, record_index, site_ids, generator_version);
+    append_charge_sets(block, results, record_index, site_ids);
     append_bonds(block, record, generated_atom_ids);
 }
 
@@ -821,14 +819,12 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
 
 MmcifWriter::MmcifWriter(std::ostream& output) : output_{std::addressof(output)} {}
 
-auto MmcifWriter::write(const ChargeCalculationResult& result,
-                        const std::string_view generator_version) const -> void {
+auto MmcifWriter::write(const ChargeCalculationResult& result) const -> void {
     const auto* const single = std::addressof(result);
-    write(ResultSpan{&single, 1}, generator_version);
+    write(ResultSpan{&single, 1});
 }
 
-auto MmcifWriter::write(const ResultSpan results, const std::string_view generator_version) const
-    -> void {
+auto MmcifWriter::write(const ResultSpan results) const -> void {
     validate_results_output(results);
     auto document = ::gemmi::cif::Document{};
     const auto inputs = results.front()->inputs();
@@ -837,7 +833,7 @@ auto MmcifWriter::write(const ResultSpan results, const std::string_view generat
     for (std::size_t index = 0; index < inputs.size(); ++index) {
         // Names are already unique, so the document's own duplicate search is not needed.
         auto& block = document.blocks.emplace_back(names.unique(block_name(inputs[index], index)));
-        write_result_block(block, results, index, generator_version);
+        write_result_block(block, results, index);
     }
     ::gemmi::cif::write_cif_to_stream(*output_, document);
     if (!*output_) {
@@ -846,8 +842,7 @@ auto MmcifWriter::write(const ResultSpan results, const std::string_view generat
 }
 
 auto write_attached(std::ostream& output, const ResultSpan results,
-                    const ::gemmi::cif::Document& source, const bool overwrite,
-                    const std::string_view generator_version) -> void {
+                    const ::gemmi::cif::Document& source, const bool overwrite) -> void {
     validate_results_output(results);
     const auto inputs = results.front()->inputs();
     auto document = source;
@@ -868,7 +863,7 @@ auto write_attached(std::ostream& output, const ResultSpan results,
             throw std::invalid_argument{"Gemmi target already contains partial charge categories"};
         }
         const auto mapping = attached_mapping(block, inputs[index]);
-        append_charge_sets(block, results, index, mapping.atom_site_ids, generator_version);
+        append_charge_sets(block, results, index, mapping.atom_site_ids);
     }
     ::gemmi::cif::write_cif_to_stream(output, document);
     if (!output) {

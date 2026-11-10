@@ -3,6 +3,7 @@
 #include <chargefw/adapters/native/json_output.h>
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
+#include <chargefw/config.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -166,7 +167,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                                    .peak_resident_memory_mb = 123.4567};
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(owned, "test", execution_metrics);
+    json_output::JsonWriter{output}.write(owned, execution_metrics);
     const auto result = nlohmann::json::parse(output.str());
 
     CHECK(result.at("schema_version") == "1.0");
@@ -176,6 +177,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(result.at("diagnostics").at(0).at("severity") == "warning");
     CHECK(result.at("diagnostics").at(0).at("code") == "resource_threshold_exceeded");
     CHECK(result.at("generator").at("name") == "ChargeFW");
+    CHECK(result.at("generator").at("version") == CHARGEFW_VERSION_STRING);
     REQUIRE(result.at("results").size() == 1);
     const auto& provenance = result.at("calculation_provenance");
     const auto& requested = provenance.at("requested");
@@ -259,7 +261,7 @@ TEST_CASE("JSON output projects fixed ion provenance", "[adapters][json]") {
                  .sources = {{.molecule_index = 0, .atom_index = 1, .charge = 0.25}}})});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result, "test");
+    json_output::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
     const auto& fixed_ions = document.at("calculation_provenance").at("effective").at("fixed_ions");
     CHECK(fixed_ions.is_array());
@@ -300,7 +302,7 @@ TEST_CASE("JSON fixed ions retain sources with missing or ambiguous component la
                                      calculation::FixedIons{.sources = std::move(sources)})});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result, "test");
+    json_output::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
     const auto& fixed_ions = document.at("calculation_provenance").at("effective").at("fixed_ions");
     REQUIRE(fixed_ions.size() == 4);
@@ -367,7 +369,7 @@ HETATM 3 Mg MG . MG B 1 ? 0 3 1 1 20 2 1 MG B MG E2 1
         std::move(execution));
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result, "test");
+    json_output::JsonWriter{output}.write(result);
     const auto json = nlohmann::json::parse(output.str());
     const auto& fixed_ions = json.at("calculation_provenance").at("effective").at("fixed_ions");
     REQUIRE(fixed_ions.size() == 1);
@@ -404,7 +406,7 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[a
             {}, std::move(execution));
 
         auto output = std::ostringstream{};
-        json_output::JsonWriter{output}.write(result, "test");
+        json_output::JsonWriter{output}.write(result);
         const auto document = nlohmann::json::parse(output.str());
 
         CHECK(document.at("status") == test_case.expected_status);
@@ -441,7 +443,7 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[adapters
         {}, std::move(execution));
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result, "test");
+    json_output::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
 
     const auto& diagnostics = document.at("results").at(0).at("diagnostics");
@@ -470,7 +472,7 @@ TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[adapte
          .effective = full_effective("formal")});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(owned, "test");
+    json_output::JsonWriter{output}.write(owned);
     const auto result = nlohmann::json::parse(output.str());
 
     CHECK(result.at("results").at(0).at("input").at("atom_ids") == nlohmann::json{"H", 9});

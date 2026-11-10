@@ -30,6 +30,9 @@
 
 ### C++
 
+- Breaking change: `JsonWriter::write`, `Mol2Writer::write`, `PqrWriter::write`, and both
+  `MmcifWriter::write` overloads no longer accept `generator_version`. Writers always record ChargeFW
+  and the compiled library version. Pass optional JSON execution metrics as the second argument.
 - The new `chargefw::parameterization` namespace has what fitting parameter values needs:
   `make_parameter_template()` makes a parameter set with an entry for every atom and bond type of a
   molecule collection under chosen classifiers, with the given parameter names and zero values;

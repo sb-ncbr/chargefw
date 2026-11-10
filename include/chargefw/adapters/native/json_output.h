@@ -4,7 +4,6 @@
 
 #include <iosfwd>
 #include <optional>
-#include <string_view>
 
 namespace chargefw::adapters::native::json_output {
 
@@ -13,7 +12,7 @@ class JsonWriter {
   public:
     explicit JsonWriter(std::ostream& output);
 
-    auto write(const ChargeCalculationResult& result, std::string_view generator_version,
+    auto write(const ChargeCalculationResult& result,
                const std::optional<ExecutionMetrics>& execution_metrics = std::nullopt) const
         -> void;
 

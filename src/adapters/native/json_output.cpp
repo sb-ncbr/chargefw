@@ -2,6 +2,8 @@
 
 #include "adapters/record_assignments.h"
 
+#include <chargefw/config.h>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -303,7 +305,6 @@ constexpr auto metric_scale = 1000.0;
 JsonWriter::JsonWriter(std::ostream& output) : output_{std::addressof(output)} {}
 
 auto JsonWriter::write(const ChargeCalculationResult& result,
-                       const std::string_view generator_version,
                        const std::optional<ExecutionMetrics>& execution_metrics) const -> void {
     Json records = Json::array();
     const auto inputs = result.inputs();
@@ -313,7 +314,7 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
     }
 
     Json document{{"schema_version", "1.0"},
-                  {"generator", {{"name", "ChargeFW"}, {"version", generator_version}}},
+                  {"generator", {{"name", "ChargeFW"}, {"version", CHARGEFW_VERSION_STRING}}},
                   {"status", to_string(result.status())},
                   {"diagnostics", diagnostics_json(charge_result_diagnostics(result))},
                   {"results", std::move(records)}};

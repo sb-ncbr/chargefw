@@ -524,6 +524,15 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
     chargefw.io.gemmi.attach_charges(document, result)
 
     assert document[0].find_value("_audit.creation_method") == "attachment-test"
+    for block in document:
+        metadata = block.find(
+            "_sb_ncbr_partial_atomic_charges_meta.", ["software_name", "software_version"]
+        )
+        assert len(metadata) == 1
+        assert [gemmi.cif.as_string(value) for value in metadata[0]] == [
+            "ChargeFW",
+            chargefw.__version__,
+        ]
     first_ids = [
         gemmi.cif.as_string(row[0])
         for row in document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])
