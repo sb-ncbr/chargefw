@@ -47,8 +47,6 @@ namespace nb = nanobind;
 namespace chargefw::python {
 namespace {
 
-// Parameter values passed from Python, one per slot in layout order.
-
 auto method_options(const nb::dict& values)
     -> std::unordered_map<std::string, methods::MethodOptions> {
     std::unordered_map<std::string, methods::MethodOptions> result;
