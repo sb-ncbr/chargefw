@@ -73,10 +73,6 @@ auto parse_double(const std::string_view value, const std::string_view field) ->
     return result;
 }
 
-auto parse_trimmed_double(const std::string_view value, const std::string_view field) -> double {
-    return parse_double(trim(value), field);
-}
-
 auto fixed_field(const std::string_view line, const std::size_t offset, const std::size_t width,
                  const std::string_view field) -> std::string_view {
     if (line.size() < offset + width) {

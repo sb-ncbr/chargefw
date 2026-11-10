@@ -108,11 +108,11 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
 
     for (int index = 0; index < atom_count; ++index) {
         const auto atom_line = common::read_line(input, line, "MOL");
-        const auto x = common::parse_trimmed_double(
+        const auto x = common::parse_double(
             common::fixed_field(atom_line, 0, 10, "V2000 x coordinate"), "V2000 x coordinate");
-        const auto y = common::parse_trimmed_double(
+        const auto y = common::parse_double(
             common::fixed_field(atom_line, 10, 10, "V2000 y coordinate"), "V2000 y coordinate");
-        const auto z = common::parse_trimmed_double(
+        const auto z = common::parse_double(
             common::fixed_field(atom_line, 20, 10, "V2000 z coordinate"), "V2000 z coordinate");
         const auto symbol = common::fixed_field(atom_line, 31, 3, "V2000 atom symbol");
 

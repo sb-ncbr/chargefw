@@ -27,8 +27,6 @@ namespace chargefw::adapters::native::common_input {
 
 [[nodiscard]] auto parse_double(std::string_view value, std::string_view field) -> double;
 
-[[nodiscard]] auto parse_trimmed_double(std::string_view value, std::string_view field) -> double;
-
 [[nodiscard]] auto fixed_field(std::string_view line, std::size_t offset, std::size_t width,
                                std::string_view field) -> std::string_view;
 
