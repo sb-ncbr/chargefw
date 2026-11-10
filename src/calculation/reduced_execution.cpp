@@ -99,8 +99,6 @@ auto prepare_reduced_charge_context(
             const auto reference = core::total_formal_charge(molecule) /
                                    static_cast<double>(context.reference_charges.size());
             std::ranges::fill(context.reference_charges, reference);
-        }
-        if (!context.reference_charges.empty()) {
             context.conservation_groups.emplace_back(context.reference_charges.size());
             std::iota(context.conservation_groups.front().begin(),
                       context.conservation_groups.front().end(), std::size_t{0});
