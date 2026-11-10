@@ -446,13 +446,9 @@ auto AssessmentResult::default_plan() const noexcept -> const ExecutionPlan* {
 auto AssessmentResult::assess_owned(AssessmentRequest request) -> AssessmentResult {
     const auto started = std::chrono::steady_clock::now();
     auto fixed_charge_partition = std::unique_ptr<detail::FixedChargePartition>{};
-    if (request.fixed_ions.has_value()) {
-        if (!request.fixed_ions->sources.empty()) {
-            fixed_charge_partition = std::make_unique<detail::FixedChargePartition>(
-                detail::make_fixed_charge_partition(request.molecules, *request.fixed_ions));
-        } else {
-            request.fixed_ions.reset();
-        }
+    if (request.fixed_ions.has_value() && !request.fixed_ions->sources.empty()) {
+        fixed_charge_partition = std::make_unique<detail::FixedChargePartition>(
+            detail::make_fixed_charge_partition(request.molecules, *request.fixed_ions));
     }
     validate_assessment_method_options(request);
     validate_unique_parameter_set_ids(request);
