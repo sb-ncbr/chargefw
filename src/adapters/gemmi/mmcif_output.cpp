@@ -9,6 +9,7 @@
 #include <chargefw/core/periodic_table.h>
 
 #include <gemmi/cif.hpp>
+#include <gemmi/elem.hpp>
 #include <gemmi/numb.hpp>
 #include <gemmi/to_cif.hpp>
 
@@ -230,8 +231,9 @@ struct OutputAssignments {
                     "Gemmi target atom IDs are not representable by the charge dictionary"};
             }
             const auto& target_site = atom_sites[row_index];
-            if (::gemmi::cif::as_string(type_symbols[row_index][0]) !=
-                core::element_symbol(record.molecule.atom(atom_index).atomic_number())) {
+            // Compared as elements, as the reader reads them: wwPDB files write SE for Se.
+            if (::gemmi::Element(::gemmi::cif::as_string(type_symbols[row_index][0]))
+                    .atomic_number() != record.molecule.atom(atom_index).atomic_number()) {
                 throw std::invalid_argument{
                     "Gemmi target site mapping does not match the calculation input"};
             }
