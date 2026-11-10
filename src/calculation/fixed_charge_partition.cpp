@@ -131,7 +131,6 @@ struct ValidatedTarget {
             }
         }
 
-        target.active_charge = 0.0;
         for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
             if (!selected_mask[atom_index]) {
                 target.active_charge += molecule.atom(atom_index).formal_charge();
