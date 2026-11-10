@@ -99,7 +99,7 @@ execute_calculation_targets(const methods::ApplicableMethod& selected,
         };
 
         check_cancellation(observer);
-        emit_target_event(observer, CalculationPhase::target_started, target_ctx);
+        emit_target_event(CalculationPhase::target_started, target_ctx);
         check_cancellation(observer);
 
         try {
@@ -121,7 +121,7 @@ execute_calculation_targets(const methods::ApplicableMethod& selected,
                 make_target_failure_message(selected, molecule, target, error)};
         }
 
-        emit_target_event(observer, CalculationPhase::target_finished, target_ctx);
+        emit_target_event(CalculationPhase::target_finished, target_ctx);
     });
 
     auto assignments = std::vector<charges::ChargeAssignment>{};

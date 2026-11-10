@@ -77,21 +77,21 @@ inline auto check_cancellation(const CalculationObserver& observer) -> void {
 
 // Emits a single target-tier progress event. Called by executors at the start and end of each
 // target iteration, where the per-target molecule_index and conformer_index are known.
-inline auto emit_target_event(const CalculationObserver& observer, const CalculationPhase phase,
-                              const ProgressContext& ctx) -> void {
-    report_progress(observer, CalculationProgress{
-                                  .phase = phase,
-                                  .mode = ctx.mode,
-                                  .method_id = ctx.method_id,
-                                  .target_index = ctx.target_index,
-                                  .target_count = ctx.target_count,
-                                  .molecule_index = ctx.molecule_index,
-                                  .conformer_index = ctx.conformer_index,
-                                  .elapsed_seconds =
-                                      std::chrono::duration<double>{
-                                          std::chrono::steady_clock::now() - ctx.computation_start}
-                                          .count(),
-                              });
+inline auto emit_target_event(const CalculationPhase phase, const ProgressContext& ctx) -> void {
+    report_progress(
+        ctx.observer,
+        CalculationProgress{
+            .phase = phase,
+            .mode = ctx.mode,
+            .method_id = ctx.method_id,
+            .target_index = ctx.target_index,
+            .target_count = ctx.target_count,
+            .molecule_index = ctx.molecule_index,
+            .conformer_index = ctx.conformer_index,
+            .elapsed_seconds = std::chrono::duration<double>{std::chrono::steady_clock::now() -
+                                                             ctx.computation_start}
+                                   .count(),
+        });
 }
 
 // Minimum interval between fragment-tier progress events, in nanoseconds.
