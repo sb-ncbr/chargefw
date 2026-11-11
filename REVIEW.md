@@ -271,7 +271,7 @@ for realistic input.
   library creates these values, and callers only read them.
 - `include/chargefw/calculation/observer.h:98`: `CalculationCancelled` is public, but no public
   `calculate()` overload lets it escape (`src/calculation/calculation.cpp:219`). It could move to an
-  internal header. See D11 for the related test-only seam.
+  internal header. The internal `calculate(CalculationRequest)` overload lets it propagate.
 
 ---
 
@@ -297,16 +297,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   `src/methods/method_applicability.cpp:90`.
 - `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): no callers.
 - **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
-
-### D11. `calculate(const CalculationRequest&)` and `CalculationResult` — tests only
-
-- **Status:** reported.
-- **Where:** `src/calculation/calculation_request.h:27-35`, `src/calculation/calculation.cpp:143-145`.
-- **Reason:** production calls only the file-local `calculate_request` (`calculation.cpp:208`). The
-  wrapper and the one-member `CalculationResult` are used by four test files.
-- **Fix:** if kept as a test seam, return `charges::ChargeSet` directly and drop `CalculationResult`.
-  The comment at `calculation_request.h:20` ("Zero delegates the worker count to the oneTBB runtime")
-  disagrees with `thread_count()`, which uses `max_allowed_parallelism`.
 
 ---
 
