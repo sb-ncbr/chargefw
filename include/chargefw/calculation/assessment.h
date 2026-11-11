@@ -40,9 +40,14 @@ struct ExecutionResult;
 
 // Immutable concrete execution choice of an AssessmentResult. A plan, and every copy of it, keeps
 // the assessed molecules and parameters alive, so it can be calculated after its assessment is
-// destroyed.
+// destroyed. Moving a plan copies it, so that the source remains a complete plan.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions): no move operations, so moves copy.
 class ExecutionPlan {
   public:
+    ExecutionPlan(const ExecutionPlan&) = default;
+    auto operator=(const ExecutionPlan&) -> ExecutionPlan& = default;
+    ~ExecutionPlan() = default;
+
     [[nodiscard]] auto method() const noexcept -> const methods::Method&;
     // Null for methods without parameters.
     [[nodiscard]] auto parameter_set() const noexcept -> const parameters::ParameterSet*;

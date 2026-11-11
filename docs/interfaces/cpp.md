@@ -275,8 +275,8 @@ auto parallel = calculation::calculate(assessment, 4);
 `plans()` and `default_plan()` refer to plans inside the assessment, so they are valid while the
 assessment exists; calling them on a temporary, such as `assess(request).default_plan()`, does not
 compile. To keep a plan longer, copy it: the copy keeps the molecules and parameter sets of its
-assessment in memory, and stays valid after the assessment is destroyed. An assessment can be moved
-into a new object, which takes its plans, but not assigned.
+assessment in memory, and stays valid after the assessment is destroyed. Moving a plan copies it.
+An assessment can be moved into a new object, which takes its plans, but not assigned.
 
 `calculate(plan, candidate)` runs a plan with other values for its parameter set, still
 without checking the molecules again; fitting parameters calls it many times. Make the candidate with

@@ -209,6 +209,16 @@ TEST_CASE("assessment owns its inputs across lvalue, rvalue, and relocation",
     }();
     const auto kept_result = calculation::calculate(plan);
     REQUIRE(kept_result.calculated());
+
+    // Moving a plan, by construction or assignment, leaves the source a complete plan.
+    auto source = plan;
+    auto moved = std::move(source);
+    moved = std::move(source);
+    // NOLINTBEGIN(bugprone-use-after-move): the moved-from source is under test.
+    CHECK(calculation::calculate(source).calculated());
+    CHECK(calculation::estimate(source, 1).operations ==
+          calculation::estimate(moved, 1).operations);
+    // NOLINTEND(bugprone-use-after-move)
     CHECK(std::ranges::equal(kept_result.charges->assignment(0).charges.values(),
                              copied_result.charges->assignment(0).charges.values()));
 }
