@@ -46,10 +46,6 @@ class SourceIdentity:
         object.__setattr__(self, "record_index", normalized_record_index)
         object.__setattr__(self, "record_id", normalized_record_id)
 
-    @property
-    def source_name(self) -> str:
-        return self.source
-
 
 type SourceFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
 type SourceConnectivity = Literal["absent", "explicitly-empty", "present"]

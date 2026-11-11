@@ -298,13 +298,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
 - `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): no callers.
 - **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
 
-### D9. `SourceIdentity.source_name` — no user
-
-- **Status:** reported.
-- **Where:** `python/chargefw/core.py:54-56`. An alias for `.source`.
-- **Check:** `grep -rn "\.source_name" python tests docs`; every hit is on a `Molecule`.
-  `docs/reference/python-api.md:68` lists only `source`, `record_index`, and `record_id`.
-
 ### D11. `calculate(const CalculationRequest&)` and `CalculationResult` — tests only
 
 - **Status:** reported.

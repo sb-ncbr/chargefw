@@ -15,6 +15,8 @@
 
 ### Python
 
+- Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
+  `Molecule.source_name` is unchanged.
 - `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
   makes a parameter set with an entry for every atom and bond type of your molecules, `Evaluator`
   calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
