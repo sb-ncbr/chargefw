@@ -489,11 +489,6 @@ TEST_CASE("fixed sources reach cutoff and cover over active fragments",
         const auto no_source = calculation::calculate(no_source_assessment);
         REQUIRE(no_source.calculated());
 
-        const auto first_source_position = source_molecules[0].conformers()[0].positions()[1];
-        const auto second_source_position = source_molecules[0].conformers()[1].positions()[1];
-        CHECK(first_source_position.x > 8.0);
-        CHECK(second_source_position.x > 8.0);
-
         for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionKind::cutoff,
                                                         calculation::ExecutionMode::cutoff},
                                               std::pair{calculation::ExecutionSelectionKind::cover,

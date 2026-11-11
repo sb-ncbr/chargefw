@@ -548,9 +548,6 @@ TEST_CASE("reduced approximation remains bounded across a truncated radius sweep
                 const auto metrics = error_metrics(reduced, full);
                 CAPTURE(test_case.method_id, mode, radius, metrics.rmsd, metrics.mae,
                         metrics.maxabs);
-                CHECK(std::isfinite(metrics.rmsd));
-                CHECK(std::isfinite(metrics.mae));
-                CHECK(std::isfinite(metrics.maxabs));
                 CHECK(metrics.rmsd < test_case.max_rmsd);
                 CHECK(metrics.mae < test_case.max_mae);
                 CHECK(metrics.maxabs < test_case.max_maxabs);
@@ -607,7 +604,6 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
         constexpr auto fragment_radius = 8.0;
         const auto fragment = builder.build(0, fragment_radius);
         REQUIRE(fragment.molecule().atom_count() < molecule.atom_count());
-        CHECK(source.position.x > fragment_radius);
 
         const auto fragment_target =
             calculation::detail::fragment_target_charge(charge_context, fragment);

@@ -595,24 +595,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 *re-checked* and *reported* have the meaning given at the top of this file. Unless a finding says
 "rewrite", the proposal is to delete the named test or lines. Paths are relative to `tests/`.
 
-### Tests of the language or of the test's own constants
-
-#### T16. Assertions on fixture constants
-
-- **Status:** reported.
-- **Where:**
-  - `cpp/methods/test_electronegativity_equalization.cpp:141-142`: the sum of two formal charges the
-    test set.
-  - `cpp/calculation/test_fixed_ion_planning.cpp:492-495`: `first_source_position.x > 8.0` for a
-    literal 50.0.
-  - `cpp/calculation/test_reduced_execution.cpp:620` (`source.position.x > fragment_radius`, 50
-    against 8) and `:561-563` (`isfinite` checks implied by the `<` bounds that follow).
-  - `cpp/calculation/test_calculation.cpp:569`: `applicability_seconds >= 0.0`.
-  - `cpp/calculation/test_fixed_charge_partition.cpp:271-272`: `total() == 30.5` after an
-    element-wise comparison.
-  - `cpp/adapters/test_fixed_ions.cpp:136-139, 168, 229-231, 439-441`: "input not changed" checks on
-    records the resolver receives as `std::span<const ...>`.
-
 ### Exact duplicates
 
 #### T18. `test_plan_calculates_charges_for_other_parameter_values`

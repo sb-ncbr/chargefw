@@ -252,8 +252,6 @@ TEST_CASE("fixed-charge reassembly scatters active charges and preserves assignm
         CHECK(actual.target.conformer_index == reference.target.conformer_index);
         CHECK(std::ranges::equal(actual.charges.values(), reference.charges.values()));
     }
-    CHECK(result.assignment(0).charges.total() == 30.5);
-    CHECK(result.assignment(2).charges.total() == -5.5);
 }
 
 TEST_CASE("fixed-charge reassembly supports identity partitions and absent parameter IDs",

@@ -564,7 +564,6 @@ TEST_CASE("explicit full execution reports its plan and effective provenance",
     CHECK_FALSE(result.effective->parameter_set_id.has_value());
     CHECK(result.effective->execution_policy.mode() == calculation::ExecutionMode::full);
     CHECK(result.effective->execution_issues.empty());
-    CHECK(result.metrics.applicability_seconds >= 0.0);
 }
 
 TEST_CASE("resource thresholds guide automatic execution and warn on explicit full execution",
