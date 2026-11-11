@@ -1,5 +1,6 @@
 #include <chargefw/calculation/calculation.h>
 
+#include "calculation/assessment_state.h"
 #include "calculation/calculation_request.h"
 #include "calculation/charge_checks.h"
 #include "calculation/cover_execution.h"
@@ -113,16 +114,15 @@ calculate_request(const CalculationRequest& request,
 
 // Close atoms matter only to a method using coordinates. A cancelled calculation reports only the
 // assessment warnings, so that it does not start a search.
-auto execution_input_warnings(const AssessmentResult& assessment, const methods::Method& method,
-                              const ExecutionStatus status,
-                              const features::PreparedMoleculeCollection& prepared,
-                              const detail::FixedChargePartition* fixed_charge_partition)
+auto execution_input_warnings(const detail::AssessmentState& assessment,
+                              const methods::Method& method, const ExecutionStatus status)
     -> std::vector<InputIssue> {
     if (!method.requirements().coordinates || status == ExecutionStatus::cancelled) {
-        return {assessment.input_warnings().begin(), assessment.input_warnings().end()};
+        return assessment.input_warnings;
     }
-    return detail::add_close_atom_issues(assessment.input_warnings(), assessment.molecules(),
-                                         prepared, fixed_charge_partition);
+    return detail::add_close_atom_issues(assessment.input_warnings, assessment.molecules,
+                                         assessment.prepared_molecules,
+                                         assessment.fixed_charge_partition.get());
 }
 
 } // namespace
@@ -145,21 +145,14 @@ auto calculate(const CalculationRequest& request) -> CalculationResult {
     return calculate_request(request);
 }
 
-auto AssessmentResult::check_plan(const ExecutionPlan& plan) const -> void {
-    if (plan.identity_ != plan_identity_) {
-        throw std::invalid_argument{"execution plan belongs to a different assessment"};
-    }
-}
-
-auto AssessmentResult::replace_values(const ExecutionPlan& plan,
-                                      const parameters::ParameterSet* candidate)
+auto ExecutionPlan::with_values(const parameters::ParameterSet* candidate) const
     -> std::optional<methods::ApplicableMethod> {
     if (candidate == nullptr) {
         return std::nullopt;
     }
-    const auto* assessed = plan.parameter_set();
+    const auto* assessed = parameter_set();
     if (assessed == nullptr) {
-        throw std::invalid_argument{"method '" + std::string{plan.method().id()} +
+        throw std::invalid_argument{"method '" + std::string{method().id()} +
                                     "' has no parameters to replace"};
     }
     if (!parameters::compatible(*assessed, *candidate)) {
@@ -173,26 +166,25 @@ auto AssessmentResult::replace_values(const ExecutionPlan& plan,
                                     std::string{assessed->id()} + "'"};
     }
     // The executors, the charge set, and the provenance all read the candidate through this copy.
-    auto replaced = *plan.candidate_;
+    auto replaced = *candidate_;
     replaced.parameter_set = candidate;
     return replaced;
 }
 
-auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
-                               const std::size_t max_threads,
-                               const CalculationObserver& observer) const -> ExecutionResult {
-    check_plan(plan);
-    const auto with_candidate = replace_values(plan, candidate);
+auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
+                            const std::size_t max_threads,
+                            const CalculationObserver& observer) const -> ExecutionResult {
+    const auto with_candidate = with_values(candidate);
 
-    const auto& assessment = *this;
-    const auto& selected = with_candidate.has_value() ? *with_candidate : *plan.candidate_;
-    const auto fixed_charge_partition = assessment.fixed_charge_partition_.get();
+    const auto& assessment = *state_;
+    const auto& selected = with_candidate.has_value() ? *with_candidate : *candidate_;
+    const auto* fixed_charge_partition = assessment.fixed_charge_partition.get();
     const auto effective = EffectiveCalculation{
         .method_id = std::string{selected.method->id()},
         .parameter_set_id = methods::detail::parameter_set_id_for(selected),
         .method_options = selected.method_options,
-        .execution_policy = plan.policy(),
-        .execution_issues = {plan.warnings().begin(), plan.warnings().end()},
+        .execution_policy = policy_,
+        .execution_issues = warnings_,
         .fixed_ions = fixed_charge_partition == nullptr
                           ? std::nullopt
                           : std::optional{make_fixed_ions_provenance(*fixed_charge_partition)}};
@@ -204,9 +196,9 @@ auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::Para
 
     try {
         auto result =
-            calculate_request(CalculationRequest{.molecules = assessment.prepared_molecules(),
+            calculate_request(CalculationRequest{.molecules = assessment.prepared_molecules,
                                                  .selected = selected,
-                                                 .execution_policy = plan.policy(),
+                                                 .execution_policy = policy_,
                                                  .max_threads = max_threads,
                                                  .observer = observer},
                               fixed_charge_partition);
@@ -231,56 +223,51 @@ auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::Para
 
     auto charge_warnings =
         calculated_charges.has_value()
-            ? detail::find_charge_issues(assessment.molecules(), *calculated_charges,
+            ? detail::find_charge_issues(assessment.molecules, *calculated_charges,
                                          fixed_charge_partition)
             : std::vector<ChargeIssue>{};
     // Searching molecules with fixed ions anew is part of the computation time.
-    auto input_warnings =
-        execution_input_warnings(assessment, *selected.method, status,
-                                 assessment.prepared_molecules(), fixed_charge_partition);
+    auto input_warnings = execution_input_warnings(assessment, *selected.method, status);
     const auto computation_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - computation_started}
             .count();
-    return ExecutionResult{
-        .status = status,
-        .charges = std::move(calculated_charges),
-        .rejections = {assessment.rejections_.begin(), assessment.rejections_.end()},
-        .effective = effective,
-        .failure_message = std::move(failure_message),
-        .metrics = {.applicability_seconds = assessment.applicability_seconds_,
-                    .computation_seconds = computation_seconds},
-        .input_warnings = std::move(input_warnings),
-        .charge_warnings = std::move(charge_warnings)};
+    return ExecutionResult{.status = status,
+                           .charges = std::move(calculated_charges),
+                           .rejections = assessment.rejections,
+                           .effective = effective,
+                           .failure_message = std::move(failure_message),
+                           .metrics = {.applicability_seconds = assessment.applicability_seconds,
+                                       .computation_seconds = computation_seconds},
+                           .input_warnings = std::move(input_warnings),
+                           .charge_warnings = std::move(charge_warnings)};
 }
 
-auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
+auto calculate(const ExecutionPlan& plan, const std::size_t max_threads,
+               const CalculationObserver& observer) -> ExecutionResult {
+    return plan.execute(nullptr, max_threads, observer);
+}
+
+auto calculate(const ExecutionPlan& plan, const parameters::ParameterSet& candidate,
                const std::size_t max_threads, const CalculationObserver& observer)
     -> ExecutionResult {
-    return assessment.execute(plan, nullptr, max_threads, observer);
-}
-
-auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-               const parameters::ParameterSet& candidate, const std::size_t max_threads,
-               const CalculationObserver& observer) -> ExecutionResult {
-    return assessment.execute(plan, &candidate, max_threads, observer);
+    return plan.execute(&candidate, max_threads, observer);
 }
 
 auto calculate(const AssessmentResult& assessment, const std::size_t max_threads,
                const CalculationObserver& observer) -> ExecutionResult {
     const auto* plan = assessment.default_plan();
     if (plan == nullptr) {
-        return ExecutionResult{
-            .status = ExecutionStatus::no_executable_plan,
-            .charges = std::nullopt,
-            .rejections = {assessment.rejections_.begin(), assessment.rejections_.end()},
-            .effective = std::nullopt,
-            .failure_message = std::nullopt,
-            .metrics = {.applicability_seconds = assessment.applicability_seconds_},
-            .input_warnings = {assessment.input_warnings().begin(),
-                               assessment.input_warnings().end()},
-            .charge_warnings = {}};
+        const auto& state = *assessment.state_;
+        return ExecutionResult{.status = ExecutionStatus::no_executable_plan,
+                               .charges = std::nullopt,
+                               .rejections = state.rejections,
+                               .effective = std::nullopt,
+                               .failure_message = std::nullopt,
+                               .metrics = {.applicability_seconds = state.applicability_seconds},
+                               .input_warnings = state.input_warnings,
+                               .charge_warnings = {}};
     }
-    return calculate(assessment, *plan, max_threads, observer);
+    return calculate(*plan, max_threads, observer);
 }
 
 } // namespace chargefw::calculation

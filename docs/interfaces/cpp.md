@@ -1,8 +1,8 @@
 # C++ library
 
 ChargeFW is a C++23 shared library for Linux, used through the `chargefw::core` CMake target. An
-assessment keeps its own copies of the molecules and parameter sets, and results hold their own charges.
-The one lifetime to manage is that of an assessment: its plans refer to it, as described in
+assessment keeps its own copies of the molecules and parameter sets, a copy of one of its plans keeps
+them too, and results hold their own charges, as described in
 [Assessment and calculation](#assessment-and-calculation).
 
 ## Build and link
@@ -261,12 +261,10 @@ with the `molecules()`, the possible `plans()` in selection order, the `rejectio
 [Choosing a method](../guide/methods.md#choosing-a-method) and
 [Large structures](../guide/large-structures.md) explain selection and execution.
 
-`calculation::calculate(assessment)` runs the default plan, and `calculate(assessment, plan)` a chosen
-one, without preparing or checking the molecules again. Plans cannot be copied and refer to data
-of the assessment that created them, so keep the assessment alive while you use its plans, and use them
-only with that assessment. An assessment can be moved into a new object, but not assigned. Both take a thread limit, where `0` uses all available cores, and an optional observer, described
-[below](#progress-and-cancellation). An assessment can be calculated repeatedly, also from several
-threads at once:
+`calculation::calculate(assessment)` runs the default plan, and `calculate(plan)` a chosen one,
+without preparing or checking the molecules again. Both take a thread limit, where `0` uses all
+available cores, and an optional observer, described [below](#progress-and-cancellation). An
+assessment or a plan can be calculated repeatedly, also from several threads at once:
 
 ```cpp
 auto assessment = calculation::assess(std::move(request));
@@ -274,14 +272,20 @@ auto serial = calculation::calculate(assessment, 1);
 auto parallel = calculation::calculate(assessment, 4);
 ```
 
-`calculate(assessment, plan, candidate)` runs a plan with other values for its parameter set, still
+`plans()` and `default_plan()` refer to plans inside the assessment, so they are valid while the
+assessment exists; calling them on a temporary, such as `assess(request).default_plan()`, does not
+compile. To keep a plan longer, copy it: the copy keeps the molecules and parameter sets of its
+assessment in memory, and stays valid after the assessment is destroyed. An assessment can be moved
+into a new object, but not assigned.
+
+`calculate(plan, candidate)` runs a plan with other values for its parameter set, still
 without checking the molecules again; fitting parameters calls it many times. Make the candidate with
 `parameterization::with_parameter_values()` from `plan.parameter_set()`, described in [Fitting
 parameters](#fitting-parameters), and give it an ID of its own. The result reports that ID. A
 candidate with other keys, entry order, or parameter names, one with the plan's own ID, or a plan whose
 method has no parameters throws `std::invalid_argument`.
 
-`calculation::estimate(assessment, plan, max_threads)` returns a `methods::ResourceEstimate` with the
+`calculation::estimate(plan, max_threads)` returns a `methods::ResourceEstimate` with the
 plan's approximate peak working memory and number of operations; [Threads and
 estimates](../guide/large-structures.md#threads-and-estimates) explains them.
 
@@ -396,9 +400,9 @@ molecules matches an entry.
 parameters, then each atom entry, then each bond entry, each with its parameters in stored order. Each
 value is a `ParameterSlot` with its `ParameterScope`, entry index, and name. `with_parameter_values()`
 copies a set with new values in that order and new metadata, keeping its keys, names, and method. Pass
-such a copy to `calculation::calculate(assessment, plan, candidate)` to calculate with other values.
+such a copy to `calculation::calculate(plan, candidate)` to calculate with other values.
 
-`normal_equations(assessment, plan, candidate, references, weights, max_threads)`, declared in
+`normal_equations(plan, candidate, references, weights, max_threads)`, declared in
 `<chargefw/parameterization/normal_equations.h>`, returns what a weighted least-squares fit of the
 charges needs at the candidate's values, from exact derivatives. With the charges q, your
 reference charges y, your weights w, and the derivatives J of the charges with respect to the values
@@ -417,9 +421,9 @@ EEM, SQE, SQE+q0, and SQE+qp. The result is the same for any number of threads. 
 throw `std::invalid_argument`; a calculation that fails throws `std::runtime_error` or
 `std::logic_error` naming the molecule.
 
-`entry_counts(assessment, plan)`, declared in `<chargefw/parameterization/parameter_entries.h>`, counts
+`entry_counts(plan)`, declared in `<chargefw/parameterization/parameter_entries.h>`, counts
 the calculated atoms and bonds that each entry of the plan's set matches; fixed ions are not counted. A
-type with few atoms is poorly determined by your molecules. `single_bond_entries(assessment, plan)`
+type with few atoms is poorly determined by your molecules. `single_bond_entries(plan)`
 returns, for each atom entry, a `SingleBondEntry` with three facts about your molecules:
 `single_bonded`, whether every atom of the entry has exactly one bond and none is bonded to another
 atom with one bond; `bond_entries`, the bond entries of those bonds; and `exclusive_bonds`, whether

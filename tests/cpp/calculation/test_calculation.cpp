@@ -153,10 +153,13 @@ auto make_permissive_peoe_parameter_set() -> chargefw::parameters::ParameterSet 
 
 static_assert(std::is_move_constructible_v<calculation::AssessmentResult>);
 static_assert(!std::is_move_assignable_v<calculation::AssessmentResult>);
-static_assert(!std::is_copy_constructible_v<calculation::ExecutionPlan>);
-static_assert(!std::is_copy_assignable_v<calculation::ExecutionPlan>);
-static_assert(std::is_move_constructible_v<calculation::ExecutionPlan>);
-static_assert(std::is_move_assignable_v<calculation::ExecutionPlan>);
+static_assert(std::is_copy_constructible_v<calculation::ExecutionPlan>);
+// Plans are read only from an assessment that outlives the expression.
+template <typename Assessment>
+concept has_default_plan =
+    requires(Assessment assessment) { static_cast<Assessment&&>(assessment).default_plan(); };
+static_assert(has_default_plan<const calculation::AssessmentResult&>);
+static_assert(!has_default_plan<calculation::AssessmentResult>);
 static_assert(
     std::is_same_v<decltype(std::declval<const calculation::AssessmentResult&>().molecules()),
                    const core::MoleculeCollection&>);
@@ -193,6 +196,16 @@ TEST_CASE("assessment owns its inputs across lvalue, rvalue, and relocation",
     }
     CHECK(std::ranges::equal(copied_result.charges->assignment(0).charges.values(),
                              relocated_result.charges->assignment(0).charges.values()));
+
+    // A copied plan calculates after its assessment is destroyed.
+    const auto plan = [&] {
+        const auto assessment = calculation::assess(make_request());
+        return *assessment.default_plan();
+    }();
+    const auto kept_result = calculation::calculate(plan);
+    REQUIRE(kept_result.calculated());
+    CHECK(std::ranges::equal(kept_result.charges->assignment(0).charges.values(),
+                             copied_result.charges->assignment(0).charges.values()));
 }
 
 TEST_CASE("calculation facade reports singular solver failures with target context",
@@ -666,21 +679,21 @@ TEST_CASE("plan estimates compose unit costs by execution mode", "[calculation][
         calculation::AssessmentRequest{.molecules = molecules, .method_id = "eqeq"});
     REQUIRE(full.default_plan() != nullptr);
     REQUIRE(full.default_plan()->policy().mode() == calculation::ExecutionMode::full);
-    const auto serial = calculation::estimate(full, *full.default_plan(), 1);
-    const auto parallel = calculation::estimate(full, *full.default_plan(), 2);
-    const auto oversubscribed = calculation::estimate(full, *full.default_plan(), 8);
+    const auto serial = calculation::estimate(*full.default_plan(), 1);
+    const auto parallel = calculation::estimate(*full.default_plan(), 2);
+    const auto oversubscribed = calculation::estimate(*full.default_plan(), 8);
     CHECK(std::abs(serial.operations - (water_cost.operations + cluster_cost.operations)) <
           1e-9 * serial.operations);
     // A second thread adds the smaller target's workspace; further threads have no targets to run.
     CHECK(std::abs(parallel.memory_bytes - serial.memory_bytes - water_cost.memory_bytes) <
           1e-9 * parallel.memory_bytes);
     CHECK(oversubscribed.memory_bytes == parallel.memory_bytes);
-    CHECK(calculation::estimate(full, *full.default_plan()).memory_bytes >= serial.memory_bytes);
+    CHECK(calculation::estimate(*full.default_plan()).memory_bytes >= serial.memory_bytes);
     // A limit above oneTBB's allowed parallelism runs and estimates at that parallelism.
     const auto unlimited = std::numeric_limits<std::size_t>::max();
-    CHECK(calculation::estimate(full, *full.default_plan(), unlimited).memory_bytes ==
-          calculation::estimate(full, *full.default_plan()).memory_bytes);
-    CHECK(calculation::calculate(full, *full.default_plan(), unlimited).calculated());
+    CHECK(calculation::estimate(*full.default_plan(), unlimited).memory_bytes ==
+          calculation::estimate(*full.default_plan()).memory_bytes);
+    CHECK(calculation::calculate(*full.default_plan(), unlimited).calculated());
 
     const auto reduced = [&](const calculation::ExecutionSelectionKind kind) {
         return calculation::assess(calculation::AssessmentRequest{
@@ -693,9 +706,9 @@ TEST_CASE("plan estimates compose unit costs by execution mode", "[calculation][
     const auto cover = reduced(calculation::ExecutionSelectionKind::cover);
     REQUIRE(cutoff.default_plan() != nullptr);
     REQUIRE(cover.default_plan() != nullptr);
-    const auto cutoff_serial = calculation::estimate(cutoff, *cutoff.default_plan(), 1);
-    const auto cutoff_parallel = calculation::estimate(cutoff, *cutoff.default_plan(), 4);
-    const auto cover_serial = calculation::estimate(cover, *cover.default_plan(), 1);
+    const auto cutoff_serial = calculation::estimate(*cutoff.default_plan(), 1);
+    const auto cutoff_parallel = calculation::estimate(*cutoff.default_plan(), 4);
+    const auto cover_serial = calculation::estimate(*cover.default_plan(), 1);
     // Cutoff runs one fragment per atom in parallel; cover runs fewer fragments.
     CHECK(cutoff_parallel.memory_bytes > cutoff_serial.memory_bytes);
     CHECK(cover_serial.operations < cutoff_serial.operations);
@@ -739,8 +752,8 @@ TEST_CASE("assessments expose reusable target-bound execution plans",
     CHECK(assessment.plans().front().policy().mode() == calculation::ExecutionMode::full);
     CHECK(assessment.plans().size() >= 2);
 
-    const auto first = calculation::calculate(assessment, assessment.plans().front(), 1);
-    const auto repeated = calculation::calculate(assessment, assessment.plans().front(), 1);
+    const auto first = calculation::calculate(assessment.plans().front(), 1);
+    const auto repeated = calculation::calculate(assessment.plans().front(), 1);
     REQUIRE(first.calculated());
     REQUIRE(repeated.calculated());
     CHECK(std::ranges::equal(first.charges->assignment(0).charges.values(),
@@ -771,14 +784,6 @@ TEST_CASE("assessments expose reusable target-bound execution plans",
             return rejection.policy.has_value() &&
                    rejection.policy->mode() == calculation::ExecutionMode::full;
         }));
-
-    auto other_assessment = calculation::assess(calculation::AssessmentRequest{
-        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
-        .method_id = "eqeq"});
-    const auto calculate_mismatched_plan = [&] {
-        static_cast<void>(calculation::calculate(other_assessment, assessment.plans().front()));
-    };
-    CHECK_THROWS_AS(calculate_mismatched_plan(), std::invalid_argument);
 }
 
 TEST_CASE("calculation preserves empty-input cardinality", "[calculation][calculation]") {
@@ -833,13 +838,13 @@ TEST_CASE("a plan calculates with candidate parameter values without new assessm
     const auto* plan = assessment.default_plan();
     REQUIRE(plan != nullptr);
     const auto& assessed = *plan->parameter_set();
-    const auto original = calculation::calculate(assessment, *plan);
+    const auto original = calculation::calculate(*plan);
     REQUIRE(original.calculated());
 
     // The same values under a new ID give the same charges, reported under the new ID.
     const auto copy = parameterization::with_parameter_values(
         assessed, parameterization::parameter_values(assessed), {.id = "copy"});
-    const auto same = calculation::calculate(assessment, *plan, copy);
+    const auto same = calculation::calculate(*plan, copy);
     REQUIRE(same.calculated());
     CHECK(std::ranges::equal(same.charges->assignment(0).charges.values(),
                              original.charges->assignment(0).charges.values()));
@@ -851,15 +856,14 @@ TEST_CASE("a plan calculates with candidate parameter values without new assessm
     auto values = parameterization::parameter_values(assessed); // kappa, H: A, B, O: A, B
     values[3] = values[1];
     const auto equal = calculation::calculate(
-        assessment, *plan,
-        parameterization::with_parameter_values(assessed, values, {.id = "equal"}));
+        *plan, parameterization::with_parameter_values(assessed, values, {.id = "equal"}));
     REQUIRE(equal.calculated());
     for (const auto charge : equal.charges->assignment(0).charges.values()) {
         CHECK(std::abs(charge) < 1e-12);
     }
 
     // The plan is unchanged and keeps its own values.
-    const auto again = calculation::calculate(assessment, *plan);
+    const auto again = calculation::calculate(*plan);
     CHECK(std::ranges::equal(again.charges->assignment(0).charges.values(),
                              original.charges->assignment(0).charges.values()));
 }
@@ -877,22 +881,21 @@ TEST_CASE("candidate parameter values are rejected for plans and sets they do no
     const auto values = parameterization::parameter_values(assessed);
 
     // The assessed set's own ID would report changed values under a published name.
-    CHECK_THROWS_AS(calculation::calculate(assessment, *plan,
-                                           parameterization::with_parameter_values(
-                                               assessed, values, assessed.metadata())),
+    CHECK_THROWS_AS(calculation::calculate(*plan, parameterization::with_parameter_values(
+                                                      assessed, values, assessed.metadata())),
                     std::invalid_argument);
     // Another entry order would read wrong entries through the stored classifications.
     const auto reordered = parameters::ParameterSet{
         {.id = "reordered", .method_id = "eem"},
         assessed.common(),
         parameters::AtomParameters{{assessed.atom()[1], assessed.atom()[0]}}};
-    CHECK_THROWS_AS(calculation::calculate(assessment, *plan, reordered), std::invalid_argument);
+    CHECK_THROWS_AS(calculation::calculate(*plan, reordered), std::invalid_argument);
 
     const auto formal_assessment = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal"});
     REQUIRE(formal_assessment.default_plan() != nullptr);
-    CHECK_THROWS_AS(calculation::calculate(formal_assessment, *formal_assessment.default_plan(),
+    CHECK_THROWS_AS(calculation::calculate(*formal_assessment.default_plan(),
                                            parameterization::with_parameter_values(
                                                assessed, values, {.id = "candidate"})),
                     std::invalid_argument);

@@ -220,7 +220,7 @@ TEST_CASE("native fixed ions execute, reassemble, and retain provenance",
 
     REQUIRE(moved_assessment.molecules().size() == 2);
     CHECK(moved_assessment.molecules()[0].atom_count() == 3);
-    const auto serial = calculation::calculate(moved_assessment, *plan, 1);
+    const auto serial = calculation::calculate(*plan, 1);
     REQUIRE(serial.calculated());
     REQUIRE(serial.charges->size() == 3);
     REQUIRE(serial.effective.has_value());
@@ -295,7 +295,7 @@ TEST_CASE("native SQE+qp normalizes reference charges to prepared active formal 
     const auto no_field_h = seed_h + (no_field_rhs_h - no_field_rhs_o) / denominator;
     const auto no_field_o = seed_o - (no_field_rhs_h - no_field_rhs_o) / denominator;
 
-    const auto serial = calculation::calculate(assessment, *plan, 1);
+    const auto serial = calculation::calculate(*plan, 1);
     REQUIRE(serial.calculated());
     REQUIRE(serial.charges->size() == 1);
     REQUIRE(serial.effective->fixed_ions.has_value());

@@ -25,8 +25,8 @@ namespace chargefw::calculation {
 
 class AssessmentResult;
 class CalculationObserver;
-class PlanIdentity;
 namespace detail {
+struct AssessmentState;
 struct AssessmentAccess;
 struct FixedChargePartition;
 } // namespace detail
@@ -38,15 +38,11 @@ struct ExecutionResult;
 // Callers must not inspect the request after passing it to this consuming overload.
 [[nodiscard]] auto assess(AssessmentRequest&& request) -> AssessmentResult;
 
-// Immutable concrete execution choice owned by an AssessmentResult. Plans are not copyable and
-// require their assessment to remain alive; they must only be executed with that assessment.
+// Immutable concrete execution choice of an AssessmentResult. A plan, and every copy of it, keeps
+// the assessed molecules and parameters alive, so it can be calculated after its assessment is
+// destroyed.
 class ExecutionPlan {
   public:
-    ExecutionPlan(const ExecutionPlan&) = delete;
-    auto operator=(const ExecutionPlan&) -> ExecutionPlan& = delete;
-    ExecutionPlan(ExecutionPlan&&) = default;
-    auto operator=(ExecutionPlan&&) -> ExecutionPlan& = default;
-
     [[nodiscard]] auto method() const noexcept -> const methods::Method&;
     // Null for methods without parameters.
     [[nodiscard]] auto parameter_set() const noexcept -> const parameters::ParameterSet*;
@@ -55,7 +51,7 @@ class ExecutionPlan {
     [[nodiscard]] auto warnings() const noexcept -> std::span<const methods::ExecutionIssue>;
 
   private:
-    ExecutionPlan(std::shared_ptr<const PlanIdentity> identity,
+    ExecutionPlan(std::shared_ptr<const detail::AssessmentState> state,
                   const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
                   std::vector<methods::ExecutionIssue> warnings);
 
@@ -67,12 +63,28 @@ class ExecutionPlan {
     [[nodiscard]] auto classifications() const noexcept
         -> std::span<const parameters::ParameterClassification>;
 
+    // The method of the plan with the parameter set `candidate`, which must have the method, keys,
+    // and parameter names of the plan's set and another ID; nothing without a candidate. The
+    // classifications of the plan stay valid for the candidate.
+    [[nodiscard]] auto with_values(const parameters::ParameterSet* candidate) const
+        -> std::optional<methods::ApplicableMethod>;
+
+    // Executes the plan with its own parameter set, or with the values of `candidate` when given.
+    [[nodiscard]] auto execute(const parameters::ParameterSet* candidate, std::size_t max_threads,
+                               const CalculationObserver& observer) const -> ExecutionResult;
+
     friend class AssessmentResult;
     friend struct detail::AssessmentAccess;
-    friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                         std::size_t max_threads) -> methods::ResourceEstimate;
+    friend auto calculate(const ExecutionPlan& plan, std::size_t max_threads,
+                          const CalculationObserver& observer) -> ExecutionResult;
+    friend auto calculate(const ExecutionPlan& plan, const parameters::ParameterSet& candidate,
+                          std::size_t max_threads, const CalculationObserver& observer)
+        -> ExecutionResult;
+    friend auto estimate(const ExecutionPlan& plan, std::size_t max_threads)
+        -> methods::ResourceEstimate;
 
-    std::shared_ptr<const PlanIdentity> identity_;
+    std::shared_ptr<const detail::AssessmentState> state_;
+    // Points into state_.
     const methods::ApplicableMethod* candidate_ = nullptr;
     ExecutionPolicy policy_{};
     std::vector<methods::ExecutionIssue> warnings_;
@@ -134,76 +146,46 @@ class AssessmentResult {
     AssessmentResult(const AssessmentResult&) = delete;
     auto operator=(const AssessmentResult&) -> AssessmentResult& = delete;
     AssessmentResult(AssessmentResult&&) noexcept;
-    // Prepared features non-owningly refer to molecules_ or the partition-owned active collection,
-    // so replacing these independent owners cannot preserve their lifetime invariant.
+    // Not assignable, so that pointers to its plans stay valid for as long as it exists.
     auto operator=(AssessmentResult&&) noexcept -> AssessmentResult& = delete;
     ~AssessmentResult();
 
     [[nodiscard]] auto applicability_seconds() const noexcept -> double;
     [[nodiscard]] auto molecules() const noexcept -> const core::MoleculeCollection&;
 
-    [[nodiscard]] auto plans() const noexcept -> std::span<const ExecutionPlan>;
+    // Not available on a temporary assessment, whose plans would be destroyed with it; copy a plan
+    // to keep it.
+    [[nodiscard]] auto plans() const& noexcept -> std::span<const ExecutionPlan>;
+    auto plans() const&& -> std::span<const ExecutionPlan> = delete;
     [[nodiscard]] auto rejections() const noexcept -> std::span<const Rejection>;
     // Every input issue of the molecules, whichever plan is executed.
     [[nodiscard]] auto input_warnings() const noexcept -> std::span<const InputIssue>;
-    [[nodiscard]] auto default_plan() const noexcept -> const ExecutionPlan*;
+    [[nodiscard]] auto default_plan() const& noexcept -> const ExecutionPlan*;
+    auto default_plan() const&& -> const ExecutionPlan* = delete;
 
   private:
-    AssessmentResult(core::MoleculeCollection molecules,
-                     std::vector<parameters::ParameterSet> parameter_sets,
-                     std::unique_ptr<detail::FixedChargePartition> fixed_charge_partition);
+    AssessmentResult(std::shared_ptr<const detail::AssessmentState> state,
+                     std::vector<ExecutionPlan> plans);
 
     [[nodiscard]] static auto assess_owned(AssessmentRequest request) -> AssessmentResult;
 
-    [[nodiscard]] auto prepared_molecules() const noexcept
-        -> const features::PreparedMoleculeCollection&;
-
-    // Throws unless `plan` belongs to this assessment.
-    auto check_plan(const ExecutionPlan& plan) const -> void;
-
-    // The method of `plan` with the parameter set `candidate`, which must have the method, keys,
-    // and parameter names of the plan's set and another ID; nothing without a candidate. The
-    // classifications of the plan stay valid for the candidate.
-    [[nodiscard]] static auto replace_values(const ExecutionPlan& plan,
-                                             const parameters::ParameterSet* candidate)
-        -> std::optional<methods::ApplicableMethod>;
-
-    // Executes `plan` with its own parameter set, or with the values of `candidate` when given.
-    [[nodiscard]] auto execute(const ExecutionPlan& plan, const parameters::ParameterSet* candidate,
-                               std::size_t max_threads, const CalculationObserver& observer) const
-        -> ExecutionResult;
-
-    auto
-    assess_prepared(std::span<const methods::Method* const> selected_methods,
+    // Finds the applicable methods of `state` and records its rejections; returns the plans.
+    [[nodiscard]] static auto
+    assess_prepared(const std::shared_ptr<detail::AssessmentState>& state,
+                    std::span<const methods::Method* const> selected_methods,
                     const parameters::ClassificationOptions& classification_options,
                     const ResourcePolicy& resource_policy,
                     const std::unordered_map<std::string, methods::MethodOptions>& method_options,
-                    const ExecutionSelection& execution_selection) -> void;
+                    const ExecutionSelection& execution_selection) -> std::vector<ExecutionPlan>;
 
     friend auto assess(const AssessmentRequest& request) -> AssessmentResult;
     friend auto assess(AssessmentRequest&& request) -> AssessmentResult;
     friend auto calculate(const AssessmentResult& assessment, std::size_t max_threads,
                           const CalculationObserver& observer) -> ExecutionResult;
-    friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                          std::size_t max_threads, const CalculationObserver& observer)
-        -> ExecutionResult;
-    friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                          const parameters::ParameterSet& candidate, std::size_t max_threads,
-                          const CalculationObserver& observer) -> ExecutionResult;
-    friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                         std::size_t max_threads) -> methods::ResourceEstimate;
-    friend struct detail::AssessmentAccess;
 
-    std::vector<parameters::ParameterSet> parameter_sets_;
-    methods::ApplicabilityResult applicability_;
-    std::shared_ptr<const PlanIdentity> plan_identity_;
+    // Never null, except in a moved-from assessment.
+    std::shared_ptr<const detail::AssessmentState> state_;
     std::vector<ExecutionPlan> plans_;
-    std::vector<Rejection> rejections_;
-    std::vector<InputIssue> input_warnings_;
-    double applicability_seconds_ = 0.0;
-    std::unique_ptr<core::MoleculeCollection> molecules_;
-    std::unique_ptr<detail::FixedChargePartition> fixed_charge_partition_;
-    std::unique_ptr<features::PreparedMoleculeCollection> prepared_molecules_;
 };
 
 } // namespace chargefw::calculation

@@ -34,9 +34,8 @@ using calculation::detail::AssessmentAccess;
 
 } // namespace
 
-auto entry_counts(const calculation::AssessmentResult& assessment,
-                  const calculation::ExecutionPlan& plan) -> EntryCounts {
-    const auto classifications = AssessmentAccess::classifications(assessment, plan);
+auto entry_counts(const calculation::ExecutionPlan& plan) -> EntryCounts {
+    const auto classifications = AssessmentAccess::classifications(plan);
     const auto& set = parameter_set(plan);
     auto result = EntryCounts{.atoms = std::vector<std::size_t>(set.atom().size(), 0),
                               .bonds = std::vector<std::size_t>(set.bond().size(), 0)};
@@ -51,15 +50,14 @@ auto entry_counts(const calculation::AssessmentResult& assessment,
     return result;
 }
 
-auto atom_entries(const calculation::AssessmentResult& assessment,
-                  const calculation::ExecutionPlan& plan)
+auto atom_entries(const calculation::ExecutionPlan& plan)
     -> std::vector<std::vector<std::optional<std::size_t>>> {
-    const auto classifications = AssessmentAccess::classifications(assessment, plan);
+    const auto classifications = AssessmentAccess::classifications(plan);
     static_cast<void>(parameter_set(plan));
-    const auto& molecules = assessment.molecules();
+    const auto& molecules = AssessmentAccess::source_molecules(plan);
     // With fixed ions, each classification covers the active part of its molecule, whose atoms
     // map back to the molecule's atoms through the partition.
-    const auto* partition = AssessmentAccess::partition(assessment);
+    const auto* partition = AssessmentAccess::partition(plan);
     if (classifications.size() != molecules.size()) {
         throw std::logic_error{"the plan does not classify every molecule of its assessment"};
     }
@@ -89,11 +87,10 @@ auto atom_entries(const calculation::AssessmentResult& assessment,
     return result;
 }
 
-auto single_bond_entries(const calculation::AssessmentResult& assessment,
-                         const calculation::ExecutionPlan& plan) -> std::vector<SingleBondEntry> {
-    const auto classifications = AssessmentAccess::classifications(assessment, plan);
+auto single_bond_entries(const calculation::ExecutionPlan& plan) -> std::vector<SingleBondEntry> {
+    const auto classifications = AssessmentAccess::classifications(plan);
     const auto& set = parameter_set(plan);
-    const auto& molecules = assessment.molecules();
+    const auto& molecules = AssessmentAccess::source_molecules(plan);
     constexpr auto none = std::numeric_limits<std::size_t>::max();
 
     auto matched = std::vector<bool>(set.atom().size(), false);

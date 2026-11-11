@@ -234,8 +234,7 @@ auto run(std::span<char*> arguments) -> int {
                     std::println(std::cerr, "Warning: {}", warning.message);
                 }
             }
-            return chargefw::calculation::calculate(assessment, *plan, max_threads,
-                                                    interruptible_observer);
+            return chargefw::calculation::calculate(*plan, max_threads, interruptible_observer);
         } catch (const std::invalid_argument& error) {
             failure_message = error.what();
             return std::nullopt;

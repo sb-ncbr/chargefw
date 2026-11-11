@@ -95,13 +95,13 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
     // H-O and O-O entries: every hydrogen has one bond, and only hydrogens end the H-O bonds.
     const auto separate = assess(molecules, sqe_set({kappa(chargefw::test::plain_bond_key(1, 8)),
                                                      kappa(chargefw::test::plain_bond_key(8, 8))}));
-    const auto counts = parameterization::entry_counts(separate, *separate.default_plan());
+    const auto counts = parameterization::entry_counts(*separate.default_plan());
     CHECK(counts.atoms == std::vector<std::size_t>{4, 3});
     CHECK(counts.bonds == std::vector<std::size_t>{4, 1});
     using Entries = std::vector<std::optional<std::size_t>>;
-    CHECK(parameterization::atom_entries(separate, *separate.default_plan()) ==
+    CHECK(parameterization::atom_entries(*separate.default_plan()) ==
           std::vector{Entries{1, 0, 0}, Entries{0, 1, 1, 0}});
-    const auto entries = parameterization::single_bond_entries(separate, *separate.default_plan());
+    const auto entries = parameterization::single_bond_entries(*separate.default_plan());
     REQUIRE(entries.size() == 2);
     CHECK(entries[0].single_bonded);
     CHECK(entries[0].bond_entries == std::vector<std::size_t>{0});
@@ -111,8 +111,7 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
     // One entry for every bond: the O-O bond has no single-bonded atom, so the entry does not
     // follow the hydrogens alone.
     const auto shared = assess(molecules, sqe_set({kappa(chargefw::test::plain_bond_key())}));
-    const auto shared_entries =
-        parameterization::single_bond_entries(shared, *shared.default_plan());
+    const auto shared_entries = parameterization::single_bond_entries(*shared.default_plan());
     CHECK(shared_entries[0].single_bonded);
     CHECK(shared_entries[0].bond_entries == std::vector<std::size_t>{0});
     CHECK_FALSE(shared_entries[0].exclusive_bonds);
@@ -121,8 +120,7 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
     // alone would be.
     const auto radical = assess({chargefw::test::make_water(), hydroxyl()},
                                 sqe_set({kappa(chargefw::test::plain_bond_key(1, 8))}));
-    for (const auto& entry :
-         parameterization::single_bond_entries(radical, *radical.default_plan())) {
+    for (const auto& entry : parameterization::single_bond_entries(*radical.default_plan())) {
         CHECK_FALSE(entry.single_bonded);
     }
     // Also for a method without bond parameters, whose classification lists no bonds.
@@ -133,8 +131,7 @@ TEST_CASE("Entries report their atoms, bonds, and the bonds that follow single-b
         .method_id = "eem",
         .parameter_set_id = "test-eem-ho"});
     REQUIRE(eem_radical.default_plan() != nullptr);
-    for (const auto& entry :
-         parameterization::single_bond_entries(eem_radical, *eem_radical.default_plan())) {
+    for (const auto& entry : parameterization::single_bond_entries(*eem_radical.default_plan())) {
         CHECK_FALSE(entry.single_bonded);
         CHECK(entry.bond_entries.empty());
     }
@@ -160,14 +157,14 @@ TEST_CASE("Entries count the calculated atoms, not fixed ions",
     const auto* plan = assessment.default_plan();
     REQUIRE(plan != nullptr);
 
-    const auto counts = parameterization::entry_counts(assessment, *plan);
+    const auto counts = parameterization::entry_counts(*plan);
     CHECK(counts.atoms == std::vector<std::size_t>{2, 1});
     CHECK(counts.bonds.empty());
     // Entries follow the molecule's atoms, with none for the ion.
-    CHECK(parameterization::atom_entries(assessment, *plan) ==
+    CHECK(parameterization::atom_entries(*plan) ==
           std::vector<std::vector<std::optional<std::size_t>>>{{1, std::nullopt, 0, 0}});
     // The calculated part does not line up with the molecule, so no entry is single-bonded.
-    for (const auto& entry : parameterization::single_bond_entries(assessment, *plan)) {
+    for (const auto& entry : parameterization::single_bond_entries(*plan)) {
         CHECK_FALSE(entry.single_bonded);
     }
 
@@ -175,10 +172,8 @@ TEST_CASE("Entries count the calculated atoms, not fixed ions",
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal"});
     REQUIRE(formal.default_plan() != nullptr);
-    CHECK_THROWS_AS(parameterization::entry_counts(formal, *formal.default_plan()),
+    CHECK_THROWS_AS(parameterization::entry_counts(*formal.default_plan()), std::invalid_argument);
+    CHECK_THROWS_AS(parameterization::single_bond_entries(*formal.default_plan()),
                     std::invalid_argument);
-    CHECK_THROWS_AS(parameterization::single_bond_entries(assessment, *formal.default_plan()),
-                    std::invalid_argument);
-    CHECK_THROWS_AS(parameterization::atom_entries(formal, *formal.default_plan()),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(parameterization::atom_entries(*formal.default_plan()), std::invalid_argument);
 }

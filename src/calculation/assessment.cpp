@@ -1,5 +1,6 @@
 #include <chargefw/calculation/assessment.h>
 
+#include "assessment_state.h"
 #include "fixed_charge_partition.h"
 #include "input_checks.h"
 
@@ -21,8 +22,6 @@
 #include <vector>
 
 namespace chargefw::calculation {
-
-class PlanIdentity {};
 
 namespace {
 
@@ -249,25 +248,18 @@ auto to_string(const MethodScope value) -> std::string_view {
     throw std::invalid_argument{"unknown method scope"};
 }
 
-AssessmentResult::AssessmentResult(
-    core::MoleculeCollection molecules,
-    std::vector<parameters::ParameterSet> supplied_parameter_sets,
-    std::unique_ptr<detail::FixedChargePartition> fixed_charge_partition)
-    : parameter_sets_{std::move(supplied_parameter_sets)},
-      plan_identity_{std::make_shared<PlanIdentity>()},
-      molecules_{std::make_unique<core::MoleculeCollection>(std::move(molecules))},
-      fixed_charge_partition_{std::move(fixed_charge_partition)},
-      prepared_molecules_{std::make_unique<features::PreparedMoleculeCollection>(
-          fixed_charge_partition_ ? fixed_charge_partition_->active_molecules : *molecules_)} {}
+AssessmentResult::AssessmentResult(std::shared_ptr<const detail::AssessmentState> state,
+                                   std::vector<ExecutionPlan> plans)
+    : state_{std::move(state)}, plans_{std::move(plans)} {}
 
 AssessmentResult::~AssessmentResult() = default;
 
 AssessmentResult::AssessmentResult(AssessmentResult&&) noexcept = default;
 
-ExecutionPlan::ExecutionPlan(std::shared_ptr<const PlanIdentity> identity,
+ExecutionPlan::ExecutionPlan(std::shared_ptr<const detail::AssessmentState> state,
                              const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
                              std::vector<methods::ExecutionIssue> warnings)
-    : identity_{std::move(identity)}, candidate_{&candidate}, policy_{policy},
+    : state_{std::move(state)}, candidate_{&candidate}, policy_{policy},
       warnings_{std::move(warnings)} {}
 
 auto ExecutionPlan::method() const noexcept -> const methods::Method& {
@@ -296,17 +288,20 @@ auto ExecutionPlan::classifications() const noexcept
 }
 
 auto AssessmentResult::assess_prepared(
+    const std::shared_ptr<detail::AssessmentState>& state,
     const std::span<const methods::Method* const> selected_methods,
     const parameters::ClassificationOptions& classification_options,
     const ResourcePolicy& resource_policy,
     const std::unordered_map<std::string, methods::MethodOptions>& method_options,
-    const ExecutionSelection& execution_selection) -> void {
+    const ExecutionSelection& execution_selection) -> std::vector<ExecutionPlan> {
+    auto& rejections = state->rejections;
+    auto plans = std::vector<ExecutionPlan>{};
     auto applicable_methods = std::vector<const methods::Method*>{};
     applicable_methods.reserve(selected_methods.size());
     for (const auto* method : selected_methods) {
-        if (fixed_charge_partition_ != nullptr &&
+        if (state->fixed_charge_partition != nullptr &&
             !method->requirements().supports_fixed_point_sources) {
-            rejections_.push_back(Rejection{
+            rejections.push_back(Rejection{
                 .method_id = std::string{method->id()},
                 .parameter_set_id = std::nullopt,
                 .policy = std::nullopt,
@@ -320,37 +315,38 @@ auto AssessmentResult::assess_prepared(
         applicable_methods.push_back(method);
     }
 
-    applicability_ =
-        methods::find_applicable_methods({.molecules = prepared_molecules(),
+    state->applicability =
+        methods::find_applicable_methods({.molecules = state->prepared_molecules,
                                           .methods = applicable_methods,
-                                          .parameter_sets = parameter_sets_,
+                                          .parameter_sets = state->parameter_sets,
                                           .classification_options = classification_options,
                                           .resource_policy = resource_policy,
                                           .method_options = method_options});
-    rejections_.reserve(rejections_.size() + applicability_.rejected.size());
-    for (const auto& candidate : applicability_.rejected) {
+    rejections.reserve(rejections.size() + state->applicability.rejected.size());
+    for (const auto& candidate : state->applicability.rejected) {
         auto issues = std::vector<RejectionIssue>{};
         issues.reserve(candidate.issues.size());
         for (const auto& issue : candidate.issues) {
             const auto* parameter_set = candidate.parameter_set_index.has_value()
-                                            ? &parameter_sets_[*candidate.parameter_set_index]
+                                            ? &state->parameter_sets[*candidate.parameter_set_index]
                                             : nullptr;
-            issues.emplace_back(fixed_charge_partition_ != nullptr
-                                    ? remap_fixed_ion_issue(issue, *fixed_charge_partition_,
-                                                            *molecules_, parameter_set)
+            issues.emplace_back(state->fixed_charge_partition != nullptr
+                                    ? remap_fixed_ion_issue(issue, *state->fixed_charge_partition,
+                                                            state->molecules, parameter_set)
                                     : issue);
         }
-        rejections_.push_back(Rejection{
+        rejections.push_back(Rejection{
             .method_id = std::string{applicable_methods[candidate.method_index]->id()},
-            .parameter_set_id = candidate.parameter_set_index.has_value()
-                                    ? std::optional{std::string{
-                                          parameter_sets_[*candidate.parameter_set_index].id()}}
-                                    : std::nullopt,
+            .parameter_set_id =
+                candidate.parameter_set_index.has_value()
+                    ? std::optional{std::string{
+                          state->parameter_sets[*candidate.parameter_set_index].id()}}
+                    : std::nullopt,
             .policy = std::nullopt,
             .issues = std::move(issues),
         });
     }
-    const auto candidates = ranked_candidates(applicability_);
+    const auto candidates = ranked_candidates(state->applicability);
     const auto policy_for = [&execution_selection](const ExecutionMode mode) {
         const auto radius = mode == ExecutionMode::full
                                 ? std::optional<double>{}
@@ -358,22 +354,23 @@ auto AssessmentResult::assess_prepared(
                                       default_automatic_reduced_radius)};
         return ExecutionPolicy{mode, radius};
     };
-    const auto append_rejection =
-        [this, &policy_for](const methods::ApplicableMethod& candidate, const ExecutionMode mode,
-                            const methods::ExecutionAssessment& assessment) {
-            auto issues = std::vector<RejectionIssue>{};
-            issues.reserve(assessment.issues.size());
-            for (const auto& issue : assessment.issues) {
-                issues.emplace_back(issue);
-            }
-            rejections_.push_back(Rejection{
-                .method_id = std::string{candidate.method->id()},
-                .parameter_set_id = methods::detail::parameter_set_id_for(candidate),
-                .policy = policy_for(mode),
-                .issues = std::move(issues),
-            });
-        };
-    const auto consider_mode = [this, &policy_for, &append_rejection](
+    const auto append_rejection = [&rejections,
+                                   &policy_for](const methods::ApplicableMethod& candidate,
+                                                const ExecutionMode mode,
+                                                const methods::ExecutionAssessment& assessment) {
+        auto issues = std::vector<RejectionIssue>{};
+        issues.reserve(assessment.issues.size());
+        for (const auto& issue : assessment.issues) {
+            issues.emplace_back(issue);
+        }
+        rejections.push_back(Rejection{
+            .method_id = std::string{candidate.method->id()},
+            .parameter_set_id = methods::detail::parameter_set_id_for(candidate),
+            .policy = policy_for(mode),
+            .issues = std::move(issues),
+        });
+    };
+    const auto consider_mode = [&state, &plans, &policy_for, &append_rejection](
                                    const methods::ApplicableMethod& candidate,
                                    const ExecutionMode mode, const bool permit_warnings) {
         const auto* assessment = assessment_for(candidate, mode);
@@ -386,8 +383,7 @@ auto AssessmentResult::assess_prepared(
             append_rejection(candidate, mode, *assessment);
             return;
         }
-        plans_.push_back(
-            ExecutionPlan{plan_identity_, candidate, policy_for(mode), assessment->issues});
+        plans.push_back(ExecutionPlan{state, candidate, policy_for(mode), assessment->issues});
     };
 
     for (const auto* candidate : candidates) {
@@ -408,34 +404,30 @@ auto AssessmentResult::assess_prepared(
             break;
         }
     }
-}
-
-auto AssessmentResult::prepared_molecules() const noexcept
-    -> const features::PreparedMoleculeCollection& {
-    return *prepared_molecules_;
+    return plans;
 }
 
 auto AssessmentResult::applicability_seconds() const noexcept -> double {
-    return applicability_seconds_;
+    return state_->applicability_seconds;
 }
 
 auto AssessmentResult::molecules() const noexcept -> const core::MoleculeCollection& {
-    return *molecules_;
+    return state_->molecules;
 }
 
-auto AssessmentResult::plans() const noexcept -> std::span<const ExecutionPlan> {
+auto AssessmentResult::plans() const& noexcept -> std::span<const ExecutionPlan> {
     return plans_;
 }
 
 auto AssessmentResult::rejections() const noexcept -> std::span<const Rejection> {
-    return rejections_;
+    return state_->rejections;
 }
 
 auto AssessmentResult::input_warnings() const noexcept -> std::span<const InputIssue> {
-    return input_warnings_;
+    return state_->input_warnings;
 }
 
-auto AssessmentResult::default_plan() const noexcept -> const ExecutionPlan* {
+auto AssessmentResult::default_plan() const& noexcept -> const ExecutionPlan* {
     return plans_.empty() ? nullptr : &plans_.front();
 }
 
@@ -455,14 +447,15 @@ auto AssessmentResult::assess_owned(AssessmentRequest request) -> AssessmentResu
     const auto resource_policy = request.resource_policy;
     retain_requested_parameter_set(request);
     auto method_options = std::move(request.method_options);
-    auto result = AssessmentResult{std::move(request.molecules), std::move(request.parameter_sets),
-                                   std::move(fixed_charge_partition)};
-    result.input_warnings_ = detail::find_input_issues(*result.molecules_);
-    result.assess_prepared(selected_methods, classification_options, resource_policy,
-                           method_options, execution_selection);
-    result.applicability_seconds_ =
+    const auto state = std::make_shared<detail::AssessmentState>(std::move(request.molecules),
+                                                                 std::move(request.parameter_sets),
+                                                                 std::move(fixed_charge_partition));
+    state->input_warnings = detail::find_input_issues(state->molecules);
+    auto plans = assess_prepared(state, selected_methods, classification_options, resource_policy,
+                                 method_options, execution_selection);
+    state->applicability_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - started}.count();
-    return result;
+    return AssessmentResult{state, std::move(plans)};
 }
 
 auto assess(const AssessmentRequest& request) -> AssessmentResult {
