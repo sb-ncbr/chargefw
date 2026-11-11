@@ -894,15 +894,10 @@ def test_fit_diagnostics_do_not_build_a_matrix_in_the_number_of_charges() -> Non
     assert svd.call_args.kwargs["full_matrices"] is False
 
 
-def test_evaluator_counts_the_atoms_of_each_type() -> None:
-    evaluator = training_evaluator()
-
-    # kappa, then hydrogen (4 atoms), carbon (1), and oxygen (2), each with A and B.
-    assert evaluator.matches == (None, 4, 4, 1, 1, 2, 2)
-
-
 def test_fit_diagnostics_show_counts_and_errors_per_element() -> None:
     evaluator = training_evaluator()
+    # kappa, then hydrogen (4 atoms), carbon (1), and oxygen (2), each with A and B.
+    assert evaluator.matches == (None, 4, 4, 1, 1, 2, 2)
     references = evaluator.charges(TRUE_VALUES)
 
     result = fit(evaluator, references, start=FIT_START, free=FIT_FREE, max_evaluations=5)

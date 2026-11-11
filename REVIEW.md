@@ -843,21 +843,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   `:248-251`, `:446-448`, `:945`) and natively in `cpp/calculation/test_calculation.cpp:820, 861`.
 - **Fix:** delete, with the `Evaluator` and `EvaluationError` imports.
 
-#### T19. `test_evaluator_counts_the_atoms_of_each_type`
-
-- **Status:** reported.
-- **Where:** `python/test_parameterization.py:897`.
-- **Problem:** line 910 asserts `matches` for the same evaluator, as do lines 949 and 967.
-
-#### T20. Python plan tests contained in their neighbors
-
-- **Status:** reported.
-- **Where:** `python/test_calculation.py:397` (`test_default_calculation_selects_a_supported_plan`)
-  and `:471` (`test_plan_keeps_prepared_state_alive`).
-- **Problem:** the test at `:414` makes the same call and would raise `NoExecutablePlanError`.
-  `test_fixed_ions_snapshot_resolve_and_reuse_plan` (`:215-219`) does the stronger
-  `del assessment; gc.collect(); calculate(molecules, plan)`.
-
 #### T21. "parameterless built-ins accept water"
 
 - **Status:** reported.

@@ -394,12 +394,6 @@ def test_observer_callback_failure_does_not_change_calculation() -> None:
     unraisable.reset_mock()
 
 
-def test_default_calculation_selects_a_supported_plan() -> None:
-    result = chargefw.calculate(water())
-    assert result.status == "success"
-    assert result.plan is not None
-
-
 def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     assert not chargefw.methods["veem"].recommended
     assert chargefw.methods["eem"].recommended
@@ -411,7 +405,10 @@ def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     every = chargefw.assess(water(), method_scope="all")
     assert "veem" in {plan.method.id for plan in every.plans}
     assert chargefw.calculate(water(), method_scope="all").requested.method_scope == "all"
-    assert chargefw.calculate(water()).requested.method_scope == "recommended"
+    default = chargefw.calculate(water())
+    assert default.status == "success"
+    assert default.plan is not None
+    assert default.requested.method_scope == "recommended"
 
     named = chargefw.calculate(water(), method="veem")
     assert named.plan is not None and named.plan.method.id == "veem"
@@ -466,14 +463,6 @@ def test_assessment_and_full_calculation() -> None:
 
     overridden_threads = chargefw.calculate(molecule, plan, threads=1)
     assert overridden_threads.requested.threads == 1
-
-
-def test_plan_keeps_prepared_state_alive() -> None:
-    molecule = water()
-    plan = chargefw.assess(molecule, method="eem", execution="full").default_plan
-    assert plan is not None, "assessment must produce a default plan"
-    gc.collect()
-    assert chargefw.calculate(molecule, plan).status == "success"
 
 
 def test_plans_are_filtered_reusable_and_target_bound() -> None:
