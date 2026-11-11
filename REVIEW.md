@@ -621,20 +621,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Fix:** rewrite as one test showing that two different terms give different charges, without the
   list of names.
 
-#### T7. Absence checks for keys that exist nowhere
-
-- **Status:** re-checked.
-- **Where:** `cpp/adapters/test_json_output.cpp:193-194, 220-221`.
-- **Problem:** `CHECK_FALSE(...contains("structural_input"))`, `"input"`, `"atom_mapping"`,
-  `"conformer_mapping"`. No source file or schema mentions these keys.
-
-#### T9. CLI run that passes only default option values
-
-- **Status:** reported.
-- **Where:** `cpp/test_chargefw_cli_structural_outputs.cmake:50-58`.
-- **Problem:** `--structural-selection all --structural-bonds hybrid` are the defaults, so the run
-  cannot be told apart from the next one, which passes no options and expects the same values.
-
 ### Copies of production tables
 
 #### T10. Enum-to-string samples

@@ -190,8 +190,6 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(requested.at("resource_policy").at("cutoff_atom_threshold") == "unlimited");
     CHECK(requested.at("resource_policy").at("cover_atom_threshold") == "unlimited");
     CHECK(requested.at("resource_policy").at("max_threads") == 0);
-    CHECK_FALSE(requested.contains("structural_input"));
-    CHECK_FALSE(requested.contains("input"));
     CHECK(requested.at("method_options").at("qeq").at("overlap_term") == "Ohno");
     const auto& effective = provenance.at("effective");
     const auto& encoded_metrics = provenance.at("execution_metrics");
@@ -217,8 +215,6 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(imported.at("format") == "sdf");
     CHECK(imported.at("policy").at("conformer_selection") == "all");
     CHECK(imported.at("source_connectivity") == "present");
-    CHECK_FALSE(imported.contains("atom_mapping"));
-    CHECK_FALSE(imported.contains("conformer_mapping"));
     const auto& assignment = calculated.at("assignments").at(0);
     CHECK(assignment.at("scope") == "conformer");
     CHECK(assignment.at("target").at("molecule_index") == 0);

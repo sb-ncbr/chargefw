@@ -50,16 +50,6 @@ run_structural_input(
 
 run_structural_input(
         cif
-        "data_structural_cif\n${water_atom_site}"
-        structural_cif
-        all
-        hybrid
-        --structural-selection all
-        --structural-bonds hybrid
-)
-
-run_structural_input(
-        cif
         "data_structural_default_bonds\n${water_atom_site}"
         structural_default_bonds
         all
