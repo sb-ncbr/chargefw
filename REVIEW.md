@@ -622,14 +622,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 
 ### Tests of the language or of the test's own constants
 
-#### T15. Ownership test of a struct of values
-
-- **Status:** reported.
-- **Where:** `cpp/calculation/test_fixed_charge_partition.cpp:170`, with the helper
-  `make_partition_from_temporary_inputs` at `:64-67`.
-- **Problem:** `FixedChargePartition` holds a `MoleculeCollection` and vectors by value and has
-  compiler-generated moves. It cannot refer to its inputs.
-
 #### T16. Assertions on fixture constants
 
 - **Status:** reported.
@@ -645,13 +637,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
     element-wise comparison.
   - `cpp/adapters/test_fixed_ions.cpp:136-139, 168, 229-231, 439-441`: "input not changed" checks on
     records the resolver receives as `std::span<const ...>`.
-
-#### T17. Guard that the public constructor makes unreachable
-
-- **Status:** reported.
-- **Where:** `python/test_molecule.py:52` (`test_private_binding_rejects_native_integer_overflow`).
-- **Problem:** calls the private `_native_core._make_molecule` with `2**40`. The public constructor
-  rejects anything outside 1..100 first, which two other tests cover.
 
 ### Exact duplicates
 

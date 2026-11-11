@@ -7,7 +7,6 @@ from typing import Any, cast
 import chargefw
 import numpy as np
 import pytest
-from chargefw._chargefw import core as _native_core
 
 
 def test_imported_source_mapping_is_owned_and_read_only() -> None:
@@ -47,19 +46,6 @@ NO_CHARGES
         atom_ids=molecule.atom_ids,
     )
     assert manual.source_mapping is None
-
-
-def test_private_binding_rejects_native_integer_overflow() -> None:
-    with pytest.raises(ValueError):
-        _native_core._make_molecule(
-            np.array([2**40], dtype=np.int64),
-            np.zeros(1, dtype=np.int64),
-            np.empty((0, 3), dtype=np.int64),
-            np.empty((0, 1, 3), dtype=np.float64),
-            [""],
-            [],
-            "",
-        )
 
 
 def test_molecule_owns_normalized_input() -> None:
