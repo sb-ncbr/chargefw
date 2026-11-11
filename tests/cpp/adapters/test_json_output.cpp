@@ -278,8 +278,8 @@ TEST_CASE("JSON fixed ions retain sources with missing or ambiguous component la
         make_component_record("ca-first", {"CA", "CA"}),
         make_component_record("ca-second", {"CA"}),
         make_component_record("ca-other-charge", {"CA"}),
-        make_component_record("author-fallback", {std::string{}}, {"MG"}),
-        make_component_record("unlabeled", {std::nullopt}),
+        make_component_record("author-fallback", {std::string{}, ".", "?"}, {"MG", "MG", "MG"}),
+        make_component_record("unlabeled", {std::nullopt, ".", "?"}, {std::nullopt, "?", "."}),
         make_component_record("conflicting-labels", {"CA", "MG"})};
     const std::vector<double> source_charges{0.4, 0.4, 0.5, 0.4, 0.4, 0.4};
     auto sources = std::vector<calculation::FixedAtomCharge>{};

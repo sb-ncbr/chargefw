@@ -76,7 +76,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B2–B11 |
+| B | Behaviour bugs | B2–B10 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
 | D | Dead code | D4–D13 |
@@ -226,18 +226,6 @@ for realistic input.
 - **Resolution:** leave, or delete the `reserve` calls if the file is being edited anyway. Only a
   deliberately malformed file reaches this, and the run still fails with a message. Nothing to
   document.
-
-### B11. The JSON writer's component ID differs from the one fixed ions match
-
-- **Status:** reported.
-- **Where:** `src/adapters/native/json_output.cpp:104-117` (`component_id`) versus
-  `detail::canonical_component_name` in `src/adapters/component.h:49-55`.
-- **Problem:** the JSON copy tests only for a non-empty label. The shared helper also treats `.` and
-  `?` as unknown, and the mmCIF reader stores those tokens verbatim
-  (`src/adapters/gemmi/mmcif_labels.h:28-30`).
-- **Failure:** for a file with `label_comp_id` `.` and `auth_comp_id` `NA`, fixed-ion resolution
-  matches `NA` but the result JSON reports `"fixed_ions[].component_id": "."`.
-- **Fix:** call `detail::canonical_component_name` from `json_output.cpp` and delete the local copy.
 
 ---
 

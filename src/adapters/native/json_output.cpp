@@ -1,5 +1,6 @@
 #include <chargefw/adapters/native/json_output.h>
 
+#include "adapters/component.h"
 #include "adapters/record_assignments.h"
 
 #include <chargefw/config.h>
@@ -103,21 +104,6 @@ constexpr auto metric_scale = 1000.0;
     return result;
 }
 
-[[nodiscard]] auto component_id(const SourceAtomReference& reference)
-    -> std::optional<std::string> {
-    if (reference.structural_labels == nullptr) {
-        return std::nullopt;
-    }
-    const auto& labels = *reference.structural_labels;
-    if (labels.label.residue.has_value() && !labels.label.residue->empty()) {
-        return labels.label.residue;
-    }
-    if (labels.author.residue.has_value() && !labels.author.residue->empty()) {
-        return labels.author.residue;
-    }
-    return std::nullopt;
-}
-
 [[nodiscard]] auto source_component_id(const ImportedMoleculeRecord& record,
                                        const std::size_t atom_index) -> std::optional<std::string> {
     if (!record.import_metadata.has_value()) {
@@ -128,11 +114,11 @@ constexpr auto metric_scale = 1000.0;
     auto resolved = std::optional<std::string>{};
     auto ambiguous = false;
     const auto consider = [&resolved, &ambiguous](const SourceAtomReference& reference) {
-        const auto value = component_id(reference);
-        if (!value.has_value()) {
+        const auto value = detail::canonical_component_name(reference.structural_labels.get(), {});
+        if (value.empty()) {
             return;
         }
-        if (resolved.has_value() && *resolved != *value) {
+        if (resolved.has_value() && *resolved != value) {
             ambiguous = true;
             return;
         }
