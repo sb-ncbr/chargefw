@@ -430,14 +430,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   (`src/methods/parameter_prerequisites.cpp:169-196`). `validate_selected_candidate` checks the count
   again at execution (`src/methods/applicable_method_execution.cpp:40-45`).
 
-### D7. `breadth_first_distances(..., max_distance)` — parameter never used
-
-- **Status:** reported.
-- **Where:** `src/features/topology_helpers.h:9-11`, `src/features/topology_helpers.cpp:11-13, 26-28`.
-- **Check:** `grep -rn "breadth_first_distances" include src apps python tests`; both callers
-  (`topology_helpers.cpp:49, 93`) pass `std::nullopt`, and nothing outside the file calls it.
-- **Fix:** drop the parameter and its branch; move the function into the anonymous namespace.
-
 ### D8. Line counter threaded through the MOL2 reader — never read
 
 - **Status:** reported.

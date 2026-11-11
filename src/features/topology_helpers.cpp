@@ -1,16 +1,14 @@
 #include "features/topology_helpers.h"
 
 #include <algorithm>
-#include <optional>
 #include <queue>
-#include <utility>
 #include <vector>
 
 namespace chargefw::features {
+namespace {
 
 auto breadth_first_distances(const std::vector<std::vector<std::size_t>>& adjacency,
-                             const std::size_t source,
-                             const std::optional<std::size_t> max_distance) -> std::vector<int> {
+                             const std::size_t source) -> std::vector<int> {
     auto distances = std::vector(adjacency.size(), -1);
     auto queue = std::queue<std::size_t>{};
 
@@ -22,10 +20,6 @@ auto breadth_first_distances(const std::vector<std::vector<std::size_t>>& adjace
         queue.pop();
 
         const auto current_distance = distances[current];
-
-        if (max_distance.has_value() && std::cmp_greater_equal(current_distance, *max_distance)) {
-            continue;
-        }
 
         for (const auto neighbor : adjacency[current]) {
             if (distances[neighbor] != -1) {
@@ -40,13 +34,15 @@ auto breadth_first_distances(const std::vector<std::vector<std::size_t>>& adjace
     return distances;
 }
 
+} // namespace
+
 auto all_pairs_bond_distances(const std::vector<std::vector<std::size_t>>& adjacency)
     -> std::vector<std::vector<int>> {
     auto distances = std::vector<std::vector<int>>{};
     distances.reserve(adjacency.size());
 
     for (std::size_t atom_index = 0; atom_index < adjacency.size(); ++atom_index) {
-        distances.push_back(breadth_first_distances(adjacency, atom_index, std::nullopt));
+        distances.push_back(breadth_first_distances(adjacency, atom_index));
     }
 
     return distances;
@@ -90,7 +86,7 @@ auto is_connected(const std::vector<std::vector<std::size_t>>& adjacency) -> boo
         return true;
     }
 
-    const auto distances = breadth_first_distances(adjacency, 0, std::nullopt);
+    const auto distances = breadth_first_distances(adjacency, 0);
 
     return std::ranges::all_of(distances, [](const int distance) -> bool { return distance >= 0; });
 }
