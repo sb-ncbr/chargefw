@@ -82,23 +82,6 @@ class RecordingObserver(chargefw.CalculationObserver):
         self.events.append(progress)
 
 
-def test_ion_selections_are_immutable_native_catalog_tuples() -> None:
-    common: tuple[str, ...] = chargefw.COMMON_IONS
-    all_ions: tuple[str, ...] = chargefw.ALL_IONS
-    assert isinstance(all_ions, tuple)
-    assert set(common) < set(all_ions)
-    assert len(all_ions) == len(set(all_ions))
-    for selection in (common, all_ions):
-        absent = chargefw.calculate(
-            chargefw.io.parse(FIXED_IONS_MMCIF.split("HETATM 4")[0] + "#\n", format="mmcif"),
-            method="formal",
-            fixed_ions=selection,
-        )
-        assert absent.requested.fixed_ions == selection
-        assert absent.plan is not None, "absent ion selection must retain the formal plan"
-        assert absent.plan.fixed_ions is None
-
-
 def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> None:
     # CU1's atom name is CU and its template charge differs from the imported zero.
     text = FIXED_IONS_MMCIF.replace(

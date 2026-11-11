@@ -101,19 +101,11 @@ auto ion_record(const std::string& component, const int atomic_number, const std
 
 } // namespace
 
-TEST_CASE("private fixed-charge ion selections share the resolver catalog",
-          "[adapters][fixed-charge]") {
-    const auto common = detail::fixed_ion_names(true);
+TEST_CASE("private fixed-charge ion catalog has unique names", "[adapters][fixed-charge]") {
     const auto all = detail::fixed_ion_names(false);
-    CHECK(all.size() > common.size());
-    for (const auto& name : common) {
-        CHECK(std::ranges::count(all, name) == 1);
-    }
     for (const auto& name : all) {
         CHECK(std::ranges::count(all, name) == 1);
     }
-    const std::vector<ImportedMoleculeRecord> records{ion_record("LIG", 6, "C", "1")};
-    CHECK(detail::resolve_fixed_ions(records, all).sources.empty());
 }
 
 TEST_CASE("private fixed ions resolve exact ion identities in input order",

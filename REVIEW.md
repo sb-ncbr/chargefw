@@ -620,18 +620,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Fix:** rewrite as one test showing that two different terms give different charges, without the
   list of names.
 
-### Copies of production tables
-
-#### T13. Ion lists compared with the table they are read from
-
-- **Status:** re-checked.
-- **Where:** `cpp/adapters/test_fixed_ions.cpp:104`; `python/test_calculation.py:99`
-  (`test_ion_selections_are_immutable_native_catalog_tuples`).
-- **Problem:** `fixed_ion_names(true/false)` and `resolve_fixed_ions` read one `constexpr` array, so
-  "common is part of all" and "the resolver accepts every listed name" hold by construction. The
-  Python test repeats the same two checks and adds `isinstance(..., tuple)`.
-- **Fix:** keep only the native loop that each name occurs once; delete the rest and the Python test.
-
 ### Tests of the language or of the test's own constants
 
 #### T14. Accessors returning constructor arguments
