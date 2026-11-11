@@ -202,6 +202,9 @@ def write_parameter_set(parameter_set: ParameterSet, path: str | os.PathLike[str
     replaced.
     """
 
+    if not isinstance(parameter_set, ParameterSet):
+        raise TypeError("parameter_set must be a ParameterSet")
+
     native = parameter_set._native or _default_parameter_catalog()
     text = native._json(parameter_set.id)
     with open(path, "w", encoding="utf-8") as output:

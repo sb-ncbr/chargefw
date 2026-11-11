@@ -409,11 +409,9 @@ for realistic input.
 - **Status:** reported.
 - `python/chargefw/calculation.py:132-148`: the `__module__` rewrite loop omits `InputIssue` and
   `ChargeIssue`, so they report `chargefw._calculation_values`. Add the two names.
-- `python/chargefw/calculation.py:198`: `write_parameter_set("some-id", path)` fails with
-  `AttributeError: 'str' object has no attribute '_native'`, although `assess` and `calculate` accept
-  `str | ParameterSet`. Add an `isinstance` check raising `TypeError`. Its argument order
-  `(parameter_set, path)` is also the reverse of `io.write(path, result)`; that is a public break and
-  only noted.
+- `python/chargefw/calculation.py:198`: `write_parameter_set(parameter_set, path)` has the reverse
+  argument order of `io.write(path, result)`. Changing it would break the public API; this is only
+  noted, pending a separate decision.
 - `python/chargefw/io/gemmi.py:46, 145`: `StructureBondStrategy` is used in the `from_structure`
   signature but missing from `__all__`.
 - `python/chargefw/_catalog.py:42-44`: `5 in chargefw.methods` raises `TypeError`, because

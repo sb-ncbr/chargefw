@@ -471,6 +471,14 @@ def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
     assert document["common"]["names"] == ["kappa"]
 
 
+@pytest.mark.parametrize("parameter_set", ["EEM_Baek1991", None, object()])
+def test_write_parameter_set_rejects_invalid_types(tmp_path: Path, parameter_set: object) -> None:
+    path = tmp_path / "parameters.json"
+    with pytest.raises(TypeError):
+        chargefw.write_parameter_set(parameter_set, path)  # type: ignore[arg-type]
+    assert not path.exists()
+
+
 def template_evaluator(method: str, atom_types: str, bond_types: str = "plain") -> Evaluator:
     molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
     template = make_parameter_template(
