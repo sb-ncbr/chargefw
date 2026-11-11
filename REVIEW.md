@@ -180,21 +180,6 @@ for realistic input.
   SDF from those programs is a common workflow. If not, state in `docs/reference/formats.md`, next
   to the V3000 description, that a record needs a bond block and that blocks after it are rejected.
 
-### B7. Fit result types raise on `==` and `hash()`
-
-- **Status:** re-checked for the decorators. The failure was reproduced by the first reader with a
-  standalone dataclass on Python 3.15 and NumPy 2.5, not with the package itself.
-- **Where:** `python/chargefw/parameterization/_fit.py:26` (`FitResult`), `_observer.py:13`
-  (`FitProgress`), `_diagnostics.py:33` (`Diagnostics`).
-- **Problem:** all three are `@dataclass(frozen=True, slots=True)` with NumPy array fields and the
-  generated `__eq__` and `__hash__`. Comparing two results raises `ValueError: The truth value of an
-  array ... is ambiguous`; hashing raises `TypeError: unhashable type: 'numpy.ndarray'`.
-- **Check:** `grep -n "@dataclass" python/chargefw/parameterization/*.py`, and compare with the other
-  array-carrying dataclasses, which use `eq=False` (`ImportIssue`, `InputIssue`, `ChargeIssue`,
-  `PrerequisiteIssue`) or a hand-written `__eq__` (`ChargeAssignment`).
-- **Fix:** add `eq=False` to the three decorators. `_diagnostics.py:19` is a second dataclass in that
-  file; check whether it carries arrays too.
-
 ### B8. `ImportIssue::line` restarts at each SDF record
 
 - **Status:** reported.

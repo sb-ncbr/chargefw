@@ -993,6 +993,29 @@ class RecordingFitObserver(FitObserver):
         return self._stop_when(self.events[-1])
 
 
+def test_fit_outputs_compare_and_hash_by_identity() -> None:
+    evaluator = training_evaluator()
+    observer = RecordingFitObserver()
+    result = fit(
+        evaluator,
+        evaluator.charges(TRUE_VALUES),
+        start=FIT_START,
+        free=FIT_FREE,
+        max_evaluations=1,
+        observer=observer,
+    )
+
+    for value, field in (
+        (result, "values"),
+        (result.diagnostics, "singular_values"),
+        (observer.events[0], "best_values"),
+    ):
+        other = replace(value, **{field: getattr(value, field).copy()})
+        assert value != other
+        assert (value == other) is False
+        assert len({value, value, other}) == 2
+
+
 def test_observer_follows_every_trial_point_and_the_best_so_far() -> None:
     evaluator = training_evaluator()
     references = evaluator.charges(TRUE_VALUES)

@@ -30,7 +30,7 @@ class ChargeDiagnostics:
     r2: float
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class Diagnostics:
     """What shows whether the fitted values can be trusted.
 

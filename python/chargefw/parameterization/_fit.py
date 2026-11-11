@@ -23,7 +23,7 @@ from ._evaluator import EvaluationError, Evaluator, Slot, _slot_values
 from ._observer import FitObserver, FitProgress
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class FitResult:
     """The outcome of ``fit()``.
 

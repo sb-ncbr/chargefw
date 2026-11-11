@@ -384,6 +384,10 @@ A `Slot` has `scope` (`"common"`, `"atom"`, or `"bond"`), `key` (an `AtomParamet
 
 ### FitResult
 
+`FitResult`, `Diagnostics`, and `FitProgress` compare and hash by object identity, not by their
+contents. To compare fitted values, use `numpy.array_equal(first.values, second.values)` or
+`numpy.allclose(first.values, second.values)`.
+
 | Attribute | Content |
 | --- | --- |
 | `values`, `start` | Fitted and starting values of every slot |

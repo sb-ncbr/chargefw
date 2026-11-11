@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from .._parameters import ParameterSet
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class FitProgress:
     """A snapshot after one trial point of a running fit.
 
