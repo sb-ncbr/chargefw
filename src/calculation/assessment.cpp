@@ -76,15 +76,19 @@ namespace {
     return candidates;
 }
 
+[[nodiscard]] auto require_method(const std::string_view id) -> const methods::Method& {
+    const auto* method = methods::method_registry().find(id);
+    if (method == nullptr) {
+        throw std::invalid_argument{"method '" + std::string{id} + "' is not registered"};
+    }
+    return *method;
+}
+
 [[nodiscard]] auto assessment_methods(const AssessmentRequest& request)
     -> std::vector<const methods::Method*> {
     const auto& registry = methods::method_registry();
     if (request.method_id.has_value()) {
-        const auto* method = registry.find(*request.method_id);
-        if (method == nullptr) {
-            throw std::invalid_argument{"method '" + *request.method_id + "' is not registered"};
-        }
-        return {method};
+        return {&require_method(*request.method_id)};
     }
 
     auto result = std::vector<const methods::Method*>{};
@@ -98,22 +102,18 @@ namespace {
 }
 
 auto validate_assessment_method_options(const AssessmentRequest& request) -> void {
-    const auto& registry = methods::method_registry();
     for (const auto& [method_id, overrides] : request.method_options) {
-        const auto* method = registry.find(method_id);
-        if (method == nullptr) {
-            throw std::invalid_argument{"method '" + method_id + "' is not registered"};
-        }
+        const auto& method = require_method(method_id);
         if (request.method_id.has_value() && method_id != *request.method_id) {
             throw std::invalid_argument{"method options supplied for '" + method_id +
                                         "' but method '" + *request.method_id + "' was requested"};
         }
 
-        auto options = methods::make_default_options(method->option_schema());
+        auto options = methods::make_default_options(method.option_schema());
         for (const auto& [id, value] : overrides.values()) {
             options.set(id, value);
         }
-        methods::validate_method_options(method->option_schema(), options);
+        methods::validate_method_options(method.option_schema(), options);
     }
 }
 
@@ -149,11 +149,8 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
         throw std::invalid_argument{"parameter-set selection requires an explicit method"};
     }
 
-    const auto* method = methods::method_registry().find(*request.method_id);
-    if (method == nullptr) {
-        throw std::invalid_argument{"method '" + *request.method_id + "' is not registered"};
-    }
-    if (!method->requirements().requires_parameters()) {
+    const auto& method = require_method(*request.method_id);
+    if (!method.requirements().requires_parameters()) {
         throw std::invalid_argument{"method '" + *request.method_id +
                                     "' does not accept a parameter set"};
     }

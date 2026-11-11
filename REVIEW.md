@@ -566,11 +566,14 @@ listed at the end of the section.
 
 ### C10. Registry lookup with an "is not registered" error
 
-- **Status:** reported.
-- **Where:** `src/calculation/assessment.cpp:83-86, 103-106, 152-155`;
-  `apps/chargefw/reports.cpp:225-228, 278-280`; `apps/chargefw/input.cpp:69-72` (other wording).
-- **Fix:** one `require_method(id) -> const Method&` next to the registry, or a file-local helper in
-  `assessment.cpp`.
+- **Status:** re-checked.
+- **Where:** `apps/chargefw/reports.cpp:225-228, 278-280` and
+  `python/src/parameterization.cpp:241-244`.
+- **Problem:** these repeat the same registry lookup and `std::invalid_argument` for an unknown ID.
+- **Option (design-sensitive):** add `MethodRegistry::at(id) -> const Method&` and use it here and
+  in assessment. This public API addition needs a separate decision.
+- Keep `apps/chargefw/input.cpp:69-72` separate: its `std::runtime_error` and message describe a CLI
+  option-parsing error.
 
 ### C11. Duplicates in the CLI
 
