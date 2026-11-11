@@ -546,12 +546,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   The comment at `calculation_request.h:20` ("Zero delegates the worker count to the oneTBB runtime")
   disagrees with `thread_count()`, which uses `max_allowed_parallelism`.
 
-### D12. Small dead statements in `calculation`
-
-- **Status:** reported.
-- `include/chargefw/calculation/assessment.h:68-70`: `friend auto calculate(...)` inside
-  `ExecutionPlan` — that function reaches plan privates through `friend class AssessmentResult`.
-
 ### D13. Small dead code in `adapters`
 
 - **Status:** reported.
