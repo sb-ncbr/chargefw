@@ -26,14 +26,6 @@ TEST_CASE("execution selection parses from strings", "[calculation][execution-po
     CHECK_THROWS_AS(bad_selection(), std::invalid_argument);
 }
 
-TEST_CASE("execution policy and selection convert to strings", "[calculation][execution-policy]") {
-    CHECK(calculation::to_string(calculation::ExecutionSelectionKind::automatic) == "auto");
-    CHECK(calculation::to_string(calculation::ExecutionSelectionKind::full) == "full");
-    CHECK(calculation::to_string(calculation::ExecutionMode::cutoff) == "cutoff");
-    CHECK(calculation::to_string(calculation::ExecutionStatus::no_executable_plan) ==
-          "no_executable_plan");
-}
-
 TEST_CASE("execution policy validates mode and radius", "[calculation][execution-policy]") {
     using Mode = calculation::ExecutionMode;
     using Case = std::pair<Mode, std::optional<double>>;

@@ -389,8 +389,7 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   the notation switch at `src/methods/method.cpp:65`.
 - `ComplexityTerm::bonds_squared` (`:17`): referenced only at `src/methods/method.cpp:73` and
   `src/methods/method_applicability.cpp:90`.
-- `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): its only
-  caller is `tests/cpp/methods/test_method_applicability.cpp:37`.
+- `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): no callers.
 - **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
 
 ### D8. Line counter threaded through the MOL2 reader — never read
@@ -622,16 +621,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   list of names.
 
 ### Copies of production tables
-
-#### T10. Enum-to-string samples
-
-- **Status:** reported.
-- **Where:** `cpp/methods/test_method_options.cpp:13`, `cpp/methods/test_method_applicability.cpp:36`,
-  `cpp/methods/test_method_prerequisites.cpp:27`, `cpp/calculation/test_execution_policy.cpp:29`.
-- **Problem:** each compares `to_string(Enum::x)` with the spelling of `x`. The strings that are part
-  of an output format are checked where they are written (`cpp/adapters/test_json_output.cpp`, the
-  CLI scripts, `python/test_output.py`). See D5: the second test is the only caller of
-  `to_string(ExecutionAvailability)`.
 
 #### T11. Defaults compared with the constants that define them
 

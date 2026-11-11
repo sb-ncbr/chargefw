@@ -33,13 +33,6 @@ namespace features = chargefw::features;
 namespace methods = chargefw::methods;
 namespace parameters = chargefw::parameters;
 
-TEST_CASE("execution applicability enums convert to stable strings", "[methods][applicability]") {
-    CHECK(methods::to_string(methods::ExecutionAvailability::available_with_warning) ==
-          "available_with_warning");
-    CHECK(methods::to_string(methods::ExecutionIssueKind::unsupported_execution_mode) ==
-          "unsupported_execution_mode");
-}
-
 namespace {
 
 auto assessment_for(const methods::ApplicableMethod& candidate,

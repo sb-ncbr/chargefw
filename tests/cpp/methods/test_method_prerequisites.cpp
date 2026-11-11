@@ -24,14 +24,6 @@
 
 namespace methods = chargefw::methods;
 
-TEST_CASE("prerequisite issue kinds convert to stable strings", "[methods][prerequisites]") {
-    CHECK(methods::to_string(methods::PrerequisiteIssueKind::invalid_options) == "invalid_options");
-    CHECK(methods::to_string(methods::PrerequisiteIssueKind::missing_parameters) ==
-          "missing_parameters");
-    CHECK(methods::to_string(methods::PrerequisiteIssueKind::unsupported_fixed_ions) ==
-          "unsupported_fixed_ions");
-}
-
 namespace core = chargefw::core;
 namespace features = chargefw::features;
 
