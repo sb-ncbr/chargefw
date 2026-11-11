@@ -4,6 +4,7 @@
 #include "input_checks.h"
 
 #include "core/diagnostic_description.h"
+#include "methods/applicable_method_execution.h"
 #include "methods/find_applicable_methods.h"
 #include "methods/parameter_issue_messages.h"
 
@@ -367,9 +368,7 @@ auto AssessmentResult::assess_prepared(
             }
             rejections_.push_back(Rejection{
                 .method_id = std::string{candidate.method->id()},
-                .parameter_set_id = candidate.parameter_set == nullptr
-                                        ? std::nullopt
-                                        : std::optional{std::string{candidate.parameter_set->id()}},
+                .parameter_set_id = methods::detail::parameter_set_id_for(candidate),
                 .policy = policy_for(mode),
                 .issues = std::move(issues),
             });

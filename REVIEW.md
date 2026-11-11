@@ -404,14 +404,6 @@ listed at the end of the section.
 - **Fix:** move the shared helpers into `prerequisite_helpers.h` or a small `peoe_common.h`, and use
   the option helper in `calculate()` too.
 
-### C9. Optional parameter-set ID built by hand
-
-- **Status:** plausible. The helper tests `uses_parameters()`, the copies test
-  `parameter_set == nullptr`; check that they are equivalent (`ApplicableMethod::uses_parameters()`
-  is defined as `parameter_set != nullptr`).
-- **Where:** `src/calculation/assessment.cpp:373-375`, `src/calculation/calculation.cpp:191-193`
-  repeat `methods::detail::parameter_set_id_for` (`src/methods/applicable_method_execution.cpp:63`).
-
 ### C10. Registry lookup with an "is not registered" error
 
 - **Status:** re-checked.
