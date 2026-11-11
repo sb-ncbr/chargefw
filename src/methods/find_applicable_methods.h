@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chargefw/calculation/execution_policy.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
@@ -22,7 +21,6 @@ struct ApplicabilityRequest {
     std::span<const parameters::ParameterSet> parameter_sets;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     parameters::ClassificationOptions classification_options{};
-    calculation::ResourcePolicy resource_policy{};
     std::unordered_map<std::string, MethodOptions> method_options;
 };
 

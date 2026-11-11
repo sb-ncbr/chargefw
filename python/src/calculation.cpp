@@ -126,9 +126,9 @@ template <typename Issue> auto issue_payloads(const std::span<const Issue> issue
     return result;
 }
 
-auto execution_issue(const methods::ExecutionIssue& issue) -> nb::dict {
+auto execution_issue(const calculation::ExecutionIssue& issue) -> nb::dict {
     auto result = nb::dict{};
-    result["kind"] = std::string{methods::to_string(issue.kind)};
+    result["kind"] = std::string{calculation::to_string(issue.kind)};
     result["message"] = issue.message;
     result["molecule_index"] = issue.molecule_index;
     return result;
@@ -191,7 +191,7 @@ auto rejection(const calculation::Rejection& rejected) -> nb::dict {
         if (const auto* prerequisite = std::get_if<methods::PrerequisiteIssue>(&issue)) {
             prerequisite_issues.append(issue_payload(*prerequisite));
         } else {
-            execution_issues.append(execution_issue(std::get<methods::ExecutionIssue>(issue)));
+            execution_issues.append(execution_issue(std::get<calculation::ExecutionIssue>(issue)));
         }
     }
     result["prerequisite_issues"] = std::move(prerequisite_issues);

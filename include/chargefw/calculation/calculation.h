@@ -27,7 +27,7 @@ struct EffectiveCalculation {
     std::optional<std::string> parameter_set_id;
     methods::MethodOptions method_options;
     ExecutionPolicy execution_policy;
-    std::vector<methods::ExecutionIssue> execution_issues;
+    std::vector<ExecutionIssue> execution_issues;
     std::optional<FixedIons> fixed_ions{};
 };
 

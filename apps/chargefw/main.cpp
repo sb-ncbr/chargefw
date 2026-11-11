@@ -229,7 +229,7 @@ auto run(std::span<char*> arguments) -> int {
             }
             // Warned before a possibly long calculation, and not again with the diagnostics.
             for (const auto& warning : plan->warnings()) {
-                const auto code = std::string{chargefw::methods::to_string(warning.kind)};
+                const auto code = std::string{chargefw::calculation::to_string(warning.kind)};
                 if (run.reported.emplace(code, warning.message).second) {
                     std::println(std::cerr, "Warning: {}", warning.message);
                 }

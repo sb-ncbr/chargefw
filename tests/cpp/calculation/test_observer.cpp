@@ -567,8 +567,8 @@ TEST_CASE("unsupported explicit execution is rejected before calculation observa
     REQUIRE(assessment.rejections()[0].policy.has_value());
     CHECK(assessment.rejections()[0].policy->mode() == calculation::ExecutionMode::cover);
     REQUIRE(assessment.rejections()[0].issues.size() == 1);
-    CHECK(std::get<methods::ExecutionIssue>(assessment.rejections()[0].issues[0]).kind ==
-          methods::ExecutionIssueKind::unsupported_execution_mode);
+    CHECK(std::get<calculation::ExecutionIssue>(assessment.rejections()[0].issues[0]).kind ==
+          calculation::ExecutionIssueKind::unsupported_execution_mode);
 
     const auto result = calculation::calculate(assessment, 1, observer);
     CHECK(result.status == calculation::ExecutionStatus::no_executable_plan);
