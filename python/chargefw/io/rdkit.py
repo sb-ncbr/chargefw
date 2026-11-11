@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import numpy as np
 
+from .._arrays import as_integer
 from ..calculation import CalculationResult
 from ..charges import ChargeAssignment
 from ..core import Molecule
@@ -166,21 +167,11 @@ def attach_charges(
         raise TypeError("molecule must be an rdkit.Chem.Mol")
     if not isinstance(result, CalculationResult):
         raise TypeError("result must be a CalculationResult")
-    if isinstance(molecule_index, bool):
-        raise TypeError("molecule_index must be an integer")
-    try:
-        molecule_index = as_index(molecule_index)
-    except TypeError as error:
-        raise TypeError("molecule_index must be an integer") from error
+    molecule_index = as_integer(molecule_index, "molecule_index")
     if molecule_index < 0 or molecule_index >= len(result.molecules):
         raise IndexError("molecule_index is outside the calculation input collection")
-    if isinstance(conformer, bool):
-        raise TypeError("conformer must be an integer or None")
     if conformer is not None:
-        try:
-            conformer = as_index(conformer)
-        except TypeError as error:
-            raise TypeError("conformer must be an integer or None") from error
+        conformer = as_integer(conformer, "conformer", expected="an integer or None")
         if conformer < 0:
             raise ValueError("conformer must be non-negative")
     if not isinstance(property_name, str):

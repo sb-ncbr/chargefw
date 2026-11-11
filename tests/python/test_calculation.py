@@ -509,6 +509,16 @@ def test_assignment_cardinality_and_mapping() -> None:
     assert multi_result.assignments_by_molecule == (multi_result.assignments,)
     assert multi_result.assignment(molecule=0, conformer=0) is multi_result.assignments[0]
     assert multi_result.assignment(molecule=0, conformer=1) is multi_result.assignments[1]
+    invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
+    for value in invalid_indices:
+        with pytest.raises(TypeError):
+            multi_result.assignment(molecule=value, conformer=0)
+        with pytest.raises(TypeError):
+            multi_result.assignment(molecule=0, conformer=value)
+    assert (
+        multi_result.assignment(molecule=cast(Any, np.int64(0)), conformer=cast(Any, np.int64(1)))
+        is multi_result.assignments[1]
+    )
     with pytest.raises(ValueError):
         multi_result.assignment(molecule=0)
 

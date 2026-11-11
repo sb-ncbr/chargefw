@@ -180,6 +180,23 @@ parameter_sets = _default_parameter_descriptors()
 methods = _method_catalog(parameter_sets)
 
 
+def _check_custom_parameter_id(id: str, source: str | None = None) -> None:
+    if id in parameter_sets:
+        where = f" in {source!r}" if source else ""
+        raise ValueError(f"parameter set {id!r}{where} has the ID of a bundled parameter set")
+
+
+def _parameter_set_from_catalog(
+    native: _native_parameters._NativeParameterCatalog,
+) -> ParameterSet:
+    (descriptor,) = native._descriptors()
+    return _parameter_set(descriptor, native)
+
+
+def _native_catalog_for(parameter_set: ParameterSet) -> _native_parameters._NativeParameterCatalog:
+    return parameter_set._native or _default_parameter_catalog()
+
+
 def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     """Read a parameter set from a JSON file in the ChargeFW parameter-set format.
 
@@ -188,13 +205,9 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     """
 
     native = _native_parameters._load_parameter_set_catalog(os.fspath(path))
-    (descriptor,) = native._descriptors()
-    if descriptor["id"] in parameter_sets:
-        raise ValueError(
-            f"parameter set {descriptor['id']!r} in {os.fspath(path)!r} has the ID of a bundled "
-            "parameter set"
-        )
-    return _parameter_set(descriptor, native)
+    result = _parameter_set_from_catalog(native)
+    _check_custom_parameter_id(result.id, os.fspath(path))
+    return result
 
 
 def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSet) -> None:
@@ -207,7 +220,7 @@ def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSe
     if not isinstance(parameter_set, ParameterSet):
         raise TypeError("parameter_set must be a ParameterSet")
 
-    native = parameter_set._native or _default_parameter_catalog()
+    native = _native_catalog_for(parameter_set)
     text = native._json(parameter_set.id)
     with open(path, "w", encoding="utf-8") as output:
         output.write(text)

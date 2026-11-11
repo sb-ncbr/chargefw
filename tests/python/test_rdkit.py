@@ -183,6 +183,12 @@ def test_conversion_and_charge_attachment() -> None:
     molecule = chargefw_rdkit.from_mol(target, source_name="water")
     result = chargefw.calculate(molecule, method="formal")
     chargefw_rdkit.attach_charges(target, result)
+    invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
+    for value in invalid_indices:
+        with pytest.raises(TypeError):
+            chargefw_rdkit.attach_charges(target, result, molecule_index=value, overwrite=True)
+        with pytest.raises(TypeError):
+            chargefw_rdkit.attach_charges(target, result, conformer=value, overwrite=True)
     with pytest.raises(ValueError):
         chargefw_rdkit.attach_charges(target, result)
     chargefw_rdkit.attach_charges(target, result, overwrite=True)

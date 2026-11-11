@@ -5,12 +5,12 @@ from __future__ import annotations
 import numbers
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from operator import index as as_index
 from types import MappingProxyType
 from typing import SupportsIndex
 
 import numpy as np
 
+from ._arrays import as_integer
 from ._chargefw import calculation as _native_calculation
 from ._methods import Method
 from ._parameters import ParameterSet
@@ -20,12 +20,7 @@ _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
 
 def _normalized_nonnegative_integer(value: SupportsIndex, name: str) -> int:
-    if isinstance(value, (bool, np.bool)):
-        raise TypeError(f"{name} must be an integer")
-    try:
-        result = as_index(value)
-    except TypeError as error:
-        raise TypeError(f"{name} must be an integer") from error
+    result = as_integer(value, name)
     if result < 0:
         raise ValueError(f"{name} must be non-negative")
     if result > np.iinfo(np.uintp).max:

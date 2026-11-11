@@ -389,18 +389,10 @@ listed at the end of the section.
 
 ### C14. Python package
 
-- **Status:** reported.
-- "Reject bool, `operator.index`, non-negative" in six places:
-  `python/chargefw/_calculation_options.py:21-32`, `charges.py:35-44`, `core.py:40-47`,
-  `_calculation_values.py:480-505`, `io/rdkit.py:169-185`, `parameterization/_evaluator.py:265-270`.
-  They already disagree: `rdkit.attach_charges` raises `ValueError` for a negative conformer where
-  `CalculationResult.assignment` raises `IndexError`, and two of them reject only `bool`, not
-  `np.bool`. Fix: one helper in `_arrays.py`.
-- Wrapping a one-set native catalog as a `ParameterSet`: the bundled-ID check
-  (`calculation.py:190-194`, `parameterization/_template.py:31-32`, `_fit.py:76-77`), the
-  descriptor unwrap (`calculation.py:189, 195`, `_template.py:38-39`, `_fit.py:82-83`), and
-  `parameter_set._native or _default_parameter_catalog()` (`calculation.py:205`, `_fit.py:78`,
-  `_evaluator.py:327`). Fix: two private helpers in `calculation.py`.
+- **Status:** remaining behavior differences need a separate decision.
+- `rdkit.attach_charges` raises `ValueError` for a negative conformer while
+  `CalculationResult.assignment` raises `IndexError`. Range checks remain local to preserve these
+  exception types.
 - `io/rdkit.py:137-150` (`_assignment`) picks an assignment by other rules than
   `CalculationResult.assignment` (`_calculation_values.py:477-511`): it falls back silently where the
   latter raises. Plausible; check the RDKit tests before changing error types.

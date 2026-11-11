@@ -13,6 +13,16 @@ from numpy.typing import NDArray
 from ._types import PortableId
 
 
+def as_integer(value: SupportsIndex, field: str, *, expected: str = "an integer") -> int:
+    """Accept integer-like scalars, but not Python or NumPy booleans."""
+    if isinstance(value, (bool, np.bool)):
+        raise TypeError(f"{field} must be {expected}")
+    try:
+        return as_index(value)
+    except TypeError as error:
+        raise TypeError(f"{field} must be {expected}") from error
+
+
 def as_integer_array(
     value: Any, field: str, ndim: int, empty_1d_shape: tuple[int, ...] | None = None
 ) -> NDArray[np.int64]:

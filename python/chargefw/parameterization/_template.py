@@ -6,9 +6,9 @@ from collections.abc import Iterable
 
 from .._chargefw import parameterization as _native_parameterization
 from .._methods import Method
-from .._parameters import ParameterSet, _parameter_set
+from .._parameters import ParameterSet
 from .._types import AtomClassifier, BondClassifier
-from ..calculation import _as_collection, parameter_sets
+from ..calculation import _as_collection, _check_custom_parameter_id, _parameter_set_from_catalog
 from ..core import Molecule, MoleculeCollection
 
 
@@ -28,12 +28,10 @@ def make_parameter_template(
     from the IDs of the bundled parameter sets.
     """
 
-    if id in parameter_sets:
-        raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
+    _check_custom_parameter_id(id)
     method_id = method.id if isinstance(method, Method) else method
     collection = _as_collection(molecules)
     native = _native_parameterization._make_parameter_template_catalog(
         collection._native_molecules, method_id, atom_types, bond_types, id
     )
-    (descriptor,) = native._descriptors()
-    return _parameter_set(descriptor, native)
+    return _parameter_set_from_catalog(native)

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import operator
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import SupportsIndex
@@ -11,6 +10,7 @@ from typing import SupportsIndex
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from .._arrays import as_integer
 from .._chargefw import parameterization as _native_parameterization
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
@@ -262,12 +262,7 @@ class Evaluator:
             return list(range(len(self._layout)))
         indices = []
         for slot in slots:
-            if isinstance(slot, (bool, np.bool_)):
-                raise TypeError(f"slot indices must be integers, got {slot!r}")
-            try:
-                index = operator.index(slot)
-            except TypeError:
-                raise TypeError(f"slot indices must be integers, got {slot!r}") from None
+            index = as_integer(slot, "slot index")
             if not 0 <= index < len(self._layout):
                 raise IndexError(f"slot index {index} is outside 0 to {len(self._layout) - 1}")
             indices.append(index)
@@ -322,9 +317,9 @@ def _slot_values(
     """Every value of a parameter set, by (key, parameter name); the key is None for common
     parameters."""
 
-    from ..calculation import _default_parameter_catalog
+    from ..calculation import _native_catalog_for
 
-    catalog = parameter_set._native or _default_parameter_catalog()
+    catalog = _native_catalog_for(parameter_set)
     layout, values = _native_parameterization._parameter_values(catalog, parameter_set.id)
     return {
         (_slot(scope, index, name, parameter_set).key, name): float(value)
