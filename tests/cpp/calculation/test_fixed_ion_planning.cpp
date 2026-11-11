@@ -697,9 +697,11 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
                                  std::vector<calculation::FixedAtomCharge> sources) {
         return calculation::AssessmentRequest{
             .molecules = std::move(molecules),
+            .parameter_sets = {chargefw::test::make_eem_ho_parameters(1.0)},
+            .method_id = "eem",
             .fixed_ions = calculation::FixedIons{.sources = std::move(sources)}};
     };
-    const auto pair_atoms = std::vector{core::Atom{6}, core::Atom{6}};
+    const auto pair_atoms = std::vector{core::Atom{1}, core::Atom{8}};
     const auto separated_pair =
         std::vector<std::vector<core::Position>>{{{0.0, 0.0, 0.0}, {2.0, 0.0, 0.0}}};
 
@@ -741,7 +743,7 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
     // active atom, and -0.0 coincides with 0.0.
     auto coincident_later_source =
         make_request(core::MoleculeCollection{std::vector{make_molecule_with_positions(
-                         std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}, core::Atom{6}},
+                         std::vector{core::Atom{1}, core::Atom{1}, core::Atom{1}, core::Atom{1}},
                          {{{4.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, {-0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},
                      {{0, 0, 0.0}, {0, 1, 0.0}, {0, 2, 0.0}});
     CHECK_THROWS_MATCHES(calculation::assess(std::move(coincident_later_source)),
@@ -754,25 +756,25 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
             pair_atoms, {separated_pair.front(), {{2.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},
         {{0, 0, 0.0}});
     const auto swapped_assessment = calculation::assess(std::move(swapped_conformers));
-    CHECK(swapped_assessment.plans().empty());
-    CHECK_FALSE(swapped_assessment.rejections().empty());
+    CHECK_FALSE(swapped_assessment.plans().empty());
+    CHECK(swapped_assessment.rejections().empty());
 
     auto near_nonzero =
         make_request(core::MoleculeCollection{std::vector{make_molecule_with_positions(
                          pair_atoms, {{{0.0, 0.0, 0.0}, {1e-200, 0.0, 0.0}}})}},
                      {{0, 0, 0.0}});
     const auto near_assessment = calculation::assess(std::move(near_nonzero));
-    CHECK(near_assessment.plans().empty());
-    CHECK_FALSE(near_assessment.rejections().empty());
+    CHECK_FALSE(near_assessment.plans().empty());
+    CHECK(near_assessment.rejections().empty());
 
     auto coincident_sources =
         make_request(core::MoleculeCollection{std::vector{make_molecule_with_positions(
-                         std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}},
+                         std::vector{core::Atom{1}, core::Atom{1}, core::Atom{8}},
                          {{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {2.0, 0.0, 0.0}}})}},
                      {{0, 0, 0.5}, {0, 1, -0.25}});
     const auto sources_assessment = calculation::assess(std::move(coincident_sources));
-    CHECK(sources_assessment.plans().empty());
-    CHECK_FALSE(sources_assessment.rejections().empty());
+    CHECK_FALSE(sources_assessment.plans().empty());
+    CHECK(sources_assessment.rejections().empty());
 
     auto unrelated = make_request(
         core::MoleculeCollection{std::vector{
@@ -785,7 +787,18 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
         {{0, 0, 1.0}});
     const auto unrelated_assessment = calculation::assess(std::move(unrelated));
     CHECK(unrelated_assessment.plans().empty());
-    CHECK_FALSE(unrelated_assessment.rejections().empty());
+    REQUIRE(unrelated_assessment.rejections().size() == 1);
+    const auto& issues = unrelated_assessment.rejections()[0].issues;
+    REQUIRE(issues.size() == 2);
+    REQUIRE(std::holds_alternative<methods::PrerequisiteIssue>(issues[0]));
+    const auto& missing = std::get<methods::PrerequisiteIssue>(issues[0]);
+    CHECK(missing.kind == methods::PrerequisiteIssueKind::missing_feature);
+    CHECK(missing.molecule_index == 2);
+    REQUIRE(std::holds_alternative<methods::PrerequisiteIssue>(issues[1]));
+    const auto& nonfinite = std::get<methods::PrerequisiteIssue>(issues[1]);
+    CHECK(nonfinite.kind == methods::PrerequisiteIssueKind::invalid_geometry);
+    CHECK(nonfinite.molecule_index == 3);
+    CHECK(nonfinite.location.atom_index == 0);
 }
 
 TEST_CASE("empty fixed ions are equivalent to absence", "[calculation][fixed-ions]") {

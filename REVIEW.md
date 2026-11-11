@@ -595,21 +595,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 *re-checked* and *reported* have the meaning given at the top of this file. Unless a finding says
 "rewrite", the proposal is to delete the named test or lines. Paths are relative to `tests/`.
 
-### Assertions that hold whatever the code does
-
-#### T1. Fixed-ion geometry cases can only fail by throwing
-
-- **Status:** re-checked.
-- **Where:** `cpp/calculation/test_fixed_ion_planning.cpp:753-789`, the cases `swapped_conformers`,
-  `near_nonzero`, `coincident_sources`, and `unrelated` of "fixed ion geometry is validated only for
-  affected molecules".
-- **Problem:** each case asserts only `plans().empty()` and `!rejections().empty()`. The request has
-  carbon atoms and no parameter sets, and only EEM, SQE, SQE+q0, and SQE+qp accept fixed ions
-  (`supports_fixed_point_sources`). Every method is therefore rejected for any geometry, so the two
-  assertions hold for every request that does not throw. The case the test is named after
-  (`unrelated`) is one of them.
-- **Fix:** rewrite. Use H and O atoms with `make_eem_ho_parameters` and assert that a plan exists.
-
 ### Tests of the language or of the test's own constants
 
 #### T16. Assertions on fixture constants
