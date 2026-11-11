@@ -2,6 +2,8 @@
 
 #include "common_input.h"
 
+#include "adapters/imported_records.h"
+
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -299,7 +301,7 @@ struct FormalCharge {
                 .line = partial_charge_line});
         }
         if (!aromatic_bonds.empty()) {
-            issues.push_back(common::aromatic_bonds_issue(std::move(aromatic_bonds)));
+            issues.push_back(adapters::aromatic_bonds_issue(std::move(aromatic_bonds)));
         }
 
         auto sites = atom_references;
@@ -316,9 +318,9 @@ struct FormalCharge {
                                                    : SourceConnectivity::present,
             .components = {},
         };
-        return common::make_record(std::move(atoms), std::move(bonds),
-                                   {core::Conformer{std::move(positions), "input"}}, identity, {},
-                                   std::move(issues), std::move(metadata));
+        return adapters::make_record(std::move(atoms), std::move(bonds),
+                                     {core::Conformer{std::move(positions), "input"}}, identity, {},
+                                     std::move(issues), std::move(metadata));
     } catch (...) {
         common::rethrow_with_context(identity, validation_line.value_or(line));
     }

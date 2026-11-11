@@ -1,9 +1,7 @@
 #pragma once
 
 #include <chargefw/adapters/molecule_record.h>
-#include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
-#include <chargefw/core/conformer.h>
 
 #include "bond_format.h"
 
@@ -12,7 +10,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace chargefw::adapters::native::common_input {
 
@@ -39,16 +36,5 @@ namespace chargefw::adapters::native::common_input {
 
 [[nodiscard]] auto bond_order(std::string_view value,
                               ::chargefw::adapters::native::BondFormat format) -> core::BondOrder;
-
-// The warning that a record's aromatic bonds, given by their indices in the record in bond order,
-// were read as single bonds.
-[[nodiscard]] auto aromatic_bonds_issue(std::vector<std::size_t> bonds) -> ImportIssue;
-
-[[nodiscard]] auto make_record(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds,
-                               std::vector<core::Conformer> conformers,
-                               MoleculeRecordIdentity identity, std::string name = {},
-                               std::vector<ImportIssue> issues = {},
-                               std::optional<MoleculeImportMetadata> import_metadata = std::nullopt)
-    -> ImportedMoleculeRecord;
 
 } // namespace chargefw::adapters::native::common_input

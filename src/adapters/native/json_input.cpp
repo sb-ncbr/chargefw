@@ -2,6 +2,8 @@
 
 #include "common_input.h"
 
+#include "adapters/imported_records.h"
+
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -243,8 +245,8 @@ auto require_array(const Json& value, const std::string& context) -> void {
                                                            : SourceConnectivity::present),
         .components = {},
     };
-    return common::make_record(std::move(atoms), std::move(bonds), std::move(conformers),
-                               std::move(identity), std::move(name), {}, std::move(metadata));
+    return adapters::make_record(std::move(atoms), std::move(bonds), std::move(conformers),
+                                 std::move(identity), std::move(name), {}, std::move(metadata));
 }
 
 } // namespace
