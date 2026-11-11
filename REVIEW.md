@@ -299,20 +299,6 @@ for realistic input.
 - **Fix:** rename to lower case. This is a breaking change for C++ consumers; it needs the
   maintainer's decision and a CHANGELOG entry.
 
-### A2. Three ways to index the same container
-
-- **Status:** re-checked (a repo-wide grep found two callers of the aliases).
-- **Where:** `include/chargefw/parameters/models/{atom,bond}_parameters.h` (`entry(i)`, `at(i)`,
-  `operator[]`), `include/chargefw/parameters/classification/parameter_classification.h`
-  (`parameter_entry_index(i)`, `at(i)`, `operator[]`).
-- **Problem:** `entry()` and `parameter_entry_index()` only `return at(index);`.
-- **Check:** `grep -rnE "\.(entry|parameter_entry_index)\(" include src apps python tests`. The only
-  callers are `src/methods/builtin/delre.cpp:57-58`.
-- **Related:** `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]` are
-  bounds-checked and throw (`src/parameters/models/parameter_view.cpp:13-15`), while `operator[]` on
-  every other type is `noexcept` and unchecked.
-- **Fix:** delete the two aliases and switch the delre lines to `.at()`.
-
 ### A3. `RequestedCalculationProvenance` uses strings where enums exist (design-sensitive)
 
 - **Status:** re-checked.
@@ -421,6 +407,10 @@ for realistic input.
 ### A12. Smaller native API items
 
 - **Status:** reported.
+- `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]` delegate to checked
+  `at()` (`src/parameters/models/parameter_view.cpp:13-15, 28-30`), unlike the unchecked `noexcept`
+  indexing on parameter containers and classifications. Whether to align or document this difference
+  remains a separate API decision; changing bounds semantics needs explicit approval.
 - `include/chargefw/methods/method_prerequisites.h:32` and
   `include/chargefw/methods/method_applicability.h:36, 42-43`: `PrerequisiteIssue::kind`,
   `ExecutionIssue::kind`, and `ExecutionAssessment::mode` / `availability` have no default member

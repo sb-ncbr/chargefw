@@ -26,8 +26,6 @@ class BondParameters {
     [[nodiscard]] auto size() const noexcept -> std::size_t;
     [[nodiscard]] auto empty() const noexcept -> bool;
 
-    [[nodiscard]] auto entry(std::size_t index) const -> const BondParameterEntry&;
-
     [[nodiscard]] auto operator[](std::size_t index) const noexcept -> const BondParameterEntry&;
     [[nodiscard]] auto at(std::size_t index) const -> const BondParameterEntry&;
 

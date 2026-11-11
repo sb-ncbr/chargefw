@@ -30,6 +30,10 @@
 
 ### C++
 
+- Breaking change: removed `AtomParameters::entry()`, `BondParameters::entry()`,
+  `AtomParameterClassification::parameter_entry_index()`, and
+  `BondParameterClassification::parameter_entry_index()` from `chargefw::parameters`.
+  Replace calls with `at()`, which retains the same bounds checking, and rebuild downstream C++ code.
 - Breaking change: the single-molecule `methods::check_parameter_prerequisites()` overload and its
   `ParameterPrerequisiteInput` and `ParameterPrerequisiteResult` types were removed from the public
   headers. Use the collection overload with a `PreparedMoleculeCollection` and rebuild downstream

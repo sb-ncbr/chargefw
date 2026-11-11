@@ -32,10 +32,6 @@ auto BondParameters::empty() const noexcept -> bool {
     return entries_.empty();
 }
 
-auto BondParameters::entry(const std::size_t index) const -> const BondParameterEntry& {
-    return at(index);
-}
-
 auto BondParameters::operator[](const std::size_t index) const noexcept
     -> const BondParameterEntry& {
     return entries_[index];
