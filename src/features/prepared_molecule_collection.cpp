@@ -3,13 +3,10 @@
 
 namespace chargefw::features {
 
-PreparedMoleculeCollection::PreparedMoleculeCollection(const core::MoleculeCollection& collection) {
-    molecules_.reserve(collection.size());
-
-    for (const auto& molecule : collection.molecules()) {
-        molecules_.emplace_back(molecule);
-    }
-}
+// Built from the range in one step, which constructs each element in place; adding them one by one
+// would need prepared molecules to be movable.
+PreparedMoleculeCollection::PreparedMoleculeCollection(const core::MoleculeCollection& collection)
+    : molecules_(collection.molecules().begin(), collection.molecules().end()) {}
 
 auto PreparedMoleculeCollection::molecules() const noexcept -> std::span<const PreparedMolecule> {
     return molecules_;
