@@ -260,7 +260,7 @@ TEST_CASE("native fixed ions execute, reassemble, and retain provenance",
     REQUIRE(warning_assessment.default_plan() != nullptr);
     REQUIRE(warning_assessment.default_plan()->warnings().size() == 1);
     CHECK(warning_assessment.default_plan()->warnings()[0].kind ==
-          methods::ExecutionIssueKind::resource_threshold_exceeded);
+          calculation::ExecutionIssueKind::resource_threshold_exceeded);
 }
 
 TEST_CASE("native SQE+qp normalizes reference charges to prepared active formal charge",

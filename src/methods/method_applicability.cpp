@@ -12,32 +12,7 @@
 
 namespace chargefw::methods {
 
-auto to_string(const ExecutionAvailability value) -> std::string_view {
-    switch (value) {
-    case ExecutionAvailability::available:
-        return "available";
-    case ExecutionAvailability::available_with_warning:
-        return "available_with_warning";
-    case ExecutionAvailability::unsupported:
-        return "unsupported";
-    }
-    throw std::invalid_argument{"unknown execution availability"};
-}
-
-auto to_string(const ExecutionIssueKind value) -> std::string_view {
-    switch (value) {
-    case ExecutionIssueKind::resource_threshold_exceeded:
-        return "resource_threshold_exceeded";
-    case ExecutionIssueKind::unsupported_execution_mode:
-        return "unsupported_execution_mode";
-    }
-    throw std::invalid_argument{"unknown execution issue kind"};
-}
-
 namespace {
-
-using calculation::ExecutionMode;
-using calculation::ResourcePolicy;
 
 [[nodiscard]] auto make_issue(const PrerequisiteIssueKind kind, std::string message)
     -> PrerequisiteIssue {
@@ -50,100 +25,6 @@ auto add_rejected(ApplicabilityResult& result, const std::size_t method_index,
     result.rejected.push_back(RejectedCandidate{.method_index = method_index,
                                                 .parameter_set_index = parameter_set_index,
                                                 .issues = std::move(issues)});
-}
-
-[[nodiscard]] auto has_expensive_full_complexity(const ResourceRequirements& resources) noexcept
-    -> bool {
-    const auto cubic = [](const ComplexityTerm complexity) noexcept -> bool {
-        return complexity == ComplexityTerm::atoms_cubed ||
-               complexity == ComplexityTerm::bonds_cubed ||
-               complexity == ComplexityTerm::atoms_plus_bonds_cubed;
-    };
-    const auto quadratic = [](const ComplexityTerm complexity) noexcept -> bool {
-        return complexity == ComplexityTerm::atoms_squared ||
-               complexity == ComplexityTerm::bonds_squared ||
-               complexity == ComplexityTerm::atoms_plus_bonds_squared ||
-               complexity == ComplexityTerm::atoms_squared_plus_bonds_squared;
-    };
-
-    return cubic(resources.time) || quadratic(resources.memory);
-}
-
-[[nodiscard]] auto assess_execution(const Method& method,
-                                    const features::PreparedMoleculeCollection& molecules,
-                                    const ResourcePolicy& resource_policy)
-    -> std::vector<ExecutionAssessment> {
-    const auto requirements = method.requirements();
-    auto full_issues = std::vector<ExecutionIssue>{};
-
-    if (resource_policy.cutoff_atom_threshold.has_value() &&
-        has_expensive_full_complexity(requirements.resources)) {
-        for (std::size_t molecule_index = 0; molecule_index < molecules.size(); ++molecule_index) {
-            const auto atom_count = molecules[molecule_index].molecule().atom_count();
-            if (atom_count > *resource_policy.cutoff_atom_threshold) {
-                full_issues.push_back(ExecutionIssue{
-                    .kind = ExecutionIssueKind::resource_threshold_exceeded,
-                    .message = "method '" + std::string{method.id()} +
-                               "' full execution exceeds the cutoff threshold of " +
-                               std::to_string(*resource_policy.cutoff_atom_threshold) + " atoms",
-                    .molecule_index = molecule_index});
-            }
-        }
-    }
-
-    const auto make_reduced_assessment =
-        [&method, &requirements, &molecules,
-         &resource_policy](const ExecutionMode mode, const bool supported) -> ExecutionAssessment {
-        if (supported && requirements.coordinates) {
-            auto issues = std::vector<ExecutionIssue>{};
-            if (mode == ExecutionMode::cutoff && resource_policy.cover_atom_threshold.has_value()) {
-                for (std::size_t molecule_index = 0; molecule_index < molecules.size();
-                     ++molecule_index) {
-                    if (molecules[molecule_index].molecule().atom_count() >
-                        *resource_policy.cover_atom_threshold) {
-                        issues.push_back(ExecutionIssue{
-                            .kind = ExecutionIssueKind::resource_threshold_exceeded,
-                            .message = "method '" + std::string{method.id()} +
-                                       "' cutoff execution exceeds the cover threshold of " +
-                                       std::to_string(*resource_policy.cover_atom_threshold) +
-                                       " atoms",
-                            .molecule_index = molecule_index});
-                    }
-                }
-            }
-            return ExecutionAssessment{
-                .mode = mode,
-                .availability = issues.empty() ? ExecutionAvailability::available
-                                               : ExecutionAvailability::available_with_warning,
-                .issues = std::move(issues)};
-        }
-
-        const auto* const mode_name = mode == ExecutionMode::cutoff ? "cutoff" : "cover";
-        const auto reason = supported
-                                ? " because it does not require coordinates for the radius-based " +
-                                      std::string{mode_name} + " approximation"
-                                : "";
-        return ExecutionAssessment{
-            .mode = mode,
-            .availability = ExecutionAvailability::unsupported,
-            .issues = {{.kind = ExecutionIssueKind::unsupported_execution_mode,
-                        .message = "method '" + std::string{method.id()} + "' does not support " +
-                                   mode_name + " execution" + reason}}};
-    };
-
-    return {ExecutionAssessment{.mode = ExecutionMode::full,
-                                .availability = full_issues.empty()
-                                                    ? ExecutionAvailability::available
-                                                    : ExecutionAvailability::available_with_warning,
-                                .issues = std::move(full_issues)},
-            make_reduced_assessment(ExecutionMode::cutoff,
-                                    requirements.resources.supports_cutoff &&
-                                        requirements.resources.reduced_charge_policy !=
-                                            ReducedChargePolicy::unsupported),
-            make_reduced_assessment(ExecutionMode::cover,
-                                    requirements.resources.supports_cover &&
-                                        requirements.resources.reduced_charge_policy !=
-                                            ReducedChargePolicy::unsupported)};
 }
 
 } // namespace
@@ -196,13 +77,10 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
         const auto requirements = method->requirements();
 
         if (!requirements.requires_parameters()) {
-            result.applicable.push_back(ApplicableMethod{
-                .method = method,
-                .parameter_set = nullptr,
-                .method_options = method_options,
-                .classifications = {},
-                .execution_assessments =
-                    assess_execution(*method, request.molecules, request.resource_policy)});
+            result.applicable.push_back(ApplicableMethod{.method = method,
+                                                         .parameter_set = nullptr,
+                                                         .method_options = method_options,
+                                                         .classifications = {}});
 
             continue;
         }
@@ -235,13 +113,11 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
                 continue;
             }
 
-            result.applicable.push_back(ApplicableMethod{
-                .method = method,
-                .parameter_set = &parameter_set,
-                .method_options = method_options,
-                .classifications = std::move(parameter_result.classifications),
-                .execution_assessments =
-                    assess_execution(*method, request.molecules, request.resource_policy)});
+            result.applicable.push_back(
+                ApplicableMethod{.method = method,
+                                 .parameter_set = &parameter_set,
+                                 .method_options = method_options,
+                                 .classifications = std::move(parameter_result.classifications)});
         }
     }
 

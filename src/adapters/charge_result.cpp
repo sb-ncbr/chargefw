@@ -119,7 +119,7 @@ auto validate_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
 // The warnings of the plan that ran. Record diagnostics find a molecule's warnings by binary
 // search.
 [[nodiscard]] auto plan_warnings(const calculation::ExecutionResult& execution)
-    -> std::span<const methods::ExecutionIssue> {
+    -> std::span<const calculation::ExecutionIssue> {
     if (!execution.effective.has_value()) {
         return {};
     }
@@ -129,7 +129,7 @@ auto validate_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
 auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> records,
                             const calculation::ExecutionResult& execution) -> void {
     const auto warnings = plan_warnings(execution);
-    if (!std::ranges::is_sorted(warnings, {}, &methods::ExecutionIssue::molecule_index)) {
+    if (!std::ranges::is_sorted(warnings, {}, &calculation::ExecutionIssue::molecule_index)) {
         throw std::invalid_argument{"plan warnings are not in molecule order"};
     }
     if (!warnings.empty() && warnings.back().molecule_index.has_value() &&
@@ -138,11 +138,11 @@ auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> record
     }
 }
 
-[[nodiscard]] auto plan_warning_diagnostic(const methods::ExecutionIssue& issue)
+[[nodiscard]] auto plan_warning_diagnostic(const calculation::ExecutionIssue& issue)
     -> ResultDiagnostic {
     auto diagnostic = ResultDiagnostic{};
     diagnostic.severity = DiagnosticSeverity::warning;
-    diagnostic.code = methods::to_string(issue.kind);
+    diagnostic.code = calculation::to_string(issue.kind);
     diagnostic.message = issue.message;
     diagnostic.molecule_index = issue.molecule_index;
     return diagnostic;
@@ -312,7 +312,7 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
         return issue->molecule_index;
     }
-    return std::get<methods::ExecutionIssue>(issue_value).molecule_index;
+    return std::get<calculation::ExecutionIssue>(issue_value).molecule_index;
 }
 
 } // namespace
@@ -427,7 +427,7 @@ auto charge_result_diagnostics(const ChargeCalculationResult& result)
         // Warnings without a molecule come first in molecule order.
         for (const auto& issue :
              std::ranges::equal_range(plan_warnings(*execution), std::optional<std::size_t>{}, {},
-                                      &methods::ExecutionIssue::molecule_index)) {
+                                      &calculation::ExecutionIssue::molecule_index)) {
             diagnostics.push_back(plan_warning_diagnostic(issue));
         }
     }
@@ -545,7 +545,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     if (execution != nullptr) {
         for (const auto& issue :
              std::ranges::equal_range(plan_warnings(*execution), std::optional{molecule_index}, {},
-                                      &methods::ExecutionIssue::molecule_index)) {
+                                      &calculation::ExecutionIssue::molecule_index)) {
             append_unique(diagnostics, seen, plan_warning_diagnostic(issue));
         }
     }
@@ -574,10 +574,10 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             diagnostic.location = issue->location;
             append_unique(diagnostics, seen, std::move(diagnostic));
         } else {
-            const auto& execution_issue = std::get<methods::ExecutionIssue>(issue_value);
+            const auto& execution_issue = std::get<calculation::ExecutionIssue>(issue_value);
             auto diagnostic = ResultDiagnostic{};
             diagnostic.severity = DiagnosticSeverity::error;
-            diagnostic.code = methods::to_string(execution_issue.kind);
+            diagnostic.code = calculation::to_string(execution_issue.kind);
             diagnostic.message = candidate + ": " + execution_issue.message;
             diagnostic.molecule_index = execution_issue.molecule_index;
             append_unique(diagnostics, seen, std::move(diagnostic));

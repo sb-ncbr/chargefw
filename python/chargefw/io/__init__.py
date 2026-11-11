@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from .._arrays import index_array
+from .._calculation_values import CalculationResult
 from .._chargefw import adapters as _native_adapters
 from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 from ..core import (
@@ -25,7 +26,6 @@ from ..core import (
 
 if TYPE_CHECKING:
     from .._chargefw.calculation import _NativeExecutionResult
-    from ..calculation import CalculationResult
 
 type InputFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
 type OutputFormat = Literal["mol2", "mmcif", "pqr", "result-json"]
@@ -249,8 +249,6 @@ def read(
 def _native_results(
     result: CalculationResult | Sequence[CalculationResult],
 ) -> list[_NativeExecutionResult]:
-    from ..calculation import CalculationResult
-
     results = [result] if isinstance(result, CalculationResult) else result
     if isinstance(results, (str, bytes)) or not isinstance(results, Sequence):
         raise TypeError("result must be a CalculationResult or a sequence of them")

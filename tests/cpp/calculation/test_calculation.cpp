@@ -640,7 +640,7 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
           calculation::ExecutionMode::full);
     REQUIRE(explicit_full_result.effective->execution_issues.size() == 1);
     CHECK(explicit_full_result.effective->execution_issues[0].kind ==
-          methods::ExecutionIssueKind::resource_threshold_exceeded);
+          calculation::ExecutionIssueKind::resource_threshold_exceeded);
 
     const auto unlimited_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},

@@ -155,7 +155,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
              .execution_policy =
                  calculation::ExecutionPolicy{calculation::ExecutionMode::cutoff, 8.0},
              .execution_issues = {
-                 {.kind = chargefw::methods::ExecutionIssueKind::resource_threshold_exceeded,
+                 {.kind = chargefw::calculation::ExecutionIssueKind::resource_threshold_exceeded,
                   .message = "full execution exceeds the shared threshold"}}}});
     const auto execution_metrics =
         adapters::ExecutionMetrics{.started_at = "2026-08-20T10:00:00.000Z",

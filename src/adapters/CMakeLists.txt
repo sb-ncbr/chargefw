@@ -10,10 +10,12 @@ target_sources(chargefw_core_objects
         native/mol2_output.cpp
         native/pqr_output.cpp
         native/sdf_input.cpp
-        input_options.cpp
+        conformer_selection.cpp
         molecule_record.cpp
         fixed_ions.cpp
+        imported_records.h
         gemmi/bonds.cpp
+        gemmi/input_options.cpp
         gemmi/structure_import.cpp
         gemmi/component_templates.cpp
         gemmi/mmcif_input.cpp

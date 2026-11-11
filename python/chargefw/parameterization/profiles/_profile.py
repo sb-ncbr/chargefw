@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 if TYPE_CHECKING:
     import numpy as np
 
-    from .. import Slot
+    from .._evaluator import Slot
 
 
 class Transform(Protocol):

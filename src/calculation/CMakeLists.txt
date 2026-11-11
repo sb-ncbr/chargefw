@@ -8,6 +8,7 @@ target_sources(chargefw_core_objects
         cover_execution.cpp
         cutoff_execution.cpp
         estimate.cpp
+        execution_assessment.cpp
         fixed_charge_partition.cpp
         full_execution.cpp
         input_issues.cpp
@@ -16,6 +17,7 @@ target_sources(chargefw_core_objects
         reduced_execution.cpp
         charge_checks.h
         cover_execution.h
+        execution_assessment.h
         fixed_charge_partition.h
         full_execution.h
         input_checks.h
@@ -32,6 +34,7 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/calculation.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/charge_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/assessment.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_policy.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/input_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/observer.h

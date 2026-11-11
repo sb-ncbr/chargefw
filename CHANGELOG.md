@@ -38,6 +38,12 @@
 
 ### C++
 
+- Breaking change: `methods::ExecutionIssue` and `methods::ExecutionIssueKind` are now
+  `calculation::ExecutionIssue` and `calculation::ExecutionIssueKind`, declared in
+  `<chargefw/calculation/execution_issues.h>`. Removed `methods::ExecutionAvailability`,
+  `methods::ExecutionAssessment`, and `methods::ApplicableMethod::execution_assessments`; read the
+  plans and rejections of an assessment instead. `<chargefw/methods/method_applicability.h>` no
+  longer includes a calculation header. Rebuild downstream C++ code.
 - Breaking change: an `ExecutionPlan` keeps the molecules and parameter sets of its assessment, so
   the functions that took an assessment and one of its plans take only the plan:
   `calculation::calculate(plan, ...)`, `calculate(plan, candidate, ...)`, `estimate(plan, ...)`,

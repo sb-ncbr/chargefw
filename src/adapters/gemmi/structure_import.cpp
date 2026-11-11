@@ -4,7 +4,7 @@
 #include "selection.h"
 
 #include "adapters/component.h"
-#include "adapters/native/common_input.h"
+#include "adapters/imported_records.h"
 
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
@@ -25,8 +25,6 @@
 
 namespace chargefw::adapters::gemmi::structure_import {
 namespace {
-
-namespace native_common = chargefw::adapters::native::common_input;
 
 struct ModelAtoms {
     std::vector<core::Atom> atoms;
@@ -381,9 +379,9 @@ auto make_record(const ::gemmi::Structure& structure,
         }
     }
 
-    return native_common::make_record(std::move(first.atoms), std::move(bonds),
-                                      std::move(conformers), std::move(identity), std::move(name),
-                                      std::move(issues), std::move(metadata));
+    return adapters::make_record(std::move(first.atoms), std::move(bonds), std::move(conformers),
+                                 std::move(identity), std::move(name), std::move(issues),
+                                 std::move(metadata));
 }
 
 } // namespace chargefw::adapters::gemmi::structure_import

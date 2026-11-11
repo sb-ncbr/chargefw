@@ -73,7 +73,7 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B8 |
-| A | Public API design | A4–A12 |
+| A | Public API design | A7–A12 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | T | Tests that protect nothing | T1–T25 |
@@ -171,18 +171,6 @@ for realistic input.
 ---
 
 ## A. Public API design
-
-### A4. `methods` depends on a `calculation` header (design-sensitive)
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/methods/method_applicability.h:3` includes
-  `chargefw/calculation/execution_policy.h` for `calculation::ExecutionMode`;
-  `src/methods/find_applicable_methods.h:25` and `src/methods/method_applicability.cpp:39-40` use
-  `calculation::ResourcePolicy`.
-- **Problem:** the lower layer includes a header of the layer built on top of it.
-- **Check:** `grep -rn "calculation::" src/methods include/chargefw/methods`.
-- **Fix:** not proposed here. The options are to move `ExecutionMode` and `ResourcePolicy` down, or to
-  move the execution-assessment part of applicability up into `calculation`. Sketch first.
 
 ### A7. `JsonWriter::write` does not check stream failure
 

@@ -14,7 +14,7 @@ from .._arrays import as_integer
 from .._chargefw import parameterization as _native_parameterization
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
-from ..calculation import Plan
+from ..calculation import Plan, _native_catalog_for
 
 
 class EvaluationError(RuntimeError):
@@ -316,8 +316,6 @@ def _slot_values(
 ) -> dict[tuple[AtomParameterKey | BondParameterKey | None, str], float]:
     """Every value of a parameter set, by (key, parameter name); the key is None for common
     parameters."""
-
-    from ..calculation import _native_catalog_for
 
     catalog = _native_catalog_for(parameter_set)
     layout, values = _native_parameterization._parameter_values(catalog, parameter_set.id)

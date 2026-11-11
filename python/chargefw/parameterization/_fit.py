@@ -11,20 +11,15 @@ from typing import Literal, SupportsIndex
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .._chargefw import parameterization as _native_parameterization
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
-from ..calculation import (
-    _check_custom_parameter_id,
-    _native_catalog_for,
-    _parameter_set_from_catalog,
-)
 from . import profiles
 from ._compression import CompressionError, compress, determined_step
 from ._coordinates import _Coordinates
 from ._diagnostics import Diagnostics, _diagnostics, _spectrum_of_gram, _spectrum_of_jacobian
 from ._evaluator import EvaluationError, Evaluator, Slot, _slot_values
 from ._observer import FitObserver, FitProgress
+from ._template import _with_values
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -65,24 +60,6 @@ class FitResult:
         """
 
         return _with_values(self._parameter_set, self.values, id, name, publication, notes)
-
-
-def _with_values(
-    source: ParameterSet,
-    values: NDArray[np.float64],
-    id: str,
-    name: str,
-    publication: str,
-    notes: str,
-) -> ParameterSet:
-    """A copy of `source` with `values` in layout order and new metadata."""
-
-    _check_custom_parameter_id(id)
-    catalog = _native_catalog_for(source)
-    native = _native_parameterization._with_values(
-        catalog, source.id, np.ascontiguousarray(values), id, name, publication, notes
-    )
-    return _parameter_set_from_catalog(native)
 
 
 class _Cancelled(Exception):

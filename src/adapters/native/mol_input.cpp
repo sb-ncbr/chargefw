@@ -1,6 +1,8 @@
 #include <chargefw/adapters/native/mol_input.h>
 
 #include "common_input.h"
+
+#include "adapters/imported_records.h"
 #include "mol_record_parser.h"
 
 #include <chargefw/core/atom.h>
@@ -408,7 +410,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     auto conformers = std::vector<core::Conformer>{};
     auto conformer_references = std::vector<SourceConformerReference>{};
     if (!parsed.aromatic_bonds.empty()) {
-        parsed.issues.push_back(common::aromatic_bonds_issue(std::move(parsed.aromatic_bonds)));
+        parsed.issues.push_back(adapters::aromatic_bonds_issue(std::move(parsed.aromatic_bonds)));
     }
     if (drawing) {
         parsed.issues.push_back(ImportIssue{
@@ -432,9 +434,9 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         .source_connectivity = parsed.source_connectivity,
         .components = {},
     };
-    return common::make_record(std::move(parsed.atoms), std::move(parsed.bonds),
-                               std::move(conformers), std::move(identity), {},
-                               std::move(parsed.issues), std::move(metadata));
+    return adapters::make_record(std::move(parsed.atoms), std::move(parsed.bonds),
+                                 std::move(conformers), std::move(identity), {},
+                                 std::move(parsed.issues), std::move(metadata));
 }
 
 } // namespace

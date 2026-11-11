@@ -1,7 +1,5 @@
 #include "common_input.h"
 
-#include <chargefw/core/molecule.h>
-
 #include <gemmi/atof.hpp>
 
 #include <charconv>
@@ -119,37 +117,6 @@ auto bond_order(const std::string_view value, const ::chargefw::adapters::native
         value, format == ::chargefw::adapters::native::BondFormat::mol ? "MOL bond order"
                                                                        : "MOL2 bond type");
     return core::bond_order_from_value(numeric_value == 4 ? 1 : numeric_value);
-}
-
-auto aromatic_bonds_issue(std::vector<std::size_t> bonds) -> ImportIssue {
-    const auto count = bonds.size();
-    const auto first = bonds.front();
-    return ImportIssue{
-        .kind = ImportIssueKind::aromatic_bonds_converted,
-        .message = std::to_string(count) +
-                   (count == 1 ? " aromatic bond was" : " aromatic bonds were") +
-                   " read as single bonds; methods that use bond orders then give other charges "
-                   "than for the Kekulé structure. Write the file with Kekulé bonds to avoid "
-                   "this.",
-        .line = std::nullopt,
-        .location = {.bond_index = first, .bond_indices = std::move(bonds)}};
-}
-
-auto make_record(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds,
-                 std::vector<core::Conformer> conformers, MoleculeRecordIdentity identity,
-                 std::string name, std::vector<ImportIssue> issues,
-                 std::optional<MoleculeImportMetadata> import_metadata) -> ImportedMoleculeRecord {
-    if (name.empty()) {
-        name = identity.record_id.display_string();
-    }
-
-    return ImportedMoleculeRecord{.molecule =
-                                      core::Molecule{std::move(atoms), std::move(bonds),
-                                                     std::move(conformers), std::move(name)},
-                                  .identity = std::move(identity),
-                                  .caller_atom_ids = std::nullopt,
-                                  .issues = std::move(issues),
-                                  .import_metadata = std::move(import_metadata)};
 }
 
 } // namespace chargefw::adapters::native::common_input

@@ -23,6 +23,10 @@ target_include_directories(test_observer PRIVATE
 
 chargefw_add_snitch_test(test_execution_policy
         test_execution_policy.cpp
+        test_execution_assessment.cpp
+)
+target_include_directories(test_execution_policy PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
 )
 
 chargefw_add_snitch_test(test_calculation_targets

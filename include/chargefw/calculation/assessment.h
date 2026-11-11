@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chargefw/calculation/execution_issues.h>
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/core/molecule_collection.h>
@@ -53,12 +54,12 @@ class ExecutionPlan {
     [[nodiscard]] auto parameter_set() const noexcept -> const parameters::ParameterSet*;
     [[nodiscard]] auto method_options() const noexcept -> const methods::MethodOptions&;
     [[nodiscard]] auto policy() const noexcept -> const ExecutionPolicy&;
-    [[nodiscard]] auto warnings() const noexcept -> std::span<const methods::ExecutionIssue>;
+    [[nodiscard]] auto warnings() const noexcept -> std::span<const ExecutionIssue>;
 
   private:
     ExecutionPlan(std::shared_ptr<const detail::AssessmentState> state,
                   const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
-                  std::vector<methods::ExecutionIssue> warnings);
+                  std::vector<ExecutionIssue> warnings);
 
     // The parameter entries matched during assessment, one classification per calculated molecule.
     // Its atom indices cover every atom when the parameter set has atom entries, and its bond
@@ -92,10 +93,10 @@ class ExecutionPlan {
     // Points into state_.
     const methods::ApplicableMethod* candidate_ = nullptr;
     ExecutionPolicy policy_{};
-    std::vector<methods::ExecutionIssue> warnings_;
+    std::vector<ExecutionIssue> warnings_;
 };
 
-using RejectionIssue = std::variant<methods::PrerequisiteIssue, methods::ExecutionIssue>;
+using RejectionIssue = std::variant<methods::PrerequisiteIssue, ExecutionIssue>;
 
 // A scientific candidate or concrete execution policy excluded during assessment. A missing policy
 // means the candidate failed before a runnable plan could be formed.

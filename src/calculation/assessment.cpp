@@ -1,6 +1,7 @@
 #include <chargefw/calculation/assessment.h>
 
 #include "assessment_state.h"
+#include "execution_assessment.h"
 #include "fixed_charge_partition.h"
 #include "input_checks.h"
 
@@ -53,14 +54,6 @@ namespace {
         return first.method->id() < second.method->id();
     }
     return parameter_id_of(first) < parameter_id_of(second);
-}
-
-[[nodiscard]] auto assessment_for(const methods::ApplicableMethod& candidate,
-                                  const ExecutionMode mode) -> const methods::ExecutionAssessment* {
-    const auto found = std::ranges::find_if(
-        candidate.execution_assessments,
-        [mode](const methods::ExecutionAssessment& assessment) { return assessment.mode == mode; });
-    return found == candidate.execution_assessments.end() ? nullptr : &*found;
 }
 
 [[nodiscard]] auto ranked_candidates(const methods::ApplicabilityResult& applicability)
@@ -261,7 +254,7 @@ AssessmentResult::AssessmentResult(AssessmentResult&& other) noexcept
 
 ExecutionPlan::ExecutionPlan(std::shared_ptr<const detail::AssessmentState> state,
                              const methods::ApplicableMethod& candidate, ExecutionPolicy policy,
-                             std::vector<methods::ExecutionIssue> warnings)
+                             std::vector<ExecutionIssue> warnings)
     : state_{std::move(state)}, candidate_{&candidate}, policy_{policy},
       warnings_{std::move(warnings)} {}
 
@@ -281,7 +274,7 @@ auto ExecutionPlan::policy() const noexcept -> const ExecutionPolicy& {
     return policy_;
 }
 
-auto ExecutionPlan::warnings() const noexcept -> std::span<const methods::ExecutionIssue> {
+auto ExecutionPlan::warnings() const noexcept -> std::span<const ExecutionIssue> {
     return warnings_;
 }
 
@@ -323,7 +316,6 @@ auto AssessmentResult::assess_prepared(
                                           .methods = applicable_methods,
                                           .parameter_sets = state->parameter_sets,
                                           .classification_options = classification_options,
-                                          .resource_policy = resource_policy,
                                           .method_options = method_options});
     rejections.reserve(rejections.size() + state->applicability.rejected.size());
     for (const auto& candidate : state->applicability.rejected) {
@@ -360,7 +352,7 @@ auto AssessmentResult::assess_prepared(
     const auto append_rejection = [&rejections,
                                    &policy_for](const methods::ApplicableMethod& candidate,
                                                 const ExecutionMode mode,
-                                                const methods::ExecutionAssessment& assessment) {
+                                                const detail::ExecutionAssessment& assessment) {
         auto issues = std::vector<RejectionIssue>{};
         issues.reserve(assessment.issues.size());
         for (const auto& issue : assessment.issues) {
@@ -373,20 +365,19 @@ auto AssessmentResult::assess_prepared(
             .issues = std::move(issues),
         });
     };
-    const auto consider_mode = [&state, &plans, &policy_for, &append_rejection](
+    const auto consider_mode = [&state, &plans, &resource_policy, &policy_for, &append_rejection](
                                    const methods::ApplicableMethod& candidate,
                                    const ExecutionMode mode, const bool permit_warnings) {
-        const auto* assessment = assessment_for(candidate, mode);
-        if (assessment == nullptr) {
-            return;
-        }
-        if (assessment->availability == methods::ExecutionAvailability::unsupported ||
+        auto assessment = detail::assess_execution(*candidate.method, state->prepared_molecules,
+                                                   resource_policy, mode);
+        if (assessment.availability == detail::ExecutionAvailability::unsupported ||
             (!permit_warnings &&
-             assessment->availability == methods::ExecutionAvailability::available_with_warning)) {
-            append_rejection(candidate, mode, *assessment);
+             assessment.availability == detail::ExecutionAvailability::available_with_warning)) {
+            append_rejection(candidate, mode, assessment);
             return;
         }
-        plans.push_back(ExecutionPlan{state, candidate, policy_for(mode), assessment->issues});
+        plans.push_back(
+            ExecutionPlan{state, candidate, policy_for(mode), std::move(assessment.issues)});
     };
 
     for (const auto* candidate : candidates) {

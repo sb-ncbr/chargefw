@@ -264,7 +264,8 @@ TEST_CASE("plan warnings go to their molecule's record or to the document", "[ad
     const auto records = std::vector(
         2,
         adapters::ImportedMoleculeRecord{.molecule = core::Molecule{std::vector{core::Atom{6}}}});
-    const auto make_result = [&records](std::vector<chargefw::methods::ExecutionIssue> warnings) {
+    const auto make_result = [&records](
+                                 std::vector<chargefw::calculation::ExecutionIssue> warnings) {
         auto effective = full_effective("eem");
         effective.execution_issues = std::move(warnings);
         return adapters::make_charge_calculation_result(
@@ -272,8 +273,8 @@ TEST_CASE("plan warnings go to their molecule's record or to the document", "[ad
             {.status = calculation::ExecutionStatus::cancelled, .effective = std::move(effective)});
     };
     const auto threshold = [](std::optional<std::size_t> molecule_index) {
-        return chargefw::methods::ExecutionIssue{
-            .kind = chargefw::methods::ExecutionIssueKind::resource_threshold_exceeded,
+        return chargefw::calculation::ExecutionIssue{
+            .kind = chargefw::calculation::ExecutionIssueKind::resource_threshold_exceeded,
             .message = "above the limit",
             .molecule_index = molecule_index};
     };
