@@ -404,16 +404,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   caller is `tests/cpp/methods/test_method_applicability.cpp:37`.
 - **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
 
-### D6. Unreachable classification-count check
-
-- **Status:** reported.
-- **Where:** `src/methods/method_applicability.cpp:60-79` (`valid_classification_count`,
-  `make_invalid_classification_count_issue`) and the `if` at `:265-271`.
-- **Reason:** `:188-194` throws for methods with only common parameters, and the collection
-  `check_parameter_prerequisites` returns either issues or exactly one classification per molecule
-  (`src/methods/parameter_prerequisites.cpp:169-196`). `validate_selected_candidate` checks the count
-  again at execution (`src/methods/applicable_method_execution.cpp:40-45`).
-
 ### D8. Line counter threaded through the MOL2 reader — never read
 
 - **Status:** reported.
