@@ -50,7 +50,17 @@ matched. Now a plan shares ownership of the assessed data and is complete on its
   `source_molecules(plan)`, `molecules(plan)` (prepared), `partition(plan)`, `classifications(plan)`,
   `with_values(plan, candidate)`.
 - Callers updated: `apps/chargefw/{main,reports}.cpp`, `python/src/{calculation,parameterization}.cpp`
-  (binding internals only; the Python API is unchanged), and the C++ tests.
+  (binding internals only), and the C++ tests.
+
+### Python API
+
+- `chargefw.calculate(molecules, plan, threads=..., observer=...)` is replaced by
+  `plan.calculate(threads=None, observer=None)`, next to `plan.estimate()`. `chargefw.calculate()`
+  takes only molecules and selection arguments; its `threads` default is now `0`, as in `assess()`.
+- `Plan._matches` and the `_Default`/`_OmittedPlan` sentinels that refused selection arguments with a
+  plan are gone, with their tests. The observer types and `_outcome` moved to
+  `python/chargefw/_calculation_values.py` so that `Plan` can use them.
+- `NativePlan` in the binding is unchanged.
 
 ### Documentation
 
@@ -66,6 +76,8 @@ matched. Now a plan shares ownership of the assessed data and is complete on its
 - `clang-asan`: `test_calculation`, `test_fixed_ion_planning`, `test_normal_equations`, and
   `test_parameter_entries` pass, including a test that calculates with a plan copied out of an
   assessment that was already destroyed.
+- Python API change: all 12 Python CTest tests pass, including mypy and the examples; pytest over
+  `tests/python` in a uv venv with system site packages plus RDKit gives 169 passed, none skipped.
 
 Not run: `clang-debug`, `clang-ubsan`, `clang-tidy`, mypy with gemmi, the full ASan suite.
 
@@ -80,17 +92,12 @@ Not run: `clang-debug`, `clang-ubsan`, `clang-tidy`, mypy with gemmi, the full A
 
 ## Open follow-ups
 
-1. **Python API.** `chargefw.calculate(molecules, plan)` takes the molecules only to check they are
-   the same objects (`python/chargefw/calculation.py`, `Plan._matches`). Mirror the C++ change with
-   `plan.calculate()` or `chargefw.calculate(plan)`. The binding's `NativePlan` keeps
-   `shared_ptr<NativeAssessmentState>` plus an index; that state is still needed for the imported
-   records and the request, so holding a copied `ExecutionPlan` there gains little.
-2. **Reusing a plan's choices on other molecules.** Proposed, not designed: `Plan.settings`, a fully
+1. **Reusing a plan's choices on other molecules.** Proposed, not designed: `Plan.settings`, a fully
    explicit `RequestedCalculation` (method, parameter set, options, parameter matching, execution mode
    and radius, fixed ions), accepted by `calculate(molecules, settings)` and `assess()`. It reassesses
    the new molecules with exactly those choices and fails instead of falling back. The name is open:
    "requested" describes what was asked, not reusable settings. Design-sensitive: sketch it and get
    user review first.
-3. **Deprecation.** Decide whether outside C++ users of 3.0.0 need `[[deprecated]]` overloads with the
+2. **Deprecation.** Decide whether outside C++ users of 3.0.0 need `[[deprecated]]` overloads with the
    old `(assessment, plan, ...)` signatures for one release.
-4. **Remaining qualification** listed under "Not run" above, before release.
+3. **Remaining qualification** listed under "Not run" above, before release.

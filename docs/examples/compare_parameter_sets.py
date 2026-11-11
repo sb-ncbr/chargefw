@@ -39,7 +39,7 @@ def compare_parameter_sets(
         parameter_set = plan.parameter_set
         if parameter_set is None:
             raise RuntimeError(f"{method_id!r} produced a plan without a parameter set")
-        result = chargefw.calculate(molecules, plan)
+        result = plan.calculate()
         executable.append((parameter_set.id, result.assignments[0].values))
 
     if not executable:

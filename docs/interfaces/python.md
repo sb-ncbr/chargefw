@@ -391,29 +391,28 @@ that `calculate()` would use, the `input_warnings` of all molecules, and the tim
 set, all option values, `execution` with the execution mode and radius, and warnings.
 `plan.parameter_set` is `None` for methods without parameter sets.
 
-Calculate a plan by passing it after the molecules; the molecules are not prepared again. A plan
-estimates its memory and number of operations before you run it:
+`plan.calculate()` calculates the molecules the plan was assessed with; they are not prepared
+again. A plan estimates its memory and number of operations before you run it:
 
 ```python
 plan = assessment.default_plan
 if plan is not None:
     estimate = plan.estimate(threads=4)
     print(estimate.memory_bytes / 2**30, estimate.operations)
-    result = chargefw.calculate(molecule, plan, threads=4)
+    result = plan.calculate(threads=4)
 ```
 
 [Threads and estimates](../guide/large-structures.md#threads-and-estimates) explains the numbers.
-`threads=None` in `estimate()` uses the `threads` of the assessment, and `threads` in `calculate()`
-overrides it for one calculation.
+`threads=None` in `estimate()` and `calculate()` uses the `threads` of the assessment; another value
+overrides it for that call.
 
-A plan works only with the molecules it was assessed with: the same molecule objects, in the same
-order, in a collection with the same name; copies or other molecules are rejected. Selection arguments,
-including `fixed_ions`, cannot be given together with a plan. A plan
-stays usable after the assessment is deleted, and several threads can calculate the same plan at once.
+A plan keeps its molecules and stays usable after the assessment is deleted. Several threads can
+calculate the same plan at once. To calculate other molecules, assess them.
 
 ## Progress and cancellation
 
-Pass a subclass of `chargefw.CalculationObserver` as `observer` to receive progress and to cancel:
+Pass a subclass of `chargefw.CalculationObserver` as `observer` to `calculate()` or `plan.calculate()`
+to receive progress and to cancel:
 
 ```python
 from threading import Event, Lock

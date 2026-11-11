@@ -9,8 +9,7 @@ indices of molecules, atoms, bonds, and conformers count from zero.
 | Function | Returns |
 | --- | --- |
 | `chargefw.calculate(molecules, *, method=None, parameter_set=None, ...)` | `CalculationResult`; the arguments are listed in [Calculating charges](../interfaces/python.md#calculating-charges) |
-| `chargefw.calculate(molecules, plan, *, threads=None, observer=None)` | `CalculationResult` of a `Plan` from `assess()`; omit `plan` rather than passing `None` |
-| `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `plan` and `observer` |
+| `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `observer` |
 | `chargefw.read_parameter_set(path)` | `ParameterSet` read from your own JSON file |
 | `chargefw.write_parameter_set(path, parameter_set)` | Writes a parameter set as JSON |
 | `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a file |
@@ -72,8 +71,7 @@ the arguments. `len(molecule)` is its number of atoms.
 ### MoleculeCollection
 
 `MoleculeCollection(molecules, name=None)` holds molecules in order. Index it and iterate over it
-like a tuple; `molecules` returns the tuple. A [plan](#plan) works only with the collection it was
-assessed with, which includes having the same `name`.
+like a tuple; `molecules` returns the tuple.
 
 ### ImportIssue
 
@@ -216,8 +214,7 @@ The arguments of a call as ChargeFW read them: `method` and `parameter_set` as I
 | --- | --- |
 | `method`, `parameter_set`, `options`, `execution`, `warnings` | As in `ExecutedPlan` |
 | `estimate(threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
-
-Pass a plan to `calculate()` after the molecules it was assessed with.
+| `calculate(*, threads=None, observer=None)` | `CalculationResult` for the molecules the plan was assessed with; raises and warns as `chargefw.calculate()` does |
 
 ### Rejection
 

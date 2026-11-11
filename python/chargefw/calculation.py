@@ -5,13 +5,13 @@ from __future__ import annotations
 import os
 import warnings
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
 from threading import Lock
-from typing import cast
 
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._calculation_values import (
     CalculationCancelledError,
+    CalculationObserver,
+    CalculationProgress,
     CalculationResult,
     CalculationTimings,
     ChargeFWError,
@@ -26,29 +26,20 @@ from ._calculation_values import (
     Rejection,
     ResourceEstimate,
     _input_issues,
+    _observer_adapter,
+    _outcome,
     _rejections,
 )
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
-from ._payloads import CalculationProgressPayload
 from ._public import set_public_module
 from ._types import (
-    CalculationPhase,
-    ExecutionMode,
     MethodOptionValue,
     MethodScope,
     ParameterMatching,
     RequestedExecution,
-)
-from ._warnings import (
-    CHARGE_WARNING_KINDS,
-    INPUT_WARNING_KINDS,
-    ChargeFWWarning,
-    ChargeWarning,
-    InputWarning,
-    issue_warnings,
 )
 from .core import Molecule, MoleculeCollection
 
@@ -81,57 +72,10 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True, slots=True)
-class CalculationProgress:
-    """Owned snapshot of one native calculation progress event."""
-
-    phase: CalculationPhase
-    mode: ExecutionMode
-    method_id: str
-    target_index: int
-    target_count: int
-    completed_fragment_count: int
-    fragment_count: int
-    molecule_index: int
-    conformer_index: int | None
-    elapsed_seconds: float
-
-
-class CalculationObserver:
-    """Receives progress events and optionally requests cooperative cancellation."""
-
-    def on_progress(self, progress: CalculationProgress) -> None:
-        """Handle a progress snapshot. Implementations must be thread-safe."""
-
-    def cancelled(self) -> bool:
-        """Return whether the running calculation should stop."""
-
-        return False
-
-
-class _NativeObserverAdapter:
-    __slots__ = ("_observer",)
-
-    def __init__(self, observer: CalculationObserver) -> None:
-        self._observer = observer
-
-    def on_progress(self, progress: CalculationProgressPayload) -> None:
-        self._observer.on_progress(CalculationProgress(**progress))
-
-    def cancelled(self) -> bool:
-        return self._observer.cancelled()
-
-
-def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAdapter | None:
-    if observer is None:
-        return None
-    if not isinstance(observer, CalculationObserver):
-        raise TypeError("observer must be a CalculationObserver or None")
-    return _NativeObserverAdapter(observer)
-
-
 set_public_module(
     __name__,
+    CalculationProgress,
+    CalculationObserver,
     RequestedCalculation,
     Execution,
     ExecutedPlan,
@@ -369,113 +313,58 @@ def assess(
     return Assessment(native, collection, requested, catalog)
 
 
-class _OmittedPlan:
-    def __repr__(self) -> str:
-        return "<automatic>"
-
-
-_OMITTED_PLAN = _OmittedPlan()
-
-
-class _Default:
-    """A default argument value that records that the caller did not pass the argument."""
-
-    __slots__ = ("value",)
-
-    def __init__(self, value: object) -> None:
-        self.value = value
-
-    def __repr__(self) -> str:
-        return repr(self.value)
-
-
-def _passed[T](value: T) -> bool:
-    return not isinstance(value, _Default)
-
-
-def _value[T](value: T) -> T:
-    return cast(T, value.value) if isinstance(value, _Default) else value
-
-
 def calculate(
     molecules: Molecule | MoleculeCollection | Iterable[Molecule],
-    plan: Plan = cast(Plan, _OMITTED_PLAN),
     *,
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
-    method_scope: MethodScope = cast(MethodScope, _Default("recommended")),
+    method_scope: MethodScope = "recommended",
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
-    parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
-    execution: RequestedExecution = cast(RequestedExecution, _Default("auto")),
+    parameter_matching: ParameterMatching = "strict",
+    execution: RequestedExecution = "auto",
     radius: float | None = None,
-    cutoff_threshold: int | None = cast(
-        int, _Default(_native_calculation._default_cutoff_atom_threshold)
-    ),
-    cover_threshold: int | None = cast(
-        int, _Default(_native_calculation._default_cover_atom_threshold)
-    ),
-    threads: int | None = None,
+    cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
+    cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
+    threads: int = 0,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,
 ) -> CalculationResult:
-    """Calculate molecules directly, or execute an explicitly assessed plan.
+    """Assess the molecules and calculate the default plan.
 
-    Direct calculation assesses the input and uses the default plan. Without an explicit method,
-    selection uses the deterministic catalog order among applicable methods.
+    Without an explicit method, selection uses the deterministic catalog order among applicable
+    methods. To choose another plan, use ``assess()`` and ``Plan.calculate()``.
     """
 
     collection = _as_collection(molecules)
     native_observer = _observer_adapter(observer)
-    if isinstance(plan, _OmittedPlan):
-        assessment = assess(
+    assessment = assess(
+        collection,
+        method=method,
+        parameter_set=parameter_set,
+        method_scope=method_scope,
+        options=options,
+        options_by_method=options_by_method,
+        parameter_matching=parameter_matching,
+        execution=execution,
+        radius=radius,
+        cutoff_threshold=cutoff_threshold,
+        cover_threshold=cover_threshold,
+        threads=threads,
+        fixed_ions=fixed_ions,
+    )
+    plan = assessment.default_plan
+    if plan is None:
+        result = CalculationResult(
+            assessment._native.calculate_default(native_observer),
             collection,
-            method=method,
-            parameter_set=parameter_set,
-            method_scope=_value(method_scope),
-            options=options,
-            options_by_method=options_by_method,
-            parameter_matching=_value(parameter_matching),
-            execution=_value(execution),
-            radius=radius,
-            cutoff_threshold=_value(cutoff_threshold),
-            cover_threshold=_value(cover_threshold),
-            threads=0 if threads is None else threads,
-            fixed_ions=fixed_ions,
+            assessment._requested,
+            methods,
+            assessment._parameter_sets,
+            assessment.rejections,
         )
-        if assessment.default_plan is None:
-            result = CalculationResult(
-                assessment._native.calculate_default(native_observer),
-                collection,
-                assessment._requested,
-                methods,
-                assessment._parameter_sets,
-                assessment.rejections,
-            )
-        else:
-            result = _calculate_plan(collection, assessment.default_plan, threads, native_observer)
     else:
-        if plan is None or not isinstance(plan, Plan):
-            raise TypeError("plan must be a Plan; omit it to use automatic assessment")
-        if any(
-            (
-                method is not None,
-                parameter_set is not None,
-                _passed(method_scope),
-                options is not None,
-                options_by_method is not None,
-                _passed(parameter_matching),
-                _passed(execution),
-                radius is not None,
-                _passed(cutoff_threshold),
-                _passed(cover_threshold),
-                fixed_ions is not None,
-            )
-        ):
-            raise TypeError("selection arguments cannot be combined with an assessed plan")
-        if not plan._matches(collection):
-            raise ValueError("plan was assessed for a different molecule collection")
-        result = _calculate_plan(collection, plan, threads, native_observer)
+        result = plan._execute(None, native_observer)
 
     # Raised here rather than in a helper, so that the traceback ends at this function.
     error, cautions = _outcome(result)
@@ -484,66 +373,6 @@ def calculate(
     for message, category in cautions:
         warnings.warn(message, category, stacklevel=2)
     return result
-
-
-def _calculate_plan(
-    collection: MoleculeCollection,
-    plan: Plan,
-    threads: int | None,
-    native_observer: _NativeObserverAdapter | None,
-) -> CalculationResult:
-    normalized_threads = None if threads is None else RequestedCalculation(threads=threads).threads
-    requested = (
-        plan._requested
-        if normalized_threads is None
-        else replace(plan._requested, threads=normalized_threads)
-    )
-    result = CalculationResult(
-        plan._calculate(normalized_threads, native_observer),
-        collection,
-        requested,
-        methods,
-        plan._parameter_sets,
-    )
-    return result
-
-
-def _outcome(
-    result: CalculationResult,
-) -> tuple[ChargeFWError | None, list[tuple[str, type[ChargeFWWarning]]]]:
-    """The error of a failed calculation, or the warnings about issues that can make charges wrong.
-
-    A failure has no warnings: its error carries the issues in its result, also when warnings are
-    turned into errors.
-    """
-
-    error = result._status_error()
-    if error is not None:
-        return error, []
-    molecules = result.molecules
-
-    def describe(index: int) -> str:
-        name = molecules[index].name
-        return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
-
-    return None, [
-        *issue_warnings(
-            ((issue.molecule_index, issue) for issue in result.input_warnings),
-            kinds=INPUT_WARNING_KINDS,
-            category=InputWarning,
-            molecule_count=len(molecules),
-            describe=describe,
-            attribute="result.input_warnings",
-        ),
-        *issue_warnings(
-            ((issue.molecule_index, issue) for issue in result.charge_warnings),
-            kinds=CHARGE_WARNING_KINDS,
-            category=ChargeWarning,
-            molecule_count=len(molecules),
-            describe=describe,
-            attribute="result.charge_warnings",
-        ),
-    ]
 
 
 set_public_module(__name__, Assessment)
