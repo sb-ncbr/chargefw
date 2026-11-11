@@ -11,11 +11,29 @@
 
 namespace chargefw::adapters::native::common_input {
 
+auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::size_t line) -> void {
+    const auto context =
+        (identity.source.empty() ? "line " : identity.source + ":") + std::to_string(line) +
+        ": record " + std::to_string(identity.record_index + 1) +
+        (identity.record_id.empty() ? "" : " ('" + identity.record_id.display_string() + "')") +
+        ": ";
+    try {
+        throw;
+    } catch (const std::invalid_argument& error) {
+        throw std::invalid_argument{context + error.what()};
+    } catch (const std::out_of_range& error) {
+        throw std::out_of_range{context + error.what()};
+    } catch (const std::runtime_error& error) {
+        throw std::runtime_error{context + error.what()};
+    }
+}
+
 auto read_line(std::istream& input, std::size_t& line, const std::string_view record_name)
     -> std::string {
     std::string result;
 
     if (!std::getline(input, result)) {
+        ++line;
         throw std::runtime_error{"unexpected end of " + std::string{record_name} + " record"};
     }
 

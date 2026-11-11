@@ -1,5 +1,6 @@
-#include <chargefw/adapters/native/mol_input.h>
 #include <chargefw/adapters/native/sdf_input.h>
+
+#include "mol_record_parser.h"
 
 #include <istream>
 #include <string>
@@ -27,10 +28,11 @@ auto at_end_of_records(std::istream& input) -> bool {
     return false;
 }
 
-auto consume_to_sdf_delimiter(std::istream& input) -> void {
+auto consume_to_sdf_delimiter(std::istream& input, std::size_t& line_number) -> void {
     std::string line;
 
     while (std::getline(input, line)) {
+        ++line_number;
         if (line.ends_with('\r')) {
             line.pop_back();
         }
@@ -52,9 +54,9 @@ auto SdfReader::next() -> std::optional<ImportedMoleculeRecord> {
 
     const auto identity =
         MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}};
-    auto result = mol_input::parse_mol(*input_, identity);
+    auto result = mol_input::parse_mol(*input_, identity, line_);
     result.import_metadata->format = MolecularSourceFormat::sdf;
-    consume_to_sdf_delimiter(*input_);
+    consume_to_sdf_delimiter(*input_, line_);
     return result;
 }
 

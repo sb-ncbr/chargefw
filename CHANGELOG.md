@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Input
+
+- Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
+
 ### Installation
 
 - On x86-64, the wheels, the Docker image, and source builds target x86-64-v3 (AVX2 and FMA: Intel

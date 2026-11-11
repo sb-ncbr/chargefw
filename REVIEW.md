@@ -171,24 +171,6 @@ for realistic input.
   which require interpretation or explicit rejection. Do not replace the current rejection with
   blanket block skipping. The supported subset is documented in `docs/reference/formats.md`.
 
-### B8. `ImportIssue::line` restarts at each SDF record
-
-- **Status:** reported.
-- **Where:** `src/adapters/native/mol_input.cpp:423` (`std::size_t line = 0;` per `parse_mol` call),
-  used at `:179`, `:356`, `:398`.
-- **Problem:** `include/chargefw/adapters/molecule_record.h:203` documents "One-based line in the
-  source file" and `schemas/result-1.0.schema.json:227` says "One-based source line number". For SDF
-  records after the first, the number counts from the start of the record.
-- **Check:** read an SDF with an ignored V2000 property in its second record and inspect the issue's
-  line. Tests assert lines only for first records.
-- **Fix:** let `SdfReader` keep a running line count (an internal `parse_mol` overload taking
-  `std::size_t& line`, and count lines in `consume_to_sdf_delimiter`). The alternative is to change
-  both descriptions to "line within the record".
-- **Resolution:** document. The number is useful either way, and the record index is reported with
-  it. Change the comment in `molecule_record.h`, the description in the result schema, and the
-  sentence about line numbers in `docs/reference/formats.md` to say that the line is counted within
-  the record.
-
 ---
 
 ## L. Lifetime and misuse traps
@@ -315,14 +297,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   `src/methods/method_applicability.cpp:90`.
 - `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): no callers.
 - **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
-
-### D8. Line counter threaded through the MOL2 reader — never read
-
-- **Status:** reported.
-- **Where:** `src/adapters/native/mol2_input.cpp`: `std::size_t& line` is passed through `next_line`,
-  `next_section`, `read_atoms`, `read_bonds`, `read_formal_charges`, and `parse_record`, but every
-  MOL2 issue sets `.line = std::nullopt`.
-- **Fix:** remove the parameter, or use it to report lines (which would be the better outcome).
 
 ### D9. `SourceIdentity.source_name` — no user
 

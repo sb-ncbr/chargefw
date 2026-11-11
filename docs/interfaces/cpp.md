@@ -186,6 +186,9 @@ The [mmCIF reference](../reference/formats.md#mmcif) describes when results are 
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
 records stay valid after the reader is destroyed.
 
+If you supply a stream already positioned partway through a MOL, SDF, or MOL2 file, diagnostic
+line numbers start at that position instead of the beginning of the file.
+
 `ImportedMoleculeRecord` holds the molecule, its source identity, import diagnostics, and optional
 `MoleculeImportMetadata`: the source atoms (`SourceAtomReference`), conformers
 (`SourceConformerReference`), structural labels, connectivity, and residues

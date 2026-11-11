@@ -346,6 +346,55 @@ TEST_CASE("native MOL and SDF input report ignored properties and bond orders",
     }
 }
 
+TEST_CASE("native reader diagnostics use file lines across records", "[adapters][native]") {
+    std::istringstream unnamed_input{"broken\n"};
+    CHECK_THROWS_MATCHES(mol::parse_mol(unnamed_input, {}), std::runtime_error,
+                         snitch::matchers::with_what_contains{"line 2: record 1 ('broken'):"});
+
+    for (const auto newline : {std::string_view{"\n"}, std::string_view{"\r\n"}}) {
+        const auto input_text = [newline](const std::string_view text) {
+            std::string result;
+            for (const char character : text) {
+                if (character == '\n') {
+                    result += newline;
+                } else {
+                    result += character;
+                }
+            }
+            return result;
+        };
+        const std::string mol_record{
+            "\n                    2D\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+            "    0.0000    0.0000    0.0000 C   0  0\nM  ISO  1   1  13\nM  END\n"
+            "> <comment>\nignored\n\n$$$$\n"};
+        std::istringstream sdf_input{input_text(mol_record + mol_record + "broken\n")};
+        auto sdf_reader = sdf::SdfReader{sdf_input, "input.sdf"};
+        REQUIRE(sdf_reader.next().has_value());
+        const auto second = sdf_reader.next();
+        REQUIRE(second.has_value());
+        REQUIRE(second->issues.size() == 2);
+        CHECK(second->issues[0].line == 17);
+        CHECK(second->issues[1].line == 13);
+        CHECK_THROWS_MATCHES(sdf_reader.next(), std::runtime_error,
+                             snitch::matchers::with_what_contains{"input.sdf:24: record 3"});
+
+        const std::string mol2_record{"@<TRIPOS>MOLECULE\nligand\n1 0\n@<TRIPOS>ATOM\n"
+                                      "1 C1 0 0 0 C.3 1 LIG 0.2\n@<TRIPOS>BOND\n"};
+        std::istringstream mol2_input{
+            input_text("# preamble\n" + mol2_record + mol2_record +
+                       "@<TRIPOS>MOLECULE\nbroken\n1 1\n@<TRIPOS>ATOM\n"
+                       "1 C1 0 0 0 C.3\n@<TRIPOS>BOND\n1 1 9 1\n@<TRIPOS>SUBSTRUCTURE\nignored\n")};
+        auto mol2_reader = mol2::Mol2Reader{mol2_input, "input.mol2"};
+        REQUIRE(mol2_reader.next().has_value());
+        const auto second_mol2 = mol2_reader.next();
+        REQUIRE(second_mol2.has_value());
+        REQUIRE(second_mol2->issues.size() == 1);
+        CHECK(second_mol2->issues[0].line == 12);
+        CHECK_THROWS_MATCHES(mol2_reader.next(), std::runtime_error,
+                             snitch::matchers::with_what_contains{"input.mol2:20: record 3"});
+    }
+}
+
 TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol2/aromatic.mol2")};

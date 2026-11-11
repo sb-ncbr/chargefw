@@ -27,6 +27,7 @@ class SdfReader {
     std::istream* input_;
     std::string source_;
     std::size_t record_index_ = 0;
+    std::size_t line_ = 0;
 };
 
 } // namespace chargefw::adapters::native::sdf_input

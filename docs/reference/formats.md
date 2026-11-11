@@ -30,6 +30,11 @@ line endings. For every molecule read, ChargeFW keeps where it came from: the fi
 record's position in the file and its ID, the warnings, and for every atom its position and ID in
 the file, so that charges can be matched back to it.
 
+For MOL, SDF, and MOL2 input, diagnostic line numbers count lines from the start of
+the input, beginning at 1, including blank lines and skipped data. They do not restart for each
+record. Parsing errors also identify the record, numbered from 1, and its ID when available.
+An unexpected end of input points to the next expected line.
+
 ## MOL and SDF input
 
 A MOL file holds one V2000 or V3000 record, as defined in the BIOVIA

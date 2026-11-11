@@ -1,6 +1,7 @@
 #include <chargefw/adapters/native/mol_input.h>
 
 #include "common_input.h"
+#include "mol_record_parser.h"
 
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
@@ -402,7 +403,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 // A 2D drawing has no geometry, so its record is imported without coordinates; methods that need
 // geometry then refuse it, and the others still apply.
 [[nodiscard]] auto make_record(ParsedMolecule parsed, MoleculeRecordIdentity identity,
-                               const bool drawing) -> ImportedMoleculeRecord {
+                               const bool drawing, const std::size_t record_start)
+    -> ImportedMoleculeRecord {
     auto conformers = std::vector<core::Conformer>{};
     auto conformer_references = std::vector<SourceConformerReference>{};
     if (!parsed.aromatic_bonds.empty()) {
@@ -413,7 +415,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
             .kind = ImportIssueKind::coordinates_2d_ignored,
             .message = "the record is a 2D drawing; its coordinates were not used, so methods "
                        "that need 3D geometry do not apply",
-            .line = 2});
+            .line = record_start + 2});
     } else {
         conformers.emplace_back(std::move(parsed.positions), "input");
         conformer_references.push_back(SourceConformerReference{
@@ -439,27 +441,35 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 
 auto parse_mol(std::istream& input, MoleculeRecordIdentity identity) -> ImportedMoleculeRecord {
     std::size_t line = 0;
+    return parse_mol(input, std::move(identity), line);
+}
 
-    const auto name = common::read_line(input, line, "MOL");
-    const auto drawing = declares_2d(common::read_line(input, line, "MOL"));
-    static_cast<void>(common::read_line(input, line, "MOL"));
-    const auto counts = common::read_line(input, line, "MOL");
+auto parse_mol(std::istream& input, MoleculeRecordIdentity identity, std::size_t& line)
+    -> ImportedMoleculeRecord {
+    const auto record_start = line;
+    try {
+        const auto name = common::read_line(input, line, "MOL");
+        if (identity.record_id.empty()) {
+            identity.record_id = name;
+        }
+        const auto drawing = declares_2d(common::read_line(input, line, "MOL"));
+        static_cast<void>(common::read_line(input, line, "MOL"));
+        const auto counts = common::read_line(input, line, "MOL");
 
-    if (identity.record_id.empty()) {
-        identity.record_id = name;
+        ParsedMolecule parsed;
+
+        if (counts.contains("V2000")) {
+            parsed = parse_v2000(input, counts, line);
+        } else if (counts.contains("V3000")) {
+            parsed = parse_v3000(input, line);
+        } else {
+            throw std::runtime_error{"unsupported MOL version"};
+        }
+
+        return make_record(std::move(parsed), identity, drawing, record_start);
+    } catch (...) {
+        common::rethrow_with_context(identity, line);
     }
-
-    ParsedMolecule parsed;
-
-    if (counts.contains("V2000")) {
-        parsed = parse_v2000(input, counts, line);
-    } else if (counts.contains("V3000")) {
-        parsed = parse_v3000(input, line);
-    } else {
-        throw std::runtime_error{"unsupported MOL version"};
-    }
-
-    return make_record(std::move(parsed), std::move(identity), drawing);
 }
 
 MolReader::MolReader(std::istream& input, std::string source)
