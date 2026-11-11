@@ -51,7 +51,6 @@ Findings where this rule changes the proposal:
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
 | B10 | Leave, or delete the `reserve` calls | — |
-| A6 | Delete the unused constructor only | — |
 | A7 | Document the stream check | comment in `json_output.h` |
 | A10 | Leave | — |
 | A12 (enum members) | Leave | — |
@@ -286,23 +285,6 @@ for realistic input.
 - **Check:** `grep -rn "calculation::" src/methods include/chargefw/methods`.
 - **Fix:** not proposed here. The options are to move `ExecutionMode` and `ResourcePolicy` down, or to
   move the execution-assessment part of applicability up into `calculation`. Sketch first.
-
-### A6. `ClassificationResult` can be built in a meaningless success state
-
-- **Status:** reported.
-- **Where:** `include/chargefw/parameters/classification/classification_result.h:29-32`,
-  `src/parameters/classification/classification_result.cpp:11-16`.
-- **Problem:** the default constructor, and the issues constructor given an empty vector, both yield
-  a truthy result with an empty classification. `classify_parameters` relies on "falsy implies
-  non-empty issues" when it calls `result.issues().front()`
-  (`src/parameters/classification/parameter_classifier.cpp:305`).
-- **Check:** `grep -rn "ClassificationResult{}\|ClassificationResult result;" include src apps python tests`;
-  the first reader found no user of the default constructor.
-- **Fix:** delete the default constructor; throw `std::invalid_argument` from the issues constructor
-  when the vector is empty.
-- **Resolution:** delete the unused default constructor, which is dead code. Do not add the throw:
-  the only code that constructs the type is the classifier itself, so the new failure path would
-  guard nothing.
 
 ### A7. `JsonWriter::write` does not check stream failure
 

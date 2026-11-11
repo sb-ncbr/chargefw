@@ -26,8 +26,6 @@ struct ClassificationOptions {
 
 class ClassificationResult {
   public:
-    ClassificationResult() = default;
-
     explicit ClassificationResult(ParameterClassification classification);
     explicit ClassificationResult(std::vector<ClassificationIssue> issues);
 

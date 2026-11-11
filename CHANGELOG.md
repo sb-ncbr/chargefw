@@ -30,6 +30,8 @@
 
 ### C++
 
+- Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
+  result from `try_classify_parameters()`, or construct it explicitly from a classification or issues.
 - Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace
   `issues()` with `issues` and `add(issue)` with `issues.push_back(issue)`. Its boolean conversion
   still reports whether the vector is empty. Rebuild downstream C++ code.
