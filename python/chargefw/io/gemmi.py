@@ -142,4 +142,10 @@ def attach_charges(
         document.add_copied_block(block)
 
 
-__all__ = ["from_structure", "from_document", "to_document", "attach_charges"]
+__all__ = [
+    "StructureBondStrategy",
+    "from_structure",
+    "from_document",
+    "to_document",
+    "attach_charges",
+]

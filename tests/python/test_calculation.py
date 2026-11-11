@@ -841,6 +841,13 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert "eem" in methods
     assert methods.get("eem") == methods["eem"]
     assert methods.get("not-a-method") is None
+    invalid_keys: tuple[object, ...] = (5, None, [])
+    for catalog in (methods, chargefw.parameter_sets):
+        assert "not-an-id" not in catalog
+        for key in invalid_keys:
+            assert key not in catalog
+            with pytest.raises(TypeError):
+                catalog[key]  # type: ignore[index]
     assert tuple(methods) == tuple(method.id for method in methods.values())
     assert methods["eem"].id == "eem"
     with pytest.raises(KeyError):

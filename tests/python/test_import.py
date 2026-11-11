@@ -15,3 +15,10 @@ def test_version_and_typing_marker() -> None:
     if expected_version is not None:
         assert chargefw.__version__ == expected_version
     assert (Path(chargefw.__file__).parent / "py.typed").is_file()
+
+
+def test_public_classes_report_a_public_module() -> None:
+    for name in chargefw.__all__:
+        value = getattr(chargefw, name)
+        if isinstance(value, type):
+            assert not any(part.startswith("_") for part in value.__module__.split(".")), name

@@ -139,6 +139,8 @@ for _value_type in (
     NumericalFailureError,
     CalculationCancelledError,
     CalculationResult,
+    InputIssue,
+    ChargeIssue,
     Plan,
     Rejection,
     ResourceEstimate,

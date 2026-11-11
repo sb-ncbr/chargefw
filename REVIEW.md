@@ -277,16 +277,13 @@ for realistic input.
 ### A11. Smaller Python API items
 
 - **Status:** reported.
-- `python/chargefw/calculation.py:132-148`: the `__module__` rewrite loop omits `InputIssue` and
-  `ChargeIssue`, so they report `chargefw._calculation_values`. Add the two names.
+- Public classes exported by `chargefw.parameterization` and `chargefw.parameterization.profiles`
+  still report private modules in `__module__`, unlike the main package. This includes `Evaluator`,
+  the fit result and diagnostic classes, and `Profile`/`Transform`. Confirmed against the built
+  package; decide separately whether to give these classes public module names too.
 - `python/chargefw/calculation.py:198`: `write_parameter_set(parameter_set, path)` has the reverse
   argument order of `io.write(path, result)`. Changing it would break the public API; this is only
   noted, pending a separate decision.
-- `python/chargefw/io/gemmi.py:46, 145`: `StructureBondStrategy` is used in the `from_structure`
-  signature but missing from `__all__`.
-- `python/chargefw/_catalog.py:42-44`: `5 in chargefw.methods` raises `TypeError`, because
-  `Mapping.__contains__` catches only `KeyError`. `PeriodicTable.__contains__`
-  (`python/chargefw/_elements.py:58-62`) returns `False` on purpose. Add a three-line `__contains__`.
 
 ### A12. Smaller native API items
 
