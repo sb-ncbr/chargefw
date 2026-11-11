@@ -74,7 +74,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B2–B9 |
+| B | Behaviour bugs | B2–B8 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
 | D | Dead code | D4–D13 |
@@ -188,19 +188,6 @@ for realistic input.
   it. Change the comment in `molecule_record.h`, the description in the result schema, and the
   sentence about line numbers in `docs/reference/formats.md` to say that the line is counted within
   the record.
-
-### B9. MOL2 section markers are matched exactly, and repeated sections overwrite
-
-- **Status:** reported. How common trailing whitespace is in real files is unknown.
-- **Where:** `src/adapters/native/mol2_input.cpp:234-246`, `:333`.
-- **Problem:** only `\r` is stripped before a marker is compared, and a second ATOM or BOND section
-  replaces the first.
-- **Failure:** a second record whose marker is `@<TRIPOS>MOLECULE ` with a trailing space is treated
-  as an unknown section. Its ATOM and BOND sections then overwrite those of the first record when
-  the counts match, as in multi-conformer files, and the second record is lost. A trailing space on
-  the first marker yields no records.
-- **Fix:** compare `common::trim(*section)`, and throw on a repeated ATOM or BOND section within one
-  record.
 
 ---
 

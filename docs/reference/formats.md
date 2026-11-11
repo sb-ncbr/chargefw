@@ -78,7 +78,8 @@ MOL or SDF record produces one conformer named `input`, or none for a 2D layout.
 Each `@<TRIPOS>MOLECULE` record is one molecule. ChargeFW reads its `MOLECULE`, `ATOM`, `BOND`, and
 `UNITY_ATOM_ATTR` sections, in any order, and skips the others. Wrong atom or bond counts, atom IDs
 that are not unique positive integers, bonds to atoms that do not exist, invalid coordinates, and
-missing sections are errors.
+missing sections are errors, as are repeated `ATOM` or `BOND` sections within one molecule. A
+section marker starts with `@` in the first column; whitespace after it is ignored.
 
 The element is the part of the atom type before the `.`, such as C in `C.ar`; the atom name is kept.
 Types that do not name one element, such as dummy atoms, lone pairs, wildcards, and the groups

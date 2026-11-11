@@ -389,6 +389,41 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
     }
 }
 
+TEST_CASE("MOL2 markers tolerate trailing whitespace without losing records",
+          "[adapters][native]") {
+    std::istringstream input{"@<TRIPOS>MOLECULE \t\r\nfirst\n1 0\nSMALL\nNO_CHARGES\n"
+                             "@<TRIPOS>ATOM \t\n1 Na 0 0 0 Na\n"
+                             "@<TRIPOS>BOND \t\n"
+                             "@<TRIPOS>UNITY_ATOM_ATTR \t\n1 1\ncharge 1\n"
+                             "@<TRIPOS>MOLECULE \t\nsecond\n1 0\nSMALL\nNO_CHARGES\n"
+                             "@<TRIPOS>ATOM \t\n1 Cl 1 0 0 Cl\n"
+                             "@<TRIPOS>UNITY_ATOM_ATTR \t\n1 1\ncharge -1\n"
+                             "@<TRIPOS>BOND \t\n"};
+    mol2::Mol2Reader reader{input, "padded.mol2"};
+    const auto first = reader.next();
+    REQUIRE(first.has_value());
+    CHECK(first->molecule.name() == "first");
+    CHECK(first->molecule.atom(0).atomic_number() == 11);
+    CHECK(first->molecule.atom(0).formal_charge() == 1);
+    const auto second = reader.next();
+    REQUIRE(second.has_value());
+    CHECK(second->molecule.name() == "second");
+    CHECK(second->molecule.atom(0).atomic_number() == 17);
+    CHECK(second->molecule.atom(0).formal_charge() == -1);
+    CHECK_FALSE(reader.next().has_value());
+}
+
+TEST_CASE("MOL2 rejects repeated atom and bond sections", "[adapters][native]") {
+    for (const auto repeated : {"@<TRIPOS>ATOM \t\n1 Cl 1 0 0 Cl\n", "@<TRIPOS>BOND \t\n"}) {
+        CAPTURE(repeated);
+        std::istringstream input{std::string{"@<TRIPOS>MOLECULE\nion\n1 0\nSMALL\nNO_CHARGES\n"
+                                             "@<TRIPOS>ATOM\n1 Na 0 0 0 Na\n@<TRIPOS>BOND\n"} +
+                                 repeated};
+        mol2::Mol2Reader reader{input, "duplicate.mol2"};
+        CHECK_THROWS_AS(reader.next(), std::runtime_error);
+    }
+}
+
 TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapters][native]") {
     // Open Babel writes UNITY_ATOM_ATTR between ATOM and BOND; the format allows any section order,
     // and the second record has it after BOND, next to an attribute that is not a charge.

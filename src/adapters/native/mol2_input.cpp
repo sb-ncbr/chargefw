@@ -227,14 +227,21 @@ struct SourceBond {
     auto source_bonds = std::optional<std::vector<SourceBond>>{};
     auto formal_charges = std::unordered_map<int, int>{};
     auto section = next_section(input, line);
-    while (section.has_value() && *section != molecule_marker) {
-        if (*section == atom_marker) {
+    while (section.has_value() && common::trim(*section) != molecule_marker) {
+        const auto marker = common::trim(*section);
+        if (marker == atom_marker) {
+            if (atom_section.has_value()) {
+                throw std::runtime_error{"repeated MOL2 ATOM section"};
+            }
             atom_section = read_atoms(input, line, atom_count);
             section = next_section(input, line);
-        } else if (*section == bond_marker) {
+        } else if (marker == bond_marker) {
+            if (source_bonds.has_value()) {
+                throw std::runtime_error{"repeated MOL2 BOND section"};
+            }
             source_bonds = read_bonds(input, line, bond_count);
             section = next_section(input, line);
-        } else if (*section == unity_atom_attributes_marker) {
+        } else if (marker == unity_atom_attributes_marker) {
             section = read_formal_charges(input, line, formal_charges);
         } else {
             section = next_section(input, line);
@@ -326,7 +333,7 @@ auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
         if (line.ends_with('\r')) {
             line.pop_back();
         }
-        found = line == molecule_marker;
+        found = line.starts_with('@') && common::trim(line) == molecule_marker;
     }
     if (!found) {
         return std::nullopt;
