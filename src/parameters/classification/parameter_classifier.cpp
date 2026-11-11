@@ -114,32 +114,6 @@ auto matches_atom_key(const features::TopologyFeatures& topology, const std::siz
     return key.type == atom_type_for(topology, atom_index, key.classification, permissive);
 }
 
-auto find_atom_parameter_entry(const features::TopologyFeatures& topology,
-                               const std::size_t atom_index, const AtomParameters& parameters,
-                               const bool permissive) -> std::optional<std::size_t> {
-    for (std::size_t entry_index = 0; entry_index < parameters.size(); ++entry_index) {
-        const auto& [key, named_parameters] = parameters[entry_index];
-
-        if (matches_atom_key(topology, atom_index, key, permissive)) {
-            return entry_index;
-        }
-    }
-
-    return std::nullopt;
-}
-
-auto find_atom_parameter_entry(const features::TopologyFeatures& topology,
-                               const std::size_t atom_index, const AtomParameters& parameters,
-                               const ClassificationOptions& options) -> std::optional<std::size_t> {
-    auto match = find_atom_parameter_entry(topology, atom_index, parameters, false);
-
-    if (!match && options.permissive_types) {
-        match = find_atom_parameter_entry(topology, atom_index, parameters, true);
-    }
-
-    return match;
-}
-
 auto matches_bond_key(const features::TopologyFeatures& topology, const std::size_t bond_index,
                       const BondParameterKey& key, const bool permissive) -> bool {
     const auto& molecule = topology.molecule();
@@ -163,27 +137,21 @@ auto matches_bond_key(const features::TopologyFeatures& topology, const std::siz
            bond_type_for(molecule, bond_index, key.bond.classification, permissive);
 }
 
-auto find_bond_parameter_entry(const features::TopologyFeatures& topology,
-                               const std::size_t bond_index, const BondParameters& parameters,
-                               const bool permissive) -> std::optional<std::size_t> {
-    for (std::size_t entry_index = 0; entry_index < parameters.size(); ++entry_index) {
-        const auto& [key, named_parameters] = parameters[entry_index];
-
-        if (matches_bond_key(topology, bond_index, key, permissive)) {
-            return entry_index;
+template <typename Parameters, typename Matches>
+auto find_entry(const Parameters& parameters, const ClassificationOptions& options, Matches matches)
+    -> std::optional<std::size_t> {
+    const auto scan = [&](const bool permissive) -> std::optional<std::size_t> {
+        for (std::size_t entry_index = 0; entry_index < parameters.size(); ++entry_index) {
+            if (matches(parameters[entry_index].key, permissive)) {
+                return entry_index;
+            }
         }
-    }
-
-    return std::nullopt;
-}
-
-auto find_bond_parameter_entry(const features::TopologyFeatures& topology,
-                               const std::size_t bond_index, const BondParameters& parameters,
-                               const ClassificationOptions& options) -> std::optional<std::size_t> {
-    auto match = find_bond_parameter_entry(topology, bond_index, parameters, false);
+        return std::nullopt;
+    };
+    auto match = scan(false);
 
     if (!match && options.permissive_types) {
-        match = find_bond_parameter_entry(topology, bond_index, parameters, true);
+        match = scan(true);
     }
 
     return match;
@@ -236,7 +204,10 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
 
         for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
             const auto match =
-                find_atom_parameter_entry(topology, atom_index, parameters.atom(), options);
+                find_entry(parameters.atom(), options,
+                           [&](const AtomParameterKey& key, const bool permissive) {
+                               return matches_atom_key(topology, atom_index, key, permissive);
+                           });
 
             if (!match) {
                 issues.push_back(ClassificationIssue{
@@ -257,7 +228,10 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
 
         for (std::size_t bond_index = 0; bond_index < molecule.bond_count(); ++bond_index) {
             const auto match =
-                find_bond_parameter_entry(topology, bond_index, parameters.bond(), options);
+                find_entry(parameters.bond(), options,
+                           [&](const BondParameterKey& key, const bool permissive) {
+                               return matches_bond_key(topology, bond_index, key, permissive);
+                           });
 
             if (!match) {
                 issues.push_back(ClassificationIssue{

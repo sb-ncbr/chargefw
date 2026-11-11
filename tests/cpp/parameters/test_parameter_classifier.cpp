@@ -167,6 +167,30 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
         lone_oxygen_topology, parameter_set, {.permissive_types = true});
     REQUIRE(lone_permissive);
     CHECK(lone_permissive.classification().atom()[0] == 1);
+
+    // Later strict matches take precedence over earlier permissive matches.
+    auto double_bond_key = chargefw::test::single_bond_key(6, 8);
+    double_bond_key.bond.type = "2";
+    const parameters::ParameterSet with_strict_entries{
+        test_metadata(),
+        {},
+        parameters::AtomParameters{{{.key = chargefw::test::hbo_atom_key(6, "1"),
+                                     .parameters = {{.name = "value", .value = 1.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(8, "1"),
+                                     .parameters = {{.name = "value", .value = 2.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(6, "2"),
+                                     .parameters = {{.name = "value", .value = 1.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(8, "2"),
+                                     .parameters = {{.name = "value", .value = 2.0}}}}},
+        parameters::BondParameters{
+            {{.key = chargefw::test::single_bond_key(6, 8),
+              .parameters = {{.name = "value", .value = 3.0}}},
+             {.key = double_bond_key, .parameters = {{.name = "value", .value = 3.0}}}}}};
+    const auto preferred = parameters::classify_parameters(
+        features::TopologyFeatures{carbonyl}, with_strict_entries, {.permissive_types = true});
+    CHECK(preferred.atom()[0] == 2);
+    CHECK(preferred.atom()[1] == 3);
+    CHECK(preferred.bond()[0] == 1);
 }
 
 TEST_CASE("parameter classifier resolves wildcard entries in declaration order",

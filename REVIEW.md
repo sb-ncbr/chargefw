@@ -605,13 +605,6 @@ listed at the end of the section.
   `parameter_set_io.cpp:592-594` are the same comparison. Fix: move `same_names` into
   `src/parameters/parameter_helpers.h`.
 
-### C5. Atom and bond entry lookup in the classifier
-
-- **Status:** reported.
-- **Where:** `src/parameters/classification/parameter_classifier.cpp:121-147` and `:173-199`.
-- **Problem:** both pairs are a linear scan with a matcher, tried strictly and then permissively.
-- **Fix:** one template `find_entry(parameters, options, matches)`.
-
 ### C6. PEOE, MPEOE, and GDAC helpers
 
 - **Status:** reported.
