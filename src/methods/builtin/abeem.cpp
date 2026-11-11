@@ -189,12 +189,7 @@ auto ABEEMMethod::calculate(const CalculationInput& input) const -> charges::Ato
         }
     }
 
-    matrix.row(n + m).setOnes();
-    matrix.col(n + m).setOnes();
-    matrix(n + m, n + m) = 0.0;
-    rhs(n + m) = input.target_charge();
-
-    Eigen::VectorXd q = solve_in_place(matrix, rhs);
+    Eigen::VectorXd q = solve_charge_constrained(matrix, rhs, input.target_charge());
 
     auto values = std::vector<double>(atom_count);
 

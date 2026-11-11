@@ -329,27 +329,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
 Each item is meant to become one helper. Larger merges that the review considered and rejected are
 listed at the end of the section.
 
-### C1. Charge-constrained dense solve and its cost estimate
-
-- **Status:** reported.
-- **Where (solve):** `src/methods/builtin/eem.cpp:82-85, 99-102`, `sfkeem.cpp:78-85`,
-  `qeq.cpp:112-119`, `eqeq.cpp:92-99`, `tsef.cpp:83-90`, `smpqeq.cpp:94-99`, `abeem.cpp:192-197`.
-
-  ```cpp
-  A.row(n).setOnes();
-  A.col(n).setOnes();
-  A(n, n) = 0.0;
-  b(n) = input.target_charge();
-  const Eigen::VectorXd q = solve_in_place(A, b).head(n);
-  return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
-  ```
-- **Where (estimate):** byte-identical in `eem.cpp:105-112`, `sfkeem.cpp:88-95`, `qeq.cpp:122-129`,
-  `eqeq.cpp:106-113`; variants in `smpqeq.cpp:111-118` and `eqeqc.cpp:83-91`.
-- **Fix:** two inline helpers in `src/methods/builtin/dense_solve.h`:
-  `solve_charge_constrained(matrix, rhs, target_charge)` and `charge_constrained_estimate(n)`. Leave
-  `src/parameterization/eem_derivatives.cpp`, which keeps its own LU on purpose.
-- **Validation:** numerical code; run the method tests in a release profile as well.
-
 ### C6. PEOE, MPEOE, and GDAC helpers
 
 - **Status:** reported.

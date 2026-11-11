@@ -80,12 +80,7 @@ auto TSEFMethod::calculate(const CalculationInput& input) const -> charges::Atom
         }
     }
 
-    A.row(n).setOnes();
-    A.col(n).setOnes();
-    A(n, n) = 0.0;
-    b(n) = input.target_charge();
-
-    const Eigen::VectorXd q = solve_in_place(A, b).head(n);
+    const Eigen::VectorXd q = solve_charge_constrained(A, b, input.target_charge()).head(n);
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
 }
