@@ -281,16 +281,6 @@ for realistic input.
 only" means that the remaining users are under `tests/`. Re-run the grep before removing anything;
 for public headers, removal is an API change and needs a CHANGELOG entry.
 
-### D5. Unused `ComplexityTerm` values and `to_string(ExecutionAvailability)`
-
-- **Status:** re-checked for the two enumerators; reported for `to_string`.
-- `ComplexityTerm::bonds` (`include/chargefw/methods/method_requirements.h:13`): referenced only in
-  the notation switch at `src/methods/method.cpp:65`.
-- `ComplexityTerm::bonds_squared` (`:17`): referenced only at `src/methods/method.cpp:73` and
-  `src/methods/method_applicability.cpp:90`.
-- `to_string(ExecutionAvailability)` (`include/chargefw/methods/method_applicability.h:26`): no callers.
-- **Check:** `grep -rn "ComplexityTerm::bonds\b\|ComplexityTerm::bonds_squared" include src apps python tests`.
-
 ---
 
 ## C. Duplicated code
