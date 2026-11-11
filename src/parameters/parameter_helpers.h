@@ -7,6 +7,9 @@
 
 namespace chargefw::parameters::detail {
 
+[[nodiscard]] auto same_names(std::span<const NamedParameter> first,
+                              std::span<const NamedParameter> second) -> bool;
+
 auto validate_named_parameters(std::span<const NamedParameter> parameters, std::string_view context)
     -> void;
 

@@ -350,19 +350,6 @@ listed at the end of the section.
   `src/parameterization/eem_derivatives.cpp`, which keeps its own LU on purpose.
 - **Validation:** numerical code; run the method tests in a release profile as well.
 
-### C4. Parameter-set JSON reader
-
-- **Status:** reported.
-- `src/parameters/io/parameter_set_io.cpp:332-372` (`parse_atom_parameters`) and `:374-414`
-  (`parse_bond_parameters`) differ in the section name, the key parser, and the entry type. Fix: one
-  function template taking the key parser.
-- `:486-491` and `:693-698` repeat the directory loading loop. Fix: extract
-  `append_parameter_sets_from_directory(sets, ids, directory)`. The `_if_present` variant checks
-  `is_directory` at `:481-484`, and `json_files_in_directory` checks it again at `:441`.
-- `src/parameters/models/parameter_set.cpp:11-16` (`same_names`) and the lambda at
-  `parameter_set_io.cpp:592-594` are the same comparison. Fix: move `same_names` into
-  `src/parameters/parameter_helpers.h`.
-
 ### C6. PEOE, MPEOE, and GDAC helpers
 
 - **Status:** reported.

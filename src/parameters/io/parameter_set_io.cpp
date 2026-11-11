@@ -2,6 +2,8 @@
 #include <chargefw/parameters/io/parameter_data_paths.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
+#include "parameters/parameter_helpers.h"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -329,25 +331,27 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
         .bond = parse_bond_type_key(required_member(key_json, "bond", context), bond_context)};
 }
 
-[[nodiscard]] auto parse_atom_parameters(const Json& root, const std::string& context)
-    -> AtomParameters {
-    const auto* atom_json = optional_member(root, "atom");
+template <typename Entry, typename KeyParser>
+[[nodiscard]] auto parse_parameter_entries(const Json& root, const std::string& context,
+                                           const std::string_view section, KeyParser parse_key)
+    -> std::vector<Entry> {
+    const auto* section_json = optional_member(root, section);
 
-    if (atom_json == nullptr) {
-        return AtomParameters{};
+    if (section_json == nullptr) {
+        return {};
     }
 
-    const auto atom_context = child_context(context, "atom");
-    ensure_object(*atom_json, atom_context);
+    const auto section_context = child_context(context, section);
+    ensure_object(*section_json, section_context);
 
-    const auto names = parse_names(*atom_json, atom_context);
+    const auto names = parse_names(*section_json, section_context);
 
-    const auto data_context = child_context(atom_context, "data");
-    const auto& data_json = required_member(*atom_json, "data", atom_context);
+    const auto data_context = child_context(section_context, "data");
+    const auto& data_json = required_member(*section_json, "data", section_context);
 
     ensure_array(data_json, data_context);
 
-    std::vector<AtomParameterEntry> entries;
+    std::vector<Entry> entries;
     entries.reserve(data_json.size());
 
     for (std::size_t entry_index = 0; entry_index < data_json.size(); ++entry_index) {
@@ -359,66 +363,28 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
         const auto key_context = child_context(entry_context, "key");
         const auto values_context = child_context(entry_context, "values");
 
-        const auto key =
-            parse_atom_key(required_member(entry_json, "key", entry_context), key_context);
+        auto key = parse_key(required_member(entry_json, "key", entry_context), key_context);
 
         auto parameters = make_named_parameters(
             names, required_member(entry_json, "values", entry_context), values_context);
 
-        entries.push_back(AtomParameterEntry{.key = key, .parameters = std::move(parameters)});
+        entries.push_back(Entry{.key = std::move(key), .parameters = std::move(parameters)});
     }
 
-    return AtomParameters{std::move(entries)};
-}
-
-[[nodiscard]] auto parse_bond_parameters(const Json& root, const std::string& context)
-    -> BondParameters {
-    const auto* bond_json = optional_member(root, "bond");
-
-    if (bond_json == nullptr) {
-        return BondParameters{};
-    }
-
-    const auto bond_context = child_context(context, "bond");
-    ensure_object(*bond_json, bond_context);
-
-    const auto names = parse_names(*bond_json, bond_context);
-
-    const auto data_context = child_context(bond_context, "data");
-    const auto& data_json = required_member(*bond_json, "data", bond_context);
-
-    ensure_array(data_json, data_context);
-
-    std::vector<BondParameterEntry> entries;
-    entries.reserve(data_json.size());
-
-    for (std::size_t entry_index = 0; entry_index < data_json.size(); ++entry_index) {
-        const auto entry_context = array_context(data_context, entry_index);
-        const auto& entry_json = data_json[entry_index];
-
-        ensure_object(entry_json, entry_context);
-
-        const auto key_context = child_context(entry_context, "key");
-        const auto values_context = child_context(entry_context, "values");
-
-        const auto key =
-            parse_bond_key(required_member(entry_json, "key", entry_context), key_context);
-
-        auto parameters = make_named_parameters(
-            names, required_member(entry_json, "values", entry_context), values_context);
-
-        entries.push_back(BondParameterEntry{.key = key, .parameters = std::move(parameters)});
-    }
-
-    return BondParameters{std::move(entries)};
+    return entries;
 }
 
 [[nodiscard]] auto parse_parameter_set(const Json& root, const std::string& context)
     -> ParameterSet {
     ensure_object(root, context);
 
-    return ParameterSet{parse_metadata(root, context), parse_common_parameters(root, context),
-                        parse_atom_parameters(root, context), parse_bond_parameters(root, context)};
+    auto metadata = parse_metadata(root, context);
+    auto common = parse_common_parameters(root, context);
+    auto atom = AtomParameters{
+        parse_parameter_entries<AtomParameterEntry>(root, context, "atom", parse_atom_key)};
+    auto bond = BondParameters{
+        parse_parameter_entries<BondParameterEntry>(root, context, "bond", parse_bond_key)};
+    return ParameterSet{std::move(metadata), std::move(common), std::move(atom), std::move(bond)};
 }
 
 [[nodiscard]] auto load_parameter_set_json_document(std::istream& input, const std::string& context)
@@ -470,6 +436,17 @@ auto reject_duplicate_parameter_set_id(const std::set<std::string>& ids,
     }
 }
 
+auto append_parameter_sets_from_directory(std::vector<ParameterSet>& parameter_sets,
+                                          std::set<std::string>& ids,
+                                          const std::filesystem::path& directory) -> void {
+    for (const auto& file : json_files_in_directory(directory)) {
+        auto parameter_set = load_parameter_set_json_file(file);
+        reject_duplicate_parameter_set_id(ids, parameter_set, file);
+        ids.insert(std::string{parameter_set.id()});
+        parameter_sets.push_back(std::move(parameter_set));
+    }
+}
+
 auto append_parameter_sets_from_directory_if_present(std::vector<ParameterSet>& parameter_sets,
                                                      std::set<std::string>& ids,
                                                      const std::filesystem::path& directory)
@@ -479,16 +456,12 @@ auto append_parameter_sets_from_directory_if_present(std::vector<ParameterSet>& 
     }
 
     if (!std::filesystem::is_directory(directory)) {
+        // Keep the default-path diagnostic rather than the generic directory-loader message.
         throw std::invalid_argument{"default parameter path '" + directory.string() +
                                     "' is not a directory"};
     }
 
-    for (const auto& file : json_files_in_directory(directory)) {
-        auto parameter_set = load_parameter_set_json_file(file);
-        reject_duplicate_parameter_set_id(ids, parameter_set, file);
-        ids.insert(std::string{parameter_set.id()});
-        parameter_sets.push_back(std::move(parameter_set));
-    }
+    append_parameter_sets_from_directory(parameter_sets, ids, directory);
 }
 
 // Group parameter sets by method, each method's sets in the order automatic selection tries them.
@@ -589,9 +562,7 @@ template <typename Entry>
     -> std::span<const NamedParameter> {
     const auto names = std::span<const NamedParameter>{entries.front().parameters};
     for (const auto& entry : entries) {
-        if (!std::ranges::equal(entry.parameters, names, [](const auto& lhs, const auto& rhs) {
-                return lhs.name == rhs.name;
-            })) {
+        if (!detail::same_names(entry.parameters, names)) {
             throw std::invalid_argument{
                 "cannot write " + std::string{section} +
                 " parameters whose entries have different parameter names; the JSON format "
@@ -690,12 +661,7 @@ auto load_parameter_sets_json_directory(const std::filesystem::path& directory)
     std::vector<ParameterSet> parameter_sets;
     std::set<std::string> ids;
 
-    for (const auto& file : json_files_in_directory(directory)) {
-        auto parameter_set = load_parameter_set_json_file(file);
-        reject_duplicate_parameter_set_id(ids, parameter_set, file);
-        ids.insert(std::string{parameter_set.id()});
-        parameter_sets.push_back(std::move(parameter_set));
-    }
+    append_parameter_sets_from_directory(parameter_sets, ids, directory);
 
     sort_parameter_sets(parameter_sets);
     return parameter_sets;

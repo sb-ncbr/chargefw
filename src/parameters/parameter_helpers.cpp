@@ -25,6 +25,13 @@ auto validate_parameter(const NamedParameter& parameter, const std::string_view 
 
 } // namespace
 
+auto same_names(const std::span<const NamedParameter> first,
+                const std::span<const NamedParameter> second) -> bool {
+    return std::ranges::equal(first, second, [](const auto& lhs, const auto& rhs) -> bool {
+        return lhs.name == rhs.name;
+    });
+}
+
 auto validate_named_parameters(std::span<const NamedParameter> parameters,
                                const std::string_view context) -> void {
     for (auto first = parameters.begin(); first != parameters.end(); ++first) {
