@@ -56,10 +56,6 @@ struct ExecutionResult {
     [[nodiscard]] auto calculated() const noexcept -> bool {
         return status == ExecutionStatus::success && charges.has_value();
     }
-
-    [[nodiscard]] auto cancelled() const noexcept -> bool {
-        return status == ExecutionStatus::cancelled;
-    }
 };
 
 // Executes one concrete plan from an assessment without repeating preparation, classification, or

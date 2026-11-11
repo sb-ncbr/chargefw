@@ -30,6 +30,9 @@
 
 ### C++
 
+- Breaking change: removed `parameters::ParameterSet::publication()` and `notes()`; use
+  `metadata().publication` and `metadata().notes`. Removed `calculation::ExecutionResult::cancelled()`;
+  compare `status` with `calculation::ExecutionStatus::cancelled` instead. Rebuild downstream C++ code.
 - Breaking change: removed `features::TopologyFeatures::bond_index_between()` and `are_bonded()`.
   Use `neighbor_indices()` to check whether two atoms are bonded. To find the bond between them,
   look among `incident_bond_indices()` of one atom for the bond whose other atom is the second.

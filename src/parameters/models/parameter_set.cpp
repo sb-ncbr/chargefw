@@ -58,14 +58,6 @@ auto ParameterSet::name() const noexcept -> std::string_view {
     return metadata_.name;
 }
 
-auto ParameterSet::publication() const noexcept -> std::string_view {
-    return metadata_.publication;
-}
-
-auto ParameterSet::notes() const noexcept -> std::string_view {
-    return metadata_.notes;
-}
-
 auto ParameterSet::priority() const noexcept -> std::uint16_t {
     return metadata_.priority;
 }

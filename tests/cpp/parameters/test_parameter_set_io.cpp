@@ -303,8 +303,8 @@ auto check_equal_sets(const parameters::ParameterSet& expected,
     CHECK(actual.id() == expected.id());
     CHECK(actual.method_id() == expected.method_id());
     CHECK(actual.name() == expected.name());
-    CHECK(actual.publication() == expected.publication());
-    CHECK(actual.notes() == expected.notes());
+    CHECK(actual.metadata().publication == expected.metadata().publication);
+    CHECK(actual.metadata().notes == expected.metadata().notes);
     CHECK(actual.priority() == expected.priority());
     CHECK(parameters::compatible(expected, actual));
     CHECK(parameterization::parameter_values(actual) ==

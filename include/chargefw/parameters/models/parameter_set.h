@@ -19,8 +19,6 @@ class ParameterSet {
     [[nodiscard]] auto id() const noexcept -> std::string_view;
     [[nodiscard]] auto method_id() const noexcept -> std::string_view;
     [[nodiscard]] auto name() const noexcept -> std::string_view;
-    [[nodiscard]] auto publication() const noexcept -> std::string_view;
-    [[nodiscard]] auto notes() const noexcept -> std::string_view;
     [[nodiscard]] auto priority() const noexcept -> std::uint16_t;
 
     [[nodiscard]] auto common() const noexcept -> const CommonParameters&;

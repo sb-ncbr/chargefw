@@ -441,18 +441,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
 - **Check:** `grep -rn "\.source_name" python tests docs`; every hit is on a `Molecule`.
   `docs/reference/python-api.md:68` lists only `source`, `record_index`, and `record_id`.
 
-### D10. Public members used only by tests — maintainer's choice
-
-- **Status:** reported.
-- `PeriodicTable::contains(std::string_view)` (`include/chargefw/core/periodic_table.h:34`).
-- `ParameterSet::publication()` and `notes()`
-  (`include/chargefw/parameters/models/parameter_set.h:22-23`); `metadata()` exposes both.
-- `ExecutionResult::cancelled()` (`include/chargefw/calculation/calculation.h:60`).
-- `AtomicCharges::total()`, `ChargeSet::assignment(i)`, and `load_parameter_sets_json_directory` are
-  also unused in production, but are reasonable conveniences for C++ consumers.
-- `bundled_parameter_directory()` (`include/chargefw/parameters/io/parameter_data_paths.h:8`) is
-  called only from `default_parameter_directories()` in the same `.cpp`.
-
 ### D11. `calculate(const CalculationRequest&)` and `CalculationResult` — tests only
 
 - **Status:** reported.
