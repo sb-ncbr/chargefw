@@ -131,19 +131,6 @@ TEST_CASE("spatial fragment uses second conformer geometry", "[features][spatial
     CHECK(second_conformer_fragment.molecule().conformer(0)[2].x == 4.0);
 }
 
-TEST_CASE("spatial fragment builder is deterministic for identical parameters",
-          "[features][spatial-fragment]") {
-    const auto molecule = make_molecule();
-    const features::PreparedMolecule prepared{molecule};
-    const features::ConformerFeatures first_geometry{molecule, 0};
-    const features::SpatialFragmentBuilder first_builder{prepared, first_geometry};
-    const auto fragment = first_builder.build(1, 1.0);
-    const auto repeated_fragment = first_builder.build(1, 1.0);
-
-    CHECK(std::ranges::equal(repeated_fragment.local_to_source_atom_indices(),
-                             fragment.local_to_source_atom_indices()));
-}
-
 TEST_CASE("spatial fragment supports single-atom molecules", "[features][spatial-fragment]") {
     const core::Molecule single_atom_molecule{
         std::vector{core::Atom{1, 0, "H"}},

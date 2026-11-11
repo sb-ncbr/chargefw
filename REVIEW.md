@@ -611,16 +611,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   (`unrelated`) is one of them.
 - **Fix:** rewrite. Use H and O atoms with `make_eem_ho_parameters` and assert that a plan exists.
 
-#### T2. Serial fragment-progress tests take the expected count from the events
-
-- **Status:** re-checked.
-- **Where:** `cpp/calculation/test_observer.cpp:445` and `:462`.
-- **Problem:** both call
-  `assert_single_terminal_fragment_progress(fragment_events, fragment_events.front().fragment_count)`.
-  The second is named "multi-pivot" and never checks `fragment_count > 1`.
-- **Fix:** rewrite with literal counts (3 for cutoff on water, at least 2 for the separated waters),
-  or fold both into the test at `:494` as a loop over one and two threads.
-
 #### T4. QEq `overlap_term` tests pass if the option is ignored
 
 - **Status:** re-checked.
@@ -643,13 +633,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Where:** `cpp/adapters/test_json_output.cpp:193-194, 220-221`.
 - **Problem:** `CHECK_FALSE(...contains("structural_input"))`, `"input"`, `"atom_mapping"`,
   `"conformer_mapping"`. No source file or schema mentions these keys.
-
-#### T8. Determinism test of a stateless function
-
-- **Status:** reported.
-- **Where:** `cpp/features/test_spatial_fragment.cpp:134`.
-- **Problem:** calls the const, stateless `build(1, 1.0)` twice and compares
-  `local_to_source_atom_indices()`, which line 69 already pins to `{0, 1, 2}`.
 
 #### T9. CLI run that passes only default option values
 

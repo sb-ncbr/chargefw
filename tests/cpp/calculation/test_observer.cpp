@@ -451,9 +451,7 @@ TEST_CASE("serial cutoff execution emits aggregate fragment progress", "[calcula
     REQUIRE(result.calculated());
 
     const auto fragment_events = fragment_progress_events(observer);
-    REQUIRE(!fragment_events.empty());
-    assert_single_terminal_fragment_progress(fragment_events,
-                                             fragment_events.front().fragment_count);
+    assert_single_terminal_fragment_progress(fragment_events, 3);
 }
 
 TEST_CASE("serial cover execution emits aggregate multi-pivot progress",
@@ -468,9 +466,7 @@ TEST_CASE("serial cover execution emits aggregate multi-pivot progress",
     REQUIRE(result.calculated());
 
     const auto fragment_events = fragment_progress_events(observer);
-    REQUIRE(!fragment_events.empty());
-    assert_single_terminal_fragment_progress(fragment_events,
-                                             fragment_events.front().fragment_count);
+    assert_single_terminal_fragment_progress(fragment_events, 2);
 }
 
 TEST_CASE("empty reduced targets do not emit fragment progress", "[calculation][observer]") {
@@ -506,9 +502,8 @@ TEST_CASE("parallel reduced targets each emit one terminal progress snapshot",
                     target_events.push_back(event);
                 }
             }
-            REQUIRE(!target_events.empty());
-            assert_single_terminal_fragment_progress(target_events,
-                                                     target_events.front().fragment_count);
+            const auto expected_count = mode == calculation::ExecutionMode::cutoff ? 3U : 1U;
+            assert_single_terminal_fragment_progress(target_events, expected_count);
         }
     }
 }
