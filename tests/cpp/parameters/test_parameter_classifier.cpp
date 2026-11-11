@@ -73,17 +73,17 @@ TEST_CASE("parameter classifier maps water atoms and bonds to parameter entries"
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}}}},
         parameters::BondParameters{
             {{.key = {.first_atom = chargefw::test::atom_key(
-                          1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                          1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
                       .second_atom = chargefw::test::atom_key(
-                          8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
-                      .bond = bond_type_key(parameters::BondParameterClassificationKind::BOND_ORDER,
+                          8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
+                      .bond = bond_type_key(parameters::BondParameterClassificationKind::bond_order,
                                             "1")},
               .parameters = {{.name = "value", .value = 3.0}}}}}};
 
@@ -107,16 +107,16 @@ TEST_CASE("parameter classifier maps mixed element fragment atoms", "[parameters
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  6, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "ClFH"),
+                  6, parameters::AtomParameterClassificationKind::bonded_elements, "ClFH"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  17, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  17, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 2.0}}},
              {.key = chargefw::test::atom_key(
-                  9, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  9, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 4.0}}}}}};
 
     const auto mixed_classification = classify(mixed, mixed_parameters);
@@ -145,8 +145,8 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
         parameters::try_classify_parameters(features::TopologyFeatures{carbonyl}, parameter_set);
     CHECK_FALSE(exact);
     REQUIRE(exact.issues().size() == 3);
-    CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);
-    CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER);
+    CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
+    CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::missing_bond_parameter);
 
     const auto permissive = parameters::try_classify_parameters(
         features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
@@ -225,6 +225,6 @@ TEST_CASE("parameter classifier reports missing entries with source indices",
         parameters::try_classify_parameters(features::TopologyFeatures{water}, parameter_set);
     CHECK_FALSE(result);
     REQUIRE(result.issues().size() == 1);
-    CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);
+    CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
     CHECK(result.issues()[0].object_index == 0);
 }

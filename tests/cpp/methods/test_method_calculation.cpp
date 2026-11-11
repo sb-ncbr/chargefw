@@ -101,16 +101,16 @@ auto make_parameter_set() -> parameters::ParameterSet {
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}},
-             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::PLAIN,
+             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::plain,
                                               "*"),
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = chargefw::test::atom_key(
-                  17, parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  17, parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "value", .value = 4.0}}}}}};
 }
 

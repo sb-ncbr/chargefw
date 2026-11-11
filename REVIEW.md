@@ -77,7 +77,7 @@ for realistic input.
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B11 |
 | L | Lifetime and misuse traps | L1–L2 |
-| A | Public API design | A1–A12 |
+| A | Public API design | A3–A12 |
 | D | Dead code | D2–D13 |
 | C | Duplicated code | C1–C15 |
 | X | Checked and found clean, or rejected | X1–X9 |
@@ -284,20 +284,6 @@ for realistic input.
 ---
 
 ## A. Public API design
-
-### A1. Enum casing is mixed (design-sensitive)
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/core/bond.h` (`BondOrder::SINGLE`),
-  `include/chargefw/parameters/classification/classification_result.h`
-  (`ClassificationIssueKind::MISSING_ATOM_PARAMETER`),
-  `include/chargefw/parameters/models/parameter_key.h` (`AtomParameterClassificationKind::PLAIN`,
-  `BondParameterClassificationKind::PLAIN`).
-- **Problem:** these four enums use upper-case enumerators. Every other public enum is lower case
-  (`MethodScope::recommended`, `ExecutionMode::full`, `PrerequisiteIssueKind::invalid_options`).
-- **Check:** `grep -rnE "^\s+[A-Z_]{3,},?$" include/chargefw`.
-- **Fix:** rename to lower case. This is a breaking change for C++ consumers; it needs the
-  maintainer's decision and a CHANGELOG entry.
 
 ### A3. `RequestedCalculationProvenance` uses strings where enums exist (design-sensitive)
 

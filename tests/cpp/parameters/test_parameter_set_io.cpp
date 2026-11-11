@@ -151,7 +151,7 @@ TEST_CASE("parameter set loads from a PEOE JSON file", "[parameters][io]") {
 
     CHECK(hydrogen.key.atomic_number == 1);
     CHECK(hydrogen.key.classification ==
-          parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER);
+          parameters::AtomParameterClassificationKind::highest_bond_order);
     CHECK(hydrogen.key.type == "1");
 
     CHECK(parameter_set.atom().contains(0, "A"));

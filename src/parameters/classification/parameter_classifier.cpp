@@ -72,13 +72,13 @@ auto atom_type_for(const features::TopologyFeatures& topology, const std::size_t
                    const AtomParameterClassificationKind classification, const bool permissive)
     -> std::string {
     switch (classification) {
-    case AtomParameterClassificationKind::PLAIN:
+    case AtomParameterClassificationKind::plain:
         return "*";
 
-    case AtomParameterClassificationKind::HIGHEST_BOND_ORDER:
+    case AtomParameterClassificationKind::highest_bond_order:
         return highest_bond_order_type(topology, atom_index, permissive);
 
-    case AtomParameterClassificationKind::BONDED_ELEMENTS:
+    case AtomParameterClassificationKind::bonded_elements:
         return bonded_elements_type(topology, atom_index);
     }
 
@@ -89,10 +89,10 @@ auto bond_type_for(const core::Molecule& molecule, const std::size_t bond_index,
                    const BondParameterClassificationKind classification, const bool permissive)
     -> std::string {
     switch (classification) {
-    case BondParameterClassificationKind::PLAIN:
+    case BondParameterClassificationKind::plain:
         return "*";
 
-    case BondParameterClassificationKind::BOND_ORDER:
+    case BondParameterClassificationKind::bond_order:
         if (permissive) {
             return permissive_bond_order_type(molecule.bond(bond_index).order());
         }
@@ -211,7 +211,7 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
 
             if (!match) {
                 issues.push_back(ClassificationIssue{
-                    .kind = ClassificationIssueKind::MISSING_ATOM_PARAMETER,
+                    .kind = ClassificationIssueKind::missing_atom_parameter,
                     .object_index = atom_index,
                     .message = "parameter set '" + std::string{parameters.id()} +
                                "' has no atom parameter matching " +
@@ -235,7 +235,7 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
 
             if (!match) {
                 issues.push_back(ClassificationIssue{
-                    .kind = ClassificationIssueKind::MISSING_BOND_PARAMETER,
+                    .kind = ClassificationIssueKind::missing_bond_parameter,
                     .object_index = bond_index,
                     .message = "parameter set '" + std::string{parameters.id()} +
                                "' has no bond parameter matching " +

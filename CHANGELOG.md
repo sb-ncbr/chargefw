@@ -30,6 +30,10 @@
 
 ### C++
 
+- Breaking change: the enumerators of `parameters::ClassificationIssueKind`,
+  `parameters::AtomParameterClassificationKind`, and `parameters::BondParameterClassificationKind`
+  are lower case, as in the other public enums: `PLAIN` is now `plain`, `HIGHEST_BOND_ORDER`
+  `highest_bond_order`, and so on. Rename them in calls and rebuild downstream C++ code.
 - Breaking change: removed `AtomParameters::entry()`, `BondParameters::entry()`,
   `AtomParameterClassification::parameter_entry_index()`, and
   `BondParameterClassification::parameter_entry_index()` from `chargefw::parameters`.

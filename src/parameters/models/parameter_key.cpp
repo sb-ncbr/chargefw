@@ -8,15 +8,15 @@ namespace chargefw::parameters {
 auto atom_classification_kind_from_string(const std::string_view value)
     -> AtomParameterClassificationKind {
     if (value == "plain") {
-        return AtomParameterClassificationKind::PLAIN;
+        return AtomParameterClassificationKind::plain;
     }
 
     if (value == "hbo") {
-        return AtomParameterClassificationKind::HIGHEST_BOND_ORDER;
+        return AtomParameterClassificationKind::highest_bond_order;
     }
 
     if (value == "bonded") {
-        return AtomParameterClassificationKind::BONDED_ELEMENTS;
+        return AtomParameterClassificationKind::bonded_elements;
     }
 
     throw std::invalid_argument{"unknown atom parameter classification '" + std::string{value} +
@@ -26,11 +26,11 @@ auto atom_classification_kind_from_string(const std::string_view value)
 auto bond_classification_kind_from_string(const std::string_view value)
     -> BondParameterClassificationKind {
     if (value == "plain") {
-        return BondParameterClassificationKind::PLAIN;
+        return BondParameterClassificationKind::plain;
     }
 
     if (value == "bo") {
-        return BondParameterClassificationKind::BOND_ORDER;
+        return BondParameterClassificationKind::bond_order;
     }
 
     throw std::invalid_argument{"unknown bond parameter classification '" + std::string{value} +
@@ -39,13 +39,13 @@ auto bond_classification_kind_from_string(const std::string_view value)
 
 auto to_string(const AtomParameterClassificationKind kind) noexcept -> std::string_view {
     switch (kind) {
-    case AtomParameterClassificationKind::PLAIN:
+    case AtomParameterClassificationKind::plain:
         return "plain";
 
-    case AtomParameterClassificationKind::HIGHEST_BOND_ORDER:
+    case AtomParameterClassificationKind::highest_bond_order:
         return "hbo";
 
-    case AtomParameterClassificationKind::BONDED_ELEMENTS:
+    case AtomParameterClassificationKind::bonded_elements:
         return "bonded";
     }
 
@@ -54,10 +54,10 @@ auto to_string(const AtomParameterClassificationKind kind) noexcept -> std::stri
 
 auto to_string(const BondParameterClassificationKind kind) noexcept -> std::string_view {
     switch (kind) {
-    case BondParameterClassificationKind::PLAIN:
+    case BondParameterClassificationKind::plain:
         return "plain";
 
-    case BondParameterClassificationKind::BOND_ORDER:
+    case BondParameterClassificationKind::bond_order:
         return "bo";
     }
 

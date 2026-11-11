@@ -290,7 +290,7 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
 
     const auto classification = classifier_kind(atom_classification_kind_from_string, classifier,
                                                 child_context(context, "classifier"));
-    ensure_plain_type(classification == AtomParameterClassificationKind::PLAIN, type, context);
+    ensure_plain_type(classification == AtomParameterClassificationKind::plain, type, context);
 
     return AtomParameterKey{
         .atomic_number = atomic_number_from_symbol(element, child_context(context, "element")),
@@ -307,7 +307,7 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
 
     const auto classification = classifier_kind(bond_classification_kind_from_string, classifier,
                                                 child_context(context, "classifier"));
-    ensure_plain_type(classification == BondParameterClassificationKind::PLAIN, type, context);
+    ensure_plain_type(classification == BondParameterClassificationKind::plain, type, context);
 
     return BondTypeKey{.classification = classification, .type = type};
 }
@@ -569,7 +569,7 @@ auto sort_parameter_sets(std::vector<ParameterSet>& parameter_sets) -> void {
     }
     return "{\"element\": " + json_string(element) + ", " +
            key_classifier_text(to_string(key.classification),
-                               key.classification == AtomParameterClassificationKind::PLAIN,
+                               key.classification == AtomParameterClassificationKind::plain,
                                key.type) +
            "}";
 }
@@ -577,7 +577,7 @@ auto sort_parameter_sets(std::vector<ParameterSet>& parameter_sets) -> void {
 [[nodiscard]] auto bond_type_key_text(const BondTypeKey& key) -> std::string {
     return "{" +
            key_classifier_text(to_string(key.classification),
-                               key.classification == BondParameterClassificationKind::PLAIN,
+                               key.classification == BondParameterClassificationKind::plain,
                                key.type) +
            "}";
 }

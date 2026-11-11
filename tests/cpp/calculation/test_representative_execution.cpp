@@ -40,7 +40,7 @@ namespace {
     for (const auto atomic_number : {1, 6, 7, 8, 15, 16, 17}) {
         entries.push_back(
             {.key = {.atomic_number = atomic_number,
-                     .classification = parameters::AtomParameterClassificationKind::PLAIN,
+                     .classification = parameters::AtomParameterClassificationKind::plain,
                      .type = "*"},
              .parameters = {{.name = "A", .value = static_cast<double>(atomic_number)},
                             {.name = "B", .value = 20.0}}});

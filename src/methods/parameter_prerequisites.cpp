@@ -101,10 +101,10 @@ auto add_classification_issues(ParameterPrerequisiteResult& result,
     auto bonds = std::vector<std::size_t>{};
     for (const auto& issue : issues) {
         switch (issue.kind) {
-        case parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER:
+        case parameters::ClassificationIssueKind::missing_atom_parameter:
             atoms.push_back(issue.object_index);
             break;
-        case parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER:
+        case parameters::ClassificationIssueKind::missing_bond_parameter:
             bonds.push_back(issue.object_index);
             break;
         }

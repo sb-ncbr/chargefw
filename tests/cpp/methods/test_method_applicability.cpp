@@ -67,7 +67,7 @@ auto make_wrong_method_parameters() -> parameters::ParameterSet {
                                          .name = "Wrong method parameters"},
         {},
         parameters::AtomParameters{
-            {{.key = chargefw::test::atom_key(1, parameters::AtomParameterClassificationKind::PLAIN,
+            {{.key = chargefw::test::atom_key(1, parameters::AtomParameterClassificationKind::plain,
                                               "*"),
               .parameters = {{.name = "value", .value = 1.0}}}}}};
 }
@@ -80,10 +80,10 @@ auto make_water_only_parameters() -> parameters::ParameterSet {
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}}}}};
 }
 
@@ -95,16 +95,16 @@ auto make_collection_parameters() -> parameters::ParameterSet {
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}},
-             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::PLAIN,
+             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::plain,
                                               "*"),
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = chargefw::test::atom_key(
-                  17, parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  17, parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "value", .value = 4.0}}}}}};
 }
 
@@ -121,12 +121,12 @@ auto make_permissive_parameters(const bool include_exact_match) -> parameters::P
     if (include_exact_match) {
         entries.push_back(
             {.key = chargefw::test::atom_key(
-                 6, parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER, "2"),
+                 6, parameters::AtomParameterClassificationKind::highest_bond_order, "2"),
              .parameters = {{.name = "value", .value = 2.0}}});
     }
 
     entries.push_back({.key = chargefw::test::atom_key(
-                           6, parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER, "1"),
+                           6, parameters::AtomParameterClassificationKind::highest_bond_order, "1"),
                        .parameters = {{.name = "value", .value = 1.0}}});
 
     return parameters::ParameterSet{

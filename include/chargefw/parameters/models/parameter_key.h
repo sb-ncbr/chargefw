@@ -7,26 +7,26 @@
 namespace chargefw::parameters {
 
 enum class AtomParameterClassificationKind : std::uint8_t {
-    PLAIN,
-    HIGHEST_BOND_ORDER,
-    BONDED_ELEMENTS,
+    plain,
+    highest_bond_order,
+    bonded_elements,
 };
 
 enum class BondParameterClassificationKind : std::uint8_t {
-    PLAIN,
-    BOND_ORDER,
+    plain,
+    bond_order,
 };
 
 struct AtomParameterKey {
     int atomic_number = 0;
-    AtomParameterClassificationKind classification = AtomParameterClassificationKind::PLAIN;
+    AtomParameterClassificationKind classification = AtomParameterClassificationKind::plain;
     std::string type = "*";
 
     [[nodiscard]] auto operator==(const AtomParameterKey&) const -> bool = default;
 };
 
 struct BondTypeKey {
-    BondParameterClassificationKind classification = BondParameterClassificationKind::PLAIN;
+    BondParameterClassificationKind classification = BondParameterClassificationKind::plain;
     std::string type = "*";
 
     [[nodiscard]] auto operator==(const BondTypeKey&) const -> bool = default;

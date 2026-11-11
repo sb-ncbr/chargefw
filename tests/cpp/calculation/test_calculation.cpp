@@ -55,10 +55,10 @@ auto make_parameter_set(std::string id, std::string method_id, const std::uint16
         {},
         chargefw::parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, chargefw::parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  1, chargefw::parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, chargefw::parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  8, chargefw::parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "value", .value = 1.0}}}}}};
 }
 
@@ -69,10 +69,10 @@ auto make_singular_eem_parameter_set() -> chargefw::parameters::ParameterSet {
         chargefw::parameters::CommonParameters{{{.name = "kappa", .value = 1.0}}},
         chargefw::parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, chargefw::parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  1, chargefw::parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "A", .value = 1.0}, {.name = "B", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, chargefw::parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  8, chargefw::parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "A", .value = 2.0}, {.name = "B", .value = 1.0}}}}}};
 }
 
@@ -137,7 +137,7 @@ auto make_permissive_peoe_parameter_set() -> chargefw::parameters::ParameterSet 
         chargefw::parameters::CommonParameters{{{.name = "dampH", .value = 1.0}}},
         chargefw::parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  6, chargefw::parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
+                  6, chargefw::parameters::AtomParameterClassificationKind::highest_bond_order,
                   "1"),
               .parameters = {{.name = "A", .value = 1.0},
                              {.name = "B", .value = 1.0},
