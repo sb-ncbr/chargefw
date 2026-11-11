@@ -78,9 +78,6 @@ struct AtomSection {
 [[nodiscard]] auto read_atoms(std::istream& input, std::size_t& line, const int atom_count)
     -> AtomSection {
     auto result = AtomSection{};
-    result.atoms.reserve(static_cast<std::size_t>(atom_count));
-    result.positions.reserve(static_cast<std::size_t>(atom_count));
-    result.references.reserve(static_cast<std::size_t>(atom_count));
 
     for (int index = 0; index < atom_count; ++index) {
         std::istringstream atom_line{common::read_line(input, line, "MOL2")};
@@ -139,7 +136,6 @@ struct SourceBond {
 [[nodiscard]] auto read_bonds(std::istream& input, std::size_t& line, const int bond_count)
     -> std::vector<SourceBond> {
     auto result = std::vector<SourceBond>{};
-    result.reserve(static_cast<std::size_t>(bond_count));
 
     for (int index = 0; index < bond_count; ++index) {
         std::istringstream bond_line{common::read_line(input, line, "MOL2")};

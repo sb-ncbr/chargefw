@@ -272,10 +272,6 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     }
 
     auto result = ParsedMolecule{};
-    result.atoms.reserve(static_cast<std::size_t>(atom_count));
-    result.positions.reserve(static_cast<std::size_t>(atom_count));
-    result.atom_references.reserve(static_cast<std::size_t>(atom_count));
-    result.bonds.reserve(static_cast<std::size_t>(bond_count));
     result.source_connectivity =
         bond_count == 0 ? SourceConnectivity::explicitly_empty : SourceConnectivity::present;
     std::unordered_map<int, std::size_t> atom_indices;

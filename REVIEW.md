@@ -50,7 +50,6 @@ Findings where this rule changes the proposal:
 | L2 | Document | comment in `prepared_molecule.h` |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
-| B10 | Leave, or delete the `reserve` calls | — |
 | A7 | Document the stream check | comment in `json_output.h` |
 | A10 | Leave | — |
 | A12 (enum members) | Leave | — |
@@ -75,7 +74,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B2–B10 |
+| B | Behaviour bugs | B2–B9 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
 | D | Dead code | D4–D13 |
@@ -210,21 +209,6 @@ for realistic input.
   the first marker yields no records.
 - **Fix:** compare `common::trim(*section)`, and throw on a repeated ATOM or BOND section within one
   record.
-
-### B10. Declared counts are reserved before any line is read
-
-- **Status:** plausible; the outcome depends on the allocator and overcommit settings.
-- **Where:** `src/adapters/native/mol_input.cpp:275-278` (V3000),
-  `src/adapters/native/mol2_input.cpp:81-83`, `:142`.
-- **Problem:** the declared count is checked only for being positive before vectors are reserved.
-- **Failure:** a 200-byte file with `M  V30 COUNTS 2000000000 0`, or a MOL2 counts line
-  `2000000000 0`, requests tens of gigabytes and ends in `std::bad_alloc`, which the CLI reports as
-  "Not enough memory" with status 1 instead of invalid input. V2000 is bounded at 999 by its field
-  width.
-- **Fix:** drop these `reserve` calls or cap them, for example `std::min(count, 1 << 16)`.
-- **Resolution:** leave, or delete the `reserve` calls if the file is being edited anyway. Only a
-  deliberately malformed file reaches this, and the run still fails with a message. Nothing to
-  document.
 
 ---
 
