@@ -182,7 +182,6 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
                                const adapters::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
     const auto directory = std::filesystem::path{output_directory};
     std::error_code directory_error;
     std::filesystem::create_directories(directory, directory_error);
@@ -195,12 +194,15 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
+    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
+    run.metrics.ended_at = utc_timestamp();
+    run.metrics.runtime_seconds =
+        std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
+    const auto json_path = std::filesystem::path{prefix.string() + ".json"};
+    write_json(json_path, owned_result, run.metrics);
+    report_diagnostics(owned_result, run.reported);
+
     if (owned_result.charges() == nullptr) {
-        run.metrics.ended_at = utc_timestamp();
-        run.metrics.runtime_seconds =
-            std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
-        write_json(prefix.string() + ".json", owned_result, run.metrics);
-        report_diagnostics(owned_result, run.reported);
         switch (owned_result.status()) {
         case adapters::ResultStatus::invalid_request:
             return 2;
@@ -215,13 +217,6 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         }
     }
 
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
-    run.metrics.ended_at = utc_timestamp();
-    run.metrics.runtime_seconds =
-        std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
-    const auto json_path = std::filesystem::path{prefix.string() + ".json"};
-    write_json(json_path, owned_result, run.metrics);
-    report_diagnostics(owned_result, run.reported);
     std::println("Wrote {}", json_path.string());
 
     try {

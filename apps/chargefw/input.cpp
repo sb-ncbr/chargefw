@@ -129,35 +129,24 @@ auto read_collection(const std::string& input_path,
     std::ranges::transform(extension, extension.begin(), [](const unsigned char character) -> char {
         return static_cast<char>(std::tolower(character));
     });
+    if (structural_options_requested && (extension == ".sdf" || extension == ".mol" ||
+                                         extension == ".mol2" || extension == ".json")) {
+        throw std::runtime_error{
+            "Structural input options are only supported for PDB and mmCIF input"};
+    }
     if (extension == ".sdf") {
-        if (structural_options_requested) {
-            throw std::runtime_error{
-                "Structural input options are only supported for PDB and mmCIF input"};
-        }
         adapters::native::sdf_input::SdfReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol") {
-        if (structural_options_requested) {
-            throw std::runtime_error{
-                "Structural input options are only supported for PDB and mmCIF input"};
-        }
         adapters::native::mol_input::MolReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol2") {
-        if (structural_options_requested) {
-            throw std::runtime_error{
-                "Structural input options are only supported for PDB and mmCIF input"};
-        }
         adapters::native::mol2_input::Mol2Reader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".json") {
-        if (structural_options_requested) {
-            throw std::runtime_error{
-                "Structural input options are only supported for PDB and mmCIF input"};
-        }
         adapters::native::json_input::JsonReader reader{input, input_path,
                                                         structural_options.conformers};
         return read_collection(reader, input_path);

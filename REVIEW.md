@@ -532,15 +532,6 @@ listed at the end of the section.
 - Keep `apps/chargefw/input.cpp:69-72` separate: its `std::runtime_error` and message describe a CLI
   option-parsing error.
 
-### C11. Duplicates in the CLI
-
-- **Status:** reported.
-- `apps/chargefw/input.cpp:133-136, 141-144, 149-152, 157-160`: the same "Structural input options
-  are only supported for PDB and mmCIF input" check four times. Hoist it before the dispatch.
-- `apps/chargefw/output.cpp:202-206` and `:222-227`: the same metrics, `write_json`, and
-  `report_diagnostics` sequence in the no-charges and success branches. The peak-memory sample is
-  also taken twice (`:188`, `:221`).
-
 ### C12. Output writers
 
 - **Status:** reported.
