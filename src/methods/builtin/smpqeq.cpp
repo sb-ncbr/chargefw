@@ -1,4 +1,5 @@
 #include "methods/builtin/smpqeq.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -52,11 +53,7 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
 
     const auto first = parameters.atom("first");
     // The pair loop below reads second O(n^2) times; resolve it once per atom.
-    const auto second_parameter = parameters.atom("second");
-    std::vector<double> second(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        second[atom_index] = second_parameter[atom_index];
-    }
+    const auto second = methods::detail::atom_parameter_values(parameters, "second", atom_count);
     const auto third = parameters.atom("third");
     const auto fourth = parameters.atom("fourth");
 

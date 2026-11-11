@@ -1,4 +1,5 @@
 #include "methods/builtin/sfkeem.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -45,11 +46,7 @@ auto SFKEEMMethod::calculate(const CalculationInput& input) const -> charges::At
 
     const auto a = parameters.atom("A");
     // The pair loop below reads B O(n^2) times; resolve it once per atom.
-    const auto b_accessor = parameters.atom("B");
-    std::vector<double> b_parameter(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        b_parameter[atom_index] = b_accessor[atom_index];
-    }
+    const auto b_parameter = methods::detail::atom_parameter_values(parameters, "B", atom_count);
 
     const auto n = static_cast<Eigen::Index>(atom_count);
 

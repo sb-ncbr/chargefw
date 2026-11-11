@@ -376,17 +376,6 @@ listed at the end of the section.
   `src/parameterization/eem_derivatives.cpp`, which keeps its own LU on purpose.
 - **Validation:** numerical code; run the method tests in a release profile as well.
 
-### C2. Copying one atom parameter into a vector
-
-- **Status:** reported.
-- **Where:** `src/methods/builtin/sfkeem.cpp:48-52`, `smpqeq.cpp:55-59`, `qeq.cpp:75-79`,
-  `eqeqc.cpp:48-52`, `sqe.cpp:71-75`, `sqeqp.cpp:29-33`,
-  `src/parameterization/sqe_derivatives.cpp:79-83`.
-- **Reason it exists:** `AtomParameterAccessor::operator[]` does a classification lookup and a by-name
-  parameter lookup on every call (`src/parameters/models/parameter_view.cpp:13-20`).
-- **Fix:** one helper `atom_values(view, name, atom_count) -> std::vector<double>` in a small internal
-  header under `src/methods`.
-
 ### C4. Parameter-set JSON reader
 
 - **Status:** reported.

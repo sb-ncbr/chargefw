@@ -1,4 +1,5 @@
 #include "methods/builtin/qeq.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -72,11 +73,8 @@ auto QEqMethod::calculate(const CalculationInput& input) const -> charges::Atomi
 
     const auto electronegativity = parameters.atom("electronegativity");
     // The pair loop below reads hardness O(n^2) times; resolve it once per atom.
-    const auto hardness_parameter = parameters.atom("hardness");
-    std::vector<double> hardness(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        hardness[atom_index] = hardness_parameter[atom_index];
-    }
+    const auto hardness =
+        methods::detail::atom_parameter_values(parameters, "hardness", atom_count);
     const auto& type = input.method_options().get<std::string>("overlap_term");
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {

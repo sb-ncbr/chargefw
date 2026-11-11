@@ -1,4 +1,5 @@
 #include "methods/builtin/sqe.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/prerequisite_helpers.h"
 #include "methods/builtin/sqe_system.h"
 
@@ -68,11 +69,7 @@ auto sqe_core::build_system(const CalculationInput& input,
     const auto electronegativity = parameters.atom("electronegativity");
     const auto hardness = parameters.atom("hardness");
     // The pair loop below reads widths O(n^2) times; resolve them once per atom.
-    const auto width_parameter = parameters.atom("width");
-    std::vector<double> width(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        width[atom_index] = width_parameter[atom_index];
-    }
+    const auto width = methods::detail::atom_parameter_values(parameters, "width", atom_count);
     const auto kappa = parameters.bond("kappa");
 
     const auto n = static_cast<Eigen::Index>(atom_count);

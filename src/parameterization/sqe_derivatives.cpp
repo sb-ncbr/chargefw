@@ -20,6 +20,7 @@
 #include "parameterization/parameter_columns.h"
 
 #include "features/topology_helpers.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
 
@@ -75,11 +76,8 @@ struct WidthDerivatives {
     const auto atom_count = input.molecule().atom_count();
     const auto n = static_cast<Eigen::Index>(atom_count);
     // As in build_system(): the pair loop reads widths O(n^2) times.
-    const auto width_parameter = input.parameters().atom("width");
-    auto width = std::vector<double>(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        width[atom_index] = width_parameter[atom_index];
-    }
+    const auto width =
+        methods::detail::atom_parameter_values(input.parameters(), "width", atom_count);
 
     auto result =
         WidthDerivatives{.pairs = Eigen::MatrixXd::Zero(n, n), .sources = Eigen::VectorXd::Zero(n)};
