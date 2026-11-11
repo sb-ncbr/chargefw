@@ -206,8 +206,4 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
     return std::nullopt;
 }
 
-auto MmcifReader::options() const noexcept -> ::chargefw::adapters::gemmi::InputOptions {
-    return options_;
-}
-
 } // namespace chargefw::adapters::gemmi::mmcif_input

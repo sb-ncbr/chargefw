@@ -281,13 +281,6 @@ for realistic input.
 only" means that the remaining users are under `tests/`. Re-run the grep before removing anything;
 for public headers, removal is an API change and needs a CHANGELOG entry.
 
-### D4. `PdbReader::options()` and `MmcifReader::options()` — no user
-
-- **Status:** reported.
-- **Where:** `include/chargefw/adapters/gemmi/pdb_input.h:28`, `mmcif_input.h:31`.
-  `PdbReader::options_` exists only for the accessor (`src/adapters/gemmi/pdb_input.cpp:224, 267`).
-- **Check:** `grep -rn "\.options()" src apps python tests`.
-
 ### D5. Unused `ComplexityTerm` values and `to_string(ExecutionAvailability)`
 
 - **Status:** re-checked for the two enumerators; reported for `to_string`.

@@ -36,6 +36,8 @@
 
 ### C++
 
+- Breaking change: removed `PdbReader::options()` and `MmcifReader::options()`. Keep the
+  `InputOptions` supplied to the constructor if you need to inspect them later.
 - Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
   result from `try_classify_parameters()`, or construct it explicitly from a classification or issues.
 - Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace

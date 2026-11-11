@@ -28,7 +28,6 @@ class MmcifReader {
     ~MmcifReader() = default;
 
     [[nodiscard]] auto next() -> std::optional<ImportedMoleculeRecord>;
-    [[nodiscard]] auto options() const noexcept -> ::chargefw::adapters::gemmi::InputOptions;
 
   private:
     ::gemmi::cif::Document document_;
