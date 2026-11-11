@@ -47,7 +47,6 @@ Findings where this rule changes the proposal:
 | --- | --- | --- |
 | L1 | Already documented; code change optional | `docs/interfaces/cpp.md:5` |
 | L2 | Document | comment in `prepared_molecule.h` |
-| L3 | Document | comment in `parameter_classifier.h` |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
 | B10 | Leave, or delete the `reserve` calls | — |
@@ -77,7 +76,7 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B11 |
-| L | Lifetime and misuse traps | L1–L3 |
+| L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A1–A12 |
 | D | Dead code | D1–D13 |
 | C | Duplicated code | C1–C15 |
@@ -281,27 +280,6 @@ for realistic input.
 - **Resolution:** document. No workflow uses a moved-from prepared molecule. Correct the comment
   above the move constructor in `prepared_molecule.h`: only `geometry_defects()` stays valid on the
   moved-from object; its topology must not be queried. This is not user documentation.
-
-### L3. The classifier takes `molecule` and `topology` separately and does not check that they agree
-
-- **Status:** reported. The only production caller passes a matching pair.
-- **Where:** `include/chargefw/parameters/classification/parameter_classifier.h:11-19`,
-  `src/parameters/classification/parameter_classifier.cpp:236-239`.
-- **Problem:** `topology.molecule()` already identifies the molecule, so the first parameter is
-  redundant and can disagree with it. Elements are read from `molecule`; neighbours and incident
-  bonds come from `topology`.
-- **Failure:** a topology built for another molecule with the same atom and bond counts gives a
-  silently wrong `hbo` or `bonded` classification.
-- **Check:** `grep -rn "classify_parameters(" src apps python` shows the production caller,
-  `src/methods/parameter_prerequisites.cpp:145`.
-- **Fix:** add the identity check that `SpatialFragmentBuilder` has
-  (`src/features/spatial_fragment.cpp:71`): throw `std::invalid_argument` when
-  `std::addressof(topology.molecule()) != std::addressof(molecule)`. Dropping the `molecule`
-  parameter is cleaner but touches about 15 test call sites and is a public API change.
-- **Resolution:** document. `assess()` always passes a matching pair, and only a C++ user who calls
-  the classifier directly can get this wrong. State the precondition in the comment at the
-  declaration: `topology` must have been built from `molecule`. `docs/interfaces/cpp.md` does not
-  describe the classifier, so it needs no change.
 
 ---
 

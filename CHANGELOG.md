@@ -30,6 +30,9 @@
 
 ### C++
 
+- Breaking change: `parameters::classify_parameters()` and `parameters::try_classify_parameters()`
+  derive the molecule from `TopologyFeatures`. Remove the first (`molecule`) argument from calls
+  and rebuild downstream C++ code.
 - Breaking change: `JsonWriter::write`, `Mol2Writer::write`, `PqrWriter::write`, and both
   `MmcifWriter::write` overloads no longer accept `generator_version`. Writers always record ChargeFW
   and the compiled library version. Pass optional JSON execution metrics as the second argument.

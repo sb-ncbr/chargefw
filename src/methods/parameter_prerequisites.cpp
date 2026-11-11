@@ -143,8 +143,7 @@ auto check_parameter_prerequisites(const Method& method, const ParameterPrerequi
 
     if (requirements.requires_atom_parameters() || requirements.requires_bond_parameters()) {
         const auto classification = parameters::try_classify_parameters(
-            input.prepared_molecule.molecule(), input.prepared_molecule.topology(),
-            input.parameter_set, input.classification_options);
+            input.prepared_molecule.topology(), input.parameter_set, input.classification_options);
 
         if (!classification) {
             add_classification_issues(result, classification.issues(),

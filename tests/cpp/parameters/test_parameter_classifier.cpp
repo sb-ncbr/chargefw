@@ -37,7 +37,7 @@ auto classify(const core::Molecule& molecule, const parameters::ParameterSet& pa
     -> parameters::ParameterClassification {
     const features::TopologyFeatures topology{molecule};
 
-    return parameters::classify_parameters(molecule, topology, parameter_set);
+    return parameters::classify_parameters(topology, parameter_set);
 }
 
 auto make_c_cl_f_h_fragment() -> core::Molecule {
@@ -141,15 +141,15 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
         parameters::BondParameters{{{.key = chargefw::test::single_bond_key(6, 8),
                                      .parameters = {{.name = "value", .value = 3.0}}}}}};
 
-    const auto exact = parameters::try_classify_parameters(
-        carbonyl, features::TopologyFeatures{carbonyl}, parameter_set);
+    const auto exact =
+        parameters::try_classify_parameters(features::TopologyFeatures{carbonyl}, parameter_set);
     CHECK_FALSE(exact);
     REQUIRE(exact.issues().size() == 3);
     CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);
     CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER);
 
     const auto permissive = parameters::try_classify_parameters(
-        carbonyl, features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
+        features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
     REQUIRE(permissive);
     const auto atom_indices = permissive.classification().atom().parameter_entry_indices();
     const auto bond_indices = permissive.classification().bond().parameter_entry_indices();
@@ -162,10 +162,9 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     // An atom without bonds has highest bond order 0 and falls back to the single-bond entry.
     const auto lone_oxygen = make_lone_oxygen();
     const features::TopologyFeatures lone_oxygen_topology{lone_oxygen};
-    CHECK_FALSE(
-        parameters::try_classify_parameters(lone_oxygen, lone_oxygen_topology, parameter_set));
+    CHECK_FALSE(parameters::try_classify_parameters(lone_oxygen_topology, parameter_set));
     const auto lone_permissive = parameters::try_classify_parameters(
-        lone_oxygen, lone_oxygen_topology, parameter_set, {.permissive_types = true});
+        lone_oxygen_topology, parameter_set, {.permissive_types = true});
     REQUIRE(lone_permissive);
     CHECK(lone_permissive.classification().atom()[0] == 1);
 }
@@ -198,8 +197,8 @@ TEST_CASE("parameter classifier reports missing entries with source indices",
         parameters::AtomParameters{{{.key = chargefw::test::plain_atom_key(1),
                                      .parameters = {{.name = "value", .value = 1.0}}}}}};
 
-    const auto result = parameters::try_classify_parameters(
-        water, features::TopologyFeatures{water}, parameter_set);
+    const auto result =
+        parameters::try_classify_parameters(features::TopologyFeatures{water}, parameter_set);
     CHECK_FALSE(result);
     REQUIRE(result.issues().size() == 1);
     CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);

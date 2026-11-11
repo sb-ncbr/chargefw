@@ -233,10 +233,10 @@ auto bond_type_key(const core::Molecule& molecule, const features::TopologyFeatu
 
 } // namespace detail
 
-auto try_classify_parameters(const core::Molecule& molecule,
-                             const features::TopologyFeatures& topology,
+auto try_classify_parameters(const features::TopologyFeatures& topology,
                              const ParameterSet& parameters, const ClassificationOptions& options)
     -> ClassificationResult {
+    const auto& molecule = topology.molecule();
     std::vector<ClassificationIssue> issues;
     std::vector<std::size_t> atom_indices;
     std::vector<std::size_t> bond_indices;
@@ -296,10 +296,9 @@ auto try_classify_parameters(const core::Molecule& molecule,
     return ClassificationResult{std::move(classification)};
 }
 
-auto classify_parameters(const core::Molecule& molecule, const features::TopologyFeatures& topology,
-                         const ParameterSet& parameters, const ClassificationOptions& options)
-    -> ParameterClassification {
-    const auto result = try_classify_parameters(molecule, topology, parameters, options);
+auto classify_parameters(const features::TopologyFeatures& topology, const ParameterSet& parameters,
+                         const ClassificationOptions& options) -> ParameterClassification {
+    const auto result = try_classify_parameters(topology, parameters, options);
 
     if (!result) {
         throw std::invalid_argument{result.issues().front().message};

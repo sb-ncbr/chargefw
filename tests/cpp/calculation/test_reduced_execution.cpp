@@ -598,7 +598,7 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
         const features::PreparedMolecule prepared{molecule};
         const features::ConformerFeatures geometry{molecule, 0};
         const auto classification =
-            parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+            parameters::classify_parameters(prepared.topology(), parameter_set);
         const auto* method = methods::method_registry().find(method_id);
         REQUIRE(method != nullptr);
         const auto options = methods::make_default_options(method->option_schema());
@@ -692,8 +692,7 @@ TEST_CASE("SQE+qp fragments start pieces of a split component from its reference
         chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5});
     const features::PreparedMolecule prepared{molecule};
     const features::ConformerFeatures geometry{molecule, 0};
-    const auto classification =
-        parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+    const auto classification = parameters::classify_parameters(prepared.topology(), parameter_set);
     const auto* method = methods::method_registry().find("sqeqp");
     REQUIRE(method != nullptr);
     const auto options = methods::make_default_options(method->option_schema());

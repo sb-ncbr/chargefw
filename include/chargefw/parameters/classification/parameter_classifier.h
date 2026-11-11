@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chargefw/core/molecule.h>
 #include <chargefw/features/topology_features.h>
 #include <chargefw/parameters/classification/classification_result.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
@@ -8,14 +7,14 @@
 
 namespace chargefw::parameters {
 
-[[nodiscard]] auto
-try_classify_parameters(const core::Molecule& molecule, const features::TopologyFeatures& topology,
-                        const ParameterSet& parameters, const ClassificationOptions& options = {})
+[[nodiscard]] auto try_classify_parameters(const features::TopologyFeatures& topology,
+                                           const ParameterSet& parameters,
+                                           const ClassificationOptions& options = {})
     -> ClassificationResult;
 
-[[nodiscard]] auto
-classify_parameters(const core::Molecule& molecule, const features::TopologyFeatures& topology,
-                    const ParameterSet& parameters, const ClassificationOptions& options = {})
+[[nodiscard]] auto classify_parameters(const features::TopologyFeatures& topology,
+                                       const ParameterSet& parameters,
+                                       const ClassificationOptions& options = {})
     -> ParameterClassification;
 
 } // namespace chargefw::parameters

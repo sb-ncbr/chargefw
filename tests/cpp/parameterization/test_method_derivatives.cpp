@@ -99,8 +99,7 @@ auto with_input(const core::Molecule& molecule, const std::string_view method_id
                 const std::span<const double> references, Operation operation) {
     const chargefw::features::PreparedMolecule prepared{molecule};
     const chargefw::features::ConformerFeatures geometry{molecule, 0};
-    const auto classification =
-        parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+    const auto classification = parameters::classify_parameters(prepared.topology(), parameter_set);
     const parameters::ParameterView view{parameter_set, classification};
     const auto options = methods::make_default_options(method(method_id).option_schema());
     const methods::CalculationInput input{prepared, options, -1.0,      &geometry,

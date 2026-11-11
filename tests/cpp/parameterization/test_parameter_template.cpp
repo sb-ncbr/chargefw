@@ -105,8 +105,7 @@ TEST_CASE("parameter template matches every atom and bond of its molecules",
 
         for (const auto& molecule : prepared.molecules()) {
             CAPTURE(molecule.molecule().name());
-            const auto result =
-                parameters::try_classify_parameters(molecule.molecule(), molecule.topology(), set);
+            const auto result = parameters::try_classify_parameters(molecule.topology(), set);
             CHECK(static_cast<bool>(result));
         }
     }
