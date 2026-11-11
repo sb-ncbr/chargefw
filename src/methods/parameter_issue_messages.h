@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_prerequisites.h>
 
 #include "core/diagnostic_description.h"
 
@@ -10,6 +11,18 @@
 #include <string_view>
 
 namespace chargefw::methods::detail {
+
+[[nodiscard]] inline auto with_molecule_prefix(const core::Molecule& molecule,
+                                               const std::size_t molecule_index,
+                                               const PrerequisiteIssue& issue)
+    -> PrerequisiteIssue {
+    return PrerequisiteIssue{.kind = issue.kind,
+                             .message =
+                                 core::detail::molecule_description(molecule, molecule_index) +
+                                 ": " + issue.message,
+                             .molecule_index = molecule_index,
+                             .location = issue.location};
+}
 
 // Why a parameter set does not apply to the atoms, which are in atom order and not empty. Fixed-ion
 // planning rebuilds it for the original molecule, so it depends only on the atoms and the molecule.

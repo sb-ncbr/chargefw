@@ -404,13 +404,6 @@ listed at the end of the section.
 - **Fix:** move the shared helpers into `prerequisite_helpers.h` or a small `peoe_common.h`, and use
   the option helper in `calculate()` too.
 
-### C8. Prefixing an issue with its molecule
-
-- **Status:** reported.
-- **Where:** `src/methods/method_prerequisites.cpp:12-21` (`with_molecule_prefix`) and inline in
-  `src/methods/parameter_prerequisites.cpp:176-183`.
-- **Fix:** move the function to `src/methods/parameter_issue_messages.h` and use it in both.
-
 ### C9. Optional parameter-set ID built by hand
 
 - **Status:** plausible. The helper tests `uses_parameters()`, the copies test

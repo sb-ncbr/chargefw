@@ -1,25 +1,11 @@
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_prerequisites.h>
 
-#include "core/diagnostic_description.h"
+#include "methods/parameter_issue_messages.h"
 
-#include <string>
+#include <stdexcept>
 
 namespace chargefw::methods {
-namespace {
-
-[[nodiscard]] auto with_molecule_prefix(const core::Molecule& molecule,
-                                        const std::size_t molecule_index,
-                                        const PrerequisiteIssue& issue) -> PrerequisiteIssue {
-    return PrerequisiteIssue{.kind = issue.kind,
-                             .message =
-                                 core::detail::molecule_description(molecule, molecule_index) +
-                                 ": " + issue.message,
-                             .molecule_index = molecule_index,
-                             .location = issue.location};
-}
-
-} // namespace
 
 auto to_string(const PrerequisiteIssueKind value) -> std::string_view {
     switch (value) {
@@ -51,8 +37,8 @@ auto check_method_prerequisites(const Method& method,
             {.prepared_molecule = molecules[molecule_index], .method_options = method_options});
 
         for (const auto& issue : molecule_result.issues) {
-            result.issues.push_back(
-                with_molecule_prefix(molecules[molecule_index].molecule(), molecule_index, issue));
+            result.issues.push_back(detail::with_molecule_prefix(
+                molecules[molecule_index].molecule(), molecule_index, issue));
         }
     }
 

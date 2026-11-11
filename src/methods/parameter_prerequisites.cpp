@@ -3,7 +3,6 @@
 #include <chargefw/methods/parameter_prerequisites.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
 
-#include "core/diagnostic_description.h"
 #include "methods/parameter_issue_messages.h"
 
 #include <cstddef>
@@ -184,13 +183,8 @@ auto check_parameter_prerequisites(const Method& method,
 
         if (!molecule_result) {
             for (const auto& issue : molecule_result.issues) {
-                result.issues.push_back(PrerequisiteIssue{
-                    .kind = issue.kind,
-                    .message = core::detail::molecule_description(
-                                   molecules[molecule_index].molecule(), molecule_index) +
-                               ": " + issue.message,
-                    .molecule_index = molecule_index,
-                    .location = issue.location});
+                result.issues.push_back(detail::with_molecule_prefix(
+                    molecules[molecule_index].molecule(), molecule_index, issue));
             }
 
             continue;
