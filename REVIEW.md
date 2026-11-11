@@ -562,13 +562,6 @@ listed at the end of the section.
 - `parameterization/_diagnostics.py:97-105` repeats `_compression.py:51-63` (scale to unit diagonal,
   `eigh`, undetermined check). The first clips a negative diagonal, the second raises. Low value.
 
-### C15. Python extension
-
-- **Status:** reported.
-- Observer setup: the same seven lines in `python/src/calculation.cpp:337-342` and `:465-470`.
-- `method_option_value` (`python/src/calculation.cpp:145-147`) is identical to `option_value`
-  (`python/src/methods.cpp:17-19`).
-
 ### Considered and not recommended
 
 - Turning the `Atom`/`Bond` class pairs (`AtomParameters`/`BondParameters`, the two classifications,

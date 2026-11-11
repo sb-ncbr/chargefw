@@ -25,6 +25,7 @@
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
 
 #include <cstddef>
@@ -140,14 +141,10 @@ auto execution_policy(const calculation::ExecutionPolicy& policy) -> nb::dict {
     return result;
 }
 
-auto method_option_value(const methods::MethodOptionValue& value) -> nb::object {
-    return std::visit([](const auto& item) { return nb::cast(item); }, value);
-}
-
 auto method_options(const methods::MethodOptions& options) -> nb::dict {
     auto result = nb::dict{};
     for (const auto& [id, value] : options.values()) {
-        result[id.c_str()] = method_option_value(value);
+        result[id.c_str()] = nb::cast(value);
     }
     return result;
 }
@@ -286,6 +283,20 @@ class PythonCalculationObserver final : public calculation::CalculationObserver 
     nb::object observer_;
 };
 
+template <typename Calculate>
+auto with_calculation_observer(nb::object observer, Calculate calculate)
+    -> calculation::ExecutionResult {
+    auto python_observer = std::optional<PythonCalculationObserver>{};
+    const auto* native_observer = std::addressof(calculation::default_calculation_observer());
+    if (!observer.is_none()) {
+        python_observer.emplace(std::move(observer));
+        native_observer = std::addressof(*python_observer);
+    }
+    // Reacquire the GIL before destroying the Python observer, including on exceptions.
+    const auto release = nb::gil_scoped_release{};
+    return calculate(*native_observer);
+}
+
 auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     auto result = nb::dict{};
     result["method_id"] = std::string{plan.method().id()};
@@ -332,17 +343,11 @@ class NativeAssessment {
     }
 
     [[nodiscard]] auto calculate_default(nb::object observer) const -> NativeExecutionResult {
-        auto python_observer = std::optional<PythonCalculationObserver>{};
-        const auto* native_observer = std::addressof(calculation::default_calculation_observer());
-        if (!observer.is_none()) {
-            python_observer.emplace(std::move(observer));
-            native_observer = std::addressof(*python_observer);
-        }
-        auto result = [&] {
-            nb::gil_scoped_release release;
-            return calculation::calculate(state_->assessment_, state_->max_threads_,
-                                          *native_observer);
-        }();
+        auto result =
+            with_calculation_observer(std::move(observer), [&](const auto& native_observer) {
+                return calculation::calculate(state_->assessment_, state_->max_threads_,
+                                              native_observer);
+            });
         return NativeExecutionResult{adapters::make_charge_calculation_result(
             state_->inputs_, state_->requested_, std::move(result))};
     }
@@ -460,17 +465,10 @@ auto NativePlan::report() const -> nb::dict {
 
 auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::object observer) const
     -> NativeExecutionResult {
-    auto python_observer = std::optional<PythonCalculationObserver>{};
-    const auto* native_observer = std::addressof(calculation::default_calculation_observer());
-    if (!observer.is_none()) {
-        python_observer.emplace(std::move(observer));
-        native_observer = std::addressof(*python_observer);
-    }
-    auto result = [&] {
-        nb::gil_scoped_release release;
+    auto result = with_calculation_observer(std::move(observer), [&](const auto& native_observer) {
         return calculation::calculate(state_->assessment_, plan(),
-                                      max_threads.value_or(state_->max_threads_), *native_observer);
-    }();
+                                      max_threads.value_or(state_->max_threads_), native_observer);
+    });
     auto requested = state_->requested_;
     requested.max_threads = max_threads.value_or(state_->max_threads_);
     return NativeExecutionResult{adapters::make_charge_calculation_result(
