@@ -57,6 +57,12 @@ record gets one `aromatic_bonds_converted` warning that counts them. V3000 coord
 bonds; the record gets a warning for each of the two kinds. Other V3000 atom and bond attributes are
 read but not used.
 
+A V3000 record with no bonds may omit the `BOND` block or include an empty one. A trailing
+`COLLECTION` block is accepted, but its metadata, including enhanced stereo groups, is not retained.
+Other blocks after the atoms or bonds, such as `SGROUP` and `3D`, are rejected. For these records,
+export an explicit atom-and-bond structure without those blocks; check that the export preserves the
+structure you want to calculate.
+
 V2000 property lines other than `M  CHG`, such as `M  ISO`, are not used. The record gets one
 `v2000_property_ignored` warning for each kind of property line, and one `v3000_bond_order_ignored`
 warning for each kind of left-out bond, with the line number of the first one.

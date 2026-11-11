@@ -314,56 +314,78 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
                            .z = common::parse_double(atom[4], "V3000 z coordinate")});
     }
 
-    if (v30_payload(read_v30_line(input, line)) != "END ATOM" ||
-        v30_payload(read_v30_line(input, line)) != "BEGIN BOND") {
+    if (v30_payload(read_v30_line(input, line)) != "END ATOM") {
+        throw std::runtime_error{"expected V3000 END ATOM"};
+    }
+
+    auto next = read_v30_line(input, line);
+    if (v30_payload(next) == "BEGIN BOND") {
+        for (int index = 0; index < bond_count; ++index) {
+            const auto bond_line = line + 1;
+            const auto bond = v30_tokens(read_v30_line(input, line));
+
+            if (bond.size() < 4) {
+                throw std::runtime_error{"invalid V3000 bond record"};
+            }
+
+            const auto source_id = common::parse_int(bond[0], "V3000 bond id");
+            if (source_id <= 0 || !bond_ids.emplace(source_id).second) {
+                throw std::runtime_error{"duplicate or invalid V3000 bond id"};
+            }
+
+            const auto first_source_id = common::parse_int(bond[2], "V3000 bond atom");
+            const auto second_source_id = common::parse_int(bond[3], "V3000 bond atom");
+            const auto first = atom_indices.find(first_source_id);
+            const auto second = atom_indices.find(second_source_id);
+
+            if (first == atom_indices.end() || second == atom_indices.end()) {
+                throw std::runtime_error{"V3000 bond references an unknown atom"};
+            }
+
+            const auto order = common::parse_int(bond[1], "V3000 bond order");
+            if (order == 9 || order == 10) {
+                if (ignored_bond_orders.emplace(order).second) {
+                    result.issues.push_back(ImportIssue{
+                        .kind = ImportIssueKind::v3000_bond_order_ignored,
+                        .message =
+                            "V3000 bond order " + std::to_string(order) +
+                            " was ignored because it is not represented in charge calculations; "
+                            "the imported graph omits this bond.",
+                        .line = bond_line});
+                }
+                continue;
+            }
+
+            result.bonds.emplace_back(first->second, second->second,
+                                      core::bond_order_from_value(order == 4 ? 1 : order));
+            if (order == 4) {
+                result.aromatic_bonds.push_back(result.bonds.size() - 1);
+            }
+        }
+
+        if (v30_payload(read_v30_line(input, line)) != "END BOND") {
+            throw std::runtime_error{"expected V3000 END BOND"};
+        }
+        next = read_v30_line(input, line);
+    } else if (bond_count != 0) {
         throw std::runtime_error{"expected V3000 bond block"};
     }
 
-    for (int index = 0; index < bond_count; ++index) {
-        const auto bond_line = line + 1;
-        const auto bond = v30_tokens(read_v30_line(input, line));
-
-        if (bond.size() < 4) {
-            throw std::runtime_error{"invalid V3000 bond record"};
-        }
-
-        const auto source_id = common::parse_int(bond[0], "V3000 bond id");
-        if (source_id <= 0 || !bond_ids.emplace(source_id).second) {
-            throw std::runtime_error{"duplicate or invalid V3000 bond id"};
-        }
-
-        const auto first_source_id = common::parse_int(bond[2], "V3000 bond atom");
-        const auto second_source_id = common::parse_int(bond[3], "V3000 bond atom");
-        const auto first = atom_indices.find(first_source_id);
-        const auto second = atom_indices.find(second_source_id);
-
-        if (first == atom_indices.end() || second == atom_indices.end()) {
-            throw std::runtime_error{"V3000 bond references an unknown atom"};
-        }
-
-        const auto order = common::parse_int(bond[1], "V3000 bond order");
-        if (order == 9 || order == 10) {
-            if (ignored_bond_orders.emplace(order).second) {
-                result.issues.push_back(ImportIssue{
-                    .kind = ImportIssueKind::v3000_bond_order_ignored,
-                    .message = "V3000 bond order " + std::to_string(order) +
-                               " was ignored because it is not represented in charge calculations; "
-                               "the imported graph omits this bond.",
-                    .line = bond_line});
+    if (v30_payload(next) == "BEGIN COLLECTION") {
+        while (true) {
+            next = read_v30_line(input, line);
+            if (v30_payload(next) == "END COLLECTION") {
+                break;
             }
-            continue;
+            const auto tokens = v30_tokens(next);
+            if (tokens.empty() || tokens[0] == "BEGIN" || tokens[0] == "END") {
+                throw std::runtime_error{"invalid V3000 collection block"};
+            }
         }
-
-        result.bonds.emplace_back(first->second, second->second,
-                                  core::bond_order_from_value(order == 4 ? 1 : order));
-        if (order == 4) {
-            result.aromatic_bonds.push_back(result.bonds.size() - 1);
-        }
+        next = read_v30_line(input, line);
     }
 
-    if (v30_payload(read_v30_line(input, line)) != "END BOND" ||
-        v30_payload(read_v30_line(input, line)) != "END CTAB" ||
-        common::read_line(input, line, "MOL") != "M  END") {
+    if (v30_payload(next) != "END CTAB" || common::read_line(input, line, "MOL") != "M  END") {
         throw std::runtime_error{"invalid V3000 CTAB termination"};
     }
 

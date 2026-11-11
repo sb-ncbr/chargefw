@@ -161,23 +161,15 @@ for realistic input.
 - **Tests:** `tests/cpp/calculation/test_fixed_ion_planning.cpp:692, 712` pin the current wording and
   need updating; per AGENTS.md they should not assert complete wording at all.
 
-### B6. V3000 reader rejects valid records
+### B6. Unsupported V3000 blocks need a representation decision
 
-- **Status:** reported. That RDKit omits an empty bond block is from memory, not checked.
-- **Where:** `src/adapters/native/mol_input.cpp:321-324` and `:368-372`.
-- **Problem:** after the atom block the reader requires exactly `END ATOM`, `BEGIN BOND`, and after
-  the bond block exactly `END BOND`, `END CTAB`, `M  END`. In the CTfile format the bond block is
-  optional when there are no bonds, and SGROUP, COLLECTION, and 3D blocks may follow it.
-- **Failure:** a single-atom V3000 record without a bond block, or a molecule with
-  `M  V30 BEGIN COLLECTION` (stereo groups), is rejected with "expected V3000 bond block".
-- **Check:** write a V3000 record with one atom and no `BEGIN BOND`/`END BOND` pair and read it. The
-  tests cover only an empty bond block.
-- **Fix:** after `END ATOM`, loop over V30 lines: parse `BEGIN BOND`, skip any other
-  `BEGIN x` … `END x` block, stop at `END CTAB`.
-- **Resolution:** first check what real writers produce (RDKit and Open Babel V3000 output for a
-  single atom and for a molecule with stereo groups). If they produce such records, fix the code:
-  SDF from those programs is a common workflow. If not, state in `docs/reference/formats.md`, next
-  to the V3000 description, that a record needs a bond block and that blocks after it are rejected.
+- **Status:** re-checked for rejection of blocks other than `ATOM`, `BOND`, and `COLLECTION`.
+- **Where:** `src/adapters/native/mol_input.cpp` (`parse_v3000`).
+- **Problem:** valid records containing `SGROUP` or `3D` blocks are rejected. Some S-groups carry
+  query or bond semantics, so skipping every unknown block can change the interpreted structure.
+- **Resolution (design-sensitive):** determine which additional blocks can be ignored safely and
+  which require interpretation or explicit rejection. Do not replace the current rejection with
+  blanket block skipping. The supported subset is documented in `docs/reference/formats.md`.
 
 ### B8. `ImportIssue::line` restarts at each SDF record
 

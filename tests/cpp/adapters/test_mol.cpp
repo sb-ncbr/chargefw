@@ -528,6 +528,85 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
     }
 }
 
+TEST_CASE("V3000 zero-bond records accept omitted and empty bond blocks", "[adapters][native]") {
+    for (const auto bond_block : {"", "M  V30 BEGIN BOND\nM  V30 END BOND\n"}) {
+        CAPTURE(bond_block);
+        // RDKit omits the block; Open Babel writes an empty block for the same sodium ion.
+        std::istringstream input{
+            std::string{"sodium\nchargefw\n\n"
+                        "  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+                        "M  V30 BEGIN CTAB\nM  V30 COUNTS 1 0 0 0 0\nM  V30 BEGIN ATOM\n"
+                        "M  V30 1 Na 0 0 0 0 CHG=1\nM  V30 END ATOM\n"} +
+            bond_block + "M  V30 END CTAB\nM  END\n"};
+        const auto record = mol::parse_mol(input, {});
+        REQUIRE(record.molecule.atom_count() == 1);
+        CHECK(record.molecule.atom(0).atomic_number() == 11);
+        CHECK(record.molecule.atom(0).formal_charge() == 1);
+        CHECK(record.molecule.bond_count() == 0);
+        REQUIRE(record.import_metadata.has_value());
+        CHECK(record.import_metadata->source_connectivity ==
+              adapters::SourceConnectivity::explicitly_empty);
+    }
+}
+
+TEST_CASE("V3000 stereo collections preserve the graph and SDF record boundaries",
+          "[adapters][native]") {
+    // RDKit output for C[C@H](F)[C@H](Cl)Br |&1:1,3|, with a continued collection record.
+    const auto stereo =
+        std::string{"stereo\n     RDKit          2D\n\n"
+                    "  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+                    "M  V30 BEGIN CTAB\nM  V30 COUNTS 6 5 0 0 0\nM  V30 BEGIN ATOM\n"
+                    "M  V30 1 C 0.000000 0.000000 0.000000 0\n"
+                    "M  V30 2 C 1.299038 0.750000 0.000000 0\n"
+                    "M  V30 3 F 1.299038 2.250000 0.000000 0\n"
+                    "M  V30 4 C 2.598076 -0.000000 0.000000 0\n"
+                    "M  V30 5 Cl 3.897114 0.750000 0.000000 0\n"
+                    "M  V30 6 Br 2.598076 -1.500000 0.000000 0\n"
+                    "M  V30 END ATOM\nM  V30 BEGIN BOND\n"
+                    "M  V30 1 1 2 1 CFG=3\nM  V30 2 1 2 3\nM  V30 3 1 2 4\n"
+                    "M  V30 4 1 4 5 CFG=3\nM  V30 5 1 4 6\nM  V30 END BOND\n"
+                    "M  V30 BEGIN COLLECTION\nM  V30 MDLV30/STERAC1 ATOMS=(2 2 -\n"
+                    "M  V30 4)\nM  V30 END COLLECTION\nM  V30 END CTAB\nM  END\n"};
+    std::istringstream input{stereo + "$$$$\n" + v3000_with_coordinates("1 2 3") + "$$$$\n"};
+    sdf::SdfReader reader{input, "stereo.sdf"};
+    const auto first = reader.next();
+    REQUIRE(first.has_value());
+    REQUIRE(first->molecule.atom_count() == 6);
+    REQUIRE(first->molecule.bond_count() == 5);
+    CHECK(first->molecule.atom(5).atomic_number() == 35);
+    CHECK(first->molecule.bond(0).first_atom_index() == 1);
+    CHECK(first->molecule.bond(0).second_atom_index() == 0);
+    const auto second = reader.next();
+    REQUIRE(second.has_value());
+    CHECK(second->molecule.atom_count() == 1);
+    CHECK(second->molecule.conformer(0).positions()[0].z == 3.0);
+    CHECK_FALSE(reader.next().has_value());
+}
+
+TEST_CASE("V3000 optional blocks retain strict boundaries and bond counts", "[adapters][native]") {
+    const auto source = v3000_with_coordinates("0 0 0");
+    const auto prefix = source.substr(0, source.find("M  V30 BEGIN BOND\n"));
+    for (const auto tail :
+         {"M  V30 BEGIN COLLECTION\nM  V30 MDLV30/STEABS ATOMS=(1 1)\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 END CTAB\nM  END\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 BEGIN ATOM\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 END SGROUP\n",
+          "M  V30 BEGIN BOND\nM  V30 1 1 1 1\nM  V30 END BOND\n",
+          "M  V30 BEGIN BOND\nM  V30 END BOND\nM  V30 BEGIN BOND\n", "M  V30 BEGIN ATOM\n",
+          "M  V30 BEGIN SGROUP\nM  V30 END SGROUP\nM  V30 END CTAB\nM  END\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 END COLLECTION\nM  V30 BEGIN COLLECTION\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 END COLLECTION\nM  V30 END CTAB\n"}) {
+        CAPTURE(tail);
+        std::istringstream input{prefix + tail};
+        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+    }
+    auto missing_bonds = prefix + "M  V30 END CTAB\nM  END\n";
+    missing_bonds.replace(missing_bonds.find("COUNTS 1 0"), std::string_view{"COUNTS 1 0"}.size(),
+                          "COUNTS 1 1");
+    std::istringstream input{missing_bonds};
+    CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+}
+
 TEST_CASE("native readers reject malformed records", "[adapters][native]") {
     struct MalformedFixture {
         std::string_view path;
