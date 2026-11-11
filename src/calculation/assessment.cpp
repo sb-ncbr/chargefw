@@ -254,7 +254,10 @@ AssessmentResult::AssessmentResult(std::shared_ptr<const detail::AssessmentState
 
 AssessmentResult::~AssessmentResult() = default;
 
-AssessmentResult::AssessmentResult(AssessmentResult&&) noexcept = default;
+// The state is shared, not taken, so that the moved-from assessment stays readable, without plans.
+AssessmentResult::AssessmentResult(AssessmentResult&& other) noexcept
+    // NOLINTNEXTLINE(performance-move-constructor-init): the state is shared, not taken.
+    : state_{other.state_}, plans_{std::move(other.plans_)} {}
 
 ExecutionPlan::ExecutionPlan(std::shared_ptr<const detail::AssessmentState> state,
                              const methods::ApplicableMethod& candidate, ExecutionPolicy policy,

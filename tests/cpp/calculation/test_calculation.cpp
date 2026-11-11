@@ -183,6 +183,11 @@ TEST_CASE("assessment owns its inputs across lvalue, rvalue, and relocation",
     const auto& owned_molecules = consumed.molecules();
     const auto relocated = std::move(consumed);
     CHECK(&relocated.molecules() == &owned_molecules);
+    // The moved-from assessment stays readable and has no plans.
+    // NOLINTBEGIN(bugprone-use-after-move): the moved-from source is under test.
+    CHECK(consumed.plans().empty());
+    CHECK(consumed.rejections().size() == relocated.rejections().size());
+    // NOLINTEND(bugprone-use-after-move)
 
     const auto copied_result = calculation::calculate(copied);
     const auto relocated_result = calculation::calculate(relocated);

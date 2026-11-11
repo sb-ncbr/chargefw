@@ -145,6 +145,7 @@ class AssessmentResult {
   public:
     AssessmentResult(const AssessmentResult&) = delete;
     auto operator=(const AssessmentResult&) -> AssessmentResult& = delete;
+    // The moved-from assessment keeps its molecules, rejections, and warnings, and has no plans.
     AssessmentResult(AssessmentResult&&) noexcept;
     // Not assignable, so that pointers to its plans stay valid for as long as it exists.
     auto operator=(AssessmentResult&&) noexcept -> AssessmentResult& = delete;
@@ -183,7 +184,7 @@ class AssessmentResult {
     friend auto calculate(const AssessmentResult& assessment, std::size_t max_threads,
                           const CalculationObserver& observer) -> ExecutionResult;
 
-    // Never null, except in a moved-from assessment.
+    // Never null: a moved-from assessment keeps the state and has no plans.
     std::shared_ptr<const detail::AssessmentState> state_;
     std::vector<ExecutionPlan> plans_;
 };

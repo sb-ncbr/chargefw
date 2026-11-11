@@ -38,6 +38,16 @@
 
 ### C++
 
+- Breaking change: an `ExecutionPlan` keeps the molecules and parameter sets of its assessment, so
+  the functions that took an assessment and one of its plans take only the plan:
+  `calculation::calculate(plan, ...)`, `calculate(plan, candidate, ...)`, `estimate(plan, ...)`,
+  `parameterization::normal_equations(plan, ...)`, `entry_counts(plan)`, `atom_entries(plan)`, and
+  `single_bond_entries(plan)`. Drop the assessment argument. A copy of a plan stays valid after its
+  assessment is destroyed. `plans()` and `default_plan()` no longer compile on a temporary
+  `AssessmentResult`; store the assessment first. Rebuild downstream C++ code.
+- Breaking change: `features::PreparedMolecule` and `features::TopologyFeatures` can be neither
+  copied nor moved, and `features::PreparedMoleculeCollection` can be moved but not copied. Build
+  them where they are used, and pass references. Rebuild downstream C++ code.
 - Breaking change: removed `PdbReader::options()` and `MmcifReader::options()`. Keep the
   `InputOptions` supplied to the constructor if you need to inspect them later.
 - Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
