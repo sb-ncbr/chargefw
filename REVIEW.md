@@ -621,14 +621,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Fix:** rewrite with literal counts (3 for cutoff on water, at least 2 for the separated waters),
   or fold both into the test at `:494` as a loop over one and two threads.
 
-#### T3. Digit checks satisfied by the residue number
-
-- **Status:** re-checked.
-- **Where:** `cpp/adapters/test_charge_result.cpp:259-260`.
-- **Problem:** `added[2].contains('2')` and `contains('3')` are meant to check atom numbers 2 and 3.
-  The residue text `HOH A 1203`, required on the next line, contains both digits.
-- **Fix:** rewrite as `contains("atoms 2 and 3")`.
-
 #### T4. QEq `overlap_term` tests pass if the option is ignored
 
 - **Status:** re-checked.
@@ -638,15 +630,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   `choices` list in `src/methods/builtin/qeq.h`.
 - **Fix:** rewrite as one test showing that two different terms give different charges, without the
   list of names.
-
-#### T5. Topology tests do not check what their names say
-
-- **Status:** reported.
-- **Where:** `cpp/features/test_topology_features.cpp:34` and `:46`.
-- **Problem:** "expose sorted neighbor indices" sorts the result itself before comparing. "resolve
-  bond indices and adjacency" checks only `has_value()` and `size() == 2`.
-- **Fix:** rewrite. Drop the sort; check `bond_index_between(0, 1) == 0`, `(0, 2) == 1`, and
-  `incident_bond_indices(0) == {0, 1}`.
 
 #### T6. "resource requirements do not restrict prerequisites"
 

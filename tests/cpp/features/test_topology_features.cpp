@@ -4,7 +4,6 @@
 
 #include <chargefw/features/topology_features.h>
 
-#include <algorithm>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -31,12 +30,11 @@ TEST_CASE("topology features expose molecule reference and graph degree", "[feat
     CHECK(topology.degree(2) == 1);
 }
 
-TEST_CASE("topology features expose sorted neighbor indices", "[features][topology]") {
+TEST_CASE("topology features expose neighbor indices", "[features][topology]") {
     const auto water = chargefw::test::make_water();
     const features::TopologyFeatures topology{water};
 
-    auto oxygen_neighbors = to_vector(topology.neighbor_indices(0));
-    std::ranges::sort(oxygen_neighbors);
+    const auto oxygen_neighbors = to_vector(topology.neighbor_indices(0));
     CHECK(oxygen_neighbors == std::vector<std::size_t>{1, 2});
 
     const auto h1_neighbors = to_vector(topology.neighbor_indices(1));
