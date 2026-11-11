@@ -220,8 +220,7 @@ struct StructuralLabelsLess {
 } // namespace
 
 PdbReader::PdbReader(std::istream& input, std::string source,
-                     const ::chargefw::adapters::gemmi::InputOptions options)
-    : options_{options} {
+                     const ::chargefw::adapters::gemmi::InputOptions options) {
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read PDB input"};
@@ -261,10 +260,6 @@ PdbReader::PdbReader(std::istream& input, std::string source,
 
 auto PdbReader::next() -> std::optional<ImportedMoleculeRecord> {
     return std::exchange(record_, std::nullopt);
-}
-
-auto PdbReader::options() const noexcept -> ::chargefw::adapters::gemmi::InputOptions {
-    return options_;
 }
 
 } // namespace chargefw::adapters::gemmi::pdb_input

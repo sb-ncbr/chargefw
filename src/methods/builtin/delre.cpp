@@ -53,9 +53,8 @@ auto DelReMethod::calculate(const CalculationInput& input) const -> charges::Ato
         const auto first_index = static_cast<Eigen::Index>(bond.first_atom_index());
         const auto second_index = static_cast<Eigen::Index>(bond.second_atom_index());
 
-        const auto parameter_entry_index =
-            parameters.classification().bond().parameter_entry_index(bond_index);
-        const auto& key = parameters.parameter_set().bond().entry(parameter_entry_index).key;
+        const auto parameter_entry_index = parameters.classification().bond().at(bond_index);
+        const auto& key = parameters.parameter_set().bond().at(parameter_entry_index).key;
         const auto first_atomic_number = molecule.atom(bond.first_atom_index()).atomic_number();
         const auto second_atomic_number = molecule.atom(bond.second_atom_index()).atomic_number();
         // gammaA and gammaB follow parameter-key order, while molecular bonds are undirected.

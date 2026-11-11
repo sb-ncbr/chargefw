@@ -37,7 +37,7 @@ auto classify(const core::Molecule& molecule, const parameters::ParameterSet& pa
     -> parameters::ParameterClassification {
     const features::TopologyFeatures topology{molecule};
 
-    return parameters::classify_parameters(molecule, topology, parameter_set);
+    return parameters::classify_parameters(topology, parameter_set);
 }
 
 auto make_c_cl_f_h_fragment() -> core::Molecule {
@@ -73,17 +73,17 @@ TEST_CASE("parameter classifier maps water atoms and bonds to parameter entries"
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}}}},
         parameters::BondParameters{
             {{.key = {.first_atom = chargefw::test::atom_key(
-                          1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                          1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
                       .second_atom = chargefw::test::atom_key(
-                          8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
-                      .bond = bond_type_key(parameters::BondParameterClassificationKind::BOND_ORDER,
+                          8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
+                      .bond = bond_type_key(parameters::BondParameterClassificationKind::bond_order,
                                             "1")},
               .parameters = {{.name = "value", .value = 3.0}}}}}};
 
@@ -107,16 +107,16 @@ TEST_CASE("parameter classifier maps mixed element fragment atoms", "[parameters
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  6, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "ClFH"),
+                  6, parameters::AtomParameterClassificationKind::bonded_elements, "ClFH"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  17, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  17, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 2.0}}},
              {.key = chargefw::test::atom_key(
-                  9, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  9, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "C"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "C"),
               .parameters = {{.name = "value", .value = 4.0}}}}}};
 
     const auto mixed_classification = classify(mixed, mixed_parameters);
@@ -141,15 +141,15 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
         parameters::BondParameters{{{.key = chargefw::test::single_bond_key(6, 8),
                                      .parameters = {{.name = "value", .value = 3.0}}}}}};
 
-    const auto exact = parameters::try_classify_parameters(
-        carbonyl, features::TopologyFeatures{carbonyl}, parameter_set);
+    const auto exact =
+        parameters::try_classify_parameters(features::TopologyFeatures{carbonyl}, parameter_set);
     CHECK_FALSE(exact);
     REQUIRE(exact.issues().size() == 3);
-    CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);
-    CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::MISSING_BOND_PARAMETER);
+    CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
+    CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::missing_bond_parameter);
 
     const auto permissive = parameters::try_classify_parameters(
-        carbonyl, features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
+        features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
     REQUIRE(permissive);
     const auto atom_indices = permissive.classification().atom().parameter_entry_indices();
     const auto bond_indices = permissive.classification().bond().parameter_entry_indices();
@@ -162,12 +162,35 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     // An atom without bonds has highest bond order 0 and falls back to the single-bond entry.
     const auto lone_oxygen = make_lone_oxygen();
     const features::TopologyFeatures lone_oxygen_topology{lone_oxygen};
-    CHECK_FALSE(
-        parameters::try_classify_parameters(lone_oxygen, lone_oxygen_topology, parameter_set));
+    CHECK_FALSE(parameters::try_classify_parameters(lone_oxygen_topology, parameter_set));
     const auto lone_permissive = parameters::try_classify_parameters(
-        lone_oxygen, lone_oxygen_topology, parameter_set, {.permissive_types = true});
+        lone_oxygen_topology, parameter_set, {.permissive_types = true});
     REQUIRE(lone_permissive);
     CHECK(lone_permissive.classification().atom()[0] == 1);
+
+    // Later strict matches take precedence over earlier permissive matches.
+    auto double_bond_key = chargefw::test::single_bond_key(6, 8);
+    double_bond_key.bond.type = "2";
+    const parameters::ParameterSet with_strict_entries{
+        test_metadata(),
+        {},
+        parameters::AtomParameters{{{.key = chargefw::test::hbo_atom_key(6, "1"),
+                                     .parameters = {{.name = "value", .value = 1.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(8, "1"),
+                                     .parameters = {{.name = "value", .value = 2.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(6, "2"),
+                                     .parameters = {{.name = "value", .value = 1.0}}},
+                                    {.key = chargefw::test::hbo_atom_key(8, "2"),
+                                     .parameters = {{.name = "value", .value = 2.0}}}}},
+        parameters::BondParameters{
+            {{.key = chargefw::test::single_bond_key(6, 8),
+              .parameters = {{.name = "value", .value = 3.0}}},
+             {.key = double_bond_key, .parameters = {{.name = "value", .value = 3.0}}}}}};
+    const auto preferred = parameters::classify_parameters(
+        features::TopologyFeatures{carbonyl}, with_strict_entries, {.permissive_types = true});
+    CHECK(preferred.atom()[0] == 2);
+    CHECK(preferred.atom()[1] == 3);
+    CHECK(preferred.bond()[0] == 1);
 }
 
 TEST_CASE("parameter classifier resolves wildcard entries in declaration order",
@@ -198,10 +221,10 @@ TEST_CASE("parameter classifier reports missing entries with source indices",
         parameters::AtomParameters{{{.key = chargefw::test::plain_atom_key(1),
                                      .parameters = {{.name = "value", .value = 1.0}}}}}};
 
-    const auto result = parameters::try_classify_parameters(
-        water, features::TopologyFeatures{water}, parameter_set);
+    const auto result =
+        parameters::try_classify_parameters(features::TopologyFeatures{water}, parameter_set);
     CHECK_FALSE(result);
     REQUIRE(result.issues().size() == 1);
-    CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::MISSING_ATOM_PARAMETER);
+    CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
     CHECK(result.issues()[0].object_index == 0);
 }

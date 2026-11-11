@@ -30,6 +30,11 @@ line endings. For every molecule read, ChargeFW keeps where it came from: the fi
 record's position in the file and its ID, the warnings, and for every atom its position and ID in
 the file, so that charges can be matched back to it.
 
+For MOL, SDF, and MOL2 input, diagnostic line numbers count lines from the start of
+the input, beginning at 1, including blank lines and skipped data. They do not restart for each
+record. Parsing errors also identify the record, numbered from 1, and its ID when available.
+An unexpected end of input points to the next expected line.
+
 ## MOL and SDF input
 
 A MOL file holds one V2000 or V3000 record, as defined in the BIOVIA
@@ -57,6 +62,12 @@ record gets one `aromatic_bonds_converted` warning that counts them. V3000 coord
 bonds; the record gets a warning for each of the two kinds. Other V3000 atom and bond attributes are
 read but not used.
 
+A V3000 record with no bonds may omit the `BOND` block or include an empty one. A trailing
+`COLLECTION` block is accepted, but its metadata, including enhanced stereo groups, is not retained.
+Other blocks after the atoms or bonds, such as `SGROUP` and `3D`, are rejected. For these records,
+export an explicit atom-and-bond structure without those blocks; check that the export preserves the
+structure you want to calculate.
+
 V2000 property lines other than `M  CHG`, such as `M  ISO`, are not used. The record gets one
 `v2000_property_ignored` warning for each kind of property line, and one `v3000_bond_order_ignored`
 warning for each kind of left-out bond, with the line number of the first one.
@@ -72,7 +83,8 @@ MOL or SDF record produces one conformer named `input`, or none for a 2D layout.
 Each `@<TRIPOS>MOLECULE` record is one molecule. ChargeFW reads its `MOLECULE`, `ATOM`, `BOND`, and
 `UNITY_ATOM_ATTR` sections, in any order, and skips the others. Wrong atom or bond counts, atom IDs
 that are not unique positive integers, bonds to atoms that do not exist, invalid coordinates, and
-missing sections are errors.
+missing sections are errors, as are repeated `ATOM` or `BOND` sections within one molecule. A
+section marker starts with `@` in the first column; whitespace after it is ignored.
 
 The element is the part of the atom type before the `.`, such as C in `C.ar`; the atom name is kept.
 Types that do not name one element, such as dummy atoms, lone pairs, wildcards, and the groups
@@ -247,6 +259,9 @@ or without a hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bo
 `_chem_comp_bond` rows take precedence over the template's.
 
 ## Charge output
+
+Result JSON, MOL2, PQR, and mmCIF output, including charges attached to a Gemmi document, name
+ChargeFW and the library version as the program that wrote them.
 
 Result JSON keeps charges at full precision, as do the Python and C++ results. MOL2 and mmCIF files
 write each coordinate with the fewest digits that read back as exactly the same value, and charges

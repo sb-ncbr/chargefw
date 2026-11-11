@@ -64,10 +64,10 @@ TEST_CASE("DelRe wildcard bond keys preserve physical endpoint orientation", "[m
     const auto parameter_set = make_wildcard_parameter_set();
     const auto molecule = chargefw::test::make_water_graph();
     const auto reversed_molecule = chargefw::test::flip_bond_directions(molecule);
-    const auto classification = parameters::classify_parameters(
-        molecule, features::TopologyFeatures{molecule}, parameter_set);
+    const auto classification =
+        parameters::classify_parameters(features::TopologyFeatures{molecule}, parameter_set);
     const auto reversed_classification = parameters::classify_parameters(
-        reversed_molecule, features::TopologyFeatures{reversed_molecule}, parameter_set);
+        features::TopologyFeatures{reversed_molecule}, parameter_set);
 
     const auto charges = calculate_delre(*delre, molecule, parameter_set, classification);
     const auto reversed_charges =

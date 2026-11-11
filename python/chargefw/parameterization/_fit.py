@@ -12,9 +12,13 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .._chargefw import parameterization as _native_parameterization
-from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet, _parameter_set
+from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
-from ..calculation import _default_parameter_catalog, parameter_sets
+from ..calculation import (
+    _check_custom_parameter_id,
+    _native_catalog_for,
+    _parameter_set_from_catalog,
+)
 from . import profiles
 from ._compression import CompressionError, compress, determined_step
 from ._coordinates import _Coordinates
@@ -23,7 +27,7 @@ from ._evaluator import EvaluationError, Evaluator, Slot, _slot_values
 from ._observer import FitObserver, FitProgress
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class FitResult:
     """The outcome of ``fit()``.
 
@@ -73,14 +77,12 @@ def _with_values(
 ) -> ParameterSet:
     """A copy of `source` with `values` in layout order and new metadata."""
 
-    if id in parameter_sets:
-        raise ValueError(f"parameter-set ID {id!r} is the ID of a bundled parameter set")
-    catalog = source._native or _default_parameter_catalog()
+    _check_custom_parameter_id(id)
+    catalog = _native_catalog_for(source)
     native = _native_parameterization._with_values(
         catalog, source.id, np.ascontiguousarray(values), id, name, publication, notes
     )
-    (descriptor,) = native._descriptors()
-    return _parameter_set(descriptor, native)
+    return _parameter_set_from_catalog(native)
 
 
 class _Cancelled(Exception):

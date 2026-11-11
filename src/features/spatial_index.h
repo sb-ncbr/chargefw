@@ -18,13 +18,8 @@ namespace chargefw::features::detail {
 class ConformerPointCloud {
   public:
     explicit ConformerPointCloud(const ConformerFeatures& geometry) : geometry_{&geometry} {
-        for (std::size_t atom_index = 0; atom_index < geometry.molecule().atom_count();
-             ++atom_index) {
-            const auto& position = geometry.position(atom_index);
-            if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
-                !std::isfinite(position.z)) {
-                throw std::invalid_argument{"spatial index requires finite coordinates"};
-            }
+        if (geometry.first_nonfinite_atom_index().has_value()) {
+            throw std::invalid_argument{"spatial index requires finite coordinates"};
         }
     }
 

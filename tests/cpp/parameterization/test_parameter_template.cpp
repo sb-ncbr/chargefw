@@ -53,8 +53,8 @@ TEST_CASE("parameter template has one zero entry per occurring type, in key orde
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
     const auto set = parameterization::make_parameter_template(
-        prepared, sqe_names(), AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
-        BondParameterClassificationKind::BOND_ORDER, {.id = "template", .method_id = "sqe"});
+        prepared, sqe_names(), AtomParameterClassificationKind::highest_bond_order,
+        BondParameterClassificationKind::bond_order, {.id = "template", .method_id = "sqe"});
 
     using chargefw::test::hbo_atom_key;
     const auto expected_atoms = std::vector{hbo_atom_key(1, "1"), hbo_atom_key(6, "2"),
@@ -69,7 +69,7 @@ TEST_CASE("parameter template has one zero entry per occurring type, in key orde
         return parameters::BondParameterKey{
             .first_atom = std::move(first),
             .second_atom = std::move(second),
-            .bond = {.classification = BondParameterClassificationKind::BOND_ORDER,
+            .bond = {.classification = BondParameterClassificationKind::bond_order,
                      .type = std::move(type)}};
     };
     // Each bond appears once, with the smaller atom key first, whatever its order in the molecule.
@@ -93,20 +93,19 @@ TEST_CASE("parameter template matches every atom and bond of its molecules",
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
     for (const auto& [atom_types, bond_types] :
-         std::array{std::pair{AtomParameterClassificationKind::PLAIN,
-                              BondParameterClassificationKind::PLAIN},
-                    std::pair{AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
-                              BondParameterClassificationKind::BOND_ORDER},
-                    std::pair{AtomParameterClassificationKind::BONDED_ELEMENTS,
-                              BondParameterClassificationKind::BOND_ORDER}}) {
+         std::array{std::pair{AtomParameterClassificationKind::plain,
+                              BondParameterClassificationKind::plain},
+                    std::pair{AtomParameterClassificationKind::highest_bond_order,
+                              BondParameterClassificationKind::bond_order},
+                    std::pair{AtomParameterClassificationKind::bonded_elements,
+                              BondParameterClassificationKind::bond_order}}) {
         CAPTURE(parameters::to_string(atom_types), parameters::to_string(bond_types));
         const auto set = parameterization::make_parameter_template(
             prepared, sqe_names(), atom_types, bond_types, {.id = "template", .method_id = "sqe"});
 
         for (const auto& molecule : prepared.molecules()) {
             CAPTURE(molecule.molecule().name());
-            const auto result =
-                parameters::try_classify_parameters(molecule.molecule(), molecule.topology(), set);
+            const auto result = parameters::try_classify_parameters(molecule.topology(), set);
             CHECK(static_cast<bool>(result));
         }
     }
@@ -118,8 +117,8 @@ TEST_CASE("parameter template makes only the sections it has names for",
     const auto prepared = features::PreparedMoleculeCollection{collection};
 
     const auto set = parameterization::make_parameter_template(
-        prepared, {.common = {"kappa"}, .atom = {"A", "B"}}, AtomParameterClassificationKind::PLAIN,
-        BondParameterClassificationKind::PLAIN, {.id = "template", .method_id = "eem"});
+        prepared, {.common = {"kappa"}, .atom = {"A", "B"}}, AtomParameterClassificationKind::plain,
+        BondParameterClassificationKind::plain, {.id = "template", .method_id = "eem"});
 
     CHECK(set.common().size() == 1);
     CHECK(set.atom().size() == 3); // H, C, O

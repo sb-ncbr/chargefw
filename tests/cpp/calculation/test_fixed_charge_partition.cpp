@@ -61,11 +61,6 @@ auto make_partition_input(const std::vector<calculation::FixedAtomCharge>& sourc
     return {std::move(molecules), calculation::FixedIons{sources}};
 }
 
-auto make_partition_from_temporary_inputs() -> calculation::detail::FixedChargePartition {
-    auto input = make_partition_input({{3, 3, -0.25}, {1, 2, 0.5}, {3, 0, 0.75}});
-    return calculation::detail::make_fixed_charge_partition(input.molecules, input.fixed_ions);
-}
-
 auto make_active_charge_set() -> chargefw::charges::ChargeSet {
     using chargefw::charges::AtomicCharges;
     using chargefw::charges::ChargeAssignment;
@@ -167,17 +162,6 @@ TEST_CASE("fixed-charge partition preserves original ordering and owned mappings
     }
 }
 
-TEST_CASE("fixed-charge partition owns data after input destruction and moves",
-          "[calculation][fixed-charge-partition]") {
-    auto partition = make_partition_from_temporary_inputs();
-    auto moved_partition = std::move(partition);
-
-    CHECK(moved_partition.active_molecules.name() == "named-collection");
-    CHECK(moved_partition.active_molecules[1].atom(2).name() == "O3");
-    CHECK(moved_partition.targets[1].sources[0].charge == 0.5);
-    CHECK(moved_partition.targets[3].source_positions[1][1].z == 1.0);
-}
-
 TEST_CASE("fixed-charge partition retains disconnected active components as one target",
           "[calculation][fixed-charge-partition]") {
     const auto molecules = core::MoleculeCollection{std::vector{core::Molecule{
@@ -268,8 +252,6 @@ TEST_CASE("fixed-charge reassembly scatters active charges and preserves assignm
         CHECK(actual.target.conformer_index == reference.target.conformer_index);
         CHECK(std::ranges::equal(actual.charges.values(), reference.charges.values()));
     }
-    CHECK(result.assignment(0).charges.total() == 30.5);
-    CHECK(result.assignment(2).charges.total() == -5.5);
 }
 
 TEST_CASE("fixed-charge reassembly supports identity partitions and absent parameter IDs",

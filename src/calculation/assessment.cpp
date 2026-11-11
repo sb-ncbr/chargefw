@@ -4,6 +4,7 @@
 #include "input_checks.h"
 
 #include "core/diagnostic_description.h"
+#include "methods/applicable_method_execution.h"
 #include "methods/find_applicable_methods.h"
 #include "methods/parameter_issue_messages.h"
 
@@ -76,15 +77,19 @@ namespace {
     return candidates;
 }
 
+[[nodiscard]] auto require_method(const std::string_view id) -> const methods::Method& {
+    const auto* method = methods::method_registry().find(id);
+    if (method == nullptr) {
+        throw std::invalid_argument{"method '" + std::string{id} + "' is not registered"};
+    }
+    return *method;
+}
+
 [[nodiscard]] auto assessment_methods(const AssessmentRequest& request)
     -> std::vector<const methods::Method*> {
     const auto& registry = methods::method_registry();
     if (request.method_id.has_value()) {
-        const auto* method = registry.find(*request.method_id);
-        if (method == nullptr) {
-            throw std::invalid_argument{"method '" + *request.method_id + "' is not registered"};
-        }
-        return {method};
+        return {&require_method(*request.method_id)};
     }
 
     auto result = std::vector<const methods::Method*>{};
@@ -98,22 +103,18 @@ namespace {
 }
 
 auto validate_assessment_method_options(const AssessmentRequest& request) -> void {
-    const auto& registry = methods::method_registry();
     for (const auto& [method_id, overrides] : request.method_options) {
-        const auto* method = registry.find(method_id);
-        if (method == nullptr) {
-            throw std::invalid_argument{"method '" + method_id + "' is not registered"};
-        }
+        const auto& method = require_method(method_id);
         if (request.method_id.has_value() && method_id != *request.method_id) {
             throw std::invalid_argument{"method options supplied for '" + method_id +
                                         "' but method '" + *request.method_id + "' was requested"};
         }
 
-        auto options = methods::make_default_options(method->option_schema());
+        auto options = methods::make_default_options(method.option_schema());
         for (const auto& [id, value] : overrides.values()) {
             options.set(id, value);
         }
-        methods::validate_method_options(method->option_schema(), options);
+        methods::validate_method_options(method.option_schema(), options);
     }
 }
 
@@ -149,11 +150,8 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
         throw std::invalid_argument{"parameter-set selection requires an explicit method"};
     }
 
-    const auto* method = methods::method_registry().find(*request.method_id);
-    if (method == nullptr) {
-        throw std::invalid_argument{"method '" + *request.method_id + "' is not registered"};
-    }
-    if (!method->requirements().requires_parameters()) {
+    const auto& method = require_method(*request.method_id);
+    if (!method.requirements().requires_parameters()) {
         throw std::invalid_argument{"method '" + *request.method_id +
                                     "' does not accept a parameter set"};
     }
@@ -248,7 +246,7 @@ auto to_string(const MethodScope value) -> std::string_view {
     case MethodScope::all:
         return "all";
     }
-    throw std::logic_error{"unknown method scope"};
+    throw std::invalid_argument{"unknown method scope"};
 }
 
 AssessmentResult::AssessmentResult(
@@ -370,9 +368,7 @@ auto AssessmentResult::assess_prepared(
             }
             rejections_.push_back(Rejection{
                 .method_id = std::string{candidate.method->id()},
-                .parameter_set_id = candidate.parameter_set == nullptr
-                                        ? std::nullopt
-                                        : std::optional{std::string{candidate.parameter_set->id()}},
+                .parameter_set_id = methods::detail::parameter_set_id_for(candidate),
                 .policy = policy_for(mode),
                 .issues = std::move(issues),
             });
@@ -446,13 +442,9 @@ auto AssessmentResult::default_plan() const noexcept -> const ExecutionPlan* {
 auto AssessmentResult::assess_owned(AssessmentRequest request) -> AssessmentResult {
     const auto started = std::chrono::steady_clock::now();
     auto fixed_charge_partition = std::unique_ptr<detail::FixedChargePartition>{};
-    if (request.fixed_ions.has_value()) {
-        if (!request.fixed_ions->sources.empty()) {
-            fixed_charge_partition = std::make_unique<detail::FixedChargePartition>(
-                detail::make_fixed_charge_partition(request.molecules, *request.fixed_ions));
-        } else {
-            request.fixed_ions.reset();
-        }
+    if (request.fixed_ions.has_value() && !request.fixed_ions->sources.empty()) {
+        fixed_charge_partition = std::make_unique<detail::FixedChargePartition>(
+            detail::make_fixed_charge_partition(request.molecules, *request.fixed_ions));
     }
     validate_assessment_method_options(request);
     validate_unique_parameter_set_ids(request);

@@ -1,4 +1,5 @@
 #include "methods/builtin/sqe.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/prerequisite_helpers.h"
 #include "methods/builtin/sqe_system.h"
 
@@ -68,11 +69,7 @@ auto sqe_core::build_system(const CalculationInput& input,
     const auto electronegativity = parameters.atom("electronegativity");
     const auto hardness = parameters.atom("hardness");
     // The pair loop below reads widths O(n^2) times; resolve them once per atom.
-    const auto width_parameter = parameters.atom("width");
-    std::vector<double> width(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        width[atom_index] = width_parameter[atom_index];
-    }
+    const auto width = methods::detail::atom_parameter_values(parameters, "width", atom_count);
     const auto kappa = parameters.bond("kappa");
 
     const auto n = static_cast<Eigen::Index>(atom_count);
@@ -177,10 +174,19 @@ auto sqe_core::atom_charges(const System& system) -> Eigen::VectorXd {
     return charges;
 }
 
+auto sqe_core::validate_input(const CalculationInput& input,
+                              const std::span<const double> initial_charge_values) -> void {
+    methods::detail::validate_fixed_source_input(input, "SQE-family");
+    const auto atom_count = input.molecule().atom_count();
+    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
+        throw std::logic_error{"SQE-family initial charge count must match atom count"};
+    }
+}
+
 auto sqe_core::calculate(const CalculationInput& input,
                          const std::span<const double> initial_charge_values)
     -> std::vector<double> {
-    methods::detail::validate_fixed_source_input(input, "SQE-family");
+    validate_input(input, initial_charge_values);
     const auto& molecule = input.molecule();
 
     const auto atom_count = molecule.atom_count();
@@ -188,10 +194,6 @@ auto sqe_core::calculate(const CalculationInput& input,
 
     if (atom_count == 0) {
         return {};
-    }
-
-    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
-        throw std::logic_error{"SQE-family initial charge count must match atom count"};
     }
 
     if (bond_count == 0) {

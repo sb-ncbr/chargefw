@@ -3,7 +3,6 @@
 #include <chargefw/adapters/charge_result.h>
 
 #include <iosfwd>
-#include <string_view>
 
 namespace chargefw::adapters::native::mol2_output {
 
@@ -12,8 +11,7 @@ class Mol2Writer {
   public:
     explicit Mol2Writer(std::ostream& output);
 
-    auto write(const ChargeCalculationResult& result, std::string_view generator_version = {}) const
-        -> void;
+    auto write(const ChargeCalculationResult& result) const -> void;
 
   private:
     std::ostream* output_;

@@ -118,7 +118,6 @@ where it came from. The writers take the records and the calculation together, a
 #include <chargefw/adapters/native/mol2_output.h>
 #include <chargefw/adapters/native/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/config.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
 #include <fstream>
@@ -157,9 +156,9 @@ int main() {
         adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
 
     auto mol2 = std::ofstream{"paracetamol.mol2"};
-    adapters::native::mol2_output::Mol2Writer{mol2}.write(result, CHARGEFW_VERSION_STRING);
+    adapters::native::mol2_output::Mol2Writer{mol2}.write(result);
     auto json = std::ofstream{"paracetamol.json"};
-    adapters::native::json_output::JsonWriter{json}.write(result, CHARGEFW_VERSION_STRING);
+    adapters::native::json_output::JsonWriter{json}.write(result);
 }
 ```
 
@@ -178,18 +177,17 @@ results calculated from equal records, for example from copies of `records` abov
 
 ```cpp
 auto cif = std::ofstream{"paracetamol.cif"};
-adapters::gemmi::mmcif_output::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result},
-                                                      CHARGEFW_VERSION_STRING);
+adapters::gemmi::mmcif_output::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
 ```
 
 The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
-The writers record ChargeFW and the version you pass as the program that wrote the file; pass
-`CHARGEFW_VERSION_STRING` from `<chargefw/config.h>`.
-
 `chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of a namespace, for applications.
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
 records stay valid after the reader is destroyed.
+
+If you supply a stream already positioned partway through a MOL, SDF, or MOL2 file, diagnostic
+line numbers start at that position instead of the beginning of the file.
 
 `ImportedMoleculeRecord` holds the molecule, its source identity, import diagnostics, and optional
 `MoleculeImportMetadata`: the source atoms (`SourceAtomReference`), conformers
@@ -208,8 +206,11 @@ no `ExecutionResult`. To still write result JSON for the records, as the command
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
 `ResultStatus::invalid_request`, written as `invalid_input_or_request`, and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
-`RequestedCalculationProvenance` records what was requested, for the result JSON; its `execution_kind`
-defaults to `"auto"`, so set it when you request another execution mode.
+`RequestedCalculationProvenance` records what was requested, for the result JSON. Its `method_scope`
+is a `calculation::MethodScope`, defaulting to `recommended`; its `execution_kind` is a
+`calculation::ExecutionSelectionKind`, defaulting to `automatic` (written as `"auto"` in JSON).
+Copy these values from your request's `method_scope` and `execution_selection.kind()`, and copy
+`execution_selection.radius()` into `execution_radius`.
 
 ## Namespaces
 

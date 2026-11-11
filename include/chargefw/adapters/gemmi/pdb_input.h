@@ -25,11 +25,9 @@ class PdbReader {
     ~PdbReader() = default;
 
     [[nodiscard]] auto next() -> std::optional<ImportedMoleculeRecord>;
-    [[nodiscard]] auto options() const noexcept -> ::chargefw::adapters::gemmi::InputOptions;
 
   private:
     std::optional<ImportedMoleculeRecord> record_;
-    ::chargefw::adapters::gemmi::InputOptions options_;
 };
 
 } // namespace chargefw::adapters::gemmi::pdb_input

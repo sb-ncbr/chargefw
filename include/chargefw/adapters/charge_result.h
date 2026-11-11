@@ -53,12 +53,13 @@ struct ResultDiagnostic {
 struct RequestedCalculationProvenance {
     std::optional<std::string> method_id;
     std::optional<std::string> parameter_set_id;
-    std::string method_scope = "recommended";
+    calculation::MethodScope method_scope = calculation::MethodScope::recommended;
     bool permissive_types = false;
     std::optional<std::size_t> cutoff_atom_threshold;
     std::optional<std::size_t> cover_atom_threshold;
     std::size_t max_threads = 0;
-    std::string execution_kind = "auto";
+    calculation::ExecutionSelectionKind execution_kind =
+        calculation::ExecutionSelectionKind::automatic;
     std::optional<double> execution_radius;
     std::map<std::string, methods::MethodOptions> method_options;
 };

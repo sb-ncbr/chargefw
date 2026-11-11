@@ -1,4 +1,5 @@
 #include "methods/builtin/sqeqp.h"
+#include "methods/atom_parameter_values.h"
 
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
@@ -26,11 +27,8 @@ auto sqe_core::parameterized_initial_charges(const CalculationInput& input)
         return {.values = {references.begin(), references.end()}, .from_q0 = false};
     }
 
-    const auto initial_charge_parameter = input.parameters().atom("q0");
-    auto initial_charges = std::vector<double>(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        initial_charges[atom_index] = initial_charge_parameter[atom_index];
-    }
+    auto initial_charges =
+        methods::detail::atom_parameter_values(input.parameters(), "q0", atom_count);
     return {.values = methods::detail::component_normalized_charges(
                 molecule, input.topology(), std::move(initial_charges), input.target_charge()),
             .from_q0 = true};

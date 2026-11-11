@@ -347,10 +347,6 @@ auto make_record(const ::gemmi::Structure& structure,
         conformers.emplace_back(std::move(positions), std::to_string(structure.models[index].num));
     }
 
-    if (name.empty()) {
-        name = structure.name;
-    }
-
     const auto explicit_orders =
         format == MolecularSourceFormat::pdb
             ? ::chargefw::adapters::gemmi::bonds::ExplicitBondOrders::connectivity_only

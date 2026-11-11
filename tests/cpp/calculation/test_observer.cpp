@@ -318,7 +318,6 @@ TEST_CASE("observer emits ordered computation and target phases", "[calculation]
     const auto result = calculate_application(make_formal_water_request(), observer);
 
     REQUIRE(result.calculated());
-    CHECK(!result.cancelled());
 
     const auto events = observer.events();
     assert_computation_boundary(events, calculation::ExecutionMode::full);
@@ -341,7 +340,6 @@ TEST_CASE("cancellation produces a terminal observer event", "[calculation][obse
     const auto observer = CancellingObserver{};
     const auto result = calculate_application(make_formal_water_request(), observer);
 
-    CHECK(result.cancelled());
     CHECK(!result.calculated());
     CHECK(result.status == calculation::ExecutionStatus::cancelled);
     CHECK(!result.charges.has_value());
@@ -451,12 +449,9 @@ TEST_CASE("serial cutoff execution emits aggregate fragment progress", "[calcula
         observer);
 
     REQUIRE(result.calculated());
-    CHECK(!result.cancelled());
 
     const auto fragment_events = fragment_progress_events(observer);
-    REQUIRE(!fragment_events.empty());
-    assert_single_terminal_fragment_progress(fragment_events,
-                                             fragment_events.front().fragment_count);
+    assert_single_terminal_fragment_progress(fragment_events, 3);
 }
 
 TEST_CASE("serial cover execution emits aggregate multi-pivot progress",
@@ -469,12 +464,9 @@ TEST_CASE("serial cover execution emits aggregate multi-pivot progress",
         observer);
 
     REQUIRE(result.calculated());
-    CHECK(!result.cancelled());
 
     const auto fragment_events = fragment_progress_events(observer);
-    REQUIRE(!fragment_events.empty());
-    assert_single_terminal_fragment_progress(fragment_events,
-                                             fragment_events.front().fragment_count);
+    assert_single_terminal_fragment_progress(fragment_events, 2);
 }
 
 TEST_CASE("empty reduced targets do not emit fragment progress", "[calculation][observer]") {
@@ -510,9 +502,8 @@ TEST_CASE("parallel reduced targets each emit one terminal progress snapshot",
                     target_events.push_back(event);
                 }
             }
-            REQUIRE(!target_events.empty());
-            assert_single_terminal_fragment_progress(target_events,
-                                                     target_events.front().fragment_count);
+            const auto expected_count = mode == calculation::ExecutionMode::cutoff ? 3U : 1U;
+            assert_single_terminal_fragment_progress(target_events, expected_count);
         }
     }
 }
@@ -590,7 +581,6 @@ TEST_CASE("observer callback failures do not alter calculation control flow",
     const auto observer = ThrowOnEveryCallbackObserver{};
     const auto result = calculate_application(make_formal_water_request(), observer);
     REQUIRE(result.calculated());
-    CHECK(!result.cancelled());
     CHECK(observer.callbacks() >= 4);
 }
 
@@ -607,7 +597,6 @@ TEST_CASE("reduced execution observes cancellation after fragment progress",
                                                .execution_selection = select_mode(mode)},
                 observer, max_threads);
 
-            CHECK(result.cancelled());
             CHECK(!result.calculated());
             CHECK(result.status == calculation::ExecutionStatus::cancelled);
             CHECK(observer.cancellation_checks_after_request() > 0);

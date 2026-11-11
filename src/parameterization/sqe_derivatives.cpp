@@ -20,9 +20,9 @@
 #include "parameterization/parameter_columns.h"
 
 #include "features/topology_helpers.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
-#include "methods/fixed_source_validation.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
@@ -76,11 +76,8 @@ struct WidthDerivatives {
     const auto atom_count = input.molecule().atom_count();
     const auto n = static_cast<Eigen::Index>(atom_count);
     // As in build_system(): the pair loop reads widths O(n^2) times.
-    const auto width_parameter = input.parameters().atom("width");
-    auto width = std::vector<double>(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        width[atom_index] = width_parameter[atom_index];
-    }
+    const auto width =
+        methods::detail::atom_parameter_values(input.parameters(), "width", atom_count);
 
     auto result =
         WidthDerivatives{.pairs = Eigen::MatrixXd::Zero(n, n), .sources = Eigen::VectorXd::Zero(n)};
@@ -215,19 +212,11 @@ class SqeLinearization final : public LinearizedCharges {
         }
 
         auto values = std::vector<double>(result.data(), result.data() + result.size());
-        require_finite(values);
+        require_finite(values, "SQE-family derivative is not finite");
         return values;
     }
 
   private:
-    static auto require_finite(const std::span<const double> values) -> void {
-        for (const auto value : values) {
-            if (!std::isfinite(value)) {
-                throw std::runtime_error{"SQE-family derivative is not finite"};
-            }
-        }
-    }
-
     Eigen::VectorXd charges_;
     std::optional<sqe_core::System> system_;
     WidthDerivatives widths_;
@@ -251,11 +240,7 @@ class SqeLinearization final : public LinearizedCharges {
     }
 
     // The checks and the system of calculate().
-    methods::detail::validate_fixed_source_input(input, "SQE-family");
-    if (!initial_charge_values.empty() &&
-        initial_charge_values.size() != input.molecule().atom_count()) {
-        throw std::logic_error{"SQE-family initial charge count must match atom count"};
-    }
+    sqe_core::validate_input(input, initial_charge_values);
     auto system = sqe_core::build_system(input, initial_charge_values);
     sqe_core::solve(system);
     Eigen::VectorXd charges = sqe_core::atom_charges(system);
@@ -307,10 +292,7 @@ class SqeqpLinearization final : public LinearizedCharges {
         auto sqe_columns = columns;
         const auto q0 = std::move(sqe_columns.atom.back());
         sqe_columns.atom.pop_back();
-        if (q0.size() != sqe_->charges().size() ||
-            !std::ranges::all_of(q0, [&columns](const std::size_t column) {
-                return column < columns.count || column == ParameterColumns::none;
-            })) {
+        if (!valid_column_assignment(q0, sqe_->charges().size(), columns.count)) {
             throw std::invalid_argument{
                 "SQE+qp jacobian: the columns do not match the method's parameters"};
         }

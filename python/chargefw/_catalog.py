@@ -39,6 +39,9 @@ class _Catalog[T: _Identified](Mapping[str, T]):
     def __iter__(self) -> Iterator[str]:
         return iter(self._by_id)
 
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and key in self._by_id
+
     def __getitem__(self, key: str) -> T:
         if not isinstance(key, str):
             raise TypeError("catalog IDs must be strings")

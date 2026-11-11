@@ -1,14 +1,17 @@
 #include <chargefw/core/atom.h>
+#include <chargefw/core/periodic_table.h>
 
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace chargefw::core {
 namespace {
 
 auto validate_atomic_number(int atomic_number) -> void {
-    if (atomic_number < 1 || atomic_number > 100) {
-        throw std::invalid_argument{"atomic number must be in range 1..100"};
+    if (!periodic_table().contains(atomic_number)) {
+        throw std::invalid_argument{"atomic number must be in range 1.." +
+                                    std::to_string(periodic_table().elements().size())};
     }
 }
 

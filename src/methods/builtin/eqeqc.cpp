@@ -1,4 +1,6 @@
 #include "methods/builtin/eqeqc.h"
+#include "methods/atom_parameter_values.h"
+#include "methods/builtin/dense_solve.h"
 
 #include "methods/builtin/eqeq.h"
 
@@ -45,11 +47,7 @@ auto EQeqCMethod::calculate(const CalculationInput& input) const -> charges::Ato
     }
 
     // The pair loop below reads Dz O(n^2) times; resolve it once per atom.
-    const auto dz_parameter = parameters.atom("Dz");
-    std::vector<double> dz(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        dz[atom_index] = dz_parameter[atom_index];
-    }
+    const auto dz = methods::detail::atom_parameter_values(parameters, "Dz", atom_count);
     auto values = eqeq_core::calculate(input, "EQeq+C");
 
     const auto& table = core::periodic_table();
@@ -82,12 +80,9 @@ auto EQeqCMethod::calculate(const CalculationInput& input) const -> charges::Ato
 
 auto EQeqCMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const
     -> ResourceEstimate {
-    const auto n = target.atoms;
-    const auto size = n + 1.0;
-    // Dense (n + 1) x (n + 1) system with a charge constraint; the correction adds an all-pairs
-    // pass.
-    return {.memory_bytes = 8.0 * size * size,
-            .operations = 2.0 / 3.0 * size * size * size + n * n + 0.5 * n * n};
+    auto estimate = charge_constrained_estimate(target.atoms);
+    estimate.operations += target.atoms * target.atoms; // All-pairs correction pass.
+    return estimate;
 }
 
 } // namespace chargefw::methods::builtin

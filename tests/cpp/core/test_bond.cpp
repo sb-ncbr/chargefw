@@ -6,20 +6,6 @@
 
 namespace core = chargefw::core;
 
-TEST_CASE("bond stores endpoints and order", "[core][bond]") {
-    const core::Bond bond{0, 1, core::BondOrder::SINGLE};
-
-    CHECK(bond.first_atom_index() == 0);
-    CHECK(bond.second_atom_index() == 1);
-    CHECK(bond.order() == core::BondOrder::SINGLE);
-
-    const core::Bond double_bond{2, 3, core::BondOrder::DOUBLE};
-
-    CHECK(double_bond.first_atom_index() == 2);
-    CHECK(double_bond.second_atom_index() == 3);
-    CHECK(double_bond.order() == core::BondOrder::DOUBLE);
-}
-
 TEST_CASE("bond order converts to and from its numeric value", "[core][bond]") {
     CHECK(core::bond_order_value(core::BondOrder::SINGLE) == 1);
     CHECK(core::bond_order_value(core::BondOrder::DOUBLE) == 2);

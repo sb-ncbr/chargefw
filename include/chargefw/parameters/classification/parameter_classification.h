@@ -20,8 +20,6 @@ class AtomParameterClassification {
     [[nodiscard]] auto size() const noexcept -> std::size_t;
     [[nodiscard]] auto empty() const noexcept -> bool;
 
-    [[nodiscard]] auto parameter_entry_index(std::size_t atom_index) const -> std::size_t;
-
     [[nodiscard]] auto operator[](std::size_t atom_index) const noexcept -> std::size_t;
     [[nodiscard]] auto at(std::size_t atom_index) const -> std::size_t;
 
@@ -39,8 +37,6 @@ class BondParameterClassification {
 
     [[nodiscard]] auto size() const noexcept -> std::size_t;
     [[nodiscard]] auto empty() const noexcept -> bool;
-
-    [[nodiscard]] auto parameter_entry_index(std::size_t bond_index) const -> std::size_t;
 
     [[nodiscard]] auto operator[](std::size_t bond_index) const noexcept -> std::size_t;
     [[nodiscard]] auto at(std::size_t bond_index) const -> std::size_t;

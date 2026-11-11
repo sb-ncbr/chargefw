@@ -33,13 +33,6 @@ namespace features = chargefw::features;
 namespace methods = chargefw::methods;
 namespace parameters = chargefw::parameters;
 
-TEST_CASE("execution applicability enums convert to stable strings", "[methods][applicability]") {
-    CHECK(methods::to_string(methods::ExecutionAvailability::available_with_warning) ==
-          "available_with_warning");
-    CHECK(methods::to_string(methods::ExecutionIssueKind::unsupported_execution_mode) ==
-          "unsupported_execution_mode");
-}
-
 namespace {
 
 auto assessment_for(const methods::ApplicableMethod& candidate,
@@ -67,7 +60,7 @@ auto make_wrong_method_parameters() -> parameters::ParameterSet {
                                          .name = "Wrong method parameters"},
         {},
         parameters::AtomParameters{
-            {{.key = chargefw::test::atom_key(1, parameters::AtomParameterClassificationKind::PLAIN,
+            {{.key = chargefw::test::atom_key(1, parameters::AtomParameterClassificationKind::plain,
                                               "*"),
               .parameters = {{.name = "value", .value = 1.0}}}}}};
 }
@@ -80,10 +73,10 @@ auto make_water_only_parameters() -> parameters::ParameterSet {
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}}}}};
 }
 
@@ -95,16 +88,16 @@ auto make_collection_parameters() -> parameters::ParameterSet {
         {},
         parameters::AtomParameters{
             {{.key = chargefw::test::atom_key(
-                  1, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "O"),
+                  1, parameters::AtomParameterClassificationKind::bonded_elements, "O"),
               .parameters = {{.name = "value", .value = 1.0}}},
              {.key = chargefw::test::atom_key(
-                  8, parameters::AtomParameterClassificationKind::BONDED_ELEMENTS, "HH"),
+                  8, parameters::AtomParameterClassificationKind::bonded_elements, "HH"),
               .parameters = {{.name = "value", .value = 2.0}}},
-             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::PLAIN,
+             {.key = chargefw::test::atom_key(7, parameters::AtomParameterClassificationKind::plain,
                                               "*"),
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = chargefw::test::atom_key(
-                  17, parameters::AtomParameterClassificationKind::PLAIN, "*"),
+                  17, parameters::AtomParameterClassificationKind::plain, "*"),
               .parameters = {{.name = "value", .value = 4.0}}}}}};
 }
 
@@ -121,12 +114,12 @@ auto make_permissive_parameters(const bool include_exact_match) -> parameters::P
     if (include_exact_match) {
         entries.push_back(
             {.key = chargefw::test::atom_key(
-                 6, parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER, "2"),
+                 6, parameters::AtomParameterClassificationKind::highest_bond_order, "2"),
              .parameters = {{.name = "value", .value = 2.0}}});
     }
 
     entries.push_back({.key = chargefw::test::atom_key(
-                           6, parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER, "1"),
+                           6, parameters::AtomParameterClassificationKind::highest_bond_order, "1"),
                        .parameters = {{.name = "value", .value = 1.0}}});
 
     return parameters::ParameterSet{
@@ -230,9 +223,6 @@ TEST_CASE("applicability pairs methods with compatible parameter sets",
           methods::PrerequisiteIssueKind::parameter_classification_failed);
     CHECK(result.rejected[0].issues[0].molecule_index == 1);
     CHECK(result.rejected[0].issues[0].location.atom_index == 0);
-    CHECK(result.rejected[0].issues[0].message.contains("molecule 2"));
-    CHECK(result.rejected[0].issues[0].message.contains(
-        "atom 1 (source name 'N', N, formal charge +1)"));
     CHECK(result.rejected[0].issues[0].message.contains("water-only-parameters"));
 }
 

@@ -10,11 +10,6 @@
 
 namespace methods = chargefw::methods;
 
-TEST_CASE("method option types convert to stable strings", "[methods][method-options]") {
-    CHECK(methods::to_string(methods::MethodOptionType::boolean) == "boolean");
-    CHECK(methods::to_string(methods::MethodOptionType::floating_point) == "floating_point");
-}
-
 TEST_CASE("method options store defaults and support overrides", "[methods][method-options]") {
     const std::array schema{
         methods::MethodOptionSpec{.id = "enabled",

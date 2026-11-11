@@ -1,6 +1,9 @@
 #include <chargefw/adapters/native/json_output.h>
 
+#include "adapters/component.h"
 #include "adapters/record_assignments.h"
+
+#include <chargefw/config.h>
 
 #include <nlohmann/json.hpp>
 
@@ -101,21 +104,6 @@ constexpr auto metric_scale = 1000.0;
     return result;
 }
 
-[[nodiscard]] auto component_id(const SourceAtomReference& reference)
-    -> std::optional<std::string> {
-    if (reference.structural_labels == nullptr) {
-        return std::nullopt;
-    }
-    const auto& labels = *reference.structural_labels;
-    if (labels.label.residue.has_value() && !labels.label.residue->empty()) {
-        return labels.label.residue;
-    }
-    if (labels.author.residue.has_value() && !labels.author.residue->empty()) {
-        return labels.author.residue;
-    }
-    return std::nullopt;
-}
-
 [[nodiscard]] auto source_component_id(const ImportedMoleculeRecord& record,
                                        const std::size_t atom_index) -> std::optional<std::string> {
     if (!record.import_metadata.has_value()) {
@@ -126,11 +114,11 @@ constexpr auto metric_scale = 1000.0;
     auto resolved = std::optional<std::string>{};
     auto ambiguous = false;
     const auto consider = [&resolved, &ambiguous](const SourceAtomReference& reference) {
-        const auto value = component_id(reference);
-        if (!value.has_value()) {
+        const auto value = detail::canonical_component_name(reference.structural_labels.get(), {});
+        if (value.empty()) {
             return;
         }
-        if (resolved.has_value() && *resolved != *value) {
+        if (resolved.has_value() && *resolved != value) {
             ambiguous = true;
             return;
         }
@@ -250,14 +238,14 @@ constexpr auto metric_scale = 1000.0;
     Json requested{
         {"method", optional_id(requested_provenance.method_id)},
         {"parameter_set", optional_id(requested_provenance.parameter_set_id)},
-        {"method_scope", requested_provenance.method_scope},
+        {"method_scope", calculation::to_string(requested_provenance.method_scope)},
         {"classification", {{"permissive_types", requested_provenance.permissive_types}}},
         {"resource_policy",
          {{"cutoff_atom_threshold", threshold_value(requested_provenance.cutoff_atom_threshold)},
           {"cover_atom_threshold", threshold_value(requested_provenance.cover_atom_threshold)},
           {"max_threads", requested_provenance.max_threads}}},
         {"execution",
-         {{"kind", requested_provenance.execution_kind},
+         {{"kind", calculation::to_string(requested_provenance.execution_kind)},
           {"radius_angstrom", optional_radius(requested_provenance.execution_radius)}}}};
     requested["method_options"] = method_options_json(requested_provenance.method_options);
 
@@ -303,7 +291,6 @@ constexpr auto metric_scale = 1000.0;
 JsonWriter::JsonWriter(std::ostream& output) : output_{std::addressof(output)} {}
 
 auto JsonWriter::write(const ChargeCalculationResult& result,
-                       const std::string_view generator_version,
                        const std::optional<ExecutionMetrics>& execution_metrics) const -> void {
     Json records = Json::array();
     const auto inputs = result.inputs();
@@ -313,7 +300,7 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
     }
 
     Json document{{"schema_version", "1.0"},
-                  {"generator", {{"name", "ChargeFW"}, {"version", generator_version}}},
+                  {"generator", {{"name", "ChargeFW"}, {"version", CHARGEFW_VERSION_STRING}}},
                   {"status", to_string(result.status())},
                   {"diagnostics", diagnostics_json(charge_result_diagnostics(result))},
                   {"results", std::move(records)}};

@@ -256,8 +256,7 @@ TEST_CASE("record diagnostics name the residues of the atoms they point to", "[a
     CHECK_FALSE(added[0].contains("ALA"));
     CHECK(added[1].contains("ALA A 5"));
     CHECK(added[1].contains("HOH A 1203"));
-    CHECK(added[2].contains('2'));
-    CHECK(added[2].contains('3'));
+    CHECK(added[2].contains("atoms 2 and 3"));
     CHECK(added[2].contains("HOH A 1203"));
 }
 

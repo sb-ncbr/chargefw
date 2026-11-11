@@ -68,13 +68,13 @@ auto make_parameter_template(const features::PreparedMoleculeCollection& molecul
         if (!names.atom.empty()) {
             for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
                 atom_keys.insert(
-                    parameters::detail::atom_type_key(molecule, topology, atom_index, atom_types));
+                    parameters::detail::atom_type_key(topology, atom_index, atom_types));
             }
         }
         if (!names.bond.empty()) {
             for (std::size_t bond_index = 0; bond_index < molecule.bond_count(); ++bond_index) {
-                bond_keys.insert(parameters::detail::bond_type_key(molecule, topology, bond_index,
-                                                                   atom_types, bond_types));
+                bond_keys.insert(parameters::detail::bond_type_key(topology, bond_index, atom_types,
+                                                                   bond_types));
             }
         }
     }

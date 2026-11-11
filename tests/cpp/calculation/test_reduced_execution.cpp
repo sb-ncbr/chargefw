@@ -39,6 +39,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <exception>
+#include <new>
 #include <numeric>
 #include <optional>
 #include <snitch/snitch.hpp>
@@ -72,8 +74,11 @@ class FailingFixedIonsFragmentMethod final : public chargefw::test::StubMethod {
 
     [[nodiscard]] auto calculate(const methods::CalculationInput&) const
         -> charges::AtomicCharges override {
-        throw std::runtime_error{"deliberate fragment failure"};
+        std::rethrow_exception(failure);
     }
+
+    std::exception_ptr failure =
+        std::make_exception_ptr(std::runtime_error{"deliberate fragment failure"});
 };
 
 auto make_eqeqc_parameters() -> parameters::ParameterSet {
@@ -374,12 +379,10 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
 TEST_CASE("whole-molecule reduced execution matches full execution for each charge policy",
           "[calculation][reduced-execution]") {
     struct PolicyCase {
-        methods::ReducedChargePolicy policy;
         std::string_view method_id;
         parameters::ParameterSet parameter_set;
         core::Molecule molecule;
     };
-    using Policy = methods::ReducedChargePolicy;
     const auto water = chargefw::test::make_two_conformer_water();
     const auto point_charges =
         chargefw::test::SqeHoValues{.hydrogen_width = 0.0, .oxygen_width = 0.0};
@@ -387,29 +390,21 @@ TEST_CASE("whole-molecule reduced execution matches full execution for each char
         chargefw::test::SqeHoValues{.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5};
     const auto point_reference_charges = chargefw::test::SqeHoValues{
         .hydrogen_width = 0.0, .oxygen_width = 0.0, .hydrogen_q0 = 0.25, .oxygen_q0 = -0.5};
+    // EEM, SQE, SQE+q0, and SQE+qp cover the four reduced-charge policies.
     const auto cases = std::vector<PolicyCase>{
-        {Policy::uniform_target_global, "eem", chargefw::test::make_eem_parameters(), water},
-        {Policy::zero_components, "sqe", chargefw::test::make_sqe_ho_parameters("sqe"), water},
-        {Policy::zero_components, "sqe",
-         chargefw::test::make_sqe_ho_parameters("sqe", point_charges), water},
-        {Policy::formal_charge_components, "sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"),
-         water},
-        {Policy::formal_charge_components, "sqeq0",
-         chargefw::test::make_sqe_ho_parameters("sqeq0", point_charges), water},
-        {Policy::formal_charge_components, "sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"),
-         make_charged_water()},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), water},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", point_reference_charges), water},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), make_charged_water()}};
+        {"eem", chargefw::test::make_eem_parameters(), water},
+        {"sqe", chargefw::test::make_sqe_ho_parameters("sqe"), water},
+        {"sqe", chargefw::test::make_sqe_ho_parameters("sqe", point_charges), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0", point_charges), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"), make_charged_water()},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), water},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", point_reference_charges), water},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges),
+         make_charged_water()}};
 
     for (const auto& test_case : cases) {
         CAPTURE(test_case.method_id, test_case.molecule.name());
-        const auto* method = methods::method_registry().find(test_case.method_id);
-        REQUIRE(method != nullptr);
-        CHECK(method->requirements().resources.reduced_charge_policy == test_case.policy);
         assert_reduced_matches_full(test_case.method_id, {test_case.parameter_set},
                                     test_case.molecule);
     }
@@ -553,9 +548,6 @@ TEST_CASE("reduced approximation remains bounded across a truncated radius sweep
                 const auto metrics = error_metrics(reduced, full);
                 CAPTURE(test_case.method_id, mode, radius, metrics.rmsd, metrics.mae,
                         metrics.maxabs);
-                CHECK(std::isfinite(metrics.rmsd));
-                CHECK(std::isfinite(metrics.mae));
-                CHECK(std::isfinite(metrics.maxabs));
                 CHECK(metrics.rmsd < test_case.max_rmsd);
                 CHECK(metrics.mae < test_case.max_mae);
                 CHECK(metrics.maxabs < test_case.max_maxabs);
@@ -598,7 +590,7 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
         const features::PreparedMolecule prepared{molecule};
         const features::ConformerFeatures geometry{molecule, 0};
         const auto classification =
-            parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+            parameters::classify_parameters(prepared.topology(), parameter_set);
         const auto* method = methods::method_registry().find(method_id);
         REQUIRE(method != nullptr);
         const auto options = methods::make_default_options(method->option_schema());
@@ -612,7 +604,6 @@ TEST_CASE("reduced fragment calculations forward the complete fixed-source envir
         constexpr auto fragment_radius = 8.0;
         const auto fragment = builder.build(0, fragment_radius);
         REQUIRE(fragment.molecule().atom_count() < molecule.atom_count());
-        CHECK(source.position.x > fragment_radius);
 
         const auto fragment_target =
             calculation::detail::fragment_target_charge(charge_context, fragment);
@@ -692,8 +683,7 @@ TEST_CASE("SQE+qp fragments start pieces of a split component from its reference
         chargefw::test::make_sqe_ho_parameters("sqeqp", {.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5});
     const features::PreparedMolecule prepared{molecule};
     const features::ConformerFeatures geometry{molecule, 0};
-    const auto classification =
-        parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+    const auto classification = parameters::classify_parameters(prepared.topology(), parameter_set);
     const auto* method = methods::method_registry().find("sqeqp");
     REQUIRE(method != nullptr);
     const auto options = methods::make_default_options(method->option_schema());
@@ -740,7 +730,7 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
         original, calculation::FixedIons{
                       .sources = {{.molecule_index = 0, .atom_index = 0, .charge = 0.25}}});
     const features::PreparedMoleculeCollection active{partition.active_molecules};
-    const FailingFixedIonsFragmentMethod method;
+    FailingFixedIonsFragmentMethod method;
     const methods::ApplicableMethod selected{.method = &method, .parameter_set = nullptr};
 
     for (const auto mode :
@@ -760,7 +750,16 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
         const auto expected = mode == calculation::ExecutionMode::cutoff
                                   ? "cutoff fragment around source atom 2 failed"
                                   : "cover fragment around source atom 2 failed";
+        method.failure = std::make_exception_ptr(std::runtime_error{"deliberate fragment failure"});
         CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
                              snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::invalid_argument{"invalid fragment input"});
+        CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
+                             snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::logic_error{"fragment invariant failure"});
+        CHECK_THROWS_MATCHES(calculate(), std::logic_error,
+                             snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::bad_alloc{});
+        CHECK_THROWS_AS(calculate(), std::bad_alloc);
     }
 }

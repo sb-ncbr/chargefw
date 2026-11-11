@@ -32,10 +32,6 @@ auto AtomParameters::empty() const noexcept -> bool {
     return entries_.empty();
 }
 
-auto AtomParameters::entry(const std::size_t index) const -> const AtomParameterEntry& {
-    return at(index);
-}
-
 auto AtomParameters::operator[](const std::size_t index) const noexcept
     -> const AtomParameterEntry& {
     return entries_[index];

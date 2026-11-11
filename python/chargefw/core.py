@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
-from operator import index as as_index
 from typing import Any, Literal, overload
 
 import numpy as np
@@ -13,6 +12,7 @@ from numpy.typing import NDArray
 from ._arrays import (
     as_coordinates,
     as_ids,
+    as_integer,
     as_integer_array,
     as_names,
     as_portable_id,
@@ -37,12 +37,7 @@ class SourceIdentity:
     def __post_init__(self) -> None:
         if not isinstance(self.source, str):
             raise TypeError("source must be a string")
-        if isinstance(self.record_index, (bool, np.bool)):
-            raise TypeError("record_index must be an integer")
-        try:
-            normalized_record_index = as_index(self.record_index)
-        except TypeError as error:
-            raise TypeError("record_index must be an integer") from error
+        normalized_record_index = as_integer(self.record_index, "record_index")
         if normalized_record_index < 0:
             raise ValueError("record_index must be non-negative")
         normalized_record_id = (
@@ -50,10 +45,6 @@ class SourceIdentity:
         )
         object.__setattr__(self, "record_index", normalized_record_index)
         object.__setattr__(self, "record_id", normalized_record_id)
-
-    @property
-    def source_name(self) -> str:
-        return self.source
 
 
 type SourceFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]

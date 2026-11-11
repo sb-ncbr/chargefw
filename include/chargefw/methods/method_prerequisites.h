@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -36,16 +35,12 @@ struct PrerequisiteIssue {
     core::IssueLocation location = {};
 };
 
-class PrerequisiteResult {
-  public:
-    [[nodiscard]] explicit operator bool() const noexcept;
+struct PrerequisiteResult {
+    std::vector<PrerequisiteIssue> issues;
 
-    [[nodiscard]] auto issues() const noexcept -> std::span<const PrerequisiteIssue>;
-
-    auto add(PrerequisiteIssue issue) -> void;
-
-  private:
-    std::vector<PrerequisiteIssue> issues_;
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return issues.empty();
+    }
 };
 
 struct MethodPrerequisiteInput {

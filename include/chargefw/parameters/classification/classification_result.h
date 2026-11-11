@@ -10,8 +10,8 @@
 namespace chargefw::parameters {
 
 enum class ClassificationIssueKind : std::uint8_t {
-    MISSING_ATOM_PARAMETER,
-    MISSING_BOND_PARAMETER,
+    missing_atom_parameter,
+    missing_bond_parameter,
 };
 
 struct ClassificationIssue {
@@ -26,8 +26,6 @@ struct ClassificationOptions {
 
 class ClassificationResult {
   public:
-    ClassificationResult() = default;
-
     explicit ClassificationResult(ParameterClassification classification);
     explicit ClassificationResult(std::vector<ClassificationIssue> issues);
 

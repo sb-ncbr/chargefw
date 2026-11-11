@@ -17,7 +17,7 @@ struct CalculationRequest {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const methods::ApplicableMethod& selected;
     ExecutionPolicy execution_policy{};
-    // Zero delegates the worker count to the oneTBB runtime.
+    // Zero uses oneTBB's currently allowed parallelism.
     std::size_t max_threads = 0;
     // Non-owning observer for progress and cancellation.
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)

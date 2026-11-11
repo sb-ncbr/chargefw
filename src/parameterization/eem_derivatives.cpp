@@ -22,12 +22,10 @@
 #include <Eigen/Core>
 #include <Eigen/LU>
 
-#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <optional>
 #include <span>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -104,19 +102,11 @@ class EemLinearization final : public LinearizedCharges {
         const Eigen::MatrixXd result = lu_->solve(rhs).topRows(n);
 
         auto values = std::vector<double>(result.data(), result.data() + result.size());
-        require_finite(values);
+        require_finite(values, "EEM derivative is not finite");
         return values;
     }
 
   private:
-    static auto require_finite(const std::span<const double> values) -> void {
-        for (const auto value : values) {
-            if (!std::isfinite(value)) {
-                throw std::runtime_error{"EEM derivative is not finite"};
-            }
-        }
-    }
-
     // The LU factors of M after construction; lu_ refers to it, so this object cannot move.
     Eigen::MatrixXd matrix_;
     std::optional<Eigen::PartialPivLU<Eigen::Ref<Eigen::MatrixXd>>> lu_;

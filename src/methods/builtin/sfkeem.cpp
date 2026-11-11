@@ -1,4 +1,5 @@
 #include "methods/builtin/sfkeem.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -45,11 +46,7 @@ auto SFKEEMMethod::calculate(const CalculationInput& input) const -> charges::At
 
     const auto a = parameters.atom("A");
     // The pair loop below reads B O(n^2) times; resolve it once per atom.
-    const auto b_accessor = parameters.atom("B");
-    std::vector<double> b_parameter(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        b_parameter[atom_index] = b_accessor[atom_index];
-    }
+    const auto b_parameter = methods::detail::atom_parameter_values(parameters, "B", atom_count);
 
     const auto n = static_cast<Eigen::Index>(atom_count);
 
@@ -75,23 +72,14 @@ auto SFKEEMMethod::calculate(const CalculationInput& input) const -> charges::At
         }
     }
 
-    matrix.row(n).setOnes();
-    matrix.col(n).setOnes();
-    matrix(n, n) = 0.0;
-    rhs(n) = input.target_charge();
-
-    const Eigen::VectorXd q = solve_in_place(matrix, rhs).head(n);
+    const Eigen::VectorXd q = solve_charge_constrained(matrix, rhs, input.target_charge()).head(n);
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
 }
 
 auto SFKEEMMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const
     -> ResourceEstimate {
-    const auto n = target.atoms;
-    const auto size = n + 1.0;
-    // Dense (n + 1) x (n + 1) system with a charge constraint.
-    return {.memory_bytes = 8.0 * size * size,
-            .operations = 2.0 / 3.0 * size * size * size + 0.5 * n * n};
+    return charge_constrained_estimate(target.atoms);
 }
 
 } // namespace chargefw::methods::builtin

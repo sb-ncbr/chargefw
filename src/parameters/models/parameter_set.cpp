@@ -1,5 +1,7 @@
 #include <chargefw/parameters/models/parameter_set.h>
 
+#include "parameters/parameter_helpers.h"
+
 #include <algorithm>
 #include <span>
 #include <stdexcept>
@@ -8,18 +10,11 @@
 namespace chargefw::parameters {
 namespace {
 
-[[nodiscard]] auto same_names(const std::span<const NamedParameter> first,
-                              const std::span<const NamedParameter> second) -> bool {
-    return std::ranges::equal(first, second, [](const auto& lhs, const auto& rhs) -> bool {
-        return lhs.name == rhs.name;
-    });
-}
-
 template <typename Entry>
 [[nodiscard]] auto same_entries(const std::span<const Entry> first,
                                 const std::span<const Entry> second) -> bool {
     return std::ranges::equal(first, second, [](const Entry& lhs, const Entry& rhs) -> bool {
-        return lhs.key == rhs.key && same_names(lhs.parameters, rhs.parameters);
+        return lhs.key == rhs.key && detail::same_names(lhs.parameters, rhs.parameters);
     });
 }
 
@@ -58,14 +53,6 @@ auto ParameterSet::name() const noexcept -> std::string_view {
     return metadata_.name;
 }
 
-auto ParameterSet::publication() const noexcept -> std::string_view {
-    return metadata_.publication;
-}
-
-auto ParameterSet::notes() const noexcept -> std::string_view {
-    return metadata_.notes;
-}
-
 auto ParameterSet::priority() const noexcept -> std::uint16_t {
     return metadata_.priority;
 }
@@ -84,7 +71,7 @@ auto ParameterSet::bond() const noexcept -> const BondParameters& {
 
 auto compatible(const ParameterSet& reference, const ParameterSet& candidate) -> bool {
     return reference.method_id() == candidate.method_id() &&
-           same_names(reference.common().parameters(), candidate.common().parameters()) &&
+           detail::same_names(reference.common().parameters(), candidate.common().parameters()) &&
            same_entries(reference.atom().entries(), candidate.atom().entries()) &&
            same_entries(reference.bond().entries(), candidate.bond().entries());
 }

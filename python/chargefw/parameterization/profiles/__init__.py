@@ -11,9 +11,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from types import MappingProxyType
 
+from ..._public import set_public_module as _set_public_module
 from . import eem, sqe
 from ._profile import Profile, Transform
 from .sqe import StableHardness
+
+_set_public_module(__name__, Profile, Transform)
 
 __all__ = ["PROFILES", "Profile", "StableHardness", "Transform"]
 

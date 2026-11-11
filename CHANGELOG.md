@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Input
+
+- Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
+
 ### Installation
 
 - On x86-64, the wheels, the Docker image, and source builds target x86-64-v3 (AVX2 and FMA: Intel
@@ -11,6 +15,8 @@
 
 ### Python
 
+- Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
+  `Molecule.source_name` is unchanged.
 - `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
   makes a parameter set with an entry for every atom and bond type of your molecules, `Evaluator`
   calculates the charges of an assessed plan, and their derivatives, for any vector of values, and
@@ -30,6 +36,47 @@
 
 ### C++
 
+- Breaking change: removed `PdbReader::options()` and `MmcifReader::options()`. Keep the
+  `InputOptions` supplied to the constructor if you need to inspect them later.
+- Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
+  result from `try_classify_parameters()`, or construct it explicitly from a classification or issues.
+- Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace
+  `issues()` with `issues` and `add(issue)` with `issues.push_back(issue)`. Its boolean conversion
+  still reports whether the vector is empty. Rebuild downstream C++ code.
+- Breaking change: removed `parameters::ParameterSet::publication()` and `notes()`; use
+  `metadata().publication` and `metadata().notes`. Removed `calculation::ExecutionResult::cancelled()`;
+  compare `status` with `calculation::ExecutionStatus::cancelled` instead. Rebuild downstream C++ code.
+- Breaking change: removed `features::TopologyFeatures::bond_index_between()` and `are_bonded()`.
+  Use `neighbor_indices()` to check whether two atoms are bonded. To find the bond between them,
+  look among `incident_bond_indices()` of one atom for the bond whose other atom is the second.
+  Rebuild downstream C++ code.
+- Breaking change: removed `methods::CalculationInput::has_geometry()`, `geometry_if_available()`,
+  `has_parameters()`, and `parameters_if_available()`. Use `geometry()` and `parameters()` to access
+  supplied values; these return references and throw `std::logic_error` when the value is missing.
+  Rebuild downstream C++ code.
+- Breaking source and ABI change: `adapters::RequestedCalculationProvenance::method_scope` and
+  `execution_kind` now use `calculation::MethodScope` and `calculation::ExecutionSelectionKind`
+  instead of strings. Replace string assignments and comparisons with enum values, using
+  `ExecutionSelectionKind::automatic` for `"auto"`, and rebuild downstream C++ code. The defaults
+  remain recommended methods and automatic execution; result JSON and Python strings are unchanged.
+- Breaking change: the enumerators of `parameters::ClassificationIssueKind`,
+  `parameters::AtomParameterClassificationKind`, and `parameters::BondParameterClassificationKind`
+  are lower case, as in the other public enums: `PLAIN` is now `plain`, `HIGHEST_BOND_ORDER`
+  `highest_bond_order`, and so on. Rename them in calls and rebuild downstream C++ code.
+- Breaking change: removed `AtomParameters::entry()`, `BondParameters::entry()`,
+  `AtomParameterClassification::parameter_entry_index()`, and
+  `BondParameterClassification::parameter_entry_index()` from `chargefw::parameters`.
+  Replace calls with `at()`, which retains the same bounds checking, and rebuild downstream C++ code.
+- Breaking change: the single-molecule `methods::check_parameter_prerequisites()` overload and its
+  `ParameterPrerequisiteInput` and `ParameterPrerequisiteResult` types were removed from the public
+  headers. Use the collection overload with a `PreparedMoleculeCollection` and rebuild downstream
+  C++ code.
+- Breaking change: `parameters::classify_parameters()` and `parameters::try_classify_parameters()`
+  derive the molecule from `TopologyFeatures`. Remove the first (`molecule`) argument from calls
+  and rebuild downstream C++ code.
+- Breaking change: `JsonWriter::write`, `Mol2Writer::write`, `PqrWriter::write`, and both
+  `MmcifWriter::write` overloads no longer accept `generator_version`. Writers always record ChargeFW
+  and the compiled library version. Pass optional JSON execution metrics as the second argument.
 - The new `chargefw::parameterization` namespace has what fitting parameter values needs:
   `make_parameter_template()` makes a parameter set with an entry for every atom and bond type of a
   molecule collection under chosen classifiers, with the given parameter names and zero values;

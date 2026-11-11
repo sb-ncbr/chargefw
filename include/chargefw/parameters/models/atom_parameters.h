@@ -26,8 +26,6 @@ class AtomParameters {
     [[nodiscard]] auto size() const noexcept -> std::size_t;
     [[nodiscard]] auto empty() const noexcept -> bool;
 
-    [[nodiscard]] auto entry(std::size_t index) const -> const AtomParameterEntry&;
-
     [[nodiscard]] auto operator[](std::size_t index) const noexcept -> const AtomParameterEntry&;
     [[nodiscard]] auto at(std::size_t index) const -> const AtomParameterEntry&;
 

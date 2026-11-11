@@ -78,6 +78,20 @@ def test_formats_use_native_writers() -> None:
     assert result.molecules[0] is molecule
 
 
+def test_json_records_requested_scope_and_execution() -> None:
+    result = chargefw.calculate(water(), method_scope="all", execution="full")
+    requested = result_json(result)["calculation_provenance"]["requested"]
+    assert requested["method_scope"] == "all"
+    assert requested["execution"] == {"kind": "full", "radius_angstrom": None}
+
+    named = chargefw.calculate(
+        water(), method="eem", parameter_set="EEM_Baek1991", execution="full"
+    )
+    requested = result_json(named)["calculation_provenance"]["requested"]
+    assert requested["method"] == {"id": "eem"}
+    assert requested["parameter_set"] == {"id": "EEM_Baek1991"}
+
+
 def test_pqr_requires_structural_input() -> None:
     structure = chargefw.io.parse(
         "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O  \n"

@@ -60,8 +60,7 @@ auto calculate(const chargefw::core::Molecule& molecule, const std::string_view 
     -> chargefw::charges::AtomicCharges {
     const chargefw::features::PreparedMolecule prepared{molecule};
     const chargefw::features::ConformerFeatures geometry{molecule, 0};
-    const auto classification =
-        parameters::classify_parameters(molecule, prepared.topology(), parameter_set);
+    const auto classification = parameters::classify_parameters(prepared.topology(), parameter_set);
     const parameters::ParameterView view{parameter_set, classification};
     const auto* method = methods::method_registry().find(method_id);
     if (method == nullptr) {

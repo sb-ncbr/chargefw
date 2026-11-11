@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from operator import index as as_index
 from types import MappingProxyType
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ._arrays import index_array
+from ._arrays import as_integer, index_array
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
 from ._methods import (
@@ -477,12 +476,7 @@ class CalculationResult:
     def assignment(self, *, molecule: int, conformer: int | None = None) -> ChargeAssignment:
         """Return charges for one source molecule and, when applicable, one conformer."""
 
-        if isinstance(molecule, bool):
-            raise TypeError("molecule must be an integer")
-        try:
-            molecule_index = as_index(molecule)
-        except TypeError as error:
-            raise TypeError("molecule must be an integer") from error
+        molecule_index = as_integer(molecule, "molecule")
         if molecule_index < 0 or molecule_index >= len(self._assignments_by_molecule):
             raise IndexError("molecule index is outside the calculation input collection")
 
@@ -495,12 +489,7 @@ class CalculationResult:
                 raise ValueError("conformer is required for conformer-specific assignments")
             raise IndexError("molecule has no charge assignment")
 
-        if isinstance(conformer, bool):
-            raise TypeError("conformer must be an integer or None")
-        try:
-            conformer_index = as_index(conformer)
-        except TypeError as error:
-            raise TypeError("conformer must be an integer or None") from error
+        conformer_index = as_integer(conformer, "conformer", expected="an integer or None")
         if conformer_index < 0:
             raise IndexError("conformer index must be non-negative")
         matches = tuple(item for item in assignments if item.conformer_index == conformer_index)

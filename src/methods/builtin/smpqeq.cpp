@@ -1,4 +1,5 @@
 #include "methods/builtin/smpqeq.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -52,11 +53,7 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
 
     const auto first = parameters.atom("first");
     // The pair loop below reads second O(n^2) times; resolve it once per atom.
-    const auto second_parameter = parameters.atom("second");
-    std::vector<double> second(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        second[atom_index] = second_parameter[atom_index];
-    }
+    const auto second = methods::detail::atom_parameter_values(parameters, "second", atom_count);
     const auto third = parameters.atom("third");
     const auto fourth = parameters.atom("fourth");
 
@@ -91,12 +88,7 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
             }
         }
 
-        A.row(n).setOnes();
-        A.col(n).setOnes();
-        A(n, n) = 0.0;
-        b(n) = input.target_charge();
-
-        b = solve_in_place(A, b);
+        b = solve_charge_constrained(A, b, input.target_charge());
 
         if ((b.head(n) - previous_charges).cwiseAbs().maxCoeff() <= convergence_tolerance) {
             return charges::AtomicCharges{std::vector<double>{b.data(), b.data() + n}};
@@ -110,11 +102,9 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
 
 auto SMPQEqMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const
     -> ResourceEstimate {
-    const auto n = target.atoms;
-    const auto size = n + 1.0;
-    // Up to maximum_iterations dense (n + 1) x (n + 1) solves.
-    return {.memory_bytes = 8.0 * size * size,
-            .operations = maximum_iterations * (2.0 / 3.0 * size * size * size + 0.5 * n * n)};
+    auto estimate = charge_constrained_estimate(target.atoms);
+    estimate.operations *= maximum_iterations;
+    return estimate;
 }
 
 } // namespace chargefw::methods::builtin

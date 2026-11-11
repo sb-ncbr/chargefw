@@ -64,9 +64,6 @@ class ExecutionPlan {
 
     friend class AssessmentResult;
     friend struct detail::AssessmentAccess;
-    friend auto calculate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-                          std::size_t max_threads, const CalculationObserver& observer)
-        -> ExecutionResult;
     friend auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
                          std::size_t max_threads) -> methods::ResourceEstimate;
 

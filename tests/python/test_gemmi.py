@@ -524,6 +524,15 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
     chargefw.io.gemmi.attach_charges(document, result)
 
     assert document[0].find_value("_audit.creation_method") == "attachment-test"
+    for block in document:
+        metadata = block.find(
+            "_sb_ncbr_partial_atomic_charges_meta.", ["software_name", "software_version"]
+        )
+        assert len(metadata) == 1
+        assert [gemmi.cif.as_string(value) for value in metadata[0]] == [
+            "ChargeFW",
+            chargefw.__version__,
+        ]
     first_ids = [
         gemmi.cif.as_string(row[0])
         for row in document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])
@@ -580,6 +589,17 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         gemmi.cif.as_string(altloc_document[0].find("_atom_site.", ["label_alt_id"])[0][0]) == "B"
     )
     assert len(altloc_document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])) == 4
+
+    # wwPDB files write two-letter elements in upper case, as SE or CL.
+    upper_case_document = gemmi.cif.read_string(
+        MMCIF_TEXT.replace(" O O . HOH A", " CL CL . CL A").replace("2 HOH A O ", "2 CL A CL ")
+    )
+    upper_case_molecules = chargefw.io.gemmi.from_document(upper_case_document)
+    assert upper_case_molecules[0].atomic_numbers.tolist() == [6, 17]
+    chargefw.io.gemmi.attach_charges(
+        upper_case_document, calculate(upper_case_molecules, method="formal")
+    )
+    assert len(upper_case_document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])) == 4
 
     for column, value in (
         ("id", "99"),

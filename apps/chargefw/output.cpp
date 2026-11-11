@@ -2,8 +2,6 @@
 #include "core/diagnostic_description.h"
 #include "platform/peak_memory.h"
 
-#include <chargefw/config.h>
-
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -125,28 +123,27 @@ template <typename Writer> void write_output(const std::filesystem::path& path, 
 void write_json(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result,
                 const adapters::ExecutionMetrics& metrics) {
     write_output(path, [&result, &metrics](auto& output) {
-        adapters::native::json_output::JsonWriter{output}.write(result, CHARGEFW_VERSION_STRING,
-                                                                metrics);
+        adapters::native::json_output::JsonWriter{output}.write(result, metrics);
     });
 }
 
 void write_mmcif(const std::filesystem::path& path,
                  const adapters::ChargeCalculationResult& result) {
     write_output(path, [&result](auto& output) {
-        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(result);
     });
 }
 
 void write_mol2(const std::filesystem::path& path,
                 const adapters::ChargeCalculationResult& result) {
     write_output(path, [&result](auto& output) {
-        adapters::native::mol2_output::Mol2Writer{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::native::mol2_output::Mol2Writer{output}.write(result);
     });
 }
 
 void write_pqr(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result) {
     write_output(path, [&result](auto& output) {
-        adapters::native::pqr_output::PqrWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::native::pqr_output::PqrWriter{output}.write(result);
     });
 }
 
@@ -168,12 +165,12 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
     auto requested = adapters::RequestedCalculationProvenance{
         .method_id = request.method_id,
         .parameter_set_id = request.parameter_set_id,
-        .method_scope = std::string{calculation::to_string(request.method_scope)},
+        .method_scope = request.method_scope,
         .permissive_types = request.classification_options.permissive_types,
         .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
         .cover_atom_threshold = request.resource_policy.cover_atom_threshold,
         .max_threads = max_threads,
-        .execution_kind = std::string{calculation::to_string(request.execution_selection.kind())},
+        .execution_kind = request.execution_selection.kind(),
         .execution_radius = request.execution_selection.radius()};
     for (const auto& [method_id, options] : request.method_options) {
         requested.method_options.emplace(method_id, options);
@@ -185,7 +182,6 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
                                const adapters::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
     const auto directory = std::filesystem::path{output_directory};
     std::error_code directory_error;
     std::filesystem::create_directories(directory, directory_error);
@@ -198,12 +194,15 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
+    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
+    run.metrics.ended_at = utc_timestamp();
+    run.metrics.runtime_seconds =
+        std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
+    const auto json_path = std::filesystem::path{prefix.string() + ".json"};
+    write_json(json_path, owned_result, run.metrics);
+    report_diagnostics(owned_result, run.reported);
+
     if (owned_result.charges() == nullptr) {
-        run.metrics.ended_at = utc_timestamp();
-        run.metrics.runtime_seconds =
-            std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
-        write_json(prefix.string() + ".json", owned_result, run.metrics);
-        report_diagnostics(owned_result, run.reported);
         switch (owned_result.status()) {
         case adapters::ResultStatus::invalid_request:
             return 2;
@@ -218,13 +217,6 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         }
     }
 
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
-    run.metrics.ended_at = utc_timestamp();
-    run.metrics.runtime_seconds =
-        std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
-    const auto json_path = std::filesystem::path{prefix.string() + ".json"};
-    write_json(json_path, owned_result, run.metrics);
-    report_diagnostics(owned_result, run.reported);
     std::println("Wrote {}", json_path.string());
 
     try {

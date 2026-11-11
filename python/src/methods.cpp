@@ -6,6 +6,7 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/variant.h>
 
 #include <string>
 
@@ -13,10 +14,6 @@ namespace nb = nanobind;
 
 namespace chargefw::python {
 namespace {
-
-auto option_value(const methods::MethodOptionValue& value) -> nb::object {
-    return std::visit([](const auto& item) { return nb::cast(item); }, value);
-}
 
 auto method_descriptors() -> nb::list {
     auto result = nb::list{};
@@ -47,15 +44,15 @@ auto method_descriptors() -> nb::list {
             option["id"] = std::string{spec.id};
             option["description"] = std::string{spec.description};
             option["type"] = std::string{methods::to_string(spec.type)};
-            option["default"] = option_value(spec.default_value);
+            option["default"] = nb::cast(spec.default_value);
             auto choices = nb::list{};
             for (const auto& choice : spec.choices) {
-                choices.append(option_value(choice));
+                choices.append(nb::cast(choice));
             }
             option["choices"] = std::move(choices);
-            option["minimum"] = spec.minimum.has_value() ? option_value(*spec.minimum) : nb::none();
+            option["minimum"] = spec.minimum.has_value() ? nb::cast(*spec.minimum) : nb::none();
             option["minimum_inclusive"] = spec.minimum_inclusive;
-            option["maximum"] = spec.maximum.has_value() ? option_value(*spec.maximum) : nb::none();
+            option["maximum"] = spec.maximum.has_value() ? nb::cast(*spec.maximum) : nb::none();
             option["maximum_inclusive"] = spec.maximum_inclusive;
             options.append(std::move(option));
         }

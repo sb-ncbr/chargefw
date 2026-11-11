@@ -53,11 +53,6 @@ auto AtomParameterClassification::empty() const noexcept -> bool {
     return parameter_entry_indices_.empty();
 }
 
-auto AtomParameterClassification::parameter_entry_index(const std::size_t atom_index) const
-    -> std::size_t {
-    return at(atom_index);
-}
-
 auto AtomParameterClassification::operator[](const std::size_t atom_index) const noexcept
     -> std::size_t {
     return parameter_entry_indices_[atom_index];
@@ -82,11 +77,6 @@ auto BondParameterClassification::size() const noexcept -> std::size_t {
 
 auto BondParameterClassification::empty() const noexcept -> bool {
     return parameter_entry_indices_.empty();
-}
-
-auto BondParameterClassification::parameter_entry_index(const std::size_t bond_index) const
-    -> std::size_t {
-    return at(bond_index);
 }
 
 auto BondParameterClassification::operator[](const std::size_t bond_index) const noexcept

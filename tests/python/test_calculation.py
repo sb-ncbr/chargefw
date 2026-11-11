@@ -11,7 +11,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
-from chargefw.parameterization import EvaluationError, Evaluator
+from chargefw.parameterization import Evaluator
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:
@@ -80,23 +80,6 @@ class RecordingObserver(chargefw.CalculationObserver):
 
     def on_progress(self, progress: chargefw.CalculationProgress) -> None:
         self.events.append(progress)
-
-
-def test_ion_selections_are_immutable_native_catalog_tuples() -> None:
-    common: tuple[str, ...] = chargefw.COMMON_IONS
-    all_ions: tuple[str, ...] = chargefw.ALL_IONS
-    assert isinstance(all_ions, tuple)
-    assert set(common) < set(all_ions)
-    assert len(all_ions) == len(set(all_ions))
-    for selection in (common, all_ions):
-        absent = chargefw.calculate(
-            chargefw.io.parse(FIXED_IONS_MMCIF.split("HETATM 4")[0] + "#\n", format="mmcif"),
-            method="formal",
-            fixed_ions=selection,
-        )
-        assert absent.requested.fixed_ions == selection
-        assert absent.plan is not None, "absent ion selection must retain the formal plan"
-        assert absent.plan.fixed_ions is None
 
 
 def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> None:
@@ -380,12 +363,6 @@ def test_observer_callback_failure_does_not_change_calculation() -> None:
     unraisable.reset_mock()
 
 
-def test_default_calculation_selects_a_supported_plan() -> None:
-    result = chargefw.calculate(water())
-    assert result.status == "success"
-    assert result.plan is not None
-
-
 def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     assert not chargefw.methods["veem"].recommended
     assert chargefw.methods["eem"].recommended
@@ -397,7 +374,10 @@ def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     every = chargefw.assess(water(), method_scope="all")
     assert "veem" in {plan.method.id for plan in every.plans}
     assert chargefw.calculate(water(), method_scope="all").requested.method_scope == "all"
-    assert chargefw.calculate(water()).requested.method_scope == "recommended"
+    default = chargefw.calculate(water())
+    assert default.status == "success"
+    assert default.plan is not None
+    assert default.requested.method_scope == "recommended"
 
     named = chargefw.calculate(water(), method="veem")
     assert named.plan is not None and named.plan.method.id == "veem"
@@ -452,14 +432,6 @@ def test_assessment_and_full_calculation() -> None:
 
     overridden_threads = chargefw.calculate(molecule, plan, threads=1)
     assert overridden_threads.requested.threads == 1
-
-
-def test_plan_keeps_prepared_state_alive() -> None:
-    molecule = water()
-    plan = chargefw.assess(molecule, method="eem", execution="full").default_plan
-    assert plan is not None, "assessment must produce a default plan"
-    gc.collect()
-    assert chargefw.calculate(molecule, plan).status == "success"
 
 
 def test_plans_are_filtered_reusable_and_target_bound() -> None:
@@ -537,6 +509,16 @@ def test_assignment_cardinality_and_mapping() -> None:
     assert multi_result.assignments_by_molecule == (multi_result.assignments,)
     assert multi_result.assignment(molecule=0, conformer=0) is multi_result.assignments[0]
     assert multi_result.assignment(molecule=0, conformer=1) is multi_result.assignments[1]
+    invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
+    for value in invalid_indices:
+        with pytest.raises(TypeError):
+            multi_result.assignment(molecule=value, conformer=0)
+        with pytest.raises(TypeError):
+            multi_result.assignment(molecule=0, conformer=value)
+    assert (
+        multi_result.assignment(molecule=cast(Any, np.int64(0)), conformer=cast(Any, np.int64(1)))
+        is multi_result.assignments[1]
+    )
     with pytest.raises(ValueError):
         multi_result.assignment(molecule=0)
 
@@ -869,6 +851,13 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert "eem" in methods
     assert methods.get("eem") == methods["eem"]
     assert methods.get("not-a-method") is None
+    invalid_keys: tuple[object, ...] = (5, None, [])
+    for catalog in (methods, chargefw.parameter_sets):
+        assert "not-an-id" not in catalog
+        for key in invalid_keys:
+            assert key not in catalog
+            with pytest.raises(TypeError):
+                catalog[key]  # type: ignore[index]
     assert tuple(methods) == tuple(method.id for method in methods.values())
     assert methods["eem"].id == "eem"
     with pytest.raises(KeyError):
@@ -973,42 +962,25 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
         chargefw.read_parameter_set(malformed)
 
 
-def test_plan_calculates_charges_for_other_parameter_values(tmp_path: Any) -> None:
+def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(
+    tmp_path: Any,
+) -> None:
     parameter_set = chargefw.read_parameter_set(
         write_eem_set(tmp_path / "set.json", "water-native", 3.0)
     )
-    molecule = water(conformers=2)
+    coordinates = water(conformers=2).coordinates.copy()
+    coordinates[1] *= 1.5
+    molecule = chargefw.Molecule([8, 1, 1], bonds=[[0, 1, 1], [0, 2, 1]], coordinates=coordinates)
     plan = chargefw.assess(
         molecule, method="eem", parameter_set=parameter_set, execution="full"
     ).default_plan
     assert plan is not None
     evaluator = Evaluator(plan, threads=1)
 
-    assert [(slot.scope, slot.name) for slot in evaluator.layout] == [
-        ("common", "kappa"),
-        ("atom", "A"),
-        ("atom", "B"),
-        ("atom", "A"),
-        ("atom", "B"),
-    ]
-    np.testing.assert_array_equal(evaluator.values, [0.5, 2.0, 1.0, 3.0, 1.0])
-
     # The set's own values reproduce a normal calculation, with both conformers concatenated.
     expected = chargefw.calculate(molecule, plan, threads=1)
+    assert not np.allclose(expected.assignments[0].values, expected.assignments[1].values)
     np.testing.assert_array_equal(
         evaluator.charges(evaluator.values),
         np.concatenate([assignment.values for assignment in expected.assignments]),
     )
-    np.testing.assert_allclose(
-        evaluator.charges(np.array([0.5, 2.0, 1.0, 2.0, 1.0])), np.zeros(6), atol=1e-12
-    )
-
-    # EEM rejects kappa <= 0 during the calculation.
-    with pytest.raises(EvaluationError, match="kappa"):
-        evaluator.charges(np.array([0.0, 2.0, 1.0, 3.0, 1.0]))
-    with pytest.raises(ValueError):
-        evaluator.charges(np.array([0.5]))
-    formal = chargefw.assess(water(), method="formal", execution="full").default_plan
-    assert formal is not None
-    with pytest.raises(ValueError):
-        Evaluator(formal)

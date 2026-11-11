@@ -12,7 +12,7 @@ indices of molecules, atoms, bonds, and conformers count from zero.
 | `chargefw.calculate(molecules, plan, *, threads=None, observer=None)` | `CalculationResult` of a `Plan` from `assess()`; omit `plan` rather than passing `None` |
 | `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `plan` and `observer` |
 | `chargefw.read_parameter_set(path)` | `ParameterSet` read from your own JSON file |
-| `chargefw.write_parameter_set(parameter_set, path)` | Writes a parameter set as JSON |
+| `chargefw.write_parameter_set(path, parameter_set)` | Writes a parameter set as JSON |
 | `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a file |
 | `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a string |
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
@@ -356,7 +356,16 @@ name) to values, or a `ParameterSet` whose values are copied to the slots with t
 parameter name.
 
 `chargefw.parameterization.profiles.PROFILES` maps a method ID to its `Profile` of default bounds,
-start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`.
+start values, and fixed parameters: `"eem"`, `"sqe"`, `"sqeq0"`, and `"sqeqp"`. A profile's `bounds`,
+`start`, and `terminal` are read-only. To customize a profile, use `dataclasses.replace()` and pass
+the result as `fit(..., profile=...)`:
+
+```python
+from dataclasses import replace
+from chargefw.parameterization.profiles import PROFILES
+
+profile = replace(PROFILES["eem"], start={**PROFILES["eem"].start, "B": 3.0})
+```
 
 ### Evaluator
 
@@ -374,6 +383,10 @@ A `Slot` has `scope` (`"common"`, `"atom"`, or `"bond"`), `key` (an `AtomParamet
 `BondParameterKey`, or `None`), and `name`.
 
 ### FitResult
+
+`FitResult`, `Diagnostics`, and `FitProgress` compare and hash by object identity, not by their
+contents. To compare fitted values, use `numpy.array_equal(first.values, second.values)` or
+`numpy.allclose(first.values, second.values)`.
 
 | Attribute | Content |
 | --- | --- |

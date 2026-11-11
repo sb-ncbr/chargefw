@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chargefw/core/molecule.h>
 #include <chargefw/features/topology_features.h>
 #include <chargefw/parameters/models/parameter_key.h>
 
@@ -15,15 +14,13 @@ namespace chargefw::parameters::detail {
 [[nodiscard]] auto atom_key_less(const AtomParameterKey& first, const AtomParameterKey& second)
     -> bool;
 
-[[nodiscard]] auto atom_type_key(const core::Molecule& molecule,
-                                 const features::TopologyFeatures& topology, std::size_t atom_index,
+[[nodiscard]] auto atom_type_key(const features::TopologyFeatures& topology, std::size_t atom_index,
                                  AtomParameterClassificationKind classification)
     -> AtomParameterKey;
 
 // A bond matches its key in either endpoint order, so the key puts the smaller atom key
 // (atom_key_less()) first.
-[[nodiscard]] auto bond_type_key(const core::Molecule& molecule,
-                                 const features::TopologyFeatures& topology, std::size_t bond_index,
+[[nodiscard]] auto bond_type_key(const features::TopologyFeatures& topology, std::size_t bond_index,
                                  AtomParameterClassificationKind atom_classification,
                                  BondParameterClassificationKind bond_classification)
     -> BondParameterKey;

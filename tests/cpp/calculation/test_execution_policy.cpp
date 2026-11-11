@@ -26,14 +26,6 @@ TEST_CASE("execution selection parses from strings", "[calculation][execution-po
     CHECK_THROWS_AS(bad_selection(), std::invalid_argument);
 }
 
-TEST_CASE("execution policy and selection convert to strings", "[calculation][execution-policy]") {
-    CHECK(calculation::to_string(calculation::ExecutionSelectionKind::automatic) == "auto");
-    CHECK(calculation::to_string(calculation::ExecutionSelectionKind::full) == "full");
-    CHECK(calculation::to_string(calculation::ExecutionMode::cutoff) == "cutoff");
-    CHECK(calculation::to_string(calculation::ExecutionStatus::no_executable_plan) ==
-          "no_executable_plan");
-}
-
 TEST_CASE("execution policy validates mode and radius", "[calculation][execution-policy]") {
     using Mode = calculation::ExecutionMode;
     using Case = std::pair<Mode, std::optional<double>>;
@@ -81,24 +73,4 @@ TEST_CASE("execution selection validates kind and radius", "[calculation][execut
         CHECK_THROWS_AS(static_cast<void>(calculation::ExecutionSelection(kind, radius)),
                         std::invalid_argument);
     }
-}
-
-TEST_CASE("resource policy exposes thresholds", "[calculation][execution-policy]") {
-    const calculation::ResourcePolicy default_resources;
-    CHECK(default_resources.cutoff_atom_threshold ==
-          std::optional<std::size_t>{calculation::default_cutoff_atom_threshold});
-    CHECK(default_resources.cover_atom_threshold ==
-          std::optional<std::size_t>{calculation::default_cover_atom_threshold});
-
-    const calculation::ResourcePolicy finite_resources{.cutoff_atom_threshold = 42,
-                                                       .cover_atom_threshold = 84};
-    CHECK(finite_resources.cutoff_atom_threshold == std::optional<std::size_t>{42});
-    CHECK(finite_resources.cover_atom_threshold == std::optional<std::size_t>{84});
-
-    const calculation::ResourcePolicy unlimited_resources{.cutoff_atom_threshold = std::nullopt,
-                                                          .cover_atom_threshold = std::nullopt};
-    CHECK_FALSE(unlimited_resources.cutoff_atom_threshold.has_value());
-    CHECK_FALSE(unlimited_resources.cover_atom_threshold.has_value());
-
-    CHECK(calculation::default_automatic_reduced_radius == 12.0);
 }

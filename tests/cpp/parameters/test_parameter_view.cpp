@@ -39,7 +39,7 @@ TEST_CASE("parameter view exposes immutable classified parameter access", "[para
     const auto water = chargefw::test::make_water_graph();
     const auto parameter_set = make_parameter_set();
     const features::TopologyFeatures topology{water};
-    const auto classification = parameters::classify_parameters(water, topology, parameter_set);
+    const auto classification = parameters::classify_parameters(topology, parameter_set);
     const parameters::ParameterView view{parameter_set, classification};
 
     CHECK(view.parameter_set().id() == "test-view");

@@ -1,4 +1,5 @@
 #include "methods/builtin/qeq.h"
+#include "methods/atom_parameter_values.h"
 #include "methods/builtin/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
@@ -72,11 +73,8 @@ auto QEqMethod::calculate(const CalculationInput& input) const -> charges::Atomi
 
     const auto electronegativity = parameters.atom("electronegativity");
     // The pair loop below reads hardness O(n^2) times; resolve it once per atom.
-    const auto hardness_parameter = parameters.atom("hardness");
-    std::vector<double> hardness(atom_count);
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-        hardness[atom_index] = hardness_parameter[atom_index];
-    }
+    const auto hardness =
+        methods::detail::atom_parameter_values(parameters, "hardness", atom_count);
     const auto& type = input.method_options().get<std::string>("overlap_term");
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
@@ -109,23 +107,14 @@ auto QEqMethod::calculate(const CalculationInput& input) const -> charges::Atomi
         }
     }
 
-    A.row(n).setOnes();
-    A.col(n).setOnes();
-    A(n, n) = 0.0;
-    b(n) = input.target_charge();
-
-    const Eigen::VectorXd q = solve_in_place(A, b).head(n);
+    const Eigen::VectorXd q = solve_charge_constrained(A, b, input.target_charge()).head(n);
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
 }
 
 auto QEqMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const
     -> ResourceEstimate {
-    const auto n = target.atoms;
-    const auto size = n + 1.0;
-    // Dense (n + 1) x (n + 1) system with a charge constraint.
-    return {.memory_bytes = 8.0 * size * size,
-            .operations = 2.0 / 3.0 * size * size * size + 0.5 * n * n};
+    return charge_constrained_estimate(target.atoms);
 }
 
 } // namespace chargefw::methods::builtin

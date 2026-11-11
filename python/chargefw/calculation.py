@@ -33,6 +33,7 @@ from ._chargefw import parameters as _native_parameters
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
 from ._payloads import CalculationProgressPayload
+from ._public import set_public_module
 from ._types import (
     CalculationPhase,
     ExecutionMode,
@@ -129,7 +130,8 @@ def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAd
     return _NativeObserverAdapter(observer)
 
 
-for _value_type in (
+set_public_module(
+    __name__,
     RequestedCalculation,
     Execution,
     ExecutedPlan,
@@ -139,13 +141,14 @@ for _value_type in (
     NumericalFailureError,
     CalculationCancelledError,
     CalculationResult,
+    InputIssue,
+    ChargeIssue,
     Plan,
     Rejection,
     ResourceEstimate,
     FixedIons,
     FixedAtomCharge,
-):
-    _value_type.__module__ = __name__
+)
 
 _bundled_parameter_catalog: _native_parameters._NativeParameterCatalog | None = None
 _bundled_parameter_descriptors: ParameterSetCatalog | None = None
@@ -178,6 +181,23 @@ parameter_sets = _default_parameter_descriptors()
 methods = _method_catalog(parameter_sets)
 
 
+def _check_custom_parameter_id(id: str, source: str | None = None) -> None:
+    if id in parameter_sets:
+        where = f" in {source!r}" if source else ""
+        raise ValueError(f"parameter set {id!r}{where} has the ID of a bundled parameter set")
+
+
+def _parameter_set_from_catalog(
+    native: _native_parameters._NativeParameterCatalog,
+) -> ParameterSet:
+    (descriptor,) = native._descriptors()
+    return _parameter_set(descriptor, native)
+
+
+def _native_catalog_for(parameter_set: ParameterSet) -> _native_parameters._NativeParameterCatalog:
+    return parameter_set._native or _default_parameter_catalog()
+
+
 def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     """Read a parameter set from a JSON file in the ChargeFW parameter-set format.
 
@@ -186,23 +206,22 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     """
 
     native = _native_parameters._load_parameter_set_catalog(os.fspath(path))
-    (descriptor,) = native._descriptors()
-    if descriptor["id"] in parameter_sets:
-        raise ValueError(
-            f"parameter set {descriptor['id']!r} in {os.fspath(path)!r} has the ID of a bundled "
-            "parameter set"
-        )
-    return _parameter_set(descriptor, native)
+    result = _parameter_set_from_catalog(native)
+    _check_custom_parameter_id(result.id, os.fspath(path))
+    return result
 
 
-def write_parameter_set(parameter_set: ParameterSet, path: str | os.PathLike[str]) -> None:
+def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSet) -> None:
     """Write a parameter set to a JSON file in the ChargeFW parameter-set format.
 
     Works for bundled sets and for sets read from files or made by fitting. The file is created or
     replaced.
     """
 
-    native = parameter_set._native or _default_parameter_catalog()
+    if not isinstance(parameter_set, ParameterSet):
+        raise TypeError("parameter_set must be a ParameterSet")
+
+    native = _native_catalog_for(parameter_set)
     text = native._json(parameter_set.id)
     with open(path, "w", encoding="utf-8") as output:
         output.write(text)
@@ -295,8 +314,8 @@ def assess(
     parameter_matching: ParameterMatching = "strict",
     execution: RequestedExecution = "auto",
     radius: float | None = None,
-    cutoff_threshold: int | None = 20_000,
-    cover_threshold: int | None = 80_000,
+    cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
+    cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     fixed_ions: Sequence[str] | None = None,
 ) -> Assessment:
@@ -390,8 +409,12 @@ def calculate(
     parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
     execution: RequestedExecution = cast(RequestedExecution, _Default("auto")),
     radius: float | None = None,
-    cutoff_threshold: int | None = cast(int, _Default(20_000)),
-    cover_threshold: int | None = cast(int, _Default(80_000)),
+    cutoff_threshold: int | None = cast(
+        int, _Default(_native_calculation._default_cutoff_atom_threshold)
+    ),
+    cover_threshold: int | None = cast(
+        int, _Default(_native_calculation._default_cover_atom_threshold)
+    ),
     threads: int | None = None,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,
@@ -523,4 +546,4 @@ def _outcome(
     ]
 
 
-Assessment.__module__ = __name__
+set_public_module(__name__, Assessment)

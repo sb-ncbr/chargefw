@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Protocol
 
 from numpy.typing import NDArray
@@ -72,3 +73,8 @@ class Profile:
     transforms: tuple[Transform, ...] = ()
     terminal: Mapping[str, str] = field(default_factory=dict)
     linear: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "bounds", MappingProxyType(dict(self.bounds)))
+        object.__setattr__(self, "start", MappingProxyType(dict(self.start)))
+        object.__setattr__(self, "terminal", MappingProxyType(dict(self.terminal)))

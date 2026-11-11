@@ -28,6 +28,7 @@ class Mol2Reader {
     std::istream* input_;
     std::string source_;
     std::size_t record_index_ = 0;
+    std::size_t line_ = 0;
     // The previous record ended at the MOLECULE line of the next one.
     bool next_record_started_ = false;
 };

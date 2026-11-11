@@ -1,6 +1,7 @@
 #include <chargefw/adapters/native/mol_input.h>
 
 #include "common_input.h"
+#include "mol_record_parser.h"
 
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
@@ -108,11 +109,11 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
 
     for (int index = 0; index < atom_count; ++index) {
         const auto atom_line = common::read_line(input, line, "MOL");
-        const auto x = common::parse_trimmed_double(
+        const auto x = common::parse_double(
             common::fixed_field(atom_line, 0, 10, "V2000 x coordinate"), "V2000 x coordinate");
-        const auto y = common::parse_trimmed_double(
+        const auto y = common::parse_double(
             common::fixed_field(atom_line, 10, 10, "V2000 y coordinate"), "V2000 y coordinate");
-        const auto z = common::parse_trimmed_double(
+        const auto z = common::parse_double(
             common::fixed_field(atom_line, 20, 10, "V2000 z coordinate"), "V2000 z coordinate");
         const auto symbol = common::fixed_field(atom_line, 31, 3, "V2000 atom symbol");
 
@@ -272,10 +273,6 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     }
 
     auto result = ParsedMolecule{};
-    result.atoms.reserve(static_cast<std::size_t>(atom_count));
-    result.positions.reserve(static_cast<std::size_t>(atom_count));
-    result.atom_references.reserve(static_cast<std::size_t>(atom_count));
-    result.bonds.reserve(static_cast<std::size_t>(bond_count));
     result.source_connectivity =
         bond_count == 0 ? SourceConnectivity::explicitly_empty : SourceConnectivity::present;
     std::unordered_map<int, std::size_t> atom_indices;
@@ -318,56 +315,78 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
                            .z = common::parse_double(atom[4], "V3000 z coordinate")});
     }
 
-    if (v30_payload(read_v30_line(input, line)) != "END ATOM" ||
-        v30_payload(read_v30_line(input, line)) != "BEGIN BOND") {
+    if (v30_payload(read_v30_line(input, line)) != "END ATOM") {
+        throw std::runtime_error{"expected V3000 END ATOM"};
+    }
+
+    auto next = read_v30_line(input, line);
+    if (v30_payload(next) == "BEGIN BOND") {
+        for (int index = 0; index < bond_count; ++index) {
+            const auto bond_line = line + 1;
+            const auto bond = v30_tokens(read_v30_line(input, line));
+
+            if (bond.size() < 4) {
+                throw std::runtime_error{"invalid V3000 bond record"};
+            }
+
+            const auto source_id = common::parse_int(bond[0], "V3000 bond id");
+            if (source_id <= 0 || !bond_ids.emplace(source_id).second) {
+                throw std::runtime_error{"duplicate or invalid V3000 bond id"};
+            }
+
+            const auto first_source_id = common::parse_int(bond[2], "V3000 bond atom");
+            const auto second_source_id = common::parse_int(bond[3], "V3000 bond atom");
+            const auto first = atom_indices.find(first_source_id);
+            const auto second = atom_indices.find(second_source_id);
+
+            if (first == atom_indices.end() || second == atom_indices.end()) {
+                throw std::runtime_error{"V3000 bond references an unknown atom"};
+            }
+
+            const auto order = common::parse_int(bond[1], "V3000 bond order");
+            if (order == 9 || order == 10) {
+                if (ignored_bond_orders.emplace(order).second) {
+                    result.issues.push_back(ImportIssue{
+                        .kind = ImportIssueKind::v3000_bond_order_ignored,
+                        .message =
+                            "V3000 bond order " + std::to_string(order) +
+                            " was ignored because it is not represented in charge calculations; "
+                            "the imported graph omits this bond.",
+                        .line = bond_line});
+                }
+                continue;
+            }
+
+            result.bonds.emplace_back(first->second, second->second,
+                                      core::bond_order_from_value(order == 4 ? 1 : order));
+            if (order == 4) {
+                result.aromatic_bonds.push_back(result.bonds.size() - 1);
+            }
+        }
+
+        if (v30_payload(read_v30_line(input, line)) != "END BOND") {
+            throw std::runtime_error{"expected V3000 END BOND"};
+        }
+        next = read_v30_line(input, line);
+    } else if (bond_count != 0) {
         throw std::runtime_error{"expected V3000 bond block"};
     }
 
-    for (int index = 0; index < bond_count; ++index) {
-        const auto bond_line = line + 1;
-        const auto bond = v30_tokens(read_v30_line(input, line));
-
-        if (bond.size() < 4) {
-            throw std::runtime_error{"invalid V3000 bond record"};
-        }
-
-        const auto source_id = common::parse_int(bond[0], "V3000 bond id");
-        if (source_id <= 0 || !bond_ids.emplace(source_id).second) {
-            throw std::runtime_error{"duplicate or invalid V3000 bond id"};
-        }
-
-        const auto first_source_id = common::parse_int(bond[2], "V3000 bond atom");
-        const auto second_source_id = common::parse_int(bond[3], "V3000 bond atom");
-        const auto first = atom_indices.find(first_source_id);
-        const auto second = atom_indices.find(second_source_id);
-
-        if (first == atom_indices.end() || second == atom_indices.end()) {
-            throw std::runtime_error{"V3000 bond references an unknown atom"};
-        }
-
-        const auto order = common::parse_int(bond[1], "V3000 bond order");
-        if (order == 9 || order == 10) {
-            if (ignored_bond_orders.emplace(order).second) {
-                result.issues.push_back(ImportIssue{
-                    .kind = ImportIssueKind::v3000_bond_order_ignored,
-                    .message = "V3000 bond order " + std::to_string(order) +
-                               " was ignored because it is not represented in charge calculations; "
-                               "the imported graph omits this bond.",
-                    .line = bond_line});
+    if (v30_payload(next) == "BEGIN COLLECTION") {
+        while (true) {
+            next = read_v30_line(input, line);
+            if (v30_payload(next) == "END COLLECTION") {
+                break;
             }
-            continue;
+            const auto tokens = v30_tokens(next);
+            if (tokens.empty() || tokens[0] == "BEGIN" || tokens[0] == "END") {
+                throw std::runtime_error{"invalid V3000 collection block"};
+            }
         }
-
-        result.bonds.emplace_back(first->second, second->second,
-                                  core::bond_order_from_value(order == 4 ? 1 : order));
-        if (order == 4) {
-            result.aromatic_bonds.push_back(result.bonds.size() - 1);
-        }
+        next = read_v30_line(input, line);
     }
 
-    if (v30_payload(read_v30_line(input, line)) != "END BOND" ||
-        v30_payload(read_v30_line(input, line)) != "END CTAB" ||
-        common::read_line(input, line, "MOL") != "M  END") {
+    if (v30_payload(next) != "END CTAB" || common::read_line(input, line, "MOL") != "M  END") {
         throw std::runtime_error{"invalid V3000 CTAB termination"};
     }
 
@@ -384,7 +403,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 // A 2D drawing has no geometry, so its record is imported without coordinates; methods that need
 // geometry then refuse it, and the others still apply.
 [[nodiscard]] auto make_record(ParsedMolecule parsed, MoleculeRecordIdentity identity,
-                               const bool drawing) -> ImportedMoleculeRecord {
+                               const bool drawing, const std::size_t record_start)
+    -> ImportedMoleculeRecord {
     auto conformers = std::vector<core::Conformer>{};
     auto conformer_references = std::vector<SourceConformerReference>{};
     if (!parsed.aromatic_bonds.empty()) {
@@ -395,7 +415,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
             .kind = ImportIssueKind::coordinates_2d_ignored,
             .message = "the record is a 2D drawing; its coordinates were not used, so methods "
                        "that need 3D geometry do not apply",
-            .line = 2});
+            .line = record_start + 2});
     } else {
         conformers.emplace_back(std::move(parsed.positions), "input");
         conformer_references.push_back(SourceConformerReference{
@@ -421,27 +441,35 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 
 auto parse_mol(std::istream& input, MoleculeRecordIdentity identity) -> ImportedMoleculeRecord {
     std::size_t line = 0;
+    return parse_mol(input, std::move(identity), line);
+}
 
-    const auto name = common::read_line(input, line, "MOL");
-    const auto drawing = declares_2d(common::read_line(input, line, "MOL"));
-    static_cast<void>(common::read_line(input, line, "MOL"));
-    const auto counts = common::read_line(input, line, "MOL");
+auto parse_mol(std::istream& input, MoleculeRecordIdentity identity, std::size_t& line)
+    -> ImportedMoleculeRecord {
+    const auto record_start = line;
+    try {
+        const auto name = common::read_line(input, line, "MOL");
+        if (identity.record_id.empty()) {
+            identity.record_id = name;
+        }
+        const auto drawing = declares_2d(common::read_line(input, line, "MOL"));
+        static_cast<void>(common::read_line(input, line, "MOL"));
+        const auto counts = common::read_line(input, line, "MOL");
 
-    if (identity.record_id.empty()) {
-        identity.record_id = name;
+        ParsedMolecule parsed;
+
+        if (counts.contains("V2000")) {
+            parsed = parse_v2000(input, counts, line);
+        } else if (counts.contains("V3000")) {
+            parsed = parse_v3000(input, line);
+        } else {
+            throw std::runtime_error{"unsupported MOL version"};
+        }
+
+        return make_record(std::move(parsed), identity, drawing, record_start);
+    } catch (...) {
+        common::rethrow_with_context(identity, line);
     }
-
-    ParsedMolecule parsed;
-
-    if (counts.contains("V2000")) {
-        parsed = parse_v2000(input, counts, line);
-    } else if (counts.contains("V3000")) {
-        parsed = parse_v3000(input, line);
-    } else {
-        throw std::runtime_error{"unsupported MOL version"};
-    }
-
-    return make_record(std::move(parsed), std::move(identity), drawing);
 }
 
 MolReader::MolReader(std::istream& input, std::string source)

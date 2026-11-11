@@ -7,6 +7,7 @@ quality on real data is qualified outside the test suite.
 
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import get_type_hints
 from unittest.mock import patch
@@ -15,13 +16,10 @@ import chargefw
 import numpy as np
 import pytest
 from chargefw.parameterization import (
-    ChargeDiagnostics,
-    Diagnostics,
     EvaluationError,
     Evaluator,
     FitObserver,
     FitProgress,
-    FitResult,
     Slot,
     fit,
     make_parameter_template,
@@ -274,11 +272,6 @@ DETERMINED_FREE = [2, 5, 6]
 def test_public_annotations_resolve() -> None:
     # Introspection such as typing.get_type_hints() finds every name the annotations use.
     for public in (
-        Slot,
-        Diagnostics,
-        ChargeDiagnostics,
-        FitProgress,
-        FitResult,
         Evaluator.__init__,
         Evaluator.charges,
         fit,
@@ -448,7 +441,7 @@ def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: P
 
     # Written and read back, the set gives exactly the same charges.
     path = tmp_path / "water-fit.json"
-    chargefw.write_parameter_set(fitted, path)
+    chargefw.write_parameter_set(path, fitted)
     reread = chargefw.read_parameter_set(path)
     assert (reread.id, reread.name, reread.atom_keys) == (fitted.id, fitted.name, fitted.atom_keys)
     recalculated = chargefw.calculate(molecules, method="eem", parameter_set=reread)
@@ -462,12 +455,20 @@ def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: P
 
 def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
     path = tmp_path / "baek.json"
-    chargefw.write_parameter_set(chargefw.parameter_sets["EEM_Baek1991"], path)
+    chargefw.write_parameter_set(path, chargefw.parameter_sets["EEM_Baek1991"])
 
     document = json.loads(path.read_text(encoding="utf-8"))
     assert document["metadata"]["id"] == "EEM_Baek1991"
     assert document["metadata"]["method"] == "eem"
     assert document["common"]["names"] == ["kappa"]
+
+
+@pytest.mark.parametrize("parameter_set", ["EEM_Baek1991", None, object()])
+def test_write_parameter_set_rejects_invalid_types(tmp_path: Path, parameter_set: object) -> None:
+    path = tmp_path / "parameters.json"
+    with pytest.raises(TypeError):
+        chargefw.write_parameter_set(path, parameter_set)  # type: ignore[arg-type]
+    assert not path.exists()
 
 
 def template_evaluator(method: str, atom_types: str, bond_types: str = "plain") -> Evaluator:
@@ -538,6 +539,27 @@ def test_profile_starts_linear_parameters_from_their_best_values() -> None:
     bounded = fit(evaluator, references, start=given, bounds=(lower, upper), max_evaluations=1)
     assert bounded.start[linear[0]] == 3.0
     assert np.all(bounded.start[linear[1:]] != 3.0)
+
+
+def test_profile_mappings_are_read_only_copies() -> None:
+    bounds = {"B": (0.001, 10.0)}
+    start = {"B": 2.0}
+    terminal = {"hardness": "kappa"}
+    profile = Profile(bounds=bounds, start=start, terminal=terminal)
+
+    for name, source in (("bounds", bounds), ("start", start), ("terminal", terminal)):
+        values = getattr(profile, name)
+        expected = dict(source)
+        source.clear()
+        assert values == expected
+        key = next(iter(values))
+        with pytest.raises(TypeError):
+            values[key] = values[key]
+
+    customized = replace(profile, start={"B": 3.0})
+    assert customized.start["B"] == 3.0
+    assert profile.start["B"] == 2.0
+    assert customized.bounds == profile.bounds
 
 
 def test_profile_reports_free_slots_without_a_start_value() -> None:
@@ -864,15 +886,10 @@ def test_fit_diagnostics_do_not_build_a_matrix_in_the_number_of_charges() -> Non
     assert svd.call_args.kwargs["full_matrices"] is False
 
 
-def test_evaluator_counts_the_atoms_of_each_type() -> None:
-    evaluator = training_evaluator()
-
-    # kappa, then hydrogen (4 atoms), carbon (1), and oxygen (2), each with A and B.
-    assert evaluator.matches == (None, 4, 4, 1, 1, 2, 2)
-
-
 def test_fit_diagnostics_show_counts_and_errors_per_element() -> None:
     evaluator = training_evaluator()
+    # kappa, then hydrogen (4 atoms), carbon (1), and oxygen (2), each with A and B.
+    assert evaluator.matches == (None, 4, 4, 1, 1, 2, 2)
     references = evaluator.charges(TRUE_VALUES)
 
     result = fit(evaluator, references, start=FIT_START, free=FIT_FREE, max_evaluations=5)
@@ -969,6 +986,29 @@ class RecordingFitObserver(FitObserver):
 
     def cancelled(self) -> bool:
         return self._stop_when(self.events[-1])
+
+
+def test_fit_outputs_compare_and_hash_by_identity() -> None:
+    evaluator = training_evaluator()
+    observer = RecordingFitObserver()
+    result = fit(
+        evaluator,
+        evaluator.charges(TRUE_VALUES),
+        start=FIT_START,
+        free=FIT_FREE,
+        max_evaluations=1,
+        observer=observer,
+    )
+
+    for value, field in (
+        (result, "values"),
+        (result.diagnostics, "singular_values"),
+        (observer.events[0], "best_values"),
+    ):
+        other = replace(value, **{field: getattr(value, field).copy()})
+        assert value != other
+        assert (value == other) is False
+        assert len({value, value, other}) == 2
 
 
 def test_observer_follows_every_trial_point_and_the_best_so_far() -> None:
@@ -1110,7 +1150,7 @@ def test_start_from_a_parameter_set_matches_bonds_in_either_order(tmp_path: Path
     references = evaluator.charges(SQE_TRUE_VALUES)
     written = fit(evaluator, references, start=SQE_TRUE_VALUES, free=[0], max_evaluations=1)
     path = tmp_path / "reversed.json"
-    chargefw.write_parameter_set(written.parameter_set(id="reversed"), path)
+    chargefw.write_parameter_set(path, written.parameter_set(id="reversed"))
     document = json.loads(path.read_text(encoding="utf-8"))
     for entry in document["bond"]["data"]:
         entry["key"]["atoms"].reverse()

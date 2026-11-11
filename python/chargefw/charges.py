@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from operator import index as as_index
 from typing import Any, SupportsIndex
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ._arrays import as_ids, immutable_array
+from ._arrays import as_ids, as_integer, immutable_array
 from ._types import PortableId
 from .core import SourceIdentity
 
@@ -33,12 +32,7 @@ def _charge_values(values: Any) -> NDArray[np.float64]:
 
 
 def _nonnegative_index(value: SupportsIndex, name: str) -> int:
-    if isinstance(value, (bool, np.bool)):
-        raise TypeError(f"{name} must be an integer")
-    try:
-        result = as_index(value)
-    except TypeError as error:
-        raise TypeError(f"{name} must be an integer") from error
+    result = as_integer(value, name)
     if result < 0:
         raise ValueError(f"{name} must be non-negative")
     return result

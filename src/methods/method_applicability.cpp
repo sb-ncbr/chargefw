@@ -52,32 +52,6 @@ auto add_rejected(ApplicabilityResult& result, const std::size_t method_index,
                                                 .issues = std::move(issues)});
 }
 
-[[nodiscard]] auto copy_issues(std::span<const PrerequisiteIssue> issues)
-    -> std::vector<PrerequisiteIssue> {
-    return {issues.begin(), issues.end()};
-}
-
-[[nodiscard]] auto
-valid_classification_count(const MethodRequirements& requirements,
-                           const features::PreparedMoleculeCollection& molecules,
-                           const CollectionParameterPrerequisiteResult& result) noexcept -> bool {
-    if (!requirements.requires_parameter_classification()) {
-        return result.classifications.empty();
-    }
-
-    return result.classifications.size() == molecules.size();
-}
-
-[[nodiscard]] auto make_invalid_classification_count_issue(
-    const Method& method, const features::PreparedMoleculeCollection& molecules,
-    const CollectionParameterPrerequisiteResult& result) -> PrerequisiteIssue {
-    return make_issue(PrerequisiteIssueKind::parameter_classification_failed,
-                      "method '" + std::string{method.id()} + "' produced " +
-                          std::to_string(result.classifications.size()) +
-                          " parameter classifications for " + std::to_string(molecules.size()) +
-                          " molecules");
-}
-
 [[nodiscard]] auto has_expensive_full_complexity(const ResourceRequirements& resources) noexcept
     -> bool {
     const auto cubic = [](const ComplexityTerm complexity) noexcept -> bool {
@@ -211,11 +185,10 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
             continue;
         }
 
-        const auto method_result =
-            check_method_prerequisites(*method, request.molecules, method_options);
+        auto method_result = check_method_prerequisites(*method, request.molecules, method_options);
 
         if (!method_result) {
-            add_rejected(result, method_index, std::nullopt, copy_issues(method_result.issues()));
+            add_rejected(result, method_index, std::nullopt, std::move(method_result.issues));
 
             continue;
         }
@@ -258,14 +231,6 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
             if (!parameter_result) {
                 add_rejected(result, method_index, parameter_set_index,
                              std::move(parameter_result.issues));
-
-                continue;
-            }
-
-            if (!valid_classification_count(requirements, request.molecules, parameter_result)) {
-                add_rejected(result, method_index, parameter_set_index,
-                             {make_invalid_classification_count_issue(*method, request.molecules,
-                                                                      parameter_result)});
 
                 continue;
             }

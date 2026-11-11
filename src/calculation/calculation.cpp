@@ -8,6 +8,7 @@
 #include "calculation/full_execution.h"
 #include "calculation/input_checks.h"
 #include "calculation/observer_notifications.h"
+#include "methods/applicable_method_execution.h"
 
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_applicability.h>
@@ -188,9 +189,7 @@ auto AssessmentResult::execute(const ExecutionPlan& plan, const parameters::Para
     const auto fixed_charge_partition = assessment.fixed_charge_partition_.get();
     const auto effective = EffectiveCalculation{
         .method_id = std::string{selected.method->id()},
-        .parameter_set_id = selected.parameter_set == nullptr
-                                ? std::nullopt
-                                : std::optional{std::string{selected.parameter_set->id()}},
+        .parameter_set_id = methods::detail::parameter_set_id_for(selected),
         .method_options = selected.method_options,
         .execution_policy = plan.policy(),
         .execution_issues = {plan.warnings().begin(), plan.warnings().end()},

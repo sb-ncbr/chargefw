@@ -6,6 +6,7 @@
 #include <chargefw/adapters/gemmi/pdb_input.h>
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
+#include <chargefw/config.h>
 
 #include <gemmi/cif.hpp>
 #include <gemmi/read_cif.hpp>
@@ -160,7 +161,7 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
           "[adapters][mmcif]") {
     const auto result = structural_result();
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(result, "test");
+    mmcif_output::MmcifWriter{output}.write(result);
     auto document = ::gemmi::cif::read_string(output.str());
     REQUIRE(document.blocks.size() == 1);
     auto& block = document.blocks.front();
@@ -198,7 +199,7 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
     // One charge set covers both conformers under one id.
     REQUIRE(metadata.length() == 1);
     CHECK(::gemmi::cif::as_string(metadata[0][0]) == "ChargeFW");
-    CHECK(::gemmi::cif::as_string(metadata[0][1]) == "test");
+    CHECK(::gemmi::cif::as_string(metadata[0][1]) == CHARGEFW_VERSION_STRING);
     CHECK(::gemmi::cif::as_string(values[0][0]) == "1");
     CHECK(::gemmi::cif::as_string(values[2][0]) == "1");
     CHECK(::gemmi::cif::as_string(values[2][1]) == "3");
@@ -396,7 +397,7 @@ TEST_CASE("mmCIF holds one charge set per result for the same molecules", "[adap
     const auto qeq = calculation_result({generated_record()}, charge_set("qeq", "QEq", 0.25));
     const auto eem = calculation_result({generated_record()}, charge_set("eem", "EEM", 0.5));
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}, "test");
+    mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem});
     auto document = ::gemmi::cif::read_string(output.str());
     auto& block = document.blocks.front();
     auto metadata =
@@ -449,7 +450,7 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[adapters][mmc
     const auto qeq = calculation_result({read()}, charge_set("qeq", 0.4));
     const auto eem = calculation_result({read()}, charge_set("eem", 0.3));
     auto output = std::ostringstream{};
-    CHECK_NOTHROW(mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}, "test"));
+    CHECK_NOTHROW(mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}));
 
     auto renamed = read();
     auto labels = *renamed.import_metadata->atoms[1].structural_labels;

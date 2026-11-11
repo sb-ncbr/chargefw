@@ -5,6 +5,7 @@
 #include <string_view>
 
 namespace chargefw::core {
+// Upper case, unlike the other public enums, because `double` is a C++ keyword.
 enum class BondOrder : std::uint8_t {
     SINGLE = 1,
     DOUBLE = 2,

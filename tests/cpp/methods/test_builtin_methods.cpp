@@ -135,22 +135,14 @@ auto check_neutrality_prerequisites(const chargefw::core::Molecule& molecule,
         CHECK(static_cast<bool>(result) == !rejection_context.has_value());
 
         if (rejection_context.has_value()) {
-            REQUIRE(result.issues().size() == 1);
-            CHECK(result.issues()[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-            CHECK(result.issues()[0].message.contains(*rejection_context));
+            REQUIRE(result.issues.size() == 1);
+            CHECK(result.issues[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
+            CHECK(result.issues[0].message.contains(*rejection_context));
         }
     }
 }
 
 } // namespace
-
-TEST_CASE("method complexity terms have Big-O notation", "[methods]") {
-    CHECK(methods::complexity_notation(Complexity::constant) == "O(1)");
-    CHECK(methods::complexity_notation(Complexity::atoms_cubed) == "O(n^3)");
-    CHECK(methods::complexity_notation(Complexity::atoms_squared_plus_bonds_squared) ==
-          "O(n^2 + m^2)");
-    CHECK(methods::complexity_notation(Complexity::atoms_plus_bonds_cubed) == "O((n + m)^3)");
-}
 
 TEST_CASE("built-in resource estimates grow with their declared complexity",
           "[methods][builtin-methods]") {

@@ -19,7 +19,6 @@
 #include <chargefw/adapters/native/pqr_output.h>
 #include <chargefw/adapters/native/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/config.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
 
@@ -272,7 +271,7 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
     auto output = std::ostringstream{};
     if (format == "mmcif") {
         const auto results = result_pointers(native_results);
-        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(results, CHARGEFW_VERSION_STRING);
+        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(results);
         return output.str();
     }
     if (native_results.size() != 1) {
@@ -280,11 +279,11 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
     }
     const auto& result = native_results.front()->result();
     if (format == "result-json") {
-        adapters::native::json_output::JsonWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::native::json_output::JsonWriter{output}.write(result);
     } else if (format == "mol2") {
-        adapters::native::mol2_output::Mol2Writer{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::native::mol2_output::Mol2Writer{output}.write(result);
     } else if (format == "pqr") {
-        adapters::native::pqr_output::PqrWriter{output}.write(result, CHARGEFW_VERSION_STRING);
+        adapters::native::pqr_output::PqrWriter{output}.write(result);
     } else {
         throw std::invalid_argument{"unsupported calculation output format: " + format};
     }
@@ -297,8 +296,7 @@ auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*
     const auto document =
         ::gemmi::cif::read_memory(contents.data(), contents.size(), "<Gemmi document>");
     const auto results = result_pointers(native_results);
-    adapters::gemmi::mmcif_output::write_attached(output, results, document, overwrite,
-                                                  CHARGEFW_VERSION_STRING);
+    adapters::gemmi::mmcif_output::write_attached(output, results, document, overwrite);
     return output.str();
 }
 

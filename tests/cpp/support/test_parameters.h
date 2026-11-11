@@ -23,12 +23,12 @@ namespace chargefw::test {
 }
 
 [[nodiscard]] inline auto plain_atom_key(const int atomic_number) -> parameters::AtomParameterKey {
-    return atom_key(atomic_number, parameters::AtomParameterClassificationKind::PLAIN, "*");
+    return atom_key(atomic_number, parameters::AtomParameterClassificationKind::plain, "*");
 }
 
 [[nodiscard]] inline auto hbo_atom_key(const int atomic_number, std::string type)
     -> parameters::AtomParameterKey {
-    return atom_key(atomic_number, parameters::AtomParameterClassificationKind::HIGHEST_BOND_ORDER,
+    return atom_key(atomic_number, parameters::AtomParameterClassificationKind::highest_bond_order,
                     std::move(type));
 }
 
@@ -37,7 +37,7 @@ namespace chargefw::test {
     -> parameters::BondParameterKey {
     return {.first_atom = plain_atom_key(first_atomic_number),
             .second_atom = plain_atom_key(second_atomic_number),
-            .bond = {.classification = parameters::BondParameterClassificationKind::BOND_ORDER,
+            .bond = {.classification = parameters::BondParameterClassificationKind::bond_order,
                      .type = "1"}};
 }
 
@@ -47,7 +47,7 @@ namespace chargefw::test {
     -> parameters::BondParameterKey {
     return {.first_atom = plain_atom_key(first_atomic_number),
             .second_atom = plain_atom_key(second_atomic_number),
-            .bond = {.classification = parameters::BondParameterClassificationKind::PLAIN,
+            .bond = {.classification = parameters::BondParameterClassificationKind::plain,
                      .type = "*"}};
 }
 
@@ -55,7 +55,7 @@ namespace chargefw::test {
 [[nodiscard]] inline auto plain_bond_key() -> parameters::BondParameterKey {
     return {.first_atom = plain_atom_key(0),
             .second_atom = plain_atom_key(0),
-            .bond = {.classification = parameters::BondParameterClassificationKind::PLAIN,
+            .bond = {.classification = parameters::BondParameterClassificationKind::plain,
                      .type = "*"}};
 }
 

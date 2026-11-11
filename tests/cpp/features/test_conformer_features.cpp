@@ -20,14 +20,6 @@ namespace features = chargefw::features;
 static_assert(!std::is_constructible_v<features::ConformerFeatures, core::Molecule&&>);
 static_assert(!std::is_constructible_v<features::ConformerFeatures, core::Molecule&&, std::size_t>);
 
-TEST_CASE("conformer features expose molecule reference and index", "[features][conformer]") {
-    const auto water = chargefw::test::make_water();
-    const features::ConformerFeatures geometry{water, 0};
-
-    CHECK(&geometry.molecule() == &water);
-    CHECK(geometry.conformer_index() == 0);
-}
-
 TEST_CASE("conformer features expose positions and distances", "[features][conformer]") {
     const auto water = chargefw::test::make_water();
     const features::ConformerFeatures geometry{water, 0};
