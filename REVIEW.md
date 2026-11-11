@@ -77,7 +77,7 @@ for realistic input.
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B11 |
 | L | Lifetime and misuse traps | L1–L2 |
-| A | Public API design | A3–A12 |
+| A | Public API design | A4–A12 |
 | D | Dead code | D2–D13 |
 | C | Duplicated code | C1–C15 |
 | X | Checked and found clean, or rejected | X1–X9 |
@@ -284,18 +284,6 @@ for realistic input.
 ---
 
 ## A. Public API design
-
-### A3. `RequestedCalculationProvenance` uses strings where enums exist (design-sensitive)
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/adapters/charge_result.h` (`method_scope = "recommended"`,
-  `execution_kind = "auto"`); writers of the fields in `apps/chargefw/output.cpp:171, 176` and
-  `python/src/calculation.cpp:408, 413`; reader in `src/adapters/native/json_output.cpp:253, 260`.
-- **Problem:** `calculation::MethodScope` and `calculation::ExecutionSelectionKind` exist. The CLI
-  converts enum to string; the Python binding passes the caller's string into provenance and parses
-  the same string into the enum separately (`python/src/calculation.cpp:441`), so nothing ties the
-  recorded value to the one that was used.
-- **Fix:** store the enums and convert once in the JSON writer.
 
 ### A4. `methods` depends on a `calculation` header (design-sensitive)
 

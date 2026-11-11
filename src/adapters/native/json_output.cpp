@@ -252,14 +252,14 @@ constexpr auto metric_scale = 1000.0;
     Json requested{
         {"method", optional_id(requested_provenance.method_id)},
         {"parameter_set", optional_id(requested_provenance.parameter_set_id)},
-        {"method_scope", requested_provenance.method_scope},
+        {"method_scope", calculation::to_string(requested_provenance.method_scope)},
         {"classification", {{"permissive_types", requested_provenance.permissive_types}}},
         {"resource_policy",
          {{"cutoff_atom_threshold", threshold_value(requested_provenance.cutoff_atom_threshold)},
           {"cover_atom_threshold", threshold_value(requested_provenance.cover_atom_threshold)},
           {"max_threads", requested_provenance.max_threads}}},
         {"execution",
-         {{"kind", requested_provenance.execution_kind},
+         {{"kind", calculation::to_string(requested_provenance.execution_kind)},
           {"radius_angstrom", optional_radius(requested_provenance.execution_radius)}}}};
     requested["method_options"] = method_options_json(requested_provenance.method_options);
 

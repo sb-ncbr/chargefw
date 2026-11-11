@@ -30,6 +30,11 @@
 
 ### C++
 
+- Breaking source and ABI change: `adapters::RequestedCalculationProvenance::method_scope` and
+  `execution_kind` now use `calculation::MethodScope` and `calculation::ExecutionSelectionKind`
+  instead of strings. Replace string assignments and comparisons with enum values, using
+  `ExecutionSelectionKind::automatic` for `"auto"`, and rebuild downstream C++ code. The defaults
+  remain recommended methods and automatic execution; result JSON and Python strings are unchanged.
 - Breaking change: the enumerators of `parameters::ClassificationIssueKind`,
   `parameters::AtomParameterClassificationKind`, and `parameters::BondParameterClassificationKind`
   are lower case, as in the other public enums: `PLAIN` is now `plain`, `HIGHEST_BOND_ORDER`

@@ -203,8 +203,11 @@ no `ExecutionResult`. To still write result JSON for the records, as the command
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
 `ResultStatus::invalid_request`, written as `invalid_input_or_request`, and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
-`RequestedCalculationProvenance` records what was requested, for the result JSON; its `execution_kind`
-defaults to `"auto"`, so set it when you request another execution mode.
+`RequestedCalculationProvenance` records what was requested, for the result JSON. Its `method_scope`
+is a `calculation::MethodScope`, defaulting to `recommended`; its `execution_kind` is a
+`calculation::ExecutionSelectionKind`, defaulting to `automatic` (written as `"auto"` in JSON).
+Copy these values from your request's `method_scope` and `execution_selection.kind()`, and copy
+`execution_selection.radius()` into `execution_radius`.
 
 ## Namespaces
 
