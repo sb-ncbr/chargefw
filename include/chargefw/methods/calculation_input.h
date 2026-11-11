@@ -58,15 +58,7 @@ class CalculationInput {
 
     [[nodiscard]] auto reference_charges() const noexcept -> std::span<const double>;
 
-    [[nodiscard]] auto has_geometry() const noexcept -> bool;
-
-    [[nodiscard]] auto geometry_if_available() const noexcept -> const features::ConformerFeatures*;
-
     [[nodiscard]] auto geometry() const -> const features::ConformerFeatures&;
-
-    [[nodiscard]] auto has_parameters() const noexcept -> bool;
-
-    [[nodiscard]] auto parameters_if_available() const noexcept -> const parameters::ParameterView*;
 
     [[nodiscard]] auto parameters() const -> const parameters::ParameterView&;
 

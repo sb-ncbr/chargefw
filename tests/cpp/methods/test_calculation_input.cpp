@@ -73,14 +73,7 @@ TEST_CASE("calculation input exposes molecule, topology, geometry, and parameter
     CHECK(basic_input.target_charge() == -1.5);
     CHECK(basic_input.fixed_sources().empty());
 
-    CHECK_FALSE(basic_input.has_geometry());
-    CHECK(basic_input.geometry_if_available() == nullptr);
-
     CHECK_THROWS_AS(basic_input.geometry(), std::logic_error);
-
-    CHECK_FALSE(basic_input.has_parameters());
-    CHECK(basic_input.parameters_if_available() == nullptr);
-
     CHECK_THROWS_AS(basic_input.parameters(), std::logic_error);
 
     const features::ConformerFeatures geometry{water};
@@ -105,8 +98,6 @@ TEST_CASE("calculation input exposes molecule, topology, geometry, and parameter
 
     const methods::CalculationInput geometry_input{prepared_water, options, 0.0, &geometry};
 
-    CHECK(geometry_input.has_geometry());
-    CHECK(geometry_input.geometry_if_available() == &geometry);
     CHECK(&geometry_input.geometry() == &geometry);
 
     const auto parameter_set = make_water_parameters();
@@ -119,8 +110,6 @@ TEST_CASE("calculation input exposes molecule, topology, geometry, and parameter
     const methods::CalculationInput parameter_input{prepared_water, options, 0.0, nullptr,
                                                     &parameter_view};
 
-    CHECK(parameter_input.has_parameters());
-    CHECK(parameter_input.parameters_if_available() == &parameter_view);
     CHECK(&parameter_input.parameters() == &parameter_view);
 
     const auto value = parameter_input.parameters().atom("value");

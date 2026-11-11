@@ -78,7 +78,7 @@ for realistic input.
 | B | Behaviour bugs | B2–B11 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
-| D | Dead code | D2–D13 |
+| D | Dead code | D3–D13 |
 | C | Duplicated code | C1–C15 |
 | X | Checked and found clean, or rejected | X1–X9 |
 
@@ -409,16 +409,6 @@ for realistic input.
 "No user" means that a repo-wide grep finds the name only at its declaration and definition. "Tests
 only" means that the remaining users are under `tests/`. Re-run the grep before removing anything;
 for public headers, removal is an API change and needs a CHANGELOG entry.
-
-### D2. Four `CalculationInput` accessors — tests only
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/methods/calculation_input.h:61, 63, 67, 69`,
-  `src/methods/calculation_input.cpp:53-60, 70-77`.
-- **Check:** `grep -rln "has_geometry\|geometry_if_available\|has_parameters()\|parameters_if_available" include src apps python tests`
-  lists the header, the `.cpp`, and `tests/cpp/methods/test_calculation_input.cpp`.
-- **Fix:** remove the four and their test lines. Every method calls the throwing `geometry()` and
-  `parameters()`.
 
 ### D3. `TopologyFeatures::bond_index_between` and `are_bonded` — tests only
 

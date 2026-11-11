@@ -30,6 +30,10 @@
 
 ### C++
 
+- Breaking change: removed `methods::CalculationInput::has_geometry()`, `geometry_if_available()`,
+  `has_parameters()`, and `parameters_if_available()`. Use `geometry()` and `parameters()` to access
+  supplied values; these return references and throw `std::logic_error` when the value is missing.
+  Rebuild downstream C++ code.
 - Breaking source and ABI change: `adapters::RequestedCalculationProvenance::method_scope` and
   `execution_kind` now use `calculation::MethodScope` and `calculation::ExecutionSelectionKind`
   instead of strings. Replace string assignments and comparisons with enum values, using

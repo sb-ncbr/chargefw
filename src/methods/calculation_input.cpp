@@ -50,30 +50,12 @@ auto CalculationInput::reference_charges() const noexcept -> std::span<const dou
     return reference_charges_;
 }
 
-auto CalculationInput::has_geometry() const noexcept -> bool {
-    return geometry_ != nullptr;
-}
-
-auto CalculationInput::geometry_if_available() const noexcept
-    -> const features::ConformerFeatures* {
-    return geometry_;
-}
-
 auto CalculationInput::geometry() const -> const features::ConformerFeatures& {
     if (geometry_ == nullptr) {
         throw std::logic_error{"calculation input has no geometry"};
     }
 
     return *geometry_;
-}
-
-auto CalculationInput::has_parameters() const noexcept -> bool {
-    return parameters_ != nullptr;
-}
-
-auto CalculationInput::parameters_if_available() const noexcept
-    -> const parameters::ParameterView* {
-    return parameters_;
 }
 
 auto CalculationInput::parameters() const -> const parameters::ParameterView& {
