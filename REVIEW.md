@@ -581,32 +581,6 @@ listed at the end of the section.
 
 ---
 
-## T. Tests that protect nothing
-
-A read-only review of `tests/`, made on 2026-11-11 at commit `785c91d` with the uncommitted changes
-to `tests/python/test_calculation.py`. **Line numbers in this section refer to that state**, not to
-`cff64e0`. Nothing was built or run.
-
-Only clear candidates are listed: tests whose assertions cannot fail, copies of production tables,
-tests of the language or of the test's own constants, and exact duplicates. Tests whose removal is a
-matter of taste (weaker duplicates across layers, most wording matches, getter tests of containers)
-are left out. The rules applied are those under "Test design" in AGENTS.md.
-
-*re-checked* and *reported* have the meaning given at the top of this file. Unless a finding says
-"rewrite", the proposal is to delete the named test or lines. Paths are relative to `tests/`.
-
-### Exact duplicates
-
-#### T18. `test_plan_calculates_charges_for_other_parameter_values`
-
-- **Status:** reported.
-- **Where:** `python/test_calculation.py:990` (39 lines).
-- **Problem:** every assertion exists in `python/test_parameterization.py` (`:100`, `:114-130`,
-  `:248-251`, `:446-448`, `:945`) and natively in `cpp/calculation/test_calculation.cpp:820, 861`.
-- **Fix:** delete, with the `Evaluator` and `EvaluationError` imports.
-
----
-
 ## X. Checked and found clean, or rejected
 
 Listed so that these are not raised again without new evidence.

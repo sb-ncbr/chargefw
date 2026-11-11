@@ -11,7 +11,7 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
-from chargefw.parameterization import EvaluationError, Evaluator
+from chargefw.parameterization import Evaluator
 
 
 def water(conformers: int = 1) -> chargefw.Molecule:
@@ -945,42 +945,25 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
         chargefw.read_parameter_set(malformed)
 
 
-def test_plan_calculates_charges_for_other_parameter_values(tmp_path: Any) -> None:
+def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(
+    tmp_path: Any,
+) -> None:
     parameter_set = chargefw.read_parameter_set(
         write_eem_set(tmp_path / "set.json", "water-native", 3.0)
     )
-    molecule = water(conformers=2)
+    coordinates = water(conformers=2).coordinates.copy()
+    coordinates[1] *= 1.5
+    molecule = chargefw.Molecule([8, 1, 1], bonds=[[0, 1, 1], [0, 2, 1]], coordinates=coordinates)
     plan = chargefw.assess(
         molecule, method="eem", parameter_set=parameter_set, execution="full"
     ).default_plan
     assert plan is not None
     evaluator = Evaluator(plan, threads=1)
 
-    assert [(slot.scope, slot.name) for slot in evaluator.layout] == [
-        ("common", "kappa"),
-        ("atom", "A"),
-        ("atom", "B"),
-        ("atom", "A"),
-        ("atom", "B"),
-    ]
-    np.testing.assert_array_equal(evaluator.values, [0.5, 2.0, 1.0, 3.0, 1.0])
-
     # The set's own values reproduce a normal calculation, with both conformers concatenated.
     expected = chargefw.calculate(molecule, plan, threads=1)
+    assert not np.allclose(expected.assignments[0].values, expected.assignments[1].values)
     np.testing.assert_array_equal(
         evaluator.charges(evaluator.values),
         np.concatenate([assignment.values for assignment in expected.assignments]),
     )
-    np.testing.assert_allclose(
-        evaluator.charges(np.array([0.5, 2.0, 1.0, 2.0, 1.0])), np.zeros(6), atol=1e-12
-    )
-
-    # EEM rejects kappa <= 0 during the calculation.
-    with pytest.raises(EvaluationError, match="kappa"):
-        evaluator.charges(np.array([0.0, 2.0, 1.0, 3.0, 1.0]))
-    with pytest.raises(ValueError):
-        evaluator.charges(np.array([0.5]))
-    formal = chargefw.assess(water(), method="formal", execution="full").default_plan
-    assert formal is not None
-    with pytest.raises(ValueError):
-        Evaluator(formal)
