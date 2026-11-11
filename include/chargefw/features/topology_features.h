@@ -3,7 +3,6 @@
 #include <chargefw/core/molecule.h>
 
 #include <cstddef>
-#include <optional>
 #include <span>
 #include <vector>
 
@@ -27,13 +26,6 @@ class TopologyFeatures {
 
     [[nodiscard]] auto incident_bond_indices(std::size_t atom_index) const
         -> std::span<const std::size_t>;
-
-    [[nodiscard]] auto bond_index_between(std::size_t first_atom_index,
-                                          std::size_t second_atom_index) const
-        -> std::optional<std::size_t>;
-
-    [[nodiscard]] auto are_bonded(std::size_t first_atom_index, std::size_t second_atom_index) const
-        -> bool;
 
   private:
     const core::Molecule* molecule_;

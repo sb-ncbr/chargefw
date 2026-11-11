@@ -78,7 +78,7 @@ for realistic input.
 | B | Behaviour bugs | B2–B11 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
-| D | Dead code | D3–D13 |
+| D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | X | Checked and found clean, or rejected | X1–X9 |
 
@@ -272,8 +272,8 @@ for realistic input.
   `src/features/topology_features.cpp:39-60`.
 - **Problem:** the hand-written move operations share the geometry cache "so that geometry queries
   remain valid on the moved-from object", but move `topology_`. The moved-from `TopologyFeatures`
-  keeps its molecule pointer while its vectors are emptied, so `degree`, `neighbor_indices`,
-  `incident_bond_indices`, and `bond_index_between` pass `validate_atom_index` (which checks the
+  keeps its molecule pointer while its vectors are emptied, so `degree`, `neighbor_indices`, and
+  `incident_bond_indices` pass `validate_atom_index` (which checks the
   molecule's atom count) and then index an empty vector.
 - **Fix:** validate against `neighbor_indices_.size()`. The alternative is to copy `topology_` in the
   move operations, as is done for the cache.
@@ -395,12 +395,6 @@ for realistic input.
 "No user" means that a repo-wide grep finds the name only at its declaration and definition. "Tests
 only" means that the remaining users are under `tests/`. Re-run the grep before removing anything;
 for public headers, removal is an API change and needs a CHANGELOG entry.
-
-### D3. `TopologyFeatures::bond_index_between` and `are_bonded` — tests only
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/features/topology_features.h:31-36`.
-- **Check:** `grep -rln "bond_index_between\|are_bonded" include src apps python tests`.
 
 ### D4. `PdbReader::options()` and `MmcifReader::options()` — no user
 

@@ -30,6 +30,10 @@
 
 ### C++
 
+- Breaking change: removed `features::TopologyFeatures::bond_index_between()` and `are_bonded()`.
+  Use `neighbor_indices()` to check whether two atoms are bonded. To find the bond between them,
+  look among `incident_bond_indices()` of one atom for the bond whose other atom is the second.
+  Rebuild downstream C++ code.
 - Breaking change: removed `methods::CalculationInput::has_geometry()`, `geometry_if_available()`,
   `has_parameters()`, and `parameters_if_available()`. Use `geometry()` and `parameters()` to access
   supplied values; these return references and throw `std::logic_error` when the value is missing.

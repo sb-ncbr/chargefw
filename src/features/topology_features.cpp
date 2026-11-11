@@ -60,31 +60,4 @@ auto TopologyFeatures::incident_bond_indices(const std::size_t atom_index) const
     return {bonds.data(), bonds.size()};
 }
 
-auto TopologyFeatures::bond_index_between(const std::size_t first_atom_index,
-                                          const std::size_t second_atom_index) const
-    -> std::optional<std::size_t> {
-    validate_atom_index(molecule(), first_atom_index);
-    validate_atom_index(molecule(), second_atom_index);
-
-    if (first_atom_index == second_atom_index) {
-        return std::nullopt;
-    }
-
-    const auto& neighbors = neighbor_indices_[first_atom_index];
-    const auto& incident_bonds = incident_bond_indices_[first_atom_index];
-
-    for (std::size_t index = 0; index < neighbors.size(); ++index) {
-        if (neighbors[index] == second_atom_index) {
-            return incident_bonds[index];
-        }
-    }
-
-    return std::nullopt;
-}
-
-auto TopologyFeatures::are_bonded(const std::size_t first_atom_index,
-                                  const std::size_t second_atom_index) const -> bool {
-    return bond_index_between(first_atom_index, second_atom_index).has_value();
-}
-
 } // namespace chargefw::features

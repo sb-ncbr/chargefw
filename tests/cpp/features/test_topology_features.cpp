@@ -43,24 +43,12 @@ TEST_CASE("topology features expose sorted neighbor indices", "[features][topolo
     CHECK(h1_neighbors == std::vector<std::size_t>{0});
 }
 
-TEST_CASE("topology features resolve bond indices and adjacency", "[features][topology]") {
+TEST_CASE("topology features expose incident bond indices", "[features][topology]") {
     const auto water = chargefw::test::make_water();
     const features::TopologyFeatures topology{water};
 
-    const auto oh1_bond_index = topology.bond_index_between(0, 1);
-    const auto oh2_bond_index = topology.bond_index_between(0, 2);
-    const auto no_self_bond = topology.bond_index_between(0, 0);
-
-    CHECK(oh1_bond_index.has_value());
-    CHECK(oh2_bond_index.has_value());
-    CHECK_FALSE(no_self_bond.has_value());
-
-    CHECK(topology.are_bonded(0, 1));
-    CHECK(topology.are_bonded(1, 0));
-    CHECK_FALSE(topology.are_bonded(1, 2));
-
-    const auto oxygen_bonds = to_vector(topology.incident_bond_indices(0));
-    CHECK(oxygen_bonds.size() == 2);
+    CHECK(to_vector(topology.incident_bond_indices(0)) == std::vector<std::size_t>{0, 1});
+    CHECK(to_vector(topology.incident_bond_indices(1)) == std::vector<std::size_t>{0});
 }
 
 TEST_CASE("topology features reject invalid atom indices", "[features][topology]") {
