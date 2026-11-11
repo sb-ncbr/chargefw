@@ -75,8 +75,8 @@ TEST_CASE("coordinate requirements detect molecules without conformers",
     const auto missing_coordinates = coordinates_method.check_method_prerequisites(
         {.prepared_molecule = prepared_charged_pair, .method_options = empty_options});
     CHECK(!missing_coordinates);
-    REQUIRE(missing_coordinates.issues().size() == 1);
-    CHECK(missing_coordinates.issues()[0].kind == methods::PrerequisiteIssueKind::missing_feature);
+    REQUIRE(missing_coordinates.issues.size() == 1);
+    CHECK(missing_coordinates.issues[0].kind == methods::PrerequisiteIssueKind::missing_feature);
 
     const auto collection = make_collection();
     const features::PreparedMoleculeCollection prepared_collection{collection};
@@ -87,10 +87,10 @@ TEST_CASE("coordinate requirements detect molecules without conformers",
     const auto collection_result =
         methods::check_method_prerequisites(coordinates_method, prepared_collection, empty_options);
     CHECK(!collection_result);
-    REQUIRE(collection_result.issues().size() == 1);
-    CHECK(collection_result.issues()[0].kind == methods::PrerequisiteIssueKind::missing_feature);
-    CHECK(collection_result.issues()[0].molecule_index == 1);
-    CHECK(collection_result.issues()[0].message.contains("molecule 2"));
+    REQUIRE(collection_result.issues.size() == 1);
+    CHECK(collection_result.issues[0].kind == methods::PrerequisiteIssueKind::missing_feature);
+    CHECK(collection_result.issues[0].molecule_index == 1);
+    CHECK(collection_result.issues[0].message.contains("molecule 2"));
 }
 
 TEST_CASE("bond requirements reject molecules with several atoms and no bonds",
@@ -112,8 +112,8 @@ TEST_CASE("bond requirements reject molecules with several atoms and no bonds",
     const auto missing_bonds = bonds_method.check_method_prerequisites(
         {.prepared_molecule = prepared_unbonded_pair, .method_options = empty_options});
     CHECK(!missing_bonds);
-    REQUIRE(missing_bonds.issues().size() == 1);
-    CHECK(missing_bonds.issues()[0].kind == methods::PrerequisiteIssueKind::missing_feature);
+    REQUIRE(missing_bonds.issues.size() == 1);
+    CHECK(missing_bonds.issues[0].kind == methods::PrerequisiteIssueKind::missing_feature);
 
     // Methods built on the bond graph declare the requirement; geometry-only methods do not.
     for (const auto* method_id : {"peoe", "delre", "sqeqp", "abeem"}) {
@@ -145,9 +145,9 @@ TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
     const auto result = coordinates_method.check_method_prerequisites(
         {.prepared_molecule = prepared, .method_options = methods::MethodOptions{}});
     CHECK(!result);
-    REQUIRE(result.issues().size() == 2);
+    REQUIRE(result.issues.size() == 2);
     for (std::size_t conformer_index = 0; conformer_index < 2; ++conformer_index) {
-        const auto& issue = result.issues()[conformer_index];
+        const auto& issue = result.issues[conformer_index];
         CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
         CHECK(issue.location.atom_index == 1);
         CHECK(issue.location.other_atom_index == 0);
@@ -155,7 +155,7 @@ TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
         CHECK(issue.location.conformer_index == conformer_index);
         CHECK(issue.message.contains("conformer " + std::to_string(conformer_index + 1)));
     }
-    CHECK(result.issues()[0].message.contains("atom 1 (H, formal charge 0)"));
+    CHECK(result.issues[0].message.contains("atom 1 (H, formal charge 0)"));
 }
 
 TEST_CASE("coordinate requirements reject non-finite coordinates",
@@ -171,8 +171,8 @@ TEST_CASE("coordinate requirements reject non-finite coordinates",
     const auto result = coordinates_method.check_method_prerequisites(
         {.prepared_molecule = prepared, .method_options = methods::MethodOptions{}});
     CHECK(!result);
-    REQUIRE(result.issues().size() == 1);
-    const auto& issue = result.issues()[0];
+    REQUIRE(result.issues.size() == 1);
+    const auto& issue = result.issues[0];
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
     CHECK(issue.location.atom_index == 0);
     CHECK(issue.location.conformer_index == 0);
@@ -192,7 +192,7 @@ TEST_CASE("resource requirements do not restrict prerequisites",
     const auto result = dense_method.check_method_prerequisites(
         {.prepared_molecule = prepared_water, .method_options = methods::MethodOptions{}});
     CHECK(result);
-    CHECK(result.issues().empty());
+    CHECK(result.issues.empty());
 }
 
 TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-prerequisites]") {
@@ -209,10 +209,10 @@ TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-
     const auto result = abeem->check_method_prerequisites(
         {.prepared_molecule = prepared_actinides, .method_options = methods::MethodOptions{}});
     CHECK(!result);
-    REQUIRE(result.issues().size() == 1);
-    CHECK(result.issues()[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(result.issues()[0].location.atom_index == 1);
-    CHECK(result.issues()[0].location.atom_indices == std::vector<std::size_t>{1, 2, 3});
-    CHECK(result.issues()[0].message.contains("3 of 4 atoms do not meet it (Bk: 2, Cf: 1)"));
-    CHECK(result.issues()[0].message.contains("atom 2 (Bk, formal charge 0)"));
+    REQUIRE(result.issues.size() == 1);
+    CHECK(result.issues[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
+    CHECK(result.issues[0].location.atom_index == 1);
+    CHECK(result.issues[0].location.atom_indices == std::vector<std::size_t>{1, 2, 3});
+    CHECK(result.issues[0].message.contains("3 of 4 atoms do not meet it (Bk: 2, Cf: 1)"));
+    CHECK(result.issues[0].message.contains("atom 2 (Bk, formal charge 0)"));
 }

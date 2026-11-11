@@ -23,7 +23,7 @@ TEST_CASE("TSEF rejects disconnected molecules", "[methods][tsef]") {
         {.prepared_molecule = prepared_pair, .method_options = options});
 
     CHECK(!prerequisite_result);
-    REQUIRE(prerequisite_result.issues().size() == 1);
-    CHECK(prerequisite_result.issues()[0].kind ==
+    REQUIRE(prerequisite_result.issues.size() == 1);
+    CHECK(prerequisite_result.issues[0].kind ==
           methods::PrerequisiteIssueKind::unsupported_molecule);
 }

@@ -19,7 +19,7 @@ auto VEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisit
         });
 
     if (core::total_formal_charge(input.prepared_molecule.molecule()) != 0) {
-        result.add(PrerequisiteIssue{
+        result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::unsupported_molecule,
             .message = "VEEM supports only neutral molecules because its valence-electron equation "
                        "conserves zero total charge"});

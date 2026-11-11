@@ -135,9 +135,9 @@ auto check_neutrality_prerequisites(const chargefw::core::Molecule& molecule,
         CHECK(static_cast<bool>(result) == !rejection_context.has_value());
 
         if (rejection_context.has_value()) {
-            REQUIRE(result.issues().size() == 1);
-            CHECK(result.issues()[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
-            CHECK(result.issues()[0].message.contains(*rejection_context));
+            REQUIRE(result.issues.size() == 1);
+            CHECK(result.issues[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
+            CHECK(result.issues[0].message.contains(*rejection_context));
         }
     }
 }

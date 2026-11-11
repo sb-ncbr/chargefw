@@ -287,17 +287,6 @@ for realistic input.
 - **Fix:** not proposed here. The options are to move `ExecutionMode` and `ResourcePolicy` down, or to
   move the execution-assessment part of applicability up into `calculation`. Sketch first.
 
-### A5. `PrerequisiteResult` differs from its sibling result types
-
-- **Status:** reported.
-- **Where:** `include/chargefw/methods/method_prerequisites.h:39-49` (class with private `issues_`,
-  `issues()` returning a span, `add()`), `include/chargefw/methods/parameter_prerequisites.h:34-41`
-  (struct with a public `issues` vector). Both have `explicit operator bool`.
-- **Cost:** `copy_issues` in `src/methods/method_applicability.cpp:55-58` exists only to bridge the
-  two (`:218` versus `:260`).
-- **Fix:** make `PrerequisiteResult` a struct with a public `std::vector<PrerequisiteIssue> issues`,
-  or add `take_issues() &&`. Either removes `copy_issues`.
-
 ### A6. `ClassificationResult` can be built in a meaningless success state
 
 - **Status:** reported.

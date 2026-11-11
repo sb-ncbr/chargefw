@@ -26,8 +26,8 @@ TEST_CASE("GDAC rejects missing features and unsupported elements", "[methods][g
         {.prepared_molecule = prepared_charged_pair, .method_options = options});
 
     CHECK(!prerequisite_result);
-    REQUIRE(!prerequisite_result.issues().empty());
-    CHECK(prerequisite_result.issues()[0].kind == methods::PrerequisiteIssueKind::missing_feature);
+    REQUIRE(!prerequisite_result.issues.empty());
+    CHECK(prerequisite_result.issues[0].kind == methods::PrerequisiteIssueKind::missing_feature);
 
     const chargefw::core::Molecule rubidium_molecule{
         {chargefw::core::Atom{37}}, {}, {chargefw::core::Conformer{{chargefw::core::Position{}}}}};
@@ -36,8 +36,8 @@ TEST_CASE("GDAC rejects missing features and unsupported elements", "[methods][g
         {.prepared_molecule = prepared_rubidium, .method_options = options});
 
     CHECK(!rubidium_prerequisite_result);
-    REQUIRE(rubidium_prerequisite_result.issues().size() == 1);
-    CHECK(rubidium_prerequisite_result.issues()[0].kind ==
+    REQUIRE(rubidium_prerequisite_result.issues.size() == 1);
+    CHECK(rubidium_prerequisite_result.issues[0].kind ==
           methods::PrerequisiteIssueKind::unsupported_molecule);
-    CHECK(rubidium_prerequisite_result.issues()[0].location.atom_index == 0);
+    CHECK(rubidium_prerequisite_result.issues[0].location.atom_index == 0);
 }

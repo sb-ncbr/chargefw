@@ -30,6 +30,9 @@
 
 ### C++
 
+- Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace
+  `issues()` with `issues` and `add(issue)` with `issues.push_back(issue)`. Its boolean conversion
+  still reports whether the vector is empty. Rebuild downstream C++ code.
 - Breaking change: removed `parameters::ParameterSet::publication()` and `notes()`; use
   `metadata().publication` and `metadata().notes`. Removed `calculation::ExecutionResult::cancelled()`;
   compare `status` with `calculation::ExecutionStatus::cancelled` instead. Rebuild downstream C++ code.

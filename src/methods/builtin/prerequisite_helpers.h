@@ -36,7 +36,7 @@ inline auto add_component_neutrality_prerequisite_issue(const MethodPrerequisite
                                 return sum + molecule.atom(atom_index).formal_charge();
                             });
         if (formal_charge != 0) {
-            result.add(PrerequisiteIssue{
+            result.issues.push_back(PrerequisiteIssue{
                 .kind = PrerequisiteIssueKind::unsupported_molecule,
                 .message = std::string{method_name} +
                            " supports only molecules in which every bonded part has zero total "
@@ -69,7 +69,7 @@ auto add_element_prerequisite_issues(const MethodPrerequisiteInput& input,
 
     // One issue for all atoms whose element the method does not support.
     const auto example = core::detail::atom_description(molecule, atoms.front());
-    result.add(PrerequisiteIssue{
+    result.issues.push_back(PrerequisiteIssue{
         .kind = PrerequisiteIssueKind::unsupported_molecule,
         .message = atoms.size() == 1
                        ? std::string{requirement} + ": " + example

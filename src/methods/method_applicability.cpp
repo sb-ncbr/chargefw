@@ -52,11 +52,6 @@ auto add_rejected(ApplicabilityResult& result, const std::size_t method_index,
                                                 .issues = std::move(issues)});
 }
 
-[[nodiscard]] auto copy_issues(std::span<const PrerequisiteIssue> issues)
-    -> std::vector<PrerequisiteIssue> {
-    return {issues.begin(), issues.end()};
-}
-
 [[nodiscard]] auto has_expensive_full_complexity(const ResourceRequirements& resources) noexcept
     -> bool {
     const auto cubic = [](const ComplexityTerm complexity) noexcept -> bool {
@@ -190,11 +185,10 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
             continue;
         }
 
-        const auto method_result =
-            check_method_prerequisites(*method, request.molecules, method_options);
+        auto method_result = check_method_prerequisites(*method, request.molecules, method_options);
 
         if (!method_result) {
-            add_rejected(result, method_index, std::nullopt, copy_issues(method_result.issues()));
+            add_rejected(result, method_index, std::nullopt, std::move(method_result.issues));
 
             continue;
         }

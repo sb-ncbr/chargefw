@@ -4,7 +4,6 @@
 #include "core/diagnostic_description.h"
 
 #include <string>
-#include <utility>
 
 namespace chargefw::methods {
 namespace {
@@ -42,18 +41,6 @@ auto to_string(const PrerequisiteIssueKind value) -> std::string_view {
     throw std::invalid_argument{"unknown prerequisite issue kind"};
 }
 
-PrerequisiteResult::operator bool() const noexcept {
-    return issues_.empty();
-}
-
-auto PrerequisiteResult::issues() const noexcept -> std::span<const PrerequisiteIssue> {
-    return issues_;
-}
-
-auto PrerequisiteResult::add(PrerequisiteIssue issue) -> void {
-    issues_.push_back(std::move(issue));
-}
-
 auto check_method_prerequisites(const Method& method,
                                 const features::PreparedMoleculeCollection& molecules,
                                 const MethodOptions& method_options) -> PrerequisiteResult {
@@ -63,8 +50,8 @@ auto check_method_prerequisites(const Method& method,
         const auto molecule_result = method.check_method_prerequisites(
             {.prepared_molecule = molecules[molecule_index], .method_options = method_options});
 
-        for (const auto& issue : molecule_result.issues()) {
-            result.add(
+        for (const auto& issue : molecule_result.issues) {
+            result.issues.push_back(
                 with_molecule_prefix(molecules[molecule_index].molecule(), molecule_index, issue));
         }
     }
