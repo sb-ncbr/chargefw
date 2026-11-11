@@ -78,7 +78,7 @@ for realistic input.
 | B | Behaviour bugs | B2–B11 |
 | L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A1–A12 |
-| D | Dead code | D1–D13 |
+| D | Dead code | D2–D13 |
 | C | Duplicated code | C1–C15 |
 | X | Checked and found clean, or rejected | X1–X9 |
 
@@ -445,17 +445,6 @@ for realistic input.
 "No user" means that a repo-wide grep finds the name only at its declaration and definition. "Tests
 only" means that the remaining users are under `tests/`. Re-run the grep before removing anything;
 for public headers, removal is an API change and needs a CHANGELOG entry.
-
-### D1. Single-molecule `check_parameter_prerequisites` and its two types — no user
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/methods/parameter_prerequisites.h:17-32, 43-45`,
-  `src/methods/parameter_prerequisites.cpp:117`.
-- **Check:** `grep -rln "ParameterPrerequisiteInput" include src apps python tests` lists only the
-  header and its `.cpp`.
-- **Fix:** move `ParameterPrerequisiteInput`, `ParameterPrerequisiteResult`, and the overload into the
-  anonymous namespace of the `.cpp`. Keep the collection overload and
-  `CollectionParameterPrerequisiteResult` public.
 
 ### D2. Four `CalculationInput` accessors — tests only
 

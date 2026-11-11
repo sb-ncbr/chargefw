@@ -30,6 +30,10 @@
 
 ### C++
 
+- Breaking change: the single-molecule `methods::check_parameter_prerequisites()` overload and its
+  `ParameterPrerequisiteInput` and `ParameterPrerequisiteResult` types were removed from the public
+  headers. Use the collection overload with a `PreparedMoleculeCollection` and rebuild downstream
+  C++ code.
 - Breaking change: `parameters::classify_parameters()` and `parameters::try_classify_parameters()`
   derive the molecule from `TopologyFeatures`. Remove the first (`molecule`) argument from calls
   and rebuild downstream C++ code.

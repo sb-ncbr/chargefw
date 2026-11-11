@@ -1,3 +1,4 @@
+#include <chargefw/features/prepared_molecule.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/parameter_prerequisites.h>
 #include <chargefw/parameters/classification/parameter_classifier.h>
@@ -6,6 +7,7 @@
 #include "methods/parameter_issue_messages.h"
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -13,6 +15,15 @@
 
 namespace chargefw::methods {
 namespace {
+
+struct ParameterPrerequisiteResult {
+    std::vector<PrerequisiteIssue> issues;
+    std::optional<parameters::ParameterClassification> classification;
+
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return issues.empty();
+    }
+};
 
 auto add_missing_parameter_issue(ParameterPrerequisiteResult& result, std::string message) -> void {
     result.issues.push_back(PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_parameters,
@@ -112,9 +123,10 @@ auto add_classification_issues(ParameterPrerequisiteResult& result,
     }
 }
 
-} // namespace
-
-auto check_parameter_prerequisites(const Method& method, const ParameterPrerequisiteInput& input)
+auto check_molecule_parameters(const Method& method,
+                               const features::PreparedMolecule& prepared_molecule,
+                               const parameters::ParameterSet& parameter_set,
+                               const parameters::ClassificationOptions& classification_options)
     -> ParameterPrerequisiteResult {
     ParameterPrerequisiteResult result;
 
@@ -124,18 +136,17 @@ auto check_parameter_prerequisites(const Method& method, const ParameterPrerequi
         return result;
     }
 
-    if (!input.parameter_set.method_id().empty() &&
-        input.parameter_set.method_id() != method.id()) {
-        add_missing_parameter_issue(
-            result, "parameter set '" + std::string{input.parameter_set.id()} +
-                        "' belongs to method '" + std::string{input.parameter_set.method_id()} +
-                        "', not '" + std::string{method.id()} + "'");
+    if (!parameter_set.method_id().empty() && parameter_set.method_id() != method.id()) {
+        add_missing_parameter_issue(result, "parameter set '" + std::string{parameter_set.id()} +
+                                                "' belongs to method '" +
+                                                std::string{parameter_set.method_id()} +
+                                                "', not '" + std::string{method.id()} + "'");
         return result;
     }
 
-    check_common_parameters(requirements, input.parameter_set, result);
-    check_atom_parameter_names(requirements, input.parameter_set, result);
-    check_bond_parameter_names(requirements, input.parameter_set, result);
+    check_common_parameters(requirements, parameter_set, result);
+    check_atom_parameter_names(requirements, parameter_set, result);
+    check_bond_parameter_names(requirements, parameter_set, result);
 
     if (!result.issues.empty()) {
         return result;
@@ -143,11 +154,11 @@ auto check_parameter_prerequisites(const Method& method, const ParameterPrerequi
 
     if (requirements.requires_atom_parameters() || requirements.requires_bond_parameters()) {
         const auto classification = parameters::try_classify_parameters(
-            input.prepared_molecule.topology(), input.parameter_set, input.classification_options);
+            prepared_molecule.topology(), parameter_set, classification_options);
 
         if (!classification) {
-            add_classification_issues(result, classification.issues(),
-                                      input.prepared_molecule.molecule(), input.parameter_set.id());
+            add_classification_issues(result, classification.issues(), prepared_molecule.molecule(),
+                                      parameter_set.id());
             return result;
         }
 
@@ -156,6 +167,8 @@ auto check_parameter_prerequisites(const Method& method, const ParameterPrerequi
 
     return result;
 }
+
+} // namespace
 
 auto check_parameter_prerequisites(const Method& method,
                                    const features::PreparedMoleculeCollection& molecules,
@@ -166,10 +179,8 @@ auto check_parameter_prerequisites(const Method& method,
     result.classifications.reserve(molecules.size());
 
     for (std::size_t molecule_index = 0; molecule_index < molecules.size(); ++molecule_index) {
-        const auto molecule_result = check_parameter_prerequisites(
-            method, {.prepared_molecule = molecules[molecule_index],
-                     .parameter_set = parameter_set,
-                     .classification_options = classification_options});
+        const auto molecule_result = check_molecule_parameters(
+            method, molecules[molecule_index], parameter_set, classification_options);
 
         if (!molecule_result) {
             for (const auto& issue : molecule_result.issues) {
