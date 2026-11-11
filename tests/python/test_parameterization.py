@@ -449,7 +449,7 @@ def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: P
 
     # Written and read back, the set gives exactly the same charges.
     path = tmp_path / "water-fit.json"
-    chargefw.write_parameter_set(fitted, path)
+    chargefw.write_parameter_set(path, fitted)
     reread = chargefw.read_parameter_set(path)
     assert (reread.id, reread.name, reread.atom_keys) == (fitted.id, fitted.name, fitted.atom_keys)
     recalculated = chargefw.calculate(molecules, method="eem", parameter_set=reread)
@@ -463,7 +463,7 @@ def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: P
 
 def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
     path = tmp_path / "baek.json"
-    chargefw.write_parameter_set(chargefw.parameter_sets["EEM_Baek1991"], path)
+    chargefw.write_parameter_set(path, chargefw.parameter_sets["EEM_Baek1991"])
 
     document = json.loads(path.read_text(encoding="utf-8"))
     assert document["metadata"]["id"] == "EEM_Baek1991"
@@ -475,7 +475,7 @@ def test_write_parameter_set_writes_bundled_sets(tmp_path: Path) -> None:
 def test_write_parameter_set_rejects_invalid_types(tmp_path: Path, parameter_set: object) -> None:
     path = tmp_path / "parameters.json"
     with pytest.raises(TypeError):
-        chargefw.write_parameter_set(parameter_set, path)  # type: ignore[arg-type]
+        chargefw.write_parameter_set(path, parameter_set)  # type: ignore[arg-type]
     assert not path.exists()
 
 
@@ -1158,7 +1158,7 @@ def test_start_from_a_parameter_set_matches_bonds_in_either_order(tmp_path: Path
     references = evaluator.charges(SQE_TRUE_VALUES)
     written = fit(evaluator, references, start=SQE_TRUE_VALUES, free=[0], max_evaluations=1)
     path = tmp_path / "reversed.json"
-    chargefw.write_parameter_set(written.parameter_set(id="reversed"), path)
+    chargefw.write_parameter_set(path, written.parameter_set(id="reversed"))
     document = json.loads(path.read_text(encoding="utf-8"))
     for entry in document["bond"]["data"]:
         entry["key"]["atoms"].reverse()

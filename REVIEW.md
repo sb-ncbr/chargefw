@@ -274,13 +274,6 @@ for realistic input.
   package marked read-only. Switch to `immutable_array()` only if these lines are edited for another
   reason. Nothing to document.
 
-### A11. Smaller Python API items
-
-- **Status:** reported.
-- `python/chargefw/calculation.py:198`: `write_parameter_set(parameter_set, path)` has the reverse
-  argument order of `io.write(path, result)`. Changing it would break the public API; this is only
-  noted, pending a separate decision.
-
 ### A12. Smaller native API items
 
 - **Status:** reported.

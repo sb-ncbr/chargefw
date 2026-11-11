@@ -361,7 +361,7 @@ The set's ID must differ from the IDs in `chargefw.parameter_sets`; reading a fi
 raises `ValueError`, as does a file that does not follow the format. Such a set is not added to
 `chargefw.parameter_sets`; results report it in `plan.parameter_set`.
 
-`chargefw.write_parameter_set(parameter_set, path)` writes any parameter set, bundled or your own, to a
+`chargefw.write_parameter_set(path, parameter_set)` writes any parameter set, bundled or your own, to a
 JSON file in the same format. Pass a `ParameterSet` object, not its ID; for a bundled set, use
 `chargefw.parameter_sets["EEM_Baek1991"]`.
 To fit the values of a parameter set to your own reference charges, see

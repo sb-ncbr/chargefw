@@ -12,7 +12,7 @@ indices of molecules, atoms, bonds, and conformers count from zero.
 | `chargefw.calculate(molecules, plan, *, threads=None, observer=None)` | `CalculationResult` of a `Plan` from `assess()`; omit `plan` rather than passing `None` |
 | `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `plan` and `observer` |
 | `chargefw.read_parameter_set(path)` | `ParameterSet` read from your own JSON file |
-| `chargefw.write_parameter_set(parameter_set, path)` | Writes a parameter set as JSON |
+| `chargefw.write_parameter_set(path, parameter_set)` | Writes a parameter set as JSON |
 | `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a file |
 | `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a string |
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |

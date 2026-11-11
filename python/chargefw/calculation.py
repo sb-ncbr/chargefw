@@ -197,7 +197,7 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     return _parameter_set(descriptor, native)
 
 
-def write_parameter_set(parameter_set: ParameterSet, path: str | os.PathLike[str]) -> None:
+def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSet) -> None:
     """Write a parameter set to a JSON file in the ChargeFW parameter-set format.
 
     Works for bundled sets and for sets read from files or made by fitting. The file is created or

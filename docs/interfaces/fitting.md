@@ -30,7 +30,7 @@ result = fit(evaluator, references)
 print(result.message, result.rmsd, result.diagnostics.rank, len(result.free))
 
 fitted = result.parameter_set(id="my-sqeqp", name="SQE+qp for my molecules")
-chargefw.write_parameter_set(fitted, "my-sqeqp.json")
+chargefw.write_parameter_set("my-sqeqp.json", fitted)
 ```
 
 The rest of this page explains each step and the choices you can make along the way. The examples
@@ -265,7 +265,7 @@ class Progress(FitObserver):
         )
         if progress.evaluation % 20 == 0:
             checkpoint = progress.parameter_set(id="checkpoint")
-            chargefw.write_parameter_set(checkpoint, "checkpoint.json")
+            chargefw.write_parameter_set("checkpoint.json", checkpoint)
 
     def cancelled(self):
         return Path("stop").exists()
@@ -374,5 +374,5 @@ test = chargefw.io.read("test.sdf", format="sdf")
 calculated = chargefw.calculate(test, method=fitted.method, parameter_set=fitted)
 ```
 
-`chargefw.write_parameter_set(fitted, path)` saves it in the [parameter-set
+`chargefw.write_parameter_set(path, fitted)` saves it in the [parameter-set
 format](../reference/parameter-format.md), and `chargefw.read_parameter_set(path)` reads it back.
