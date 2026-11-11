@@ -335,20 +335,6 @@ for realistic input.
 - **Resolution:** either add the check or say in the comment at the declaration that the caller checks
   the stream after `write()`; the example in `docs/interfaces/cpp.md:162` should then show that check.
 
-### A8. Python hard-codes the resource thresholds
-
-- **Status:** re-checked.
-- **Where:** `python/chargefw/calculation.py:298-299, 393-394`,
-  `python/chargefw/_calculation_options.py:152-153`.
-- **Problem:** `20_000` and `80_000` are literals. The native library owns them as
-  `calculation::default_cutoff_atom_threshold` and `default_cover_atom_threshold`
-  (`include/chargefw/calculation/execution_policy.h:10-11`), and the CLI uses the constants
-  (`apps/chargefw/input.cpp:257, 262`). A native change would leave Python on a different execution
-  policy.
-- **Check:** `grep -rn "20_000\|80_000" python/chargefw`.
-- **Fix:** export the two constants from `bind_calculation` (as `_fixed_ion_names` is exported) and
-  use them at the three default sites; update the `.pyi` stub.
-
 ### A10. "Read-only" fit arrays can be made writable again
 
 - **Status:** reported; the NumPy behaviour was reproduced with plain NumPy.

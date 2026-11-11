@@ -298,8 +298,8 @@ def assess(
     parameter_matching: ParameterMatching = "strict",
     execution: RequestedExecution = "auto",
     radius: float | None = None,
-    cutoff_threshold: int | None = 20_000,
-    cover_threshold: int | None = 80_000,
+    cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
+    cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     fixed_ions: Sequence[str] | None = None,
 ) -> Assessment:
@@ -393,8 +393,12 @@ def calculate(
     parameter_matching: ParameterMatching = cast(ParameterMatching, _Default("strict")),
     execution: RequestedExecution = cast(RequestedExecution, _Default("auto")),
     radius: float | None = None,
-    cutoff_threshold: int | None = cast(int, _Default(20_000)),
-    cover_threshold: int | None = cast(int, _Default(80_000)),
+    cutoff_threshold: int | None = cast(
+        int, _Default(_native_calculation._default_cutoff_atom_threshold)
+    ),
+    cover_threshold: int | None = cast(
+        int, _Default(_native_calculation._default_cover_atom_threshold)
+    ),
     threads: int | None = None,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,

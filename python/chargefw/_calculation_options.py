@@ -11,6 +11,7 @@ from typing import SupportsIndex
 
 import numpy as np
 
+from ._chargefw import calculation as _native_calculation
 from ._methods import Method
 from ._parameters import ParameterSet
 from ._types import MethodOptionValue, MethodScope, ParameterMatching, RequestedExecution
@@ -149,8 +150,8 @@ class RequestedCalculation:
         parameter_matching: ParameterMatching = "strict",
         execution: RequestedExecution = "auto",
         radius: float | None = None,
-        cutoff_threshold: int | None = 20_000,
-        cover_threshold: int | None = 80_000,
+        cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
+        cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
         threads: int = 0,
         fixed_ions: Sequence[str] | None = None,
     ) -> None:

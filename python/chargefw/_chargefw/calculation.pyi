@@ -1,10 +1,14 @@
 from collections.abc import Sequence
+from typing import Final
 
 from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
 from .._types import MethodScope, PortableId, RequestedExecution
 from .adapters import _NativeInputMetadata
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog
+
+_default_cutoff_atom_threshold: Final[int]
+_default_cover_atom_threshold: Final[int]
 
 def _fixed_ion_names(common_only: bool) -> tuple[str, ...]: ...
 

@@ -485,6 +485,11 @@ auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
 }
 
 void bind_calculation(nb::module_& module) {
+    module.attr("_default_cutoff_atom_threshold") =
+        nb::int_(calculation::default_cutoff_atom_threshold);
+    module.attr("_default_cover_atom_threshold") =
+        nb::int_(calculation::default_cover_atom_threshold);
+
     module.def("_fixed_ion_names", [](const bool common_only) {
         nb::list names;
         for (const auto& name : adapters::detail::fixed_ion_names(common_only)) {
