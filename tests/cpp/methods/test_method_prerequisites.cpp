@@ -46,20 +46,6 @@ auto make_collection() -> core::MoleculeCollection {
 
 } // namespace
 
-TEST_CASE("parameterless built-ins accept water", "[methods][method-prerequisites]") {
-    const auto water = chargefw::test::make_water();
-    const features::PreparedMolecule prepared_water{water};
-    const auto empty_options = methods::MethodOptions{};
-
-    for (const auto method_id : {"dummy", "formal"}) {
-        CAPTURE(method_id);
-        const auto* method = methods::method_registry().find(method_id);
-        REQUIRE(method != nullptr);
-        CHECK(method->check_method_prerequisites(
-            {.prepared_molecule = prepared_water, .method_options = empty_options}));
-    }
-}
-
 TEST_CASE("coordinate requirements detect molecules without conformers",
           "[methods][method-prerequisites]") {
     const chargefw::test::StubMethod coordinates_method{"coordinates-test", {.coordinates = true}};
@@ -178,21 +164,6 @@ TEST_CASE("coordinate requirements reject non-finite coordinates",
     CHECK(issue.location.conformer_index == 0);
     CHECK(issue.message.contains("method 'coordinates-test'"));
     CHECK(issue.message.contains("atom 1 (H, formal charge 0)"));
-}
-
-TEST_CASE("resource requirements do not restrict prerequisites",
-          "[methods][method-prerequisites]") {
-    const chargefw::test::StubMethod dense_method{
-        "dense-test",
-        {.resources = {.time = methods::ComplexityTerm::atoms_cubed,
-                       .memory = methods::ComplexityTerm::atoms_squared}}};
-    const auto water = chargefw::test::make_water();
-    const features::PreparedMolecule prepared_water{water};
-
-    const auto result = dense_method.check_method_prerequisites(
-        {.prepared_molecule = prepared_water, .method_options = methods::MethodOptions{}});
-    CHECK(result);
-    CHECK(result.issues.empty());
 }
 
 TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-prerequisites]") {

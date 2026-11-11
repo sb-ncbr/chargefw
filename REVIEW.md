@@ -621,12 +621,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Fix:** rewrite as one test showing that two different terms give different charges, without the
   list of names.
 
-#### T6. "resource requirements do not restrict prerequisites"
-
-- **Status:** re-checked.
-- **Where:** `cpp/methods/test_method_prerequisites.cpp:183`.
-- **Problem:** `Method::check_method_prerequisites` never reads `requirements().resources`.
-
 #### T7. Absence checks for keys that exist nowhere
 
 - **Status:** re-checked.
@@ -740,14 +734,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Problem:** every assertion exists in `python/test_parameterization.py` (`:100`, `:114-130`,
   `:248-251`, `:446-448`, `:945`) and natively in `cpp/calculation/test_calculation.cpp:820, 861`.
 - **Fix:** delete, with the `Evaluator` and `EvaluationError` imports.
-
-#### T21. "parameterless built-ins accept water"
-
-- **Status:** reported.
-- **Where:** `cpp/methods/test_method_prerequisites.cpp:49`.
-- **Problem:** "every built-in completes its declared full workflow"
-  (`cpp/methods/test_builtin_methods.cpp:195`) requires every registered method to be applicable to
-  water and to calculate.
 
 ### Wording checked next to the structured value
 
