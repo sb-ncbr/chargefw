@@ -622,18 +622,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 
 ### Copies of production tables
 
-#### T11. Defaults compared with the constants that define them
-
-- **Status:** re-checked.
-- **Where:** `cpp/calculation/test_execution_policy.cpp:86` ("resource policy exposes thresholds");
-  `python/test_calculation.py:36` (`test_default_resource_thresholds_match_native_policy`).
-- **Problem:** `ResourcePolicy` is an aggregate whose default member initializers are the constants
-  the test compares with; the rest tests designated initialization and
-  `default_automatic_reduced_radius == 12.0`. The Python defaults are written as
-  `_native_calculation._default_cutoff_atom_threshold`, the value the test compares with.
-- **Fix:** delete both, and the `from chargefw._chargefw import calculation` import in the Python
-  file.
-
 #### T13. Ion lists compared with the table they are read from
 
 - **Status:** re-checked.

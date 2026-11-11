@@ -11,7 +11,6 @@ from unittest.mock import patch
 import chargefw
 import numpy as np
 import pytest
-from chargefw._chargefw import calculation as native_calculation
 from chargefw.parameterization import EvaluationError, Evaluator
 
 
@@ -31,19 +30,6 @@ def water(conformers: int = 1) -> chargefw.Molecule:
         record_id="water-record",
         atom_ids=["O", "H1", "H2"],
     )
-
-
-def test_default_resource_thresholds_match_native_policy() -> None:
-    molecule = water()
-    plan = chargefw.assess(molecule, method="formal").default_plan
-    assert plan is not None
-    for requested in (
-        chargefw.RequestedCalculation(),
-        chargefw.calculate(molecule, plan).requested,
-        chargefw.calculate(molecule, method="formal").requested,
-    ):
-        assert requested.cutoff_threshold == native_calculation._default_cutoff_atom_threshold
-        assert requested.cover_threshold == native_calculation._default_cover_atom_threshold
 
 
 FIXED_IONS_MMCIF = """data_fixed_groups
