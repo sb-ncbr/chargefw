@@ -9,6 +9,7 @@ from typing import SupportsIndex
 
 from ._chargefw import core as _native_core
 from ._payloads import ElementPayload
+from ._public import set_public_module
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,5 +85,4 @@ def _element(value: ElementPayload) -> Element:
 
 periodic_table = PeriodicTable(tuple(_element(value) for value in _native_core._elements()))
 
-Element.__module__ = "chargefw"
-PeriodicTable.__module__ = "chargefw"
+set_public_module("chargefw", Element, PeriodicTable)

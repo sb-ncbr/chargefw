@@ -16,13 +16,10 @@ import chargefw
 import numpy as np
 import pytest
 from chargefw.parameterization import (
-    ChargeDiagnostics,
-    Diagnostics,
     EvaluationError,
     Evaluator,
     FitObserver,
     FitProgress,
-    FitResult,
     Slot,
     fit,
     make_parameter_template,
@@ -275,11 +272,6 @@ DETERMINED_FREE = [2, 5, 6]
 def test_public_annotations_resolve() -> None:
     # Introspection such as typing.get_type_hints() finds every name the annotations use.
     for public in (
-        Slot,
-        Diagnostics,
-        ChargeDiagnostics,
-        FitProgress,
-        FitResult,
         Evaluator.__init__,
         Evaluator.charges,
         fit,

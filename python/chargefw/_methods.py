@@ -12,6 +12,7 @@ from ._catalog import _Catalog
 from ._chargefw import methods as _native_methods
 from ._parameters import ParameterSetCatalog
 from ._payloads import MethodDescriptorPayload
+from ._public import set_public_module
 from ._types import (
     ExecutionIssueKind,
     MethodOptionType,
@@ -150,10 +151,4 @@ def _method_catalog(parameter_sets: ParameterSetCatalog) -> MethodCatalog:
     )
 
 
-for _value_type in (
-    PrerequisiteIssue,
-    ExecutionIssue,
-    MethodOption,
-    Method,
-):
-    _value_type.__module__ = "chargefw"
+set_public_module("chargefw", PrerequisiteIssue, ExecutionIssue, MethodOption, Method)

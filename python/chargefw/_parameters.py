@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from ._catalog import _Catalog
+from ._chargefw.parameters import _NativeParameterCatalog
 from ._payloads import (
     AtomParameterKeyPayload,
     BondParameterKeyPayload,
     ParameterSetDescriptorPayload,
 )
+from ._public import set_public_module
 from ._types import AtomClassifier, BondClassifier
-
-if TYPE_CHECKING:
-    from ._chargefw.parameters import _NativeParameterCatalog
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +92,4 @@ def _parameter_set(
     )
 
 
-AtomParameterKey.__module__ = "chargefw"
-BondParameterKey.__module__ = "chargefw"
-ParameterSet.__module__ = "chargefw"
+set_public_module("chargefw", AtomParameterKey, BondParameterKey, ParameterSet)

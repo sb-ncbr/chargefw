@@ -87,6 +87,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _methods.py
     _parameters.py
     _payloads.py
+    _public.py
     _cli.py
     _types.py
     _warnings.py

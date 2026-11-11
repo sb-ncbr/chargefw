@@ -8,6 +8,8 @@ large batch does not flood the output.
 from collections.abc import Callable, Iterable
 from typing import Protocol
 
+from ._public import set_public_module
+
 
 class ChargeFWWarning(UserWarning):
     """Base class of ChargeFW warnings."""
@@ -70,5 +72,4 @@ def issue_warnings(
     return result
 
 
-for _warning_type in (ChargeFWWarning, InputWarning, ChargeWarning):
-    _warning_type.__module__ = "chargefw"
+set_public_module("chargefw", ChargeFWWarning, InputWarning, ChargeWarning)

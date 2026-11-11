@@ -33,6 +33,7 @@ from ._chargefw import parameters as _native_parameters
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
 from ._payloads import CalculationProgressPayload
+from ._public import set_public_module
 from ._types import (
     CalculationPhase,
     ExecutionMode,
@@ -129,7 +130,8 @@ def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAd
     return _NativeObserverAdapter(observer)
 
 
-for _value_type in (
+set_public_module(
+    __name__,
     RequestedCalculation,
     Execution,
     ExecutedPlan,
@@ -146,8 +148,7 @@ for _value_type in (
     ResourceEstimate,
     FixedIons,
     FixedAtomCharge,
-):
-    _value_type.__module__ = __name__
+)
 
 _bundled_parameter_catalog: _native_parameters._NativeParameterCatalog | None = None
 _bundled_parameter_descriptors: ParameterSetCatalog | None = None
@@ -545,4 +546,4 @@ def _outcome(
     ]
 
 
-Assessment.__module__ = __name__
+set_public_module(__name__, Assessment)

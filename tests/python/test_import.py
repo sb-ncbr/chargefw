@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import get_type_hints
 
 import chargefw
 import chargefw.io.gemmi  # noqa: F401
@@ -20,6 +21,7 @@ def test_version_and_typing_marker() -> None:
 
 
 def test_public_classes_report_a_public_module() -> None:
+    # Renaming __module__ must keep annotations resolvable by typing.get_type_hints().
     for module in (
         chargefw,
         chargefw.calculation,
@@ -33,3 +35,4 @@ def test_public_classes_report_a_public_module() -> None:
                     module.__name__,
                     name,
                 )
+                get_type_hints(value)
