@@ -379,12 +379,10 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
 TEST_CASE("whole-molecule reduced execution matches full execution for each charge policy",
           "[calculation][reduced-execution]") {
     struct PolicyCase {
-        methods::ReducedChargePolicy policy;
         std::string_view method_id;
         parameters::ParameterSet parameter_set;
         core::Molecule molecule;
     };
-    using Policy = methods::ReducedChargePolicy;
     const auto water = chargefw::test::make_two_conformer_water();
     const auto point_charges =
         chargefw::test::SqeHoValues{.hydrogen_width = 0.0, .oxygen_width = 0.0};
@@ -392,29 +390,21 @@ TEST_CASE("whole-molecule reduced execution matches full execution for each char
         chargefw::test::SqeHoValues{.hydrogen_q0 = 0.25, .oxygen_q0 = -0.5};
     const auto point_reference_charges = chargefw::test::SqeHoValues{
         .hydrogen_width = 0.0, .oxygen_width = 0.0, .hydrogen_q0 = 0.25, .oxygen_q0 = -0.5};
+    // EEM, SQE, SQE+q0, and SQE+qp cover the four reduced-charge policies.
     const auto cases = std::vector<PolicyCase>{
-        {Policy::uniform_target_global, "eem", chargefw::test::make_eem_parameters(), water},
-        {Policy::zero_components, "sqe", chargefw::test::make_sqe_ho_parameters("sqe"), water},
-        {Policy::zero_components, "sqe",
-         chargefw::test::make_sqe_ho_parameters("sqe", point_charges), water},
-        {Policy::formal_charge_components, "sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"),
-         water},
-        {Policy::formal_charge_components, "sqeq0",
-         chargefw::test::make_sqe_ho_parameters("sqeq0", point_charges), water},
-        {Policy::formal_charge_components, "sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"),
-         make_charged_water()},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), water},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", point_reference_charges), water},
-        {Policy::parameterized_charge_components, "sqeqp",
-         chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), make_charged_water()}};
+        {"eem", chargefw::test::make_eem_parameters(), water},
+        {"sqe", chargefw::test::make_sqe_ho_parameters("sqe"), water},
+        {"sqe", chargefw::test::make_sqe_ho_parameters("sqe", point_charges), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0", point_charges), water},
+        {"sqeq0", chargefw::test::make_sqe_ho_parameters("sqeq0"), make_charged_water()},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges), water},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", point_reference_charges), water},
+        {"sqeqp", chargefw::test::make_sqe_ho_parameters("sqeqp", reference_charges),
+         make_charged_water()}};
 
     for (const auto& test_case : cases) {
         CAPTURE(test_case.method_id, test_case.molecule.name());
-        const auto* method = methods::method_registry().find(test_case.method_id);
-        REQUIRE(method != nullptr);
-        CHECK(method->requirements().resources.reduced_charge_policy == test_case.policy);
         assert_reduced_matches_full(test_case.method_id, {test_case.parameter_set},
                                     test_case.molecule);
     }

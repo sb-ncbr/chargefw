@@ -206,11 +206,7 @@ TEST_CASE("Linearization reproduces the calculated charges", "[methods][sqe][der
     }
 }
 
-TEST_CASE("Exact derivatives belong to the methods that have them", "[methods][derivatives]") {
-    for (const auto& [method_id, parameter_set] : cases()) {
-        CAPTURE(method_id);
-        CHECK(chargefw::parameterization::has_exact_derivatives(method(method_id)));
-    }
+TEST_CASE("PEOE does not advertise exact derivatives", "[methods][derivatives]") {
     // PEOE iterates instead of solving a system; it has no exact derivatives.
     CHECK_FALSE(chargefw::parameterization::has_exact_derivatives(method("peoe")));
 }

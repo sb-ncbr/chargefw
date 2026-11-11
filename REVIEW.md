@@ -634,21 +634,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 - **Fix:** delete both, and the `from chargefw._chargefw import calculation` import in the Python
   file.
 
-#### T12. Method metadata read back
-
-- **Status:** reported.
-- **Where:**
-  - `cpp/methods/test_builtin_methods.cpp:147` ("method complexity terms have Big-O notation"): four
-    rows of the switch in `src/methods/method.cpp`.
-  - `cpp/methods/test_method_prerequisites.cpp:118-130`: `requirements().bonds` for two lists of
-    method IDs. The `StubMethod` part above them is the test.
-  - `cpp/calculation/test_reduced_execution.cpp:417`: `reduced_charge_policy == test_case.policy`.
-    Delete the `policy` field, the registry lookup, and the check; keep
-    `assert_reduced_matches_full`.
-  - `cpp/parameterization/test_method_derivatives.cpp:209` ("Exact derivatives belong to the methods
-    that have them"): a copy of the four-entry table in `src/parameterization/method_derivatives.cpp`.
-    `linearize()` and line 223 already require the derivatives of each method they use.
-
 #### T13. Ion lists compared with the table they are read from
 
 - **Status:** re-checked.

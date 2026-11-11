@@ -144,14 +144,6 @@ auto check_neutrality_prerequisites(const chargefw::core::Molecule& molecule,
 
 } // namespace
 
-TEST_CASE("method complexity terms have Big-O notation", "[methods]") {
-    CHECK(methods::complexity_notation(Complexity::constant) == "O(1)");
-    CHECK(methods::complexity_notation(Complexity::atoms_cubed) == "O(n^3)");
-    CHECK(methods::complexity_notation(Complexity::atoms_squared_plus_bonds_squared) ==
-          "O(n^2 + m^2)");
-    CHECK(methods::complexity_notation(Complexity::atoms_plus_bonds_cubed) == "O((n + m)^3)");
-}
-
 TEST_CASE("built-in resource estimates grow with their declared complexity",
           "[methods][builtin-methods]") {
     const auto degree = [](const Complexity term) -> double {

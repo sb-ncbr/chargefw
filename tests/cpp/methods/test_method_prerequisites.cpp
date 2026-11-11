@@ -92,20 +92,6 @@ TEST_CASE("bond requirements reject molecules with several atoms and no bonds",
     CHECK(!missing_bonds);
     REQUIRE(missing_bonds.issues.size() == 1);
     CHECK(missing_bonds.issues[0].kind == methods::PrerequisiteIssueKind::missing_feature);
-
-    // Methods built on the bond graph declare the requirement; geometry-only methods do not.
-    for (const auto* method_id : {"peoe", "delre", "sqeqp", "abeem"}) {
-        CAPTURE(method_id);
-        const auto* method = methods::method_registry().find(method_id);
-        REQUIRE(method != nullptr);
-        CHECK(method->requirements().bonds);
-    }
-    for (const auto* method_id : {"eem", "qeq", "veem"}) {
-        CAPTURE(method_id);
-        const auto* method = methods::method_registry().find(method_id);
-        REQUIRE(method != nullptr);
-        CHECK_FALSE(method->requirements().bonds);
-    }
 }
 
 TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
