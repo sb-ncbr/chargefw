@@ -315,13 +315,6 @@ for public headers, removal is an API change and needs a CHANGELOG entry.
   The comment at `calculation_request.h:20` ("Zero delegates the worker count to the oneTBB runtime")
   disagrees with `thread_count()`, which uses `max_allowed_parallelism`.
 
-### D13. Small dead code in `adapters`
-
-- **Status:** reported.
-- `src/adapters/gemmi/structure_import.h:25-29`: six default arguments of `make_record` are never
-  used; both callers pass all eleven arguments. `if (name.empty()) name = structure.name;` at
-  `structure_import.cpp:350` cannot change anything given what both callers pass.
-
 ---
 
 ## C. Duplicated code

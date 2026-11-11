@@ -21,12 +21,10 @@ struct SourceModelMapping {
 [[nodiscard]] auto make_record(const ::gemmi::Structure& structure,
                                std::span<const selection::SelectedModel> selected_models,
                                MoleculeRecordIdentity identity, RecordSelection selection,
-                               BondStrategy bond_strategy,
-                               ConformerSelection conformer_selection = ConformerSelection::all,
-                               std::vector<core::Bond> explicit_bonds = {}, std::string name = {},
-                               MolecularSourceFormat format = MolecularSourceFormat::pdb,
-                               std::vector<SourceModelMapping> source_models = {},
-                               SourceConnectivity source_connectivity = SourceConnectivity::absent)
-    -> ImportedMoleculeRecord;
+                               BondStrategy bond_strategy, ConformerSelection conformer_selection,
+                               std::vector<core::Bond> explicit_bonds, std::string name,
+                               MolecularSourceFormat format,
+                               std::vector<SourceModelMapping> source_models,
+                               SourceConnectivity source_connectivity) -> ImportedMoleculeRecord;
 
 } // namespace chargefw::adapters::gemmi::structure_import
