@@ -15,15 +15,13 @@ struct EntryCounts {
     std::vector<std::size_t> bonds; // [bond entry]
 };
 
-// Throws std::invalid_argument for a plan of another assessment or a method without parameters.
-[[nodiscard]] auto entry_counts(const calculation::AssessmentResult& assessment,
-                                const calculation::ExecutionPlan& plan) -> EntryCounts;
+// Throws std::invalid_argument for a method without parameters.
+[[nodiscard]] auto entry_counts(const calculation::ExecutionPlan& plan) -> EntryCounts;
 
 // The atom entry matched to every atom of every molecule of the assessment, in the molecules' own
 // atom order; std::nullopt for an atom that no entry matches: a fixed ion, or every atom when the
 // parameter set has no atom entries. Throws as entry_counts().
-[[nodiscard]] auto atom_entries(const calculation::AssessmentResult& assessment,
-                                const calculation::ExecutionPlan& plan)
+[[nodiscard]] auto atom_entries(const calculation::ExecutionPlan& plan)
     -> std::vector<std::vector<std::optional<std::size_t>>>;
 
 // What the molecules show about the atoms of one atom entry and their bonds.
@@ -43,8 +41,7 @@ struct SingleBondEntry {
 // One per atom entry of the plan's parameter set. Such an atom exchanges charge only through its
 // bond; whether that lets a fit hold one of its parameters is the fitting profile's decision.
 // Throws as entry_counts().
-[[nodiscard]] auto single_bond_entries(const calculation::AssessmentResult& assessment,
-                                       const calculation::ExecutionPlan& plan)
+[[nodiscard]] auto single_bond_entries(const calculation::ExecutionPlan& plan)
     -> std::vector<SingleBondEntry>;
 
 } // namespace chargefw::parameterization

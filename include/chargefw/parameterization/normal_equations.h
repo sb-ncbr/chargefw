@@ -34,14 +34,13 @@ struct NormalEquations {
 // count in the sum of squares. For identical inputs in the same executable and numerical
 // environment, the result does not depend on `max_threads`. The calculation cannot be cancelled.
 //
-// Throws std::invalid_argument for a plan of another assessment, a candidate that
-// calculation::calculate(assessment, plan, candidate) would reject, a plan without full execution,
-// a method without exact derivatives, or malformed references or weights. A failing calculation, or
-// one whose contribution is not finite, throws std::runtime_error or std::logic_error naming the
-// molecule and conformer: the failures ExecutionResult reports as numerical_failure. Finite
-// contributions whose sum is not finite throw std::runtime_error without naming a molecule.
-[[nodiscard]] auto normal_equations(const calculation::AssessmentResult& assessment,
-                                    const calculation::ExecutionPlan& plan,
+// Throws std::invalid_argument for a candidate that calculation::calculate(plan, candidate) would
+// reject, a plan without full execution, a method without exact derivatives, or malformed
+// references or weights. A failing calculation, or one whose contribution is not finite, throws
+// std::runtime_error or std::logic_error naming the molecule and conformer: the failures
+// ExecutionResult reports as numerical_failure. Finite contributions whose sum is not finite throw
+// std::runtime_error without naming a molecule.
+[[nodiscard]] auto normal_equations(const calculation::ExecutionPlan& plan,
                                     const parameters::ParameterSet& candidate,
                                     std::span<const double> references,
                                     std::span<const double> weights, std::size_t max_threads = 0)

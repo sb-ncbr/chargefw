@@ -273,13 +273,12 @@ auto has_exact_derivatives(const methods::Method& method) -> bool {
     return detail::derivatives_of(method) != nullptr;
 }
 
-auto normal_equations(const calculation::AssessmentResult& assessment,
-                      const calculation::ExecutionPlan& plan,
+auto normal_equations(const calculation::ExecutionPlan& plan,
                       const parameters::ParameterSet& candidate,
                       const std::span<const double> references,
                       const std::span<const double> weights, const std::size_t max_threads)
     -> NormalEquations {
-    const auto selected = AssessmentAccess::with_values(assessment, plan, candidate);
+    const auto selected = AssessmentAccess::with_values(plan, candidate);
     if (plan.policy().mode() != calculation::ExecutionMode::full) {
         throw std::invalid_argument{"normal equations need full execution, but the plan uses " +
                                     std::string{to_string(plan.policy().mode())}};
@@ -291,8 +290,8 @@ auto normal_equations(const calculation::AssessmentResult& assessment,
                                     "' has no exact derivatives"};
     }
 
-    const auto& molecules = AssessmentAccess::molecules(assessment);
-    const auto* partition = AssessmentAccess::partition(assessment);
+    const auto& molecules = AssessmentAccess::molecules(plan);
+    const auto* partition = AssessmentAccess::partition(plan);
     methods::detail::validate_selected_candidate(selected, molecules, partition != nullptr);
     if (partition != nullptr) {
         calculation::detail::validate_partition_active_molecules(molecules, *partition);

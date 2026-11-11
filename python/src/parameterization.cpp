@@ -81,7 +81,7 @@ class NativeEvaluator {
         auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
         auto result = [&] {
             nb::gil_scoped_release release;
-            return calculation::calculate(state_->assessment_, plan(), candidate(candidate_values),
+            return calculation::calculate(plan(), candidate(candidate_values),
                                           max_threads.value_or(state_->max_threads_));
         }();
 
@@ -124,7 +124,7 @@ class NativeEvaluator {
             nb::gil_scoped_release release;
             try {
                 result = parameterization::normal_equations(
-                    state_->assessment_, plan(), candidate(candidate_values),
+                    plan(), candidate(candidate_values),
                     std::span{references.data(), references.size()},
                     std::span{weights.data(), weights.size()},
                     max_threads.value_or(state_->max_threads_));
@@ -163,7 +163,7 @@ class NativeEvaluator {
     // entry of the plan's parameter set (parameterization::entry_counts()).
     [[nodiscard]] auto entry_counts() const
         -> std::pair<std::vector<std::size_t>, std::vector<std::size_t>> {
-        auto counts = parameterization::entry_counts(state_->assessment_, plan());
+        auto counts = parameterization::entry_counts(plan());
         return {std::move(counts.atoms), std::move(counts.bonds)};
     }
 
@@ -171,7 +171,7 @@ class NativeEvaluator {
     // parameterization::atom_entries() reports them.
     [[nodiscard]] auto atom_entries() const -> nb::list {
         auto result = nb::list{};
-        for (const auto& molecule : parameterization::atom_entries(state_->assessment_, plan())) {
+        for (const auto& molecule : parameterization::atom_entries(plan())) {
             auto entries = std::vector<std::int64_t>{};
             entries.reserve(molecule.size());
             for (const auto& entry : molecule) {
@@ -187,7 +187,7 @@ class NativeEvaluator {
     [[nodiscard]] auto single_bond_entries() const
         -> std::vector<std::tuple<bool, bool, std::vector<std::size_t>>> {
         auto result = std::vector<std::tuple<bool, bool, std::vector<std::size_t>>>{};
-        for (auto& entry : parameterization::single_bond_entries(state_->assessment_, plan())) {
+        for (auto& entry : parameterization::single_bond_entries(plan())) {
             result.emplace_back(entry.single_bonded, entry.exclusive_bonds,
                                 std::move(entry.bond_entries));
         }

@@ -179,7 +179,7 @@ void print_applicability(const calculation::AssessmentResult& assessment,
                          const std::size_t max_threads) {
     std::println("runnable plans: {}", assessment.plans().size());
     for (const auto& plan : assessment.plans()) {
-        const auto estimate = calculation::estimate(assessment, plan, max_threads);
+        const auto estimate = calculation::estimate(plan, max_threads);
         std::println("plan method={} parameter_set={} execution={} memory={} operations={:.1e}",
                      plan.method().id(),
                      plan.parameter_set() == nullptr ? "-" : plan.parameter_set()->id(),

@@ -1,9 +1,10 @@
-"""Private immutable calculation result values and native-payload conversion."""
+"""Private calculation values: plans, results, issues, and observers, with payload conversion."""
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 
 import numpy as np
@@ -20,6 +21,7 @@ from ._methods import (
 )
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._payloads import (
+    CalculationProgressPayload,
     ChargeIssuePayload,
     EffectiveCalculationPayload,
     ExecutionIssuePayload,
@@ -30,11 +32,20 @@ from ._payloads import (
     RejectionPayload,
 )
 from ._types import (
+    CalculationPhase,
     ChargeIssueKind,
     ExecutionMode,
     ExecutionStatus,
     InputIssueKind,
     MethodOptionValue,
+)
+from ._warnings import (
+    CHARGE_WARNING_KINDS,
+    INPUT_WARNING_KINDS,
+    ChargeFWWarning,
+    ChargeWarning,
+    InputWarning,
+    issue_warnings,
 )
 from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
@@ -108,6 +119,59 @@ class ResourceEstimate:
     operations: float
 
 
+@dataclass(frozen=True, slots=True)
+class CalculationProgress:
+    """Owned snapshot of one native calculation progress event."""
+
+    phase: CalculationPhase
+    mode: ExecutionMode
+    method_id: str
+    target_index: int
+    target_count: int
+    completed_fragment_count: int
+    fragment_count: int
+    molecule_index: int
+    conformer_index: int | None
+    elapsed_seconds: float
+
+
+class CalculationObserver:
+    """Receives progress events and optionally requests cooperative cancellation."""
+
+    def on_progress(self, progress: CalculationProgress) -> None:
+        """Handle a progress snapshot. Implementations must be thread-safe."""
+
+    def cancelled(self) -> bool:
+        """Return whether the running calculation should stop."""
+
+        return False
+
+
+class _NativeObserverAdapter:
+    __slots__ = ("_observer",)
+
+    def __init__(self, observer: CalculationObserver) -> None:
+        self._observer = observer
+
+    def on_progress(self, progress: CalculationProgressPayload) -> None:
+        self._observer.on_progress(CalculationProgress(**progress))
+
+    def cancelled(self) -> bool:
+        return self._observer.cancelled()
+
+
+def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAdapter | None:
+    if observer is None:
+        return None
+    if not isinstance(observer, CalculationObserver):
+        raise TypeError("observer must be a CalculationObserver or None")
+    return _NativeObserverAdapter(observer)
+
+
+def _normalized_threads(threads: int | None) -> int | None:
+    return None if threads is None else RequestedCalculation(threads=threads).threads
+
+
 class Plan:
     """A complete reusable execution plan bound to one assessed molecule collection."""
 
@@ -120,6 +184,7 @@ class Plan:
         "_native",
         "_molecules",
         "_requested",
+        "_methods",
         "_parameter_sets",
     )
 
@@ -140,6 +205,7 @@ class Plan:
         self._native = native
         self._molecules = molecules
         self._requested = requested
+        self._methods = methods
         # Resolves the parameter set of results, including a set that is not bundled.
         self._parameter_sets = parameter_sets
 
@@ -163,29 +229,45 @@ class Plan:
     def warnings(self) -> tuple[ExecutionIssue, ...]:
         return self._warnings
 
-    def _matches(self, molecules: MoleculeCollection) -> bool:
-        return (
-            molecules.name == self._molecules.name
-            and len(molecules) == len(self._molecules)
-            and all(
-                supplied is assessed
-                for supplied, assessed in zip(molecules, self._molecules, strict=True)
-            )
-        )
-
     def estimate(self, threads: int | None = None) -> ResourceEstimate:
         """Estimate execution with a thread limit; None uses the assessment's threads."""
 
-        normalized_threads = (
-            None if threads is None else RequestedCalculation(threads=threads).threads
-        )
-        memory_bytes, operations = self._native.estimate(normalized_threads)
+        memory_bytes, operations = self._native.estimate(_normalized_threads(threads))
         return ResourceEstimate(memory_bytes=memory_bytes, operations=operations)
 
-    def _calculate(
-        self, threads: int | None, observer: object | None
-    ) -> _native_calculation._NativeExecutionResult:
-        return self._native.calculate(threads, observer)
+    def calculate(
+        self, *, threads: int | None = None, observer: CalculationObserver | None = None
+    ) -> CalculationResult:
+        """Calculate the assessed molecules; threads=None uses the assessment's threads.
+
+        The molecules are not prepared or matched to parameters again.
+        """
+
+        result = self._execute(threads, _observer_adapter(observer))
+        # Raised here rather than in a helper, so that the traceback ends at this method.
+        error, cautions = _outcome(result)
+        if error is not None:
+            raise error
+        for message, category in cautions:
+            warnings.warn(message, category, stacklevel=2)
+        return result
+
+    def _execute(
+        self, threads: int | None, observer: _NativeObserverAdapter | None
+    ) -> CalculationResult:
+        normalized_threads = _normalized_threads(threads)
+        requested = (
+            self._requested
+            if normalized_threads is None
+            else replace(self._requested, threads=normalized_threads)
+        )
+        return CalculationResult(
+            self._native.calculate(normalized_threads, observer),
+            self._molecules,
+            requested,
+            self._methods,
+            self._parameter_sets,
+        )
 
     def __repr__(self) -> str:
         parameter_set = self.parameter_set.id if self.parameter_set is not None else None
@@ -543,3 +625,41 @@ class CalculationResult:
         if self.status == "no_executable_plan":
             return exception_type(_no_executable_plan_message(self.rejections), self)
         return exception_type(self.failure_message or self.status, self)
+
+
+def _outcome(
+    result: CalculationResult,
+) -> tuple[ChargeFWError | None, list[tuple[str, type[ChargeFWWarning]]]]:
+    """The error of a failed calculation, or the warnings about issues that can make charges wrong.
+
+    A failure has no warnings: its error carries the issues in its result, also when warnings are
+    turned into errors.
+    """
+
+    error = result._status_error()
+    if error is not None:
+        return error, []
+    molecules = result.molecules
+
+    def describe(index: int) -> str:
+        name = molecules[index].name
+        return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+
+    return None, [
+        *issue_warnings(
+            ((issue.molecule_index, issue) for issue in result.input_warnings),
+            kinds=INPUT_WARNING_KINDS,
+            category=InputWarning,
+            molecule_count=len(molecules),
+            describe=describe,
+            attribute="result.input_warnings",
+        ),
+        *issue_warnings(
+            ((issue.molecule_index, issue) for issue in result.charge_warnings),
+            kinds=CHARGE_WARNING_KINDS,
+            category=ChargeWarning,
+            molecule_count=len(molecules),
+            describe=describe,
+            attribute="result.charge_warnings",
+        ),
+    ]

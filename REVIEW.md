@@ -46,8 +46,6 @@ Findings where this rule changes the proposal:
 
 | Finding | Resolution | Where |
 | --- | --- | --- |
-| L1 | Already documented; code change optional | `docs/interfaces/cpp.md:5` |
-| L2 | Document | comment in `prepared_molecule.h` |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
 | A7 | Document the stream check | comment in `json_output.h` |
@@ -75,7 +73,6 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B8 |
-| L | Lifetime and misuse traps | L1–L2 |
 | A | Public API design | A4–A12 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
@@ -170,50 +167,6 @@ for realistic input.
 - **Resolution (design-sensitive):** determine which additional blocks can be ignored safely and
   which require interpretation or explicit rejection. Do not replace the current rejection with
   blanket block skipping. The supported subset is documented in `docs/reference/formats.md`.
-
----
-
-## L. Lifetime and misuse traps
-
-### L1. `ExecutionPlan` is copyable but points into its assessment
-
-- **Status:** re-checked.
-- **Where:** `include/chargefw/calculation/assessment.h:43-77`.
-- **Problem:** the class holds `std::shared_ptr<const PlanIdentity> identity_` and a raw
-  `const methods::ApplicableMethod* candidate_` into `AssessmentResult::applicability_`. Copying is
-  not disabled, and the shared pointer suggests that a copy stands on its own. Only the class comment
-  says otherwise.
-- **Failure:** `auto plan = *calculation::assess(request).default_plan(); plan.method().id();`
-  compiles and reads freed memory.
-- **Check:** `grep -rn "ExecutionPlan" src apps python/src tests/cpp | grep -v "const.*ExecutionPlan&\|ExecutionPlan\*"`
-  to confirm that nothing copies a plan by value. The first reader found no copy; the Python binding
-  returns `const ExecutionPlan&` (`python/src/calculation.h:50`), and the only construction is
-  `src/calculation/assessment.cpp:394`.
-- **Fix:** delete the copy constructor and copy assignment; default the move operations (`plans_`
-  needs only move).
-- **Resolution:** already documented. `docs/interfaces/cpp.md:5` names the assessment as the one
-  lifetime to manage and says that its plans refer to it, and the class comment says the same. The
-  documented workflow keeps the assessment alive. Deleting the copy operations is optional
-  hardening: it is four lines, no caller is affected, and the compiler then enforces what the
-  documentation asks for.
-- **Validation:** `gcc-debug` and `clang-debug` builds, since this is overload- and
-  conversion-sensitive; the Python extension must still compile.
-
-### L2. A moved-from `PreparedMolecule` indexes out of bounds
-
-- **Status:** reported. No code was found that uses a moved-from object.
-- **Where:** `include/chargefw/features/prepared_molecule.h:58-71`,
-  `src/features/topology_features.cpp:39-60`.
-- **Problem:** the hand-written move operations share the geometry cache "so that geometry queries
-  remain valid on the moved-from object", but move `topology_`. The moved-from `TopologyFeatures`
-  keeps its molecule pointer while its vectors are emptied, so `degree`, `neighbor_indices`, and
-  `incident_bond_indices` pass `validate_atom_index` (which checks the
-  molecule's atom count) and then index an empty vector.
-- **Fix:** validate against `neighbor_indices_.size()`. The alternative is to copy `topology_` in the
-  move operations, as is done for the cache.
-- **Resolution:** document. No workflow uses a moved-from prepared molecule. Correct the comment
-  above the move constructor in `prepared_molecule.h`: only `geometry_defects()` stays valid on the
-  moved-from object; its topology must not be queried. This is not user documentation.
 
 ---
 

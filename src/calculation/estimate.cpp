@@ -1,3 +1,4 @@
+#include "calculation/assessment_state.h"
 #include "calculation/cover_execution.h"
 #include "calculation/parallel_for.h"
 #include "calculation/target_execution.h"
@@ -28,14 +29,12 @@ constexpr double charge_bytes_per_atom = 8.0;
 
 } // namespace
 
-auto estimate(const AssessmentResult& assessment, const ExecutionPlan& plan,
-              const std::size_t max_threads) -> methods::ResourceEstimate {
-    assessment.check_plan(plan);
-
+auto estimate(const ExecutionPlan& plan, const std::size_t max_threads)
+    -> methods::ResourceEstimate {
     const auto& selected = *plan.candidate_;
     const auto& policy = plan.policy();
     const auto reduced = policy.mode() != ExecutionMode::full;
-    const auto& molecules = assessment.prepared_molecules();
+    const auto& molecules = plan.state_->prepared_molecules;
     const auto targets = detail::make_calculation_targets(
         molecules, reduced || selected.method->requirements().coordinates);
     const auto threads = static_cast<double>(detail::thread_count(max_threads));

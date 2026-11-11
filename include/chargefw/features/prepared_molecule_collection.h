@@ -16,6 +16,13 @@ class PreparedMoleculeCollection {
     explicit PreparedMoleculeCollection(core::MoleculeCollection&&) = delete;
     explicit PreparedMoleculeCollection(const core::MoleculeCollection&&) = delete;
 
+    // Moving keeps each prepared molecule in place; copying would need to copy them.
+    PreparedMoleculeCollection(const PreparedMoleculeCollection&) = delete;
+    auto operator=(const PreparedMoleculeCollection&) -> PreparedMoleculeCollection& = delete;
+    PreparedMoleculeCollection(PreparedMoleculeCollection&&) noexcept = default;
+    auto operator=(PreparedMoleculeCollection&&) noexcept -> PreparedMoleculeCollection& = default;
+    ~PreparedMoleculeCollection() = default;
+
     [[nodiscard]] auto molecules() const noexcept -> std::span<const PreparedMolecule>;
 
     [[nodiscard]] auto size() const noexcept -> std::size_t;

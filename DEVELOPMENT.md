@@ -358,13 +358,14 @@ Fitting parameter values builds on the calculation without changing it. `chargef
 (`include/chargefw/parameterization/`, `src/parameterization/`) may use calculation, methods,
 parameters, features, and core; none of them uses parameterization, and no public header outside
 `chargefw/parameterization/` mentions fitting. Calculating a plan with the values of a compatible set,
-`calculation::calculate(assessment, plan, candidate)`, stays in calculation: it is ordinary execution
-with other values.
+`calculation::calculate(plan, candidate)`, stays in calculation: it is ordinary execution with other
+values.
 
-- **Reading an assessment.** `src/calculation/assessment_access.h` gives the rest of the library read
-  access to an assessment's prepared molecules, its fixed-ion partition, a plan's classifications, and
-  a plan with candidate values; a function that takes a plan checks that it belongs to the assessment.
-  Keep it narrow, so that the public assessment header names no consumer.
+- **Reading a plan's assessment.** A plan shares the immutable assessment state
+  (`src/calculation/assessment_state.h`) with its assessment and every copy.
+  `src/calculation/assessment_access.h` gives the rest of the library read access, through a plan, to
+  the assessed and prepared molecules, the fixed-ion partition, the plan's classifications, and the
+  plan with candidate values. Keep it narrow, so that the public assessment header names no consumer.
 - **Exact derivatives** of EEM, SQE, SQE+q0, and SQE+qp are private to the library
   (`src/parameterization/method_derivatives.h`). They are attached to the built-in methods from
   outside, matched by their concrete, final type; the methods know nothing of them. What they share

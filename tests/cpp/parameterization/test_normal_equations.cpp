@@ -102,10 +102,9 @@ auto assess(core::MoleculeCollection molecules, parameters::ParameterSet paramet
 }
 
 // Every charge of every assignment, concatenated: the rows.
-auto charges_of(const calculation::AssessmentResult& assessment,
-                const calculation::ExecutionPlan& plan, const parameters::ParameterSet& candidate)
+auto charges_of(const calculation::ExecutionPlan& plan, const parameters::ParameterSet& candidate)
     -> std::vector<double> {
-    const auto result = calculation::calculate(assessment, plan, candidate);
+    const auto result = calculation::calculate(plan, candidate);
     REQUIRE(result.calculated());
     auto rows = std::vector<double>{};
     for (const auto& assignment : result.charges->assignments()) {
@@ -116,23 +115,21 @@ auto charges_of(const calculation::AssessmentResult& assessment,
 }
 
 // The Jacobian of the rows by central differences, rows x slots, row-major.
-auto differences(const calculation::AssessmentResult& assessment,
-                 const calculation::ExecutionPlan& plan, const parameters::ParameterSet& candidate)
+auto differences(const calculation::ExecutionPlan& plan, const parameters::ParameterSet& candidate)
     -> std::vector<double> {
     constexpr auto step = 1e-6;
     const auto values = parameterization::parameter_values(candidate);
-    const auto rows = charges_of(assessment, plan, candidate).size();
+    const auto rows = charges_of(plan, candidate).size();
     auto jacobian = std::vector<double>(rows * values.size());
     for (std::size_t slot = 0; slot < values.size(); ++slot) {
         auto up = values;
         auto down = values;
         up[slot] += step;
         down[slot] -= step;
-        const auto high = charges_of(
-            assessment, plan, parameterization::with_parameter_values(candidate, up, {.id = "up"}));
-        const auto low =
-            charges_of(assessment, plan,
-                       parameterization::with_parameter_values(candidate, down, {.id = "down"}));
+        const auto high =
+            charges_of(plan, parameterization::with_parameter_values(candidate, up, {.id = "up"}));
+        const auto low = charges_of(
+            plan, parameterization::with_parameter_values(candidate, down, {.id = "down"}));
         for (std::size_t row = 0; row < rows; ++row) {
             jacobian[row * values.size() + slot] = (high[row] - low[row]) / (2.0 * step);
         }
@@ -162,13 +159,12 @@ auto check_against_differences(const calculation::AssessmentResult& assessment,
     const auto candidate = parameterization::with_parameter_values(
         *plan.parameter_set(), parameterization::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
-    const auto result =
-        parameterization::normal_equations(assessment, plan, candidate, references, weights);
+    const auto result = parameterization::normal_equations(plan, candidate, references, weights);
 
-    const auto charges = charges_of(assessment, plan, candidate);
+    const auto charges = charges_of(plan, candidate);
     CHECK(result.charges == charges);
 
-    const auto jacobian = differences(assessment, plan, candidate);
+    const auto jacobian = differences(plan, candidate);
     const auto slots = parameterization::parameter_layout(candidate).size();
     auto gauss_newton = std::vector<double>(slots * slots, 0.0);
     auto gradient = std::vector<double>(slots, 0.0);
@@ -270,17 +266,15 @@ TEST_CASE("Normal equations do not depend on the number of threads", "[calculati
     const auto candidate = parameterization::with_parameter_values(
         *plan.parameter_set(), parameterization::parameter_values(*plan.parameter_set()),
         {.id = "candidate"});
-    const auto one =
-        parameterization::normal_equations(assessment, plan, candidate, references, weights, 1);
-    const auto four =
-        parameterization::normal_equations(assessment, plan, candidate, references, weights, 4);
+    const auto one = parameterization::normal_equations(plan, candidate, references, weights, 1);
+    const auto four = parameterization::normal_equations(plan, candidate, references, weights, 4);
     CHECK(one.charges == four.charges);
     CHECK(one.gauss_newton == four.gauss_newton);
     CHECK(one.gradient == four.gradient);
     CHECK(one.sum_of_squares == four.sum_of_squares);
 
     // The rows of every batch are in place.
-    const auto charges = charges_of(assessment, plan, candidate);
+    const auto charges = charges_of(plan, candidate);
     CHECK(one.charges == charges);
     auto sum_of_squares = 0.0;
     for (std::size_t row = 0; row < charges.size(); ++row) {
@@ -301,30 +295,25 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
     constexpr auto nan = std::numeric_limits<double>::quiet_NaN();
 
     // Malformed references and weights.
-    CHECK_THROWS_AS(parameterization::normal_equations(assessment, plan, candidate,
-                                                       std::vector<double>(7, 0.0), weights),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(
+        parameterization::normal_equations(plan, candidate, std::vector<double>(7, 0.0), weights),
+        std::invalid_argument);
     auto bad = references;
     bad[2] = nan;
-    CHECK_THROWS_AS(parameterization::normal_equations(assessment, plan, candidate, bad, weights),
+    CHECK_THROWS_AS(parameterization::normal_equations(plan, candidate, bad, weights),
                     std::invalid_argument);
     bad = weights;
     bad[2] = nan;
-    CHECK_THROWS_AS(
-        parameterization::normal_equations(assessment, plan, candidate, references, bad),
-        std::invalid_argument);
+    CHECK_THROWS_AS(parameterization::normal_equations(plan, candidate, references, bad),
+                    std::invalid_argument);
     bad[2] = -1.0;
-    CHECK_THROWS_AS(
-        parameterization::normal_equations(assessment, plan, candidate, references, bad),
-        std::invalid_argument);
+    CHECK_THROWS_AS(parameterization::normal_equations(plan, candidate, references, bad),
+                    std::invalid_argument);
 
-    // A plan of another assessment, and the plan's own parameter set ID.
-    const auto other = assess(sqe_molecules(), unusual_sqeqp_parameters());
-    CHECK_THROWS_AS(parameterization::normal_equations(other, plan, candidate, references, weights),
-                    std::invalid_argument);
-    CHECK_THROWS_AS(parameterization::normal_equations(assessment, plan, *plan.parameter_set(),
-                                                       references, weights),
-                    std::invalid_argument);
+    // The plan's own parameter set ID.
+    CHECK_THROWS_AS(
+        parameterization::normal_equations(plan, *plan.parameter_set(), references, weights),
+        std::invalid_argument);
 
     // Cutoff execution, and a method without exact derivatives.
     const auto cutoff =
@@ -332,7 +321,7 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
                calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff, 8.0});
     const auto& cutoff_plan = *cutoff.default_plan();
     CHECK_THROWS_AS(parameterization::normal_equations(
-                        cutoff, cutoff_plan,
+                        cutoff_plan,
                         parameterization::with_parameter_values(
                             *cutoff_plan.parameter_set(),
                             parameterization::parameter_values(*cutoff_plan.parameter_set()),
@@ -343,7 +332,7 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
     const auto& qeq_plan = *qeq.default_plan();
     CHECK_THROWS_AS(
         parameterization::normal_equations(
-            qeq, qeq_plan,
+            qeq_plan,
             parameterization::with_parameter_values(
                 *qeq_plan.parameter_set(),
                 parameterization::parameter_values(*qeq_plan.parameter_set()), {.id = "candidate"}),
@@ -351,7 +340,7 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
         std::invalid_argument);
 
     // Weights so large that the weighted sums overflow.
-    CHECK_THROWS_AS(parameterization::normal_equations(assessment, plan, candidate, references,
+    CHECK_THROWS_AS(parameterization::normal_equations(plan, candidate, references,
                                                        std::vector<double>(8, 1e200)),
                     std::runtime_error);
 }

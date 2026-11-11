@@ -105,7 +105,7 @@ def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> 
     assert assessment.default_plan is not None, (
         "ALL_IONS must produce an SQEqp plan with the CU1 template"
     )
-    result = chargefw.calculate(molecules, assessment.default_plan)
+    result = assessment.default_plan.calculate()
     assert result.requested.fixed_ions == chargefw.ALL_IONS
     assert result.assignments[0].values[3] == 1.0
     assert float(result.assignments[0].values[:3].sum()) == pytest.approx(0.0, abs=1e-12)
@@ -185,7 +185,7 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
     assert plan is not None, "assessment must produce an SQEqp plan with the selected MG source"
     del assessment
     gc.collect()
-    result = chargefw.calculate(molecules, plan)
+    result = plan.calculate()
     direct = chargefw.calculate(
         molecules,
         method="sqeqp",
@@ -206,18 +206,6 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
         cast(Any, result.plan.fixed_ions).sources = ()
     with pytest.raises(AttributeError):
         cast(Any, result.requested).fixed_ions = ("CA",)
-    with pytest.raises(TypeError):
-        chargefw.calculate(molecules, plan, fixed_ions=[])
-    # Selection arguments are refused with a plan even when they repeat the default value.
-    for argument in (
-        {"method_scope": "recommended"},
-        {"parameter_matching": "strict"},
-        {"execution": "auto"},
-        {"cutoff_threshold": 20_000},
-        {"cover_threshold": 80_000},
-    ):
-        with pytest.raises(TypeError, match="assessed plan"):
-            chargefw.calculate(molecules, plan, **cast(Any, argument))
 
 
 def test_fixed_ions_validation_empty_and_method_support() -> None:
@@ -313,7 +301,7 @@ def test_observer_can_cancel_a_reusable_plan() -> None:
         plan = assessment.default_plan
         assert plan is not None, "assessment must produce a default plan"
         with pytest.raises(chargefw.CalculationCancelledError) as raised:
-            chargefw.calculate(molecule, plan, threads=1, observer=observer)
+            plan.calculate(threads=1, observer=observer)
 
         cancelled = raised.value.result
         assert cancelled.status == "cancelled"
@@ -327,7 +315,7 @@ def test_observer_can_cancel_a_reusable_plan() -> None:
             assert cancelled.plan.fixed_ions is not None
             assert cancelled.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
 
-        result = chargefw.calculate(molecule, plan, threads=1)
+        result = plan.calculate(threads=1)
         assert result.status == "success"
         assert len(result.assignments) == molecule[0].conformer_count
         assert all(
@@ -401,7 +389,7 @@ def test_assessment_and_full_calculation() -> None:
     )
     assert plan.method.id == "eem"
 
-    result = chargefw.calculate(molecule, plan)
+    result = plan.calculate()
     assert result.status == "success"
     assert len(result.assignments) == 1
     assignment = result.assignments[0]
@@ -430,11 +418,11 @@ def test_assessment_and_full_calculation() -> None:
     with pytest.raises(TypeError):
         cast(Any, result.requested.options_by_method)["eem"] = {"unexpected": True}
 
-    overridden_threads = chargefw.calculate(molecule, plan, threads=1)
+    overridden_threads = plan.calculate(threads=1)
     assert overridden_threads.requested.threads == 1
 
 
-def test_plans_are_filtered_reusable_and_target_bound() -> None:
+def test_plans_are_filtered_and_reusable() -> None:
     molecule = water()
     assessment = chargefw.assess(molecule, method="eqeq")
     assert {candidate_plan.execution.mode for candidate_plan in assessment.plans} == {
@@ -443,7 +431,7 @@ def test_plans_are_filtered_reusable_and_target_bound() -> None:
         "cover",
     }
     for candidate_plan in assessment.plans:
-        assert chargefw.calculate(molecule, candidate_plan, threads=1).status == "success"
+        assert candidate_plan.calculate(threads=1).status == "success"
 
     cutoff = chargefw.assess(
         molecule,
@@ -456,17 +444,10 @@ def test_plans_are_filtered_reusable_and_target_bound() -> None:
 
     default_plan = assessment.default_plan
     assert default_plan is not None, "assessment must produce a default plan"
-    with pytest.raises(ValueError):
-        chargefw.calculate(water(), default_plan)
-    with pytest.raises(TypeError):
-        chargefw.calculate(molecule, cast(Any, None))
-    with pytest.raises(TypeError):
-        chargefw.calculate(molecule, default_plan, method="eqeq")
-
     with ThreadPoolExecutor(max_workers=3) as executor:
         results = list(
             executor.map(
-                lambda _: chargefw.calculate(molecule, default_plan, threads=1),
+                lambda _: default_plan.calculate(threads=1),
                 range(3),
             )
         )
@@ -690,6 +671,13 @@ def test_issues_that_can_make_charges_wrong_raise_python_warnings() -> None:
     )
     assert str(batch.message).startswith("2 of 3 molecules: hydrogens_missing, for example")
 
+    # An assessed plan warns where the caller calculates it.
+    plan = assess_formal(carbon_monoxide).default_plan
+    assert plan is not None
+    (from_plan,) = chargefw_warnings(plan.calculate)
+    assert from_plan.category is chargefw.InputWarning
+    assert from_plan.filename == __file__
+
     # A calculation that fails raises its own error, also when warnings are errors; the issues are
     # in its result.
     with warnings.catch_warnings():
@@ -771,7 +759,7 @@ def test_results_outlive_calculation_inputs() -> None:
         assessment = assess_formal(molecule)
         plan = assessment.default_plan
         assert plan is not None, "assessment must produce a default plan"
-        return chargefw.calculate(molecule, plan), plan
+        return plan.calculate(), plan
 
     result, plan = calculate_owned_result()
     gc.collect()
@@ -934,7 +922,7 @@ def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> Non
     assessment = chargefw.assess(molecule, method="eem", parameter_set=polar, threads=1)
     plan = assessment.default_plan
     assert plan is not None and plan.parameter_set == polar
-    from_plan = chargefw.calculate(molecule, plan, threads=1)
+    from_plan = plan.calculate(threads=1)
     assert from_plan.plan is not None and from_plan.plan.parameter_set == polar
     np.testing.assert_array_equal(from_plan.assignments[0].values, charged.assignments[0].values)
 
@@ -978,7 +966,7 @@ def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(
     evaluator = Evaluator(plan, threads=1)
 
     # The set's own values reproduce a normal calculation, with both conformers concatenated.
-    expected = chargefw.calculate(molecule, plan, threads=1)
+    expected = plan.calculate(threads=1)
     assert not np.allclose(expected.assignments[0].values, expected.assignments[1].values)
     np.testing.assert_array_equal(
         evaluator.charges(evaluator.values),

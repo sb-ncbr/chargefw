@@ -19,11 +19,10 @@ namespace core = chargefw::core;
 namespace features = chargefw::features;
 
 static_assert(!std::is_constructible_v<features::PreparedMolecule, core::Molecule&&>);
-static_assert(std::is_copy_constructible_v<features::PreparedMolecule> &&
-              std::is_copy_assignable_v<features::PreparedMolecule> &&
-              std::is_nothrow_move_constructible_v<features::PreparedMolecule> &&
-              std::is_nothrow_move_assignable_v<features::PreparedMolecule>);
-static_assert(std::is_copy_constructible_v<features::PreparedMoleculeCollection>);
+static_assert(!std::is_copy_constructible_v<features::PreparedMolecule> &&
+              !std::is_move_constructible_v<features::PreparedMolecule>);
+static_assert(!std::is_copy_constructible_v<features::PreparedMoleculeCollection> &&
+              std::is_nothrow_move_constructible_v<features::PreparedMoleculeCollection>);
 static_assert(
     !std::is_constructible_v<features::PreparedMoleculeCollection, core::MoleculeCollection&&>);
 
@@ -79,17 +78,6 @@ TEST_CASE("prepared molecules find geometry defects once per conformer", "[featu
     CHECK(defects[4].coincident_atoms == std::pair<std::size_t, std::size_t>{0, 1});
     CHECK_FALSE(defects[4].close_atoms.has_value());
     CHECK(prepared.geometry_defects().data() == defects.data());
-
-    // Copies share the defects, and geometry queries remain valid on a moved-from object.
-    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization): the copy is under test.
-    const auto copy = prepared;
-    CHECK(&copy.molecule() == &molecule);
-    CHECK(copy.geometry_defects().data() == defects.data());
-    auto source = features::PreparedMolecule{molecule};
-    const auto moved = std::move(source);
-    CHECK(moved.geometry_defects().size() == 5);
-    // NOLINTNEXTLINE(bugprone-use-after-move): the moved-from source is under test.
-    CHECK(source.geometry_defects().size() == 5);
 }
 
 TEST_CASE("prepared molecule collection retains each source molecule", "[features][prepared]") {

@@ -466,8 +466,8 @@ auto NativePlan::report() const -> nb::dict {
 auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::object observer) const
     -> NativeExecutionResult {
     auto result = with_calculation_observer(std::move(observer), [&](const auto& native_observer) {
-        return calculation::calculate(state_->assessment_, plan(),
-                                      max_threads.value_or(state_->max_threads_), native_observer);
+        return calculation::calculate(plan(), max_threads.value_or(state_->max_threads_),
+                                      native_observer);
     });
     auto requested = state_->requested_;
     requested.max_threads = max_threads.value_or(state_->max_threads_);
@@ -477,8 +477,7 @@ auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::obj
 
 auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
     -> std::pair<double, double> {
-    const auto estimate = calculation::estimate(state_->assessment_, plan(),
-                                                max_threads.value_or(state_->max_threads_));
+    const auto estimate = calculation::estimate(plan(), max_threads.value_or(state_->max_threads_));
     return {estimate.memory_bytes, estimate.operations};
 }
 

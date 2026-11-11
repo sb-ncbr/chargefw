@@ -137,16 +137,16 @@ auto PreparedMolecule::topology() const noexcept -> const TopologyFeatures& {
 
 auto PreparedMolecule::geometry_defects() const -> std::span<const ConformerGeometryDefects> {
     // Built aside and stored only when complete: if this throws, the next call starts again.
-    std::call_once(geometry_->found, [this] {
+    std::call_once(geometry_found_, [this] {
         const auto& source = molecule();
         auto conformers = std::vector<ConformerGeometryDefects>{};
         conformers.reserve(source.conformer_count());
         for (std::size_t conformer = 0; conformer < source.conformer_count(); ++conformer) {
             conformers.push_back(find_geometry_defects(ConformerFeatures{source, conformer}));
         }
-        geometry_->conformers = std::move(conformers);
+        geometry_defects_ = std::move(conformers);
     });
-    return geometry_->conformers;
+    return geometry_defects_;
 }
 
 } // namespace chargefw::features

@@ -15,6 +15,13 @@ class TopologyFeatures {
     explicit TopologyFeatures(core::Molecule&&) = delete;
     explicit TopologyFeatures(const core::Molecule&&) = delete;
 
+    // Neither copied nor moved, like the prepared molecule that holds it.
+    TopologyFeatures(const TopologyFeatures&) = delete;
+    auto operator=(const TopologyFeatures&) -> TopologyFeatures& = delete;
+    TopologyFeatures(TopologyFeatures&&) = delete;
+    auto operator=(TopologyFeatures&&) -> TopologyFeatures& = delete;
+    ~TopologyFeatures() = default;
+
     [[nodiscard]] auto molecule() const noexcept -> const core::Molecule&;
 
     [[nodiscard]] auto degree(std::size_t atom_index) const -> std::size_t;
