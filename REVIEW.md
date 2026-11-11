@@ -610,16 +610,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   (`unrelated`) is one of them.
 - **Fix:** rewrite. Use H and O atoms with `make_eem_ho_parameters` and assert that a plan exists.
 
-#### T4. QEq `overlap_term` tests pass if the option is ignored
-
-- **Status:** re-checked.
-- **Where:** `cpp/methods/test_electronegativity_equalization.cpp:209` and `:235`.
-- **Problem:** the first compares the default with the explicitly named default. The second runs
-  five terms and checks only charge signs and neutrality. Its `terms` array is also a copy of the
-  `choices` list in `src/methods/builtin/qeq.h`.
-- **Fix:** rewrite as one test showing that two different terms give different charges, without the
-  list of names.
-
 ### Tests of the language or of the test's own constants
 
 #### T16. Assertions on fixture constants

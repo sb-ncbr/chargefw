@@ -206,49 +206,19 @@ TEST_CASE("EEM fixed-source validation requires geometry for its active molecule
                              "fixed-source geometry does not belong to the active molecule"});
 }
 
-TEST_CASE("QEq defaults to Nishimoto-Mataga", "[methods][qeq]") {
-    const auto charge_set =
-        chargefw::test::calculate_method(chargefw::test::make_two_conformer_water(), "qeq",
-                                         {chargefw::test::make_qeq_ho_parameters()});
-    const auto& first_charges = charge_set.assignment(0).charges;
-    const auto& second_charges = charge_set.assignment(1).charges;
-
-    chargefw::test::assert_neutral_water_charges(first_charges, 1.0e-10);
-    REQUIRE(second_charges.size() == 3);
-    CHECK(second_charges[0] < 0.0);
-    CHECK(second_charges[1] > 0.0);
-    CHECK(second_charges[2] > 0.0);
-    CHECK(std::abs(second_charges.total()) < 1.0e-10);
-
-    auto options = chargefw::methods::MethodOptions{};
+TEST_CASE("QEq overlap term changes charges while preserving neutrality", "[methods][qeq]") {
+    const auto water = chargefw::test::make_water();
+    const auto parameters = chargefw::test::make_qeq_ho_parameters();
+    auto options = methods::MethodOptions{};
     options.set("overlap_term", std::string{"Nishimoto-Mataga"});
-    const auto explicit_charge_set =
-        chargefw::test::calculate_method(chargefw::test::make_two_conformer_water(), "qeq",
-                                         {chargefw::test::make_qeq_ho_parameters()}, &options);
+    const auto nishimoto_mataga =
+        chargefw::test::calculate_single_method(water, "qeq", {parameters}, &options);
+    options.set("overlap_term", std::string{"Ohno"});
+    const auto ohno = chargefw::test::calculate_single_method(water, "qeq", {parameters}, &options);
 
-    chargefw::test::assert_same_charges(explicit_charge_set.assignment(0).charges, first_charges,
-                                        1.0e-12);
-    chargefw::test::assert_same_charges(explicit_charge_set.assignment(1).charges, second_charges,
-                                        1.0e-12);
-}
-
-TEST_CASE("QEq empirical Coulomb terms calculate neutral water", "[methods][qeq]") {
-    static constexpr std::array terms{
-        std::string_view{"Nishimoto-Mataga"},
-        std::string_view{"Nishimoto-Mataga-Weiss"},
-        std::string_view{"Ohno"},
-        std::string_view{"Ohno-Klopman"},
-        std::string_view{"DasGupta-Huzinaga"},
-    };
-
-    for (const auto term : terms) {
-        CAPTURE(term);
-        auto options = chargefw::methods::MethodOptions{};
-        options.set("overlap_term", std::string{term});
-
-        const auto charge_set = chargefw::test::calculate_single_method(
-            chargefw::test::make_water(), "qeq", {chargefw::test::make_qeq_ho_parameters()},
-            &options);
-        chargefw::test::assert_neutral_water_charges(charge_set.assignment(0).charges, 1.0e-10);
-    }
+    const auto& first = nishimoto_mataga.assignment(0).charges;
+    const auto& second = ohno.assignment(0).charges;
+    chargefw::test::assert_neutral_water_charges(first, 1.0e-10);
+    chargefw::test::assert_neutral_water_charges(second, 1.0e-10);
+    CHECK(std::abs(first[0] - second[0]) > 1.0e-6);
 }
