@@ -1,22 +1,10 @@
 #include <chargefw/core/atom.h>
 
 #include <stdexcept>
-#include <string_view>
 
 #include <snitch/snitch.hpp>
 
 namespace core = chargefw::core;
-
-TEST_CASE("atom stores supplied properties", "[core][atom]") {
-    const core::Atom ammonium_nitrogen{7, 1, "N"};
-    CHECK(ammonium_nitrogen.atomic_number() == 7);
-    CHECK(ammonium_nitrogen.formal_charge() == 1);
-    CHECK(ammonium_nitrogen.name() == std::string_view{"N"});
-
-    const core::Atom unnamed_oxygen{8};
-    CHECK(unnamed_oxygen.formal_charge() == 0);
-    CHECK(unnamed_oxygen.name().empty());
-}
 
 TEST_CASE("atom rejects invalid atomic numbers", "[core][atom]") {
     CHECK(core::Atom{100}.atomic_number() == 100);

@@ -622,14 +622,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
 
 ### Tests of the language or of the test's own constants
 
-#### T14. Accessors returning constructor arguments
-
-- **Status:** reported.
-- **Where:** `cpp/core/test_atom.cpp:10`, `cpp/core/test_bond.cpp:9`,
-  `cpp/features/test_conformer_features.cpp:23`, `python/test_molecule.py:118`
-  (`test_collection_is_an_immutable_sequence`, which asserts nothing about immutability).
-- **Fix:** delete; keep the rejection tests next to them.
-
 #### T15. Ownership test of a struct of values
 
 - **Status:** reported.

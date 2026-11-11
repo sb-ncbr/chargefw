@@ -115,7 +115,7 @@ def test_molecule_owns_normalized_input() -> None:
         setattr(molecule, "name", "changed")
 
 
-def test_collection_is_an_immutable_sequence() -> None:
+def test_collection_exposes_sequence_operations_and_preserves_identity() -> None:
     molecule = chargefw.Molecule([1])
     collection = chargefw.MoleculeCollection([molecule], name="fixture")
 
