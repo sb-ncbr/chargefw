@@ -1,4 +1,4 @@
-"""Private immutable calculation result values and native-payload conversion."""
+"""Private calculation values: plans, results, issues, and observers, with payload conversion."""
 
 from __future__ import annotations
 

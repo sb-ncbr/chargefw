@@ -114,15 +114,14 @@ calculate_request(const CalculationRequest& request,
 
 // Close atoms matter only to a method using coordinates. A cancelled calculation reports only the
 // assessment warnings, so that it does not start a search.
-auto execution_input_warnings(const detail::AssessmentState& assessment,
-                              const methods::Method& method, const ExecutionStatus status)
-    -> std::vector<InputIssue> {
+auto execution_input_warnings(const detail::AssessmentState& state, const methods::Method& method,
+                              const ExecutionStatus status) -> std::vector<InputIssue> {
     if (!method.requirements().coordinates || status == ExecutionStatus::cancelled) {
-        return assessment.input_warnings;
+        return state.input_warnings;
     }
-    return detail::add_close_atom_issues(assessment.input_warnings, assessment.molecules,
-                                         assessment.prepared_molecules,
-                                         assessment.fixed_charge_partition.get());
+    return detail::add_close_atom_issues(state.input_warnings, state.molecules,
+                                         state.prepared_molecules,
+                                         state.fixed_charge_partition.get());
 }
 
 } // namespace
@@ -176,9 +175,9 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
                             const CalculationObserver& observer) const -> ExecutionResult {
     const auto with_candidate = with_values(candidate);
 
-    const auto& assessment = *state_;
+    const auto& state = *state_;
     const auto& selected = with_candidate.has_value() ? *with_candidate : *candidate_;
-    const auto* fixed_charge_partition = assessment.fixed_charge_partition.get();
+    const auto* fixed_charge_partition = state.fixed_charge_partition.get();
     const auto effective = EffectiveCalculation{
         .method_id = std::string{selected.method->id()},
         .parameter_set_id = methods::detail::parameter_set_id_for(selected),
@@ -195,13 +194,12 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
     auto failure_message = std::optional<std::string>{};
 
     try {
-        auto result =
-            calculate_request(CalculationRequest{.molecules = assessment.prepared_molecules,
-                                                 .selected = selected,
-                                                 .execution_policy = policy_,
-                                                 .max_threads = max_threads,
-                                                 .observer = observer},
-                              fixed_charge_partition);
+        auto result = calculate_request(CalculationRequest{.molecules = state.prepared_molecules,
+                                                           .selected = selected,
+                                                           .execution_policy = policy_,
+                                                           .max_threads = max_threads,
+                                                           .observer = observer},
+                                        fixed_charge_partition);
         if (fixed_charge_partition != nullptr) {
             result.charges =
                 detail::reassemble_fixed_charge_results(result.charges, *fixed_charge_partition);
@@ -221,22 +219,21 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
     }
     // Anything else, such as std::bad_alloc, is not a failure of the calculation and propagates.
 
-    auto charge_warnings =
-        calculated_charges.has_value()
-            ? detail::find_charge_issues(assessment.molecules, *calculated_charges,
-                                         fixed_charge_partition)
-            : std::vector<ChargeIssue>{};
+    auto charge_warnings = calculated_charges.has_value()
+                               ? detail::find_charge_issues(state.molecules, *calculated_charges,
+                                                            fixed_charge_partition)
+                               : std::vector<ChargeIssue>{};
     // Searching molecules with fixed ions anew is part of the computation time.
-    auto input_warnings = execution_input_warnings(assessment, *selected.method, status);
+    auto input_warnings = execution_input_warnings(state, *selected.method, status);
     const auto computation_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - computation_started}
             .count();
     return ExecutionResult{.status = status,
                            .charges = std::move(calculated_charges),
-                           .rejections = assessment.rejections,
+                           .rejections = state.rejections,
                            .effective = effective,
                            .failure_message = std::move(failure_message),
-                           .metrics = {.applicability_seconds = assessment.applicability_seconds,
+                           .metrics = {.applicability_seconds = state.applicability_seconds,
                                        .computation_seconds = computation_seconds},
                            .input_warnings = std::move(input_warnings),
                            .charge_warnings = std::move(charge_warnings)};

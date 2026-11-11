@@ -1,9 +1,9 @@
 # C++ library
 
 ChargeFW is a C++23 shared library for Linux, used through the `chargefw::core` CMake target. An
-assessment keeps its own copies of the molecules and parameter sets, a copy of one of its plans keeps
-them too, and results hold their own charges, as described in
-[Assessment and calculation](#assessment-and-calculation).
+assessment keeps its own copies of the molecules and parameter sets, and so does a copy of one of
+its plans. Results hold their own charges.
+[Assessment and calculation](#assessment-and-calculation) describes how long each stays valid.
 
 ## Build and link
 
