@@ -245,7 +245,7 @@ auto to_string(const MethodScope value) -> std::string_view {
     case MethodScope::all:
         return "all";
     }
-    throw std::logic_error{"unknown method scope"};
+    throw std::invalid_argument{"unknown method scope"};
 }
 
 AssessmentResult::AssessmentResult(

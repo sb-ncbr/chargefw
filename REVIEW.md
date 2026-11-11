@@ -356,16 +356,9 @@ for realistic input.
   initializer while their sibling members do, so `ExecutionAssessment a;` leaves the enums
   indeterminate. No misuse was found. No enumerator is a natural default. Resolution: leave; the
   library creates these values, and callers only read them.
-- `src/calculation/assessment.cpp:251`: `to_string(MethodScope)` throws `std::logic_error` for an
-  unknown value; the other `to_string` overloads in `calculation` throw `std::invalid_argument`.
-- `include/chargefw/calculation/observer.h:14`: the public comment names the internal function
-  `progress_for_indexed`.
 - `include/chargefw/calculation/observer.h:98`: `CalculationCancelled` is public, but no public
   `calculate()` overload lets it escape (`src/calculation/calculation.cpp:219`). It could move to an
   internal header. See D11 for the related test-only seam.
-- `src/core/atom.cpp:10` hard-codes `atomic_number > 100`, while
-  `src/core/periodic_table.cpp:62-67` derives the bound from the table. Use
-  `periodic_table().contains(atomic_number)`.
 
 ---
 

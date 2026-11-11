@@ -34,6 +34,11 @@
 #include <vector>
 
 namespace calculation = chargefw::calculation;
+
+TEST_CASE("unknown method scope values are invalid arguments", "[calculation][assessment]") {
+    CHECK_THROWS_AS(calculation::to_string(static_cast<calculation::MethodScope>(255)),
+                    std::invalid_argument);
+}
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
 namespace features = chargefw::features;

@@ -11,8 +11,8 @@
 namespace chargefw::calculation {
 
 // Coarse calculation phases reported by calculation execution and its executors. Target-level
-// events are always emitted (rare); fragment-level events are throttled by progress_for_indexed to
-// avoid starving the solver on large inputs.
+// events are always emitted; fragment-level events are throttled to avoid excessive callback
+// overhead on large inputs.
 enum class CalculationPhase : std::uint8_t {
     // Execution-level computation phases. computation_finished is the terminal event, emitted once
     // after every emitted computation_started regardless of success, cancellation, or failure.
