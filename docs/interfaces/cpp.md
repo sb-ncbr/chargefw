@@ -262,8 +262,8 @@ with the `molecules()`, the possible `plans()` in selection order, the `rejectio
 [Large structures](../guide/large-structures.md) explain selection and execution.
 
 `calculation::calculate(assessment)` runs the default plan, and `calculate(assessment, plan)` a chosen
-one, without preparing or checking the molecules again. A plan, and every copy of it, refers to data
-of the assessment that created it, so keep the assessment alive while you use its plans, and use them
+one, without preparing or checking the molecules again. Plans cannot be copied and refer to data
+of the assessment that created them, so keep the assessment alive while you use its plans, and use them
 only with that assessment. An assessment can be moved into a new object, but not assigned. Both take a thread limit, where `0` uses all available cores, and an optional observer, described
 [below](#progress-and-cancellation). An assessment can be calculated repeatedly, also from several
 threads at once:

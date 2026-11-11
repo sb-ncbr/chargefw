@@ -153,6 +153,10 @@ auto make_permissive_peoe_parameter_set() -> chargefw::parameters::ParameterSet 
 
 static_assert(std::is_move_constructible_v<calculation::AssessmentResult>);
 static_assert(!std::is_move_assignable_v<calculation::AssessmentResult>);
+static_assert(!std::is_copy_constructible_v<calculation::ExecutionPlan>);
+static_assert(!std::is_copy_assignable_v<calculation::ExecutionPlan>);
+static_assert(std::is_move_constructible_v<calculation::ExecutionPlan>);
+static_assert(std::is_move_assignable_v<calculation::ExecutionPlan>);
 static_assert(
     std::is_same_v<decltype(std::declval<const calculation::AssessmentResult&>().molecules()),
                    const core::MoleculeCollection&>);

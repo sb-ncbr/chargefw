@@ -55,8 +55,9 @@ class PreparedMolecule {
     PreparedMolecule(core::Molecule&&) = delete;
     PreparedMolecule(const core::Molecule&&) = delete;
 
-    // Copies refer to the same molecule, so they share its geometry defects. Moving shares them too
-    // instead of taking them, so that geometry queries remain valid on the moved-from object.
+    // Copies share the geometry-defect cache. Moving also shares the cache rather than taking it:
+    // molecule() and geometry_defects() remain valid on the moved-from object, but its topology must
+    // not be queried until it is assigned a new value.
     PreparedMolecule(const PreparedMolecule&) = default;
     auto operator=(const PreparedMolecule&) -> PreparedMolecule& = default;
     PreparedMolecule(PreparedMolecule&& other) noexcept

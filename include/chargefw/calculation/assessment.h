@@ -38,10 +38,15 @@ struct ExecutionResult;
 // Callers must not inspect the request after passing it to this consuming overload.
 [[nodiscard]] auto assess(AssessmentRequest&& request) -> AssessmentResult;
 
-// Immutable concrete execution choice owned by an AssessmentResult. Copies remain tied to the same
-// assessment and must not be executed with another assessment's prepared molecules.
+// Immutable concrete execution choice owned by an AssessmentResult. Plans are not copyable and
+// require their assessment to remain alive; they must only be executed with that assessment.
 class ExecutionPlan {
   public:
+    ExecutionPlan(const ExecutionPlan&) = delete;
+    auto operator=(const ExecutionPlan&) -> ExecutionPlan& = delete;
+    ExecutionPlan(ExecutionPlan&&) = default;
+    auto operator=(ExecutionPlan&&) -> ExecutionPlan& = default;
+
     [[nodiscard]] auto method() const noexcept -> const methods::Method&;
     // Null for methods without parameters.
     [[nodiscard]] auto parameter_set() const noexcept -> const parameters::ParameterSet*;
