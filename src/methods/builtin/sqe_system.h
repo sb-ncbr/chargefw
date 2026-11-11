@@ -27,6 +27,10 @@ struct System {
     Eigen::VectorXd split_charges;
 };
 
+// Checks fixed sources and the optional initial-charge count.
+auto validate_input(const CalculationInput& input, std::span<const double> initial_charge_values)
+    -> void;
+
 [[nodiscard]] auto build_system(const CalculationInput& input,
                                 std::span<const double> initial_charge_values) -> System;
 

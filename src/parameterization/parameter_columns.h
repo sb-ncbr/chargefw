@@ -5,13 +5,31 @@
 #include <Eigen/Core>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace chargefw::parameterization::detail {
+
+inline auto require_finite(const std::span<const double> values, const std::string_view message)
+    -> void {
+    if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
+        throw std::runtime_error{std::string{message}};
+    }
+}
+
+[[nodiscard]] inline auto valid_column_assignment(const std::span<const std::size_t> assignment,
+                                                  const std::size_t size,
+                                                  const std::size_t column_count) -> bool {
+    return assignment.size() == size &&
+           std::ranges::all_of(assignment, [column_count](const std::size_t column) {
+               return column < column_count || column == ParameterColumns::none;
+           });
+}
 
 // Throws std::invalid_argument unless `columns` assigns every value of a method with these
 // parameters, on a molecule with these atoms and bonds, to a column below columns.count or to none.
@@ -21,10 +39,7 @@ inline auto check_columns(const ParameterColumns& columns, const std::size_t ato
                           const std::string& method) -> void {
     const auto valid = [&columns](const std::span<const std::size_t> assignment,
                                   const std::size_t size) {
-        return assignment.size() == size &&
-               std::ranges::all_of(assignment, [&columns](const std::size_t column) {
-                   return column < columns.count || column == ParameterColumns::none;
-               });
+        return valid_column_assignment(assignment, size, columns.count);
     };
     const auto all_valid = [&valid](const std::vector<std::vector<std::size_t>>& channels,
                                     const std::size_t size) {

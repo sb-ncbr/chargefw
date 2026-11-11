@@ -177,10 +177,19 @@ auto sqe_core::atom_charges(const System& system) -> Eigen::VectorXd {
     return charges;
 }
 
+auto sqe_core::validate_input(const CalculationInput& input,
+                              const std::span<const double> initial_charge_values) -> void {
+    methods::detail::validate_fixed_source_input(input, "SQE-family");
+    const auto atom_count = input.molecule().atom_count();
+    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
+        throw std::logic_error{"SQE-family initial charge count must match atom count"};
+    }
+}
+
 auto sqe_core::calculate(const CalculationInput& input,
                          const std::span<const double> initial_charge_values)
     -> std::vector<double> {
-    methods::detail::validate_fixed_source_input(input, "SQE-family");
+    validate_input(input, initial_charge_values);
     const auto& molecule = input.molecule();
 
     const auto atom_count = molecule.atom_count();
@@ -188,10 +197,6 @@ auto sqe_core::calculate(const CalculationInput& input,
 
     if (atom_count == 0) {
         return {};
-    }
-
-    if (!initial_charge_values.empty() && initial_charge_values.size() != atom_count) {
-        throw std::logic_error{"SQE-family initial charge count must match atom count"};
     }
 
     if (bond_count == 0) {

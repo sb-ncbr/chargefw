@@ -2,6 +2,7 @@
 #include <chargefw/parameterization/parameter_vector.h>
 
 #include "parameterization/method_derivatives.h"
+#include "parameterization/parameter_columns.h"
 
 #include "calculation/assessment_access.h"
 #include "calculation/fixed_charge_partition.h"
@@ -35,6 +36,8 @@
 
 namespace chargefw::parameterization {
 namespace {
+
+constexpr auto not_finite = "the normal equations are not finite";
 
 using calculation::detail::AssessmentAccess;
 
@@ -114,12 +117,6 @@ struct TargetTerms {
     } catch (const std::invalid_argument& error) {
         // As in ordinary calculation: invalid values for this target are a numerical failure.
         throw std::runtime_error{error.what()};
-    }
-}
-
-auto require_finite(const std::span<const double> values) -> void {
-    if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
-        throw std::runtime_error{"the normal equations are not finite"};
     }
 }
 
@@ -252,9 +249,9 @@ auto require_finite(const std::span<const double> values) -> void {
         }
     }
 
-    require_finite(result.gauss_newton);
-    require_finite(result.gradient);
-    require_finite(std::span{&result.sum_of_squares, 1});
+    detail::require_finite(result.gauss_newton, not_finite);
+    detail::require_finite(result.gradient, not_finite);
+    detail::require_finite(std::span{&result.sum_of_squares, 1}, not_finite);
     return result;
 }
 
@@ -372,9 +369,9 @@ auto normal_equations(const calculation::AssessmentResult& assessment,
         }
     }
 
-    require_finite(result.gauss_newton);
-    require_finite(result.gradient);
-    require_finite(std::span{&result.sum_of_squares, 1});
+    detail::require_finite(result.gauss_newton, not_finite);
+    detail::require_finite(result.gradient, not_finite);
+    detail::require_finite(std::span{&result.sum_of_squares, 1}, not_finite);
     return result;
 }
 

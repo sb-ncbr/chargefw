@@ -396,15 +396,18 @@ TEST_CASE("Linearization outlives its input and rejects malformed columns",
             CHECK_FALSE(all_zero(column_of(jacobian, molecule.atom_count(), slot)));
         }
 
-        auto outside = columns;
-        outside.atom[0][0] = outside.count;
-        CHECK_THROWS_AS(linearized->jacobian(outside), std::invalid_argument);
+        for (const auto channel : {std::size_t{0}, columns.atom.size() - 1}) {
+            CAPTURE(channel);
+            auto outside = columns;
+            outside.atom[channel][0] = outside.count;
+            CHECK_THROWS_AS(linearized->jacobian(outside), std::invalid_argument);
+            auto short_channel = columns;
+            short_channel.atom[channel].pop_back();
+            CHECK_THROWS_AS(linearized->jacobian(short_channel), std::invalid_argument);
+        }
         auto missing = columns;
         missing.atom.pop_back();
         CHECK_THROWS_AS(linearized->jacobian(missing), std::invalid_argument);
-        auto short_channel = columns;
-        short_channel.atom[0].pop_back();
-        CHECK_THROWS_AS(linearized->jacobian(short_channel), std::invalid_argument);
     }
 }
 

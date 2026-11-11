@@ -492,20 +492,6 @@ listed at the end of the section.
 - **Fix:** move the shared helpers into `prerequisite_helpers.h` or a small `peoe_common.h`, and use
   the option helper in `calculate()` too.
 
-### C7. Derivative code repeats checks of the methods
-
-- **Status:** reported.
-- `require_finite` exists three times: `src/parameterization/eem_derivatives.cpp:112-118`,
-  `sqe_derivatives.cpp:223-229`, `normal_equations.cpp:120-124`.
-- `sqe_derivatives.cpp:254-258` re-implements the validation at the top of `sqe_core::calculate`
-  (`src/methods/builtin/sqe.cpp:183, 193-195`). The two are documented to fail identically and are
-  kept in step by hand.
-- `SqeqpLinearization::jacobian` (`sqe_derivatives.cpp:303-316`) copies the predicate of
-  `check_columns` (`src/parameterization/parameter_columns.h:22-28`).
-- **Fix:** one `require_finite(std::span<const double>, std::string_view what)` in
-  `parameter_columns.h`; expose the SQE preamble as `sqe_core::validate_input(input, initial)` in
-  `sqe_system.h`; call `check_columns` in the SQE+qp jacobian.
-
 ### C8. Prefixing an issue with its molecule
 
 - **Status:** reported.
