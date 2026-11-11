@@ -277,10 +277,6 @@ for realistic input.
 ### A11. Smaller Python API items
 
 - **Status:** reported.
-- Public classes exported by `chargefw.parameterization` and `chargefw.parameterization.profiles`
-  still report private modules in `__module__`, unlike the main package. This includes `Evaluator`,
-  the fit result and diagnostic classes, and `Profile`/`Transform`. Confirmed against the built
-  package; decide separately whether to give these classes public module names too.
 - `python/chargefw/calculation.py:198`: `write_parameter_set(parameter_set, path)` has the reverse
   argument order of `io.write(path, result)`. Changing it would break the public API; this is only
   noted, pending a separate decision.

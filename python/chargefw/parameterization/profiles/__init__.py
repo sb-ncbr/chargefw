@@ -15,6 +15,9 @@ from . import eem, sqe
 from ._profile import Profile, Transform
 from .sqe import StableHardness
 
+for _value_type in (Profile, Transform):
+    _value_type.__module__ = __name__
+
 __all__ = ["PROFILES", "Profile", "StableHardness", "Transform"]
 
 PROFILES: Mapping[str, Profile] = MappingProxyType({**eem.PROFILES, **sqe.PROFILES})

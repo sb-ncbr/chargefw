@@ -6,6 +6,8 @@ from pathlib import Path
 import chargefw
 import chargefw.io.gemmi  # noqa: F401
 import chargefw.io.rdkit  # noqa: F401
+import chargefw.parameterization
+import chargefw.parameterization.profiles
 
 
 def test_version_and_typing_marker() -> None:
@@ -18,7 +20,16 @@ def test_version_and_typing_marker() -> None:
 
 
 def test_public_classes_report_a_public_module() -> None:
-    for name in chargefw.__all__:
-        value = getattr(chargefw, name)
-        if isinstance(value, type):
-            assert not any(part.startswith("_") for part in value.__module__.split(".")), name
+    for module in (
+        chargefw,
+        chargefw.calculation,
+        chargefw.parameterization,
+        chargefw.parameterization.profiles,
+    ):
+        for name in module.__all__:
+            value = getattr(module, name)
+            if isinstance(value, type):
+                assert not any(part.startswith("_") for part in value.__module__.split(".")), (
+                    module.__name__,
+                    name,
+                )

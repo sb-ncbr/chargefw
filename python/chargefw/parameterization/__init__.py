@@ -6,6 +6,18 @@ from ._fit import FitResult, fit
 from ._observer import FitObserver, FitProgress
 from ._template import make_parameter_template
 
+for _value_type in (
+    ChargeDiagnostics,
+    Diagnostics,
+    EvaluationError,
+    Evaluator,
+    FitObserver,
+    FitProgress,
+    FitResult,
+    Slot,
+):
+    _value_type.__module__ = __name__
+
 __all__ = [
     "ChargeDiagnostics",
     "Diagnostics",
