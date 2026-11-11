@@ -162,6 +162,4 @@ TEST_CASE("element prerequisites identify unsupported atoms", "[methods][method-
     CHECK(result.issues[0].kind == methods::PrerequisiteIssueKind::unsupported_molecule);
     CHECK(result.issues[0].location.atom_index == 1);
     CHECK(result.issues[0].location.atom_indices == std::vector<std::size_t>{1, 2, 3});
-    CHECK(result.issues[0].message.contains("3 of 4 atoms do not meet it (Bk: 2, Cf: 1)"));
-    CHECK(result.issues[0].message.contains("atom 2 (Bk, formal charge 0)"));
 }

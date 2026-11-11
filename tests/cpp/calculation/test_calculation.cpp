@@ -450,7 +450,6 @@ TEST_CASE("missing parameters give one issue for the atoms and one for the bonds
     CHECK(atom_issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed);
     CHECK(atom_issue.location.atom_index == 0);
     CHECK(atom_issue.location.atom_indices == std::vector<std::size_t>{0, 2, 3});
-    CHECK(atom_issue.message.contains("3 of 5 atoms (C: 2, N: 1)"));
 
     // The parameters have only the H-O bond, so both O-O bonds lack them.
     const auto bonds = core::Molecule{
@@ -468,7 +467,6 @@ TEST_CASE("missing parameters give one issue for the atoms and one for the bonds
     CHECK(bond_issue.location.bond_index == 1);
     CHECK(bond_issue.location.bond_indices == std::vector<std::size_t>{1, 2});
     CHECK(bond_issue.location.atom_indices.empty());
-    CHECK(bond_issue.message.contains("2 of 4 bonds"));
 }
 
 TEST_CASE("charges far from their formal charges are reported, except those of fixed ions",

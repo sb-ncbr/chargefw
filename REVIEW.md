@@ -671,20 +671,6 @@ are left out. The rules applied are those under "Test design" in AGENTS.md.
   `:248-251`, `:446-448`, `:945`) and natively in `cpp/calculation/test_calculation.cpp:820, 861`.
 - **Fix:** delete, with the `Evaluator` and `EvaluationError` imports.
 
-### Wording checked next to the structured value
-
-#### T25. Message text that repeats an asserted location
-
-- **Status:** reported.
-- **Where:** `cpp/calculation/test_calculation.cpp:453, 471`;
-  `cpp/methods/test_method_prerequisites.cpp:216`; `cpp/methods/test_method_applicability.cpp:235`;
-  `cpp/calculation/test_fixed_ion_planning.cpp:642`.
-- **Problem:** for example `message.contains("3 of 5 atoms (C: 2, N: 1)")` directly below
-  `location.atom_indices == {0, 2, 3}`. The kind and location of each issue are asserted beside
-  these lines.
-- **Fix:** delete the message lines. Matches that carry the only discriminating index, such as those
-  in B5, are not part of this finding.
-
 ---
 
 ## X. Checked and found clean, or rejected

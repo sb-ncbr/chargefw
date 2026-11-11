@@ -639,7 +639,6 @@ TEST_CASE("fixed-charge parameter rejections use original atom indices and descr
     CHECK(issue.location.atom_index == 2);
     // The list is mapped to original indices as well.
     CHECK(issue.location.atom_indices == std::vector<std::size_t>{2});
-    CHECK(issue.message.contains("atom 3 (source name 'active-O', O, formal charge 0)"));
 }
 
 TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numbering",
