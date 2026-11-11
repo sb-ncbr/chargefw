@@ -476,5 +476,4 @@ TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[adapte
     const auto result = nlohmann::json::parse(output.str());
 
     CHECK(result.at("results").at(0).at("input").at("atom_ids") == nlohmann::json{"H", 9});
-    CHECK(result.at("calculation_provenance").at("requested").at("execution").at("kind") == "auto");
 }

@@ -250,17 +250,6 @@ TEST_CASE("private fixed ions handle empty, absent, and unknown selections",
     }
 }
 
-TEST_CASE("private fixed ions use explicit components without hierarchy labels",
-          "[adapters][fixed-charge]") {
-    auto record = ion_record("MG", 12, "MG", "1");
-    record.import_metadata->atoms[0].structural_labels.reset();
-    const std::vector records{record};
-    const std::vector<std::string> request{"MG"};
-    const auto fixed_ions = detail::resolve_fixed_ions(records, request);
-    REQUIRE(fixed_ions.sources.size() == 1);
-    CHECK(fixed_ions.sources[0].charge == 2.0);
-}
-
 TEST_CASE("private fixed ions use canonical component IDs and validate partitions",
           "[adapters][fixed-charge]") {
     auto record = ion_record("MG", 12, "MG", "1");

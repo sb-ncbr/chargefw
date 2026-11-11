@@ -434,17 +434,6 @@ TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapt
 TEST_CASE("native SDF input preserves V2000, V3000, and multi-record streams",
           "[adapters][native]") {
     {
-        std::ifstream input{fixture("synthetic/sdf/water.sdf")};
-        auto reader = sdf::SdfReader{input, "water.sdf"};
-        const auto result = reader.next();
-        REQUIRE(result.has_value());
-        const auto& water_record = *result;
-        CHECK(water_record.molecule.atom_count() == 3);
-        CHECK(water_record.molecule.bond_count() == 2);
-        CHECK_FALSE(reader.next().has_value());
-    }
-
-    {
         std::ifstream input{fixture("synthetic/sdf/many_records.sdf")};
         auto reader = sdf::SdfReader{input, "set500.sdf"};
         std::size_t count = 0;
@@ -490,12 +479,14 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
         auto reader = sdf::SdfReader{input, std::string{name}};
         auto record = reader.next();
         REQUIRE(record.has_value());
+        CHECK_FALSE(reader.next().has_value());
         return std::move(*record);
     };
 
     // The same water, once as a PubChem 2D drawing and once with 3D coordinates.
     const auto drawing = read("water.sdf");
     CHECK(drawing.molecule.atom_count() == 3);
+    CHECK(drawing.molecule.bond_count() == 2);
     CHECK(drawing.molecule.conformer_count() == 0);
     REQUIRE(drawing.import_metadata.has_value());
     CHECK(drawing.import_metadata->conformers.empty());
