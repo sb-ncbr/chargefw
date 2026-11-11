@@ -400,20 +400,6 @@ listed at the end of the section.
 - **Fix:** `generator_comment(charge_set, version)` and `record_display_name(record, index)` in an
   internal adapters header.
 
-### C13. Input readers
-
-- **Status:** reported.
-- Reading a line and stripping `\r`: `src/adapters/native/common_input.cpp:14-28`,
-  `mol2_input.cpp:45-55, 329-332`, `sdf_input.cpp:33-36`, `src/adapters/gemmi/pdb_input.cpp:110-113`.
-  The MOL2 and SDF readers bypass `common_input` only because `read_line` throws at the end of input.
-  Fix: add `common::try_read_line(input) -> std::optional<std::string>` and build `read_line` on it.
-- "Each atom is in exactly one component": `src/adapters/fixed_ions.cpp:118-148` and
-  `src/adapters/gemmi/mmcif_output.cpp:346-368`. Fix: one `detail::component_of_atom(record)` in
-  `src/adapters/component.h`.
-- Non-finite coordinate test: `src/features/conformer_features.cpp:41-44` and
-  `src/features/spatial_index.h:21-28`. Fix: call `geometry.first_nonfinite_atom_index()` in the
-  point-cloud constructor.
-
 ### C14. Python package
 
 - **Status:** reported.

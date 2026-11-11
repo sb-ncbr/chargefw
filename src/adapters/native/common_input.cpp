@@ -28,13 +28,11 @@ auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::siz
     }
 }
 
-auto read_line(std::istream& input, std::size_t& line, const std::string_view record_name)
-    -> std::string {
+auto try_read_line(std::istream& input, std::size_t& line) -> std::optional<std::string> {
     std::string result;
 
     if (!std::getline(input, result)) {
-        ++line;
-        throw std::runtime_error{"unexpected end of " + std::string{record_name} + " record"};
+        return std::nullopt;
     }
 
     if (result.ends_with('\r')) {
@@ -43,6 +41,16 @@ auto read_line(std::istream& input, std::size_t& line, const std::string_view re
 
     ++line;
     return result;
+}
+
+auto read_line(std::istream& input, std::size_t& line, const std::string_view record_name)
+    -> std::string {
+    auto result = try_read_line(input, line);
+    if (!result.has_value()) {
+        ++line;
+        throw std::runtime_error{"unexpected end of " + std::string{record_name} + " record"};
+    }
+    return std::move(*result);
 }
 
 auto trim(const std::string_view value) -> std::string_view {

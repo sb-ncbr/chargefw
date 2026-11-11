@@ -41,24 +41,11 @@ constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATT
     return symbol;
 }
 
-// The next line of the record, or nothing at the end of the input.
-[[nodiscard]] auto next_line(std::istream& input, std::size_t& line) -> std::optional<std::string> {
-    auto result = std::string{};
-    if (!std::getline(input, result)) {
-        return std::nullopt;
-    }
-    ++line;
-    if (result.ends_with('\r')) {
-        result.pop_back();
-    }
-    return result;
-}
-
 // Skips the data lines of a section and returns the next record type indicator, or nothing at the
 // end of the input.
 [[nodiscard]] auto next_section(std::istream& input, std::size_t& line)
     -> std::optional<std::string> {
-    while (auto text = next_line(input, line)) {
+    while (auto text = common::try_read_line(input, line)) {
         if (text->starts_with('@')) {
             return text;
         }
@@ -169,7 +156,7 @@ struct FormalCharge {
 [[nodiscard]] auto read_formal_charges(std::istream& input, std::size_t& line,
                                        std::unordered_map<int, FormalCharge>& charges)
     -> std::optional<std::string> {
-    while (auto text = next_line(input, line)) {
+    while (auto text = common::try_read_line(input, line)) {
         if (text->starts_with('@')) {
             return text;
         }
@@ -344,16 +331,12 @@ Mol2Reader::Mol2Reader(std::istream& input, std::string source)
 
 auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
     auto found = std::exchange(next_record_started_, false);
-    std::string line;
-    while (!found && std::getline(*input_, line)) {
-        ++line_;
-        if (line.ends_with('\r')) {
-            line.pop_back();
+    while (!found) {
+        const auto line = common::try_read_line(*input_, line_);
+        if (!line.has_value()) {
+            return std::nullopt;
         }
-        found = line.starts_with('@') && common::trim(line) == molecule_marker;
-    }
-    if (!found) {
-        return std::nullopt;
+        found = line->starts_with('@') && common::trim(*line) == molecule_marker;
     }
     return parse_record(
         *input_,

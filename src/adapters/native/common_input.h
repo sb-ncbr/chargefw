@@ -20,6 +20,9 @@ namespace chargefw::adapters::native::common_input {
 [[noreturn]] auto rethrow_with_context(const MoleculeRecordIdentity& identity, std::size_t line)
     -> void;
 
+[[nodiscard]] auto try_read_line(std::istream& input, std::size_t& line)
+    -> std::optional<std::string>;
+
 [[nodiscard]] auto read_line(std::istream& input, std::size_t& line, std::string_view record_name)
     -> std::string;
 
