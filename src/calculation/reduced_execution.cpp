@@ -1,4 +1,5 @@
 #include "calculation/reduced_execution.h"
+#include "calculation/target_execution.h"
 #include "features/topology_helpers.h"
 #include "methods/reference_charges.h"
 
@@ -208,6 +209,37 @@ auto calculate_fragment_charges(const methods::ApplicableMethod& selected,
                                  std::to_string(fragment.molecule().atom_count()) + " atoms"};
     }
     return charges;
+}
+
+auto calculate_reduced_charges(const ExecutionMode mode, const methods::ApplicableMethod& selected,
+                               const features::PreparedMoleculeCollection& molecules,
+                               const ExecutionPolicy& policy, const std::size_t max_threads,
+                               const CalculationObserver& observer,
+                               const FixedChargePartition* fixed_charge_partition,
+                               const ReducedTargetCalculator calculate_target)
+    -> charges::ChargeSet {
+    methods::detail::validate_selected_candidate(selected, molecules,
+                                                 fixed_charge_partition != nullptr);
+    if (fixed_charge_partition != nullptr) {
+        validate_partition_active_molecules(molecules, *fixed_charge_partition);
+    }
+    methods::detail::validate_coordinate_targets(selected, molecules);
+    validate_reduced_request(selected, policy, mode);
+    const auto radius = policy.radius();
+
+    return execute_calculation_targets(
+        selected, molecules, mode, true, ParallelizationLevel::fragments, max_threads, observer,
+        [&](const features::PreparedMolecule& molecule,
+            const parameters::ParameterClassification* classification,
+            const std::optional<std::size_t> conformer_index,
+            const std::size_t fragment_max_threads, const ProgressContext& target_ctx) {
+            const auto* partition_target =
+                fixed_charge_partition == nullptr
+                    ? nullptr
+                    : std::addressof(fixed_charge_partition->targets.at(target_ctx.molecule_index));
+            return calculate_target(selected, molecule, classification, *conformer_index, *radius,
+                                    fragment_max_threads, target_ctx, partition_target);
+        });
 }
 
 } // namespace chargefw::calculation::detail

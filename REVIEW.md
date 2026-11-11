@@ -598,23 +598,6 @@ listed at the end of the section.
 - **Fix:** one helper `atom_values(view, name, atom_count) -> std::vector<double>` in a small internal
   header under `src/methods`.
 
-### C3. Cutoff and cover executors
-
-- **Status:** reported.
-- **Entry preamble, three places:** `src/calculation/full_execution.cpp:67-72`,
-  `cutoff_execution.cpp:80-85`, `cover_execution.cpp:127-132`.
-- **Partition-target lookup lambda, three places:** `full_execution.cpp:81-84`,
-  `cutoff_execution.cpp:99-102`, `cover_execution.cpp:145-148`.
-- **Per-target setup, identical:** `cutoff_execution.cpp:29-38`, `cover_execution.cpp:30-39`.
-- **Fragment-failure wrapping:** `cutoff_execution.cpp:43-65`, `cover_execution.cpp:78-112`; they
-  differ in the word "cutoff" or "cover".
-- **Entry bodies:** `cutoff_execution.cpp:86-105`, `cover_execution.cpp:133-151`; they differ in the
-  mode.
-- **Fix:** in `src/calculation/reduced_execution.h`, add `partition_target_for(partition,
-  molecule_index)`, `with_fragment_failure_context(label, atom_index, partition_target, fn)`, and one
-  `calculate_reduced_charges(mode, ..., per_target_fn)` that both entry points call. Keep the two
-  algorithms separate.
-
 ### C4. Parameter-set JSON reader
 
 - **Status:** reported.

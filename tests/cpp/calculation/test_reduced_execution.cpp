@@ -39,6 +39,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <exception>
+#include <new>
 #include <numeric>
 #include <optional>
 #include <snitch/snitch.hpp>
@@ -72,8 +74,11 @@ class FailingFixedIonsFragmentMethod final : public chargefw::test::StubMethod {
 
     [[nodiscard]] auto calculate(const methods::CalculationInput&) const
         -> charges::AtomicCharges override {
-        throw std::runtime_error{"deliberate fragment failure"};
+        std::rethrow_exception(failure);
     }
+
+    std::exception_ptr failure =
+        std::make_exception_ptr(std::runtime_error{"deliberate fragment failure"});
 };
 
 auto make_eqeqc_parameters() -> parameters::ParameterSet {
@@ -739,7 +744,7 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
         original, calculation::FixedIons{
                       .sources = {{.molecule_index = 0, .atom_index = 0, .charge = 0.25}}});
     const features::PreparedMoleculeCollection active{partition.active_molecules};
-    const FailingFixedIonsFragmentMethod method;
+    FailingFixedIonsFragmentMethod method;
     const methods::ApplicableMethod selected{.method = &method, .parameter_set = nullptr};
 
     for (const auto mode :
@@ -759,7 +764,16 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
         const auto expected = mode == calculation::ExecutionMode::cutoff
                                   ? "cutoff fragment around source atom 2 failed"
                                   : "cover fragment around source atom 2 failed";
+        method.failure = std::make_exception_ptr(std::runtime_error{"deliberate fragment failure"});
         CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
                              snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::invalid_argument{"invalid fragment input"});
+        CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
+                             snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::logic_error{"fragment invariant failure"});
+        CHECK_THROWS_MATCHES(calculate(), std::logic_error,
+                             snitch::matchers::with_what_contains{expected});
+        method.failure = std::make_exception_ptr(std::bad_alloc{});
+        CHECK_THROWS_AS(calculate(), std::bad_alloc);
     }
 }
