@@ -12,7 +12,8 @@ code may have changed, and most findings were established by reading only.
 
 - **Nothing was built or run for this review.** No finding was reproduced at runtime, except where a
   finding says so. Reproduction snippets are suggestions that have not been executed.
-- **Line numbers refer to commit `cff64e0`.** If they no longer match, search for the quoted code.
+- **Line numbers refer to commit `cff64e0`**, except in section T, which states its own. If they no
+  longer match, search for the quoted code.
 - **Status** says how far a finding was checked:
   - *re-checked*: found by one reader and then confirmed against the source by a second read;
   - *reported*: found by one reader, not independently confirmed;
@@ -80,6 +81,7 @@ for realistic input.
 | A | Public API design | A4–A12 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
+| T | Tests that protect nothing | T1–T25 |
 | X | Checked and found clean, or rejected | X1–X9 |
 
 ---
@@ -645,6 +647,238 @@ listed at the end of the section.
 - Moving the "selection and bond options only for PDB and mmCIF" rule and the `hybrid` default from
   the CLI (`apps/chargefw/input.cpp:133-160`) and Python (`python/chargefw/io/__init__.py:143-159,
   195`) into the native adapters. It is real policy duplication, but fixing it is a native API change.
+
+---
+
+## T. Tests that protect nothing
+
+A read-only review of `tests/`, made on 2026-11-11 at commit `785c91d` with the uncommitted changes
+to `tests/python/test_calculation.py`. **Line numbers in this section refer to that state**, not to
+`cff64e0`. Nothing was built or run.
+
+Only clear candidates are listed: tests whose assertions cannot fail, copies of production tables,
+tests of the language or of the test's own constants, and exact duplicates. Tests whose removal is a
+matter of taste (weaker duplicates across layers, most wording matches, getter tests of containers)
+are left out. The rules applied are those under "Test design" in AGENTS.md.
+
+*re-checked* and *reported* have the meaning given at the top of this file. Unless a finding says
+"rewrite", the proposal is to delete the named test or lines. Paths are relative to `tests/`.
+
+### Assertions that hold whatever the code does
+
+#### T1. Fixed-ion geometry cases can only fail by throwing
+
+- **Status:** re-checked.
+- **Where:** `cpp/calculation/test_fixed_ion_planning.cpp:753-789`, the cases `swapped_conformers`,
+  `near_nonzero`, `coincident_sources`, and `unrelated` of "fixed ion geometry is validated only for
+  affected molecules".
+- **Problem:** each case asserts only `plans().empty()` and `!rejections().empty()`. The request has
+  carbon atoms and no parameter sets, and only EEM, SQE, SQE+q0, and SQE+qp accept fixed ions
+  (`supports_fixed_point_sources`). Every method is therefore rejected for any geometry, so the two
+  assertions hold for every request that does not throw. The case the test is named after
+  (`unrelated`) is one of them.
+- **Fix:** rewrite. Use H and O atoms with `make_eem_ho_parameters` and assert that a plan exists.
+
+#### T2. Serial fragment-progress tests take the expected count from the events
+
+- **Status:** re-checked.
+- **Where:** `cpp/calculation/test_observer.cpp:445` and `:462`.
+- **Problem:** both call
+  `assert_single_terminal_fragment_progress(fragment_events, fragment_events.front().fragment_count)`.
+  The second is named "multi-pivot" and never checks `fragment_count > 1`.
+- **Fix:** rewrite with literal counts (3 for cutoff on water, at least 2 for the separated waters),
+  or fold both into the test at `:494` as a loop over one and two threads.
+
+#### T3. Digit checks satisfied by the residue number
+
+- **Status:** re-checked.
+- **Where:** `cpp/adapters/test_charge_result.cpp:259-260`.
+- **Problem:** `added[2].contains('2')` and `contains('3')` are meant to check atom numbers 2 and 3.
+  The residue text `HOH A 1203`, required on the next line, contains both digits.
+- **Fix:** rewrite as `contains("atoms 2 and 3")`.
+
+#### T4. QEq `overlap_term` tests pass if the option is ignored
+
+- **Status:** re-checked.
+- **Where:** `cpp/methods/test_electronegativity_equalization.cpp:209` and `:235`.
+- **Problem:** the first compares the default with the explicitly named default. The second runs
+  five terms and checks only charge signs and neutrality. Its `terms` array is also a copy of the
+  `choices` list in `src/methods/builtin/qeq.h`.
+- **Fix:** rewrite as one test showing that two different terms give different charges, without the
+  list of names.
+
+#### T5. Topology tests do not check what their names say
+
+- **Status:** reported.
+- **Where:** `cpp/features/test_topology_features.cpp:34` and `:46`.
+- **Problem:** "expose sorted neighbor indices" sorts the result itself before comparing. "resolve
+  bond indices and adjacency" checks only `has_value()` and `size() == 2`.
+- **Fix:** rewrite. Drop the sort; check `bond_index_between(0, 1) == 0`, `(0, 2) == 1`, and
+  `incident_bond_indices(0) == {0, 1}`.
+
+#### T6. "resource requirements do not restrict prerequisites"
+
+- **Status:** re-checked.
+- **Where:** `cpp/methods/test_method_prerequisites.cpp:183`.
+- **Problem:** `Method::check_method_prerequisites` never reads `requirements().resources`.
+
+#### T7. Absence checks for keys that exist nowhere
+
+- **Status:** re-checked.
+- **Where:** `cpp/adapters/test_json_output.cpp:193-194, 220-221`.
+- **Problem:** `CHECK_FALSE(...contains("structural_input"))`, `"input"`, `"atom_mapping"`,
+  `"conformer_mapping"`. No source file or schema mentions these keys.
+
+#### T8. Determinism test of a stateless function
+
+- **Status:** reported.
+- **Where:** `cpp/features/test_spatial_fragment.cpp:134`.
+- **Problem:** calls the const, stateless `build(1, 1.0)` twice and compares
+  `local_to_source_atom_indices()`, which line 69 already pins to `{0, 1, 2}`.
+
+#### T9. CLI run that passes only default option values
+
+- **Status:** reported.
+- **Where:** `cpp/test_chargefw_cli_structural_outputs.cmake:50-58`.
+- **Problem:** `--structural-selection all --structural-bonds hybrid` are the defaults, so the run
+  cannot be told apart from the next one, which passes no options and expects the same values.
+
+### Copies of production tables
+
+#### T10. Enum-to-string samples
+
+- **Status:** reported.
+- **Where:** `cpp/methods/test_method_options.cpp:13`, `cpp/methods/test_method_applicability.cpp:36`,
+  `cpp/methods/test_method_prerequisites.cpp:27`, `cpp/calculation/test_execution_policy.cpp:29`.
+- **Problem:** each compares `to_string(Enum::x)` with the spelling of `x`. The strings that are part
+  of an output format are checked where they are written (`cpp/adapters/test_json_output.cpp`, the
+  CLI scripts, `python/test_output.py`). See D5: the second test is the only caller of
+  `to_string(ExecutionAvailability)`.
+
+#### T11. Defaults compared with the constants that define them
+
+- **Status:** re-checked.
+- **Where:** `cpp/calculation/test_execution_policy.cpp:86` ("resource policy exposes thresholds");
+  `python/test_calculation.py:36` (`test_default_resource_thresholds_match_native_policy`).
+- **Problem:** `ResourcePolicy` is an aggregate whose default member initializers are the constants
+  the test compares with; the rest tests designated initialization and
+  `default_automatic_reduced_radius == 12.0`. The Python defaults are written as
+  `_native_calculation._default_cutoff_atom_threshold`, the value the test compares with.
+- **Fix:** delete both, and the `from chargefw._chargefw import calculation` import in the Python
+  file.
+
+#### T12. Method metadata read back
+
+- **Status:** reported.
+- **Where:**
+  - `cpp/methods/test_builtin_methods.cpp:147` ("method complexity terms have Big-O notation"): four
+    rows of the switch in `src/methods/method.cpp`.
+  - `cpp/methods/test_method_prerequisites.cpp:118-130`: `requirements().bonds` for two lists of
+    method IDs. The `StubMethod` part above them is the test.
+  - `cpp/calculation/test_reduced_execution.cpp:417`: `reduced_charge_policy == test_case.policy`.
+    Delete the `policy` field, the registry lookup, and the check; keep
+    `assert_reduced_matches_full`.
+  - `cpp/parameterization/test_method_derivatives.cpp:209` ("Exact derivatives belong to the methods
+    that have them"): a copy of the four-entry table in `src/parameterization/method_derivatives.cpp`.
+    `linearize()` and line 223 already require the derivatives of each method they use.
+
+#### T13. Ion lists compared with the table they are read from
+
+- **Status:** re-checked.
+- **Where:** `cpp/adapters/test_fixed_ions.cpp:104`; `python/test_calculation.py:99`
+  (`test_ion_selections_are_immutable_native_catalog_tuples`).
+- **Problem:** `fixed_ion_names(true/false)` and `resolve_fixed_ions` read one `constexpr` array, so
+  "common is part of all" and "the resolver accepts every listed name" hold by construction. The
+  Python test repeats the same two checks and adds `isinstance(..., tuple)`.
+- **Fix:** keep only the native loop that each name occurs once; delete the rest and the Python test.
+
+### Tests of the language or of the test's own constants
+
+#### T14. Accessors returning constructor arguments
+
+- **Status:** reported.
+- **Where:** `cpp/core/test_atom.cpp:10`, `cpp/core/test_bond.cpp:9`,
+  `cpp/features/test_conformer_features.cpp:23`, `python/test_molecule.py:118`
+  (`test_collection_is_an_immutable_sequence`, which asserts nothing about immutability).
+- **Fix:** delete; keep the rejection tests next to them.
+
+#### T15. Ownership test of a struct of values
+
+- **Status:** reported.
+- **Where:** `cpp/calculation/test_fixed_charge_partition.cpp:170`, with the helper
+  `make_partition_from_temporary_inputs` at `:64-67`.
+- **Problem:** `FixedChargePartition` holds a `MoleculeCollection` and vectors by value and has
+  compiler-generated moves. It cannot refer to its inputs.
+
+#### T16. Assertions on fixture constants
+
+- **Status:** reported.
+- **Where:**
+  - `cpp/methods/test_electronegativity_equalization.cpp:141-142`: the sum of two formal charges the
+    test set.
+  - `cpp/calculation/test_fixed_ion_planning.cpp:492-495`: `first_source_position.x > 8.0` for a
+    literal 50.0.
+  - `cpp/calculation/test_reduced_execution.cpp:620` (`source.position.x > fragment_radius`, 50
+    against 8) and `:561-563` (`isfinite` checks implied by the `<` bounds that follow).
+  - `cpp/calculation/test_calculation.cpp:569`: `applicability_seconds >= 0.0`.
+  - `cpp/calculation/test_fixed_charge_partition.cpp:271-272`: `total() == 30.5` after an
+    element-wise comparison.
+  - `cpp/adapters/test_fixed_ions.cpp:136-139, 168, 229-231, 439-441`: "input not changed" checks on
+    records the resolver receives as `std::span<const ...>`.
+
+#### T17. Guard that the public constructor makes unreachable
+
+- **Status:** reported.
+- **Where:** `python/test_molecule.py:52` (`test_private_binding_rejects_native_integer_overflow`).
+- **Problem:** calls the private `_native_core._make_molecule` with `2**40`. The public constructor
+  rejects anything outside 1..100 first, which two other tests cover.
+
+### Exact duplicates
+
+#### T18. `test_plan_calculates_charges_for_other_parameter_values`
+
+- **Status:** reported.
+- **Where:** `python/test_calculation.py:990` (39 lines).
+- **Problem:** every assertion exists in `python/test_parameterization.py` (`:100`, `:114-130`,
+  `:248-251`, `:446-448`, `:945`) and natively in `cpp/calculation/test_calculation.cpp:820, 861`.
+- **Fix:** delete, with the `Evaluator` and `EvaluationError` imports.
+
+#### T19. `test_evaluator_counts_the_atoms_of_each_type`
+
+- **Status:** reported.
+- **Where:** `python/test_parameterization.py:897`.
+- **Problem:** line 910 asserts `matches` for the same evaluator, as do lines 949 and 967.
+
+#### T20. Python plan tests contained in their neighbors
+
+- **Status:** reported.
+- **Where:** `python/test_calculation.py:397` (`test_default_calculation_selects_a_supported_plan`)
+  and `:471` (`test_plan_keeps_prepared_state_alive`).
+- **Problem:** the test at `:414` makes the same call and would raise `NoExecutablePlanError`.
+  `test_fixed_ions_snapshot_resolve_and_reuse_plan` (`:215-219`) does the stronger
+  `del assessment; gc.collect(); calculate(molecules, plan)`.
+
+#### T21. "parameterless built-ins accept water"
+
+- **Status:** reported.
+- **Where:** `cpp/methods/test_method_prerequisites.cpp:49`.
+- **Problem:** "every built-in completes its declared full workflow"
+  (`cpp/methods/test_builtin_methods.cpp:195`) requires every registered method to be applicable to
+  water and to calculate.
+
+### Wording checked next to the structured value
+
+#### T25. Message text that repeats an asserted location
+
+- **Status:** reported.
+- **Where:** `cpp/calculation/test_calculation.cpp:453, 471`;
+  `cpp/methods/test_method_prerequisites.cpp:216`; `cpp/methods/test_method_applicability.cpp:235`;
+  `cpp/calculation/test_fixed_ion_planning.cpp:642`.
+- **Problem:** for example `message.contains("3 of 5 atoms (C: 2, N: 1)")` directly below
+  `location.atom_indices == {0, 2, 3}`. The kind and location of each issue are asserted beside
+  these lines.
+- **Fix:** delete the message lines. Matches that carry the only discriminating index, such as those
+  in B5, are not part of this finding.
 
 ---
 
