@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .._parameters import ParameterSet
+from ._template import _with_values
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -39,8 +40,6 @@ class FitProgress:
         self, *, id: str, name: str = "", publication: str = "", notes: str = ""
     ) -> ParameterSet:
         """The best values so far as a parameter set for the evaluator's method."""
-
-        from ._fit import _with_values
 
         return _with_values(self._parameter_set, self.best_values, id, name, publication, notes)
 

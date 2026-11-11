@@ -1,14 +1,22 @@
-"""Parameter sets with an entry for every atom and bond type of some molecules."""
+"""Making parameter sets: templates for the types of some molecules, and copies with new values."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 
+import numpy as np
+from numpy.typing import NDArray
+
 from .._chargefw import parameterization as _native_parameterization
 from .._methods import Method
 from .._parameters import ParameterSet
 from .._types import AtomClassifier, BondClassifier
-from ..calculation import _as_collection, _check_custom_parameter_id, _parameter_set_from_catalog
+from ..calculation import (
+    _as_collection,
+    _check_custom_parameter_id,
+    _native_catalog_for,
+    _parameter_set_from_catalog,
+)
 from ..core import Molecule, MoleculeCollection
 
 
@@ -33,5 +41,23 @@ def make_parameter_template(
     collection = _as_collection(molecules)
     native = _native_parameterization._make_parameter_template_catalog(
         collection._native_molecules, method_id, atom_types, bond_types, id
+    )
+    return _parameter_set_from_catalog(native)
+
+
+def _with_values(
+    source: ParameterSet,
+    values: NDArray[np.float64],
+    id: str,
+    name: str,
+    publication: str,
+    notes: str,
+) -> ParameterSet:
+    """A copy of `source` with `values` in layout order and new metadata."""
+
+    _check_custom_parameter_id(id)
+    catalog = _native_catalog_for(source)
+    native = _native_parameterization._with_values(
+        catalog, source.id, np.ascontiguousarray(values), id, name, publication, notes
     )
     return _parameter_set_from_catalog(native)

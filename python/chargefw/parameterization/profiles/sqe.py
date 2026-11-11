@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 from ._profile import Profile
 
 if TYPE_CHECKING:
-    from .. import Slot
+    from .._evaluator import Slot
 
 __all__ = ["PROFILES", "StableHardness"]
 
