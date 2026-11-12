@@ -51,7 +51,11 @@ auto SdfReader::next() -> std::optional<ImportedMoleculeRecord> {
         MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}};
     auto result = mol_input::parse_mol(*input_, identity, line_);
     result.import_metadata->format = MolecularSourceFormat::sdf;
-    consume_to_sdf_delimiter(*input_, line_);
+    try {
+        consume_to_sdf_delimiter(*input_, line_);
+    } catch (...) {
+        common_input::rethrow_with_context(result.identity, line_);
+    }
     return result;
 }
 

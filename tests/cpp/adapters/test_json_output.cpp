@@ -121,6 +121,14 @@ TEST_CASE("JSON output rejects a failed stream", "[adapters][json]") {
     CHECK_THROWS_AS(json_output::JsonWriter{output}.write(result), std::runtime_error);
 }
 
+TEST_CASE("JSON output rejects text that is not UTF-8 without writing", "[adapters][json]") {
+    const auto result = adapters::make_failed_request_result({}, {}, "caf\xe9.mol");
+    auto output = std::ostringstream{};
+
+    CHECK_THROWS_AS(json_output::JsonWriter{output}.write(result), std::invalid_argument);
+    CHECK(output.str().empty());
+}
+
 TEST_CASE("JSON output serializes ordered records and calculation provenance", "[adapters][json]") {
     auto sites = std::vector<adapters::SourceAtomReference>{
         {.position = 0, .id = "10"}, {.position = 1, .id = "20"}, {.position = 2, .id = "30"}};

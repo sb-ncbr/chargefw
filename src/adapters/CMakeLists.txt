@@ -2,6 +2,7 @@ target_sources(chargefw_core_objects
         PRIVATE
         charge_result.cpp
         component.h
+        text_encoding.h
         native/bond_format.h
         native/json_output.cpp
         native/common_input.cpp

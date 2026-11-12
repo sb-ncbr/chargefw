@@ -483,7 +483,16 @@ auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
     }
 
     consumed_ = true;
-    return parse_mol(*input_, {.source = source_, .record_index = 0, .record_id = {}});
+    auto line = std::size_t{};
+    auto result = parse_mol(*input_, {.source = source_, .record_index = 0, .record_id = {}}, line);
+    // Content after M  END is not read as a molecule but must still be ASCII text.
+    try {
+        while (common::try_read_line(*input_, line).has_value()) {
+        }
+    } catch (...) {
+        common::rethrow_with_context(result.identity, line);
+    }
+    return result;
 }
 
 } // namespace chargefw::adapters::native::mol_input

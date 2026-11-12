@@ -1,5 +1,6 @@
 #include <chargefw/adapters/gemmi/pdb_input.h>
 
+#include "adapters/text_encoding.h"
 #include "bonds.h"
 #include "selection.h"
 #include "structure_import.h"
@@ -224,6 +225,10 @@ PdbReader::PdbReader(std::istream& input, std::string source,
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read PDB input"};
+    }
+    if (const auto line = adapters::detail::first_non_ascii_line(contents)) {
+        throw std::runtime_error{"line " + std::to_string(*line) +
+                                 " contains a non-ASCII character; PDB files must be ASCII text"};
     }
 
     auto structure = ::gemmi::read_pdb_string(contents, source);

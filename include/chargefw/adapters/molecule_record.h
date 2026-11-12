@@ -174,7 +174,8 @@ struct MoleculeImportMetadata {
     [[nodiscard]] auto operator==(const MoleculeImportMetadata&) const -> bool = default;
 };
 
-// Identifies one source record without imposing a file-format or toolkit dependency.
+// Identifies one source record without imposing a file-format or toolkit dependency. The source
+// and a text record ID must be UTF-8; result JSON cannot hold other text.
 struct MoleculeRecordIdentity {
     std::string source;
     std::size_t record_index = 0;

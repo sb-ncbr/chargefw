@@ -26,7 +26,14 @@ molecules have coordinates. Structures read from PDB or mmCIF can also be writte
 does not write MOL, SDF, molecule JSON, or PDB.
 
 Malformed or unsupported data in a file is an error. MOL, SDF, and MOL2 files may use LF or CRLF
-line endings. For every molecule read, ChargeFW keeps where it came from: the file name, the
+line endings.
+
+MOL, SDF, MOL2, PDB, and mmCIF files must be ASCII text throughout, including comments and SDF data
+items that ChargeFW does not read. Any other character, such as an accented letter or a UTF-8 byte
+order mark, is an error that names its line; remove it before reading the file. Molecule JSON files
+are UTF-8.
+
+For every molecule read, ChargeFW keeps where it came from: the file name, the
 record's position in the file and its ID, the warnings, and for every atom its position and ID in
 the file, so that charges can be matched back to it.
 

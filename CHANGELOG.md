@@ -5,6 +5,8 @@
 ### Input
 
 - Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
+- MOL, SDF, MOL2, PDB, and mmCIF input must be ASCII text. A character outside ASCII on any line,
+  including comments and SDF data items, is an error that names the line.
 
 ### Installation
 

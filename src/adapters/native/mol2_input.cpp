@@ -348,18 +348,22 @@ Mol2Reader::Mol2Reader(std::istream& input, std::string source)
     : input_{std::addressof(input)}, source_{std::move(source)} {}
 
 auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
+    auto identity =
+        MoleculeRecordIdentity{.source = source_, .record_index = record_index_, .record_id = {}};
     auto found = std::exchange(next_record_started_, false);
-    while (!found) {
-        const auto line = common::try_read_line(*input_, line_);
-        if (!line.has_value()) {
-            return std::nullopt;
+    try {
+        while (!found) {
+            const auto line = common::try_read_line(*input_, line_);
+            if (!line.has_value()) {
+                return std::nullopt;
+            }
+            found = line->starts_with('@') && common::trim(*line) == molecule_marker;
         }
-        found = line->starts_with('@') && common::trim(*line) == molecule_marker;
+    } catch (...) {
+        common::rethrow_with_context(identity, line_);
     }
-    return parse_record(
-        *input_,
-        MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}},
-        next_record_started_, line_);
+    ++record_index_;
+    return parse_record(*input_, std::move(identity), next_record_started_, line_);
 }
 
 } // namespace chargefw::adapters::native::mol2_input

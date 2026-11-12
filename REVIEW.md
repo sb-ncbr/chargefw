@@ -69,7 +69,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B3–B8 |
+| B | Behaviour bugs | B5–B8 |
 | A | Public API design | No remaining findings |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
@@ -79,21 +79,6 @@ for realistic input.
 ---
 
 ## B. Behaviour bugs
-
-### B3. Writing result JSON throws on non-UTF-8 text taken from input files
-
-- **Status:** re-checked for the code path; the CLI message follows from the catch order.
-- **Where:** `src/adapters/native/json_output.cpp:321`; catch order in `apps/chargefw/main.cpp:270-285`.
-- **Problem:** `document.dump(2)` uses nlohmann's strict error handler and throws
-  `nlohmann::json::type_error` (id 316) for invalid UTF-8. Record IDs, molecule names, the source
-  path, and diagnostic messages are copied from input files without re-encoding.
-- **Failure:** an SDF whose title line is Latin-1 (for example `Benz\xE8ne`) calculates successfully.
-  Writing the result then throws an exception that is neither `std::runtime_error` nor
-  `std::invalid_argument`, so the CLI prints "Internal error" and exits with status 1.
-- **Check:** write an SDF fixture with byte `0xE8` in the title and run the installed CLI through the
-  registered CTest CLI machinery (not from the build tree; see AGENTS.md).
-- **Fix:** `document.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)`.
-- **Tests:** one case in `tests/cpp/adapters/test_json_output.cpp` with an invalid byte in a record ID.
 
 ### B5. Fixed-ion errors print zero-based indices
 

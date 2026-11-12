@@ -395,6 +395,32 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
     }
 }
 
+TEST_CASE("native readers reject non-ASCII text on any line", "[adapters][native]") {
+    const std::string mol_body{"\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                               "    0.0000    0.0000    0.0000 C   0  0\nM  END\n"};
+    // A Latin-1 title, and UTF-8 text in a data item, which ChargeFW does not otherwise read.
+    std::istringstream title_input{"Caf\xe9" + mol_body + "$$$$\n"};
+    auto title_reader = sdf::SdfReader{title_input, "input.sdf"};
+    CHECK_THROWS_MATCHES(title_reader.next(), std::runtime_error,
+                         snitch::matchers::with_what_contains{"input.sdf:1: record 1:"});
+    std::istringstream data_input{"methane" + mol_body + "> <name>\n\xce\xb1-pinene\n\n$$$$\n"};
+    auto data_reader = sdf::SdfReader{data_input, "input.sdf"};
+    CHECK_THROWS_MATCHES(
+        data_reader.next(), std::runtime_error,
+        snitch::matchers::with_what_contains{"input.sdf:8: record 1 ('methane'):"});
+    std::istringstream mol_input{"methane" + mol_body + "Caf\xe9\n"};
+    auto mol_reader = mol::MolReader{mol_input, "input.mol"};
+    CHECK_THROWS_MATCHES(
+        mol_reader.next(), std::runtime_error,
+        snitch::matchers::with_what_contains{"input.mol:7: record 1 ('methane'):"});
+
+    std::istringstream mol2_input{"# \xe5\x88\x86\xe5\xad\x90\n@<TRIPOS>MOLECULE\nligand\n1 0\n"
+                                  "@<TRIPOS>ATOM\n1 C1 0 0 0 C.3\n@<TRIPOS>BOND\n"};
+    auto mol2_reader = mol2::Mol2Reader{mol2_input, "input.mol2"};
+    CHECK_THROWS_MATCHES(mol2_reader.next(), std::runtime_error,
+                         snitch::matchers::with_what_contains{"input.mol2:1: record 1:"});
+}
+
 TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol2/aromatic.mol2")};

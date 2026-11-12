@@ -519,3 +519,10 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
     CHECK_THROWS_MATCHES(reader.next(), std::exception,
                          snitch::matchers::with_what_contains{"same selected component instances"});
 }
+
+TEST_CASE("mmCIF input rejects non-ASCII text", "[adapters][mmcif]") {
+    std::istringstream input{"# structure\n# \xe5\x88\x86\xe5\xad\x90\n" + atom_site_header("x") +
+                             "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"};
+    CHECK_THROWS_MATCHES(mmcif::MmcifReader{input}, std::runtime_error,
+                         snitch::matchers::with_what_contains{"line 2 contains a non-ASCII"});
+}
