@@ -58,8 +58,6 @@ auto to_string(const ImportIssueKind value) -> std::string_view {
         return "partial_charges_ignored";
     case ImportIssueKind::coordinates_2d_ignored:
         return "coordinates_2d_ignored";
-    case ImportIssueKind::v2000_property_ignored:
-        return "v2000_property_ignored";
     case ImportIssueKind::v3000_bond_order_ignored:
         return "v3000_bond_order_ignored";
     case ImportIssueKind::aromatic_bonds_converted:

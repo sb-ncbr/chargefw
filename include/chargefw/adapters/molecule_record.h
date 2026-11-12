@@ -187,7 +187,6 @@ struct MoleculeRecordIdentity {
 enum class ImportIssueKind : std::uint8_t {
     partial_charges_ignored,
     coordinates_2d_ignored,
-    v2000_property_ignored,
     v3000_bond_order_ignored,
     aromatic_bonds_converted,
     symmetry_connections_ignored,

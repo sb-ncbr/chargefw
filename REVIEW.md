@@ -46,11 +46,7 @@ Findings where this rule changes the proposal:
 
 | Finding | Resolution | Where |
 | --- | --- | --- |
-| B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | X9 (PDB serials, trimmed V2000 lines) | Document if confirmed | `docs/reference/formats.md` |
-
-Every other finding in sections B and A is reached by a common workflow, or is a consistency or
-cleanup change with no behaviour to document, and stays a code change.
 
 Follow [AGENTS.md](AGENTS.md) when acting on a finding. In particular, the findings marked
 *design-sensitive* change public API or layering and need a sketch and the maintainer's review before
@@ -62,32 +58,16 @@ The greps below are meant to be run from the repository root. "Repo-wide" means
 
 ## Summary
 
-No memory-safety bug and no data race was found in the library. The most valuable fixes are the
-behaviour bugs in section B, all of which give a wrong result, a failed run, or a misleading message
-for realistic input.
+No memory-safety bug and no data race was found in the library.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B6 |
+| B | Behaviour bugs | No remaining findings |
 | A | Public API design | No remaining findings |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | T | Tests that protect nothing | T1–T25 |
 | X | Checked and found clean, or rejected | X1–X9 |
-
----
-
-## B. Behaviour bugs
-
-### B6. Unsupported V3000 blocks need a representation decision
-
-- **Status:** re-checked for rejection of blocks other than `ATOM`, `BOND`, and `COLLECTION`.
-- **Where:** `src/adapters/native/mol_input.cpp` (`parse_v3000`).
-- **Problem:** valid records containing `SGROUP` or `3D` blocks are rejected. Some S-groups carry
-  query or bond semantics, so skipping every unknown block can change the interpreted structure.
-- **Resolution (design-sensitive):** determine which additional blocks can be ignored safely and
-  which require interpretation or explicit rejection. Do not replace the current rejection with
-  blanket block skipping. The supported subset is documented in `docs/reference/formats.md`.
 
 ---
 

@@ -282,7 +282,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
     }
 }
 
-TEST_CASE("native MOL and SDF input report ignored properties and bond orders",
+TEST_CASE("native MOL and SDF input ignore unused properties and report left-out bond orders",
           "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol/v2000/ignored_properties.mol")};
@@ -291,11 +291,7 @@ TEST_CASE("native MOL and SDF input report ignored properties and bond orders",
         CHECK(result.molecule.bond_count() == 1);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
         CHECK(result.molecule.atom(1).formal_charge() == -1);
-        REQUIRE(result.issues.size() == 2);
-        CHECK(result.issues[0].kind == chargefw::adapters::ImportIssueKind::v2000_property_ignored);
-        CHECK(result.issues[0].line == 8);
-        CHECK(result.issues[1].kind == chargefw::adapters::ImportIssueKind::v2000_property_ignored);
-        CHECK(result.issues[1].line == 9);
+        CHECK(result.issues.empty());
     }
 
     {
@@ -372,9 +368,8 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
         REQUIRE(sdf_reader.next().has_value());
         const auto second = sdf_reader.next();
         REQUIRE(second.has_value());
-        REQUIRE(second->issues.size() == 2);
-        CHECK(second->issues[0].line == 17);
-        CHECK(second->issues[1].line == 13);
+        REQUIRE(second->issues.size() == 1);
+        CHECK(second->issues[0].line == 13);
         CHECK_THROWS_MATCHES(sdf_reader.next(), std::runtime_error,
                              snitch::matchers::with_what_contains{"input.sdf:24: record 3"});
 
@@ -712,28 +707,67 @@ TEST_CASE("V3000 stereo collections preserve the graph and SDF record boundaries
     CHECK_FALSE(reader.next().has_value());
 }
 
-TEST_CASE("V3000 optional blocks retain strict boundaries and bond counts", "[adapters][native]") {
+TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[adapters][native]") {
+    // An atom alias and a group abbreviation, whose texts look like property lines, a polymer
+    // S-group, and an isotope around the charge line.
+    std::istringstream v2000{"ignored\n\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+                             "    0.0000    0.0000    0.0000 C   0  0\n"
+                             "    1.4000    0.0000    0.0000 O   0  0\n  1  2  1  0\n"
+                             "A    1\nM  END\nG    1  2\nM  CHG  1   1  -1\n"
+                             "M  STY  1   1 SRU\nM  SAL   1  2   1   2\n"
+                             "M  CHG  1   2  -1\nM  ISO  1   1  13\nM  END\n"};
+    const auto v2000_record = mol::parse_mol(v2000, {});
+    CHECK(v2000_record.molecule.atom_count() == 2);
+    CHECK(v2000_record.molecule.bond_count() == 1);
+    CHECK(v2000_record.molecule.atom(0).formal_charge() == 0);
+    CHECK(v2000_record.molecule.atom(1).formal_charge() == -1);
+    CHECK(v2000_record.issues.empty());
+
     const auto source = v3000_with_coordinates("0 0 0");
-    const auto prefix = source.substr(0, source.find("M  V30 BEGIN BOND\n"));
+    const auto atoms_and_bonds = source.substr(0, source.find("M  V30 END CTAB\n"));
     for (const auto tail :
-         {"M  V30 BEGIN COLLECTION\nM  V30 MDLV30/STEABS ATOMS=(1 1)\n",
-          "M  V30 BEGIN COLLECTION\nM  V30 END CTAB\nM  END\n",
-          "M  V30 BEGIN COLLECTION\nM  V30 BEGIN ATOM\n",
-          "M  V30 BEGIN COLLECTION\nM  V30 END SGROUP\n",
-          "M  V30 BEGIN BOND\nM  V30 1 1 1 1\nM  V30 END BOND\n",
-          "M  V30 BEGIN BOND\nM  V30 END BOND\nM  V30 BEGIN BOND\n", "M  V30 BEGIN ATOM\n",
-          "M  V30 BEGIN SGROUP\nM  V30 END SGROUP\nM  V30 END CTAB\nM  END\n",
-          "M  V30 BEGIN COLLECTION\nM  V30 END COLLECTION\nM  V30 BEGIN COLLECTION\n",
-          "M  V30 BEGIN COLLECTION\nM  V30 END COLLECTION\nM  V30 END CTAB\n"}) {
+         {"M  V30 BEGIN SGROUP\nM  V30 1 SUP 0 ATOMS=(1 1) LABEL=Me\nM  V30 END SGROUP\n"
+          "M  V30 END CTAB\nM  END\n",
+          "M  V30 BEGIN OBJ3D\nM  V30 1 POINT\nM  V30 END OBJ3D\nM  V30 END CTAB\nM  END\n",
+          "M  V30 BEGIN COLLECTION\nM  V30 MDLV30/STEABS ATOMS=(1 1)\nM  V30 END COLLECTION\n"
+          "M  V30 END CTAB\nM  END\n",
+          "M  V30 END CTAB\nM  V30 BEGIN RGROUP 1\nM  V30 END RGROUP\nM  END\n"}) {
         CAPTURE(tail);
-        std::istringstream input{prefix + tail};
+        std::istringstream input{atoms_and_bonds + tail};
+        const auto record = mol::parse_mol(input, {});
+        CHECK(record.molecule.atom_count() == 1);
+        CHECK(record.issues.empty());
+    }
+
+    // Ignoring stops at M  END; without it, the SDF record delimiter or the end of input is an
+    // error.
+    const std::string v2000_atom{"\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                                 "    0.0000    0.0000    0.0000 C   0  0\n"};
+    for (const auto& text :
+         {"no-end" + v2000_atom + "> <name>\nvalue\n\n$$$$\n",
+          // A record that ends in place of alias text must not take the next record's charge.
+          "alias-end" + v2000_atom + "A    1\n$$$$\nnext" + v2000_atom +
+              "M  CHG  1   1  -1\nM  END\n$$$$\n",
+          atoms_and_bonds + "M  V30 END CTAB\n$$$$\n", atoms_and_bonds + "M  V30 BEGIN SGROUP\n"}) {
+        std::istringstream input{text};
         CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
     }
-    auto missing_bonds = prefix + "M  V30 END CTAB\nM  END\n";
-    missing_bonds.replace(missing_bonds.find("COUNTS 1 0"), std::string_view{"COUNTS 1 0"}.size(),
-                          "COUNTS 1 1");
-    std::istringstream input{missing_bonds};
-    CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+
+    // The atoms and bonds that are read must match their counts and come in one block each.
+    const auto atoms = source.substr(0, source.find("M  V30 BEGIN BOND\n"));
+    auto missing_bond = atoms + "M  V30 END CTAB\nM  END\n";
+    missing_bond.replace(missing_bond.find("COUNTS 1 0"), std::string_view{"COUNTS 1 0"}.size(),
+                         "COUNTS 1 1");
+    for (const auto& text :
+         {missing_bond,
+          atoms + "M  V30 BEGIN BOND\nM  V30 1 1 1 1\nM  V30 END BOND\nM  V30 END CTAB\nM  END\n",
+          atoms_and_bonds + "M  V30 BEGIN BOND\nM  V30 1 1 1 1\nM  V30 END BOND\n"
+                            "M  V30 END CTAB\nM  END\n",
+          atoms_and_bonds + "M  V30 BEGIN ATOM\nM  V30 2 C 1 0 0 0\nM  V30 END ATOM\n"
+                            "M  V30 END CTAB\nM  END\n"}) {
+        std::istringstream input{text};
+        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+    }
 }
 
 TEST_CASE("native readers reject malformed records", "[adapters][native]") {
@@ -772,10 +806,6 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
     }
 
     for (const auto malformed : {
-             std::string_view{
-                 "bad-v2000-property\nchargefw\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
-                 "    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
-                 "M  X\nM  END\n"},
              std::string_view{
                  "bad-v2000-charge\nchargefw\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
                  "    0.0000    0.0000    0.0000 C   0  8  0  0  0  0  0  0  0  0  0  0\n"

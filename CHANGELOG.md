@@ -7,6 +7,9 @@
 - Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
 - MOL, SDF, MOL2, PDB, and mmCIF input must be ASCII text. A character outside ASCII on any line,
   including comments and SDF data items, is an error that names the line.
+- MOL and SDF records are read for their atoms, bonds, and charges only; everything else is ignored.
+  V3000 `SGROUP`, `3D`, and other blocks and V2000 lines such as atom aliases, which were errors, are
+  now ignored. Breaking change: the `v2000_property_ignored` warning was removed.
 
 ### Installation
 

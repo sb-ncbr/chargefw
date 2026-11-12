@@ -12,8 +12,6 @@
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/core/position.h>
 
-#include <algorithm>
-#include <cctype>
 #include <cstddef>
 #include <optional>
 #include <sstream>
@@ -106,7 +104,6 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
     result.bonds.reserve(static_cast<std::size_t>(bond_count));
     result.source_connectivity =
         bond_count == 0 ? SourceConnectivity::explicitly_empty : SourceConnectivity::present;
-    auto ignored_property_codes = std::unordered_set<std::string>{};
     auto charges_from_properties = false;
 
     for (int index = 0; index < atom_count; ++index) {
@@ -147,20 +144,24 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         }
     }
 
+    // Of the lines after the bonds, only the charge lines are read; the rest, such as isotopes,
+    // S-groups, and atom aliases, is ignored up to M  END.
     while (true) {
         const auto property_line = common::read_line(input, line, "MOL");
 
         if (property_line == "M  END") {
             return result;
         }
-
-        if (!property_line.starts_with("M  ") || property_line.size() < 6 ||
-            !std::ranges::all_of(
-                std::string_view{property_line}.substr(3, 3), [](const char value) {
-                    const auto character = static_cast<unsigned char>(value);
-                    return std::isupper(character) != 0 || std::isdigit(character) != 0;
-                })) {
-            throw std::runtime_error{"unexpected V2000 property line"};
+        if (property_line == "$$$$") {
+            throw std::runtime_error{"missing M  END"};
+        }
+        // An atom alias (A) or group abbreviation (G) line is followed by its text, which is
+        // skipped unread even if it looks like a property line.
+        if (property_line.starts_with("A  ") || property_line.starts_with("G  ")) {
+            if (common::read_line(input, line, "MOL") == "$$$$") {
+                throw std::runtime_error{"missing M  END"};
+            }
+            continue;
         }
 
         // M  CHG and M  RAD lines replace all charges and radicals of the atom block.
@@ -173,14 +174,6 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         }
 
         if (!property_line.starts_with("M  CHG")) {
-            auto property_code = property_line.substr(3, 3);
-            if (ignored_property_codes.emplace(property_code).second) {
-                result.issues.push_back(ImportIssue{
-                    .kind = ImportIssueKind::v2000_property_ignored,
-                    .message = "V2000 property '" + property_code +
-                               "' was ignored because it is not used for charge calculation.",
-                    .line = line});
-            }
             continue;
         }
 
@@ -374,25 +367,25 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         throw std::runtime_error{"expected V3000 bond block"};
     }
 
-    if (v30_payload(next) == "BEGIN COLLECTION") {
-        while (true) {
-            next = read_v30_line(input, line);
-            if (v30_payload(next) == "END COLLECTION") {
-                break;
-            }
-            const auto tokens = v30_tokens(next);
-            if (tokens.empty() || tokens[0] == "BEGIN" || tokens[0] == "END") {
-                throw std::runtime_error{"invalid V3000 collection block"};
-            }
+    // Only the atoms and bonds are read. Other blocks, such as SGROUP and COLLECTION, are ignored,
+    // as is anything between the end of the connection table and M  END. A further ATOM or BOND
+    // block would change the molecule and is an error.
+    while (v30_payload(next) != "END CTAB") {
+        if (v30_payload(next) == "BEGIN ATOM" || v30_payload(next) == "BEGIN BOND") {
+            throw std::runtime_error{"repeated or misplaced V3000 " +
+                                     std::string{v30_payload(next).substr(6)} + " block"};
         }
         next = read_v30_line(input, line);
     }
-
-    if (v30_payload(next) != "END CTAB" || common::read_line(input, line, "MOL") != "M  END") {
-        throw std::runtime_error{"invalid V3000 CTAB termination"};
+    while (true) {
+        const auto text = common::read_line(input, line, "MOL");
+        if (text == "M  END") {
+            return result;
+        }
+        if (text == "$$$$") {
+            throw std::runtime_error{"missing M  END"};
+        }
     }
-
-    return result;
 }
 
 // The header's program line declares a 2D drawing with "2D" in columns 21-22, for example

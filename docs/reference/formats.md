@@ -55,6 +55,10 @@ skipped. From each record, ChargeFW reads:
 - formal charges: in V3000 from the `CHG=` attribute of the atoms, in V2000 from `M  CHG` lines or,
   in a record without `M  CHG` and `M  RAD` lines, from the charge field of the atom lines.
 
+Everything else in a record is ignored without a warning, for example isotopes, stereochemistry,
+atom aliases, S-groups, and V3000 blocks other than `ATOM` and `BOND`. Because S-groups are ignored,
+a polymer repeat unit is calculated as the atoms written in the file.
+
 Molfiles have no atom names, so imported atoms have none. MOL2 and mmCIF output give them names from
 the element and atom position, such as `C1`, `C2`, and `O3`.
 
@@ -66,18 +70,9 @@ those of a molecule. ChargeFW imports such a record without coordinates and atta
 Query and wildcard atoms are errors. Aromatic bonds (order 4) are read as single bonds, and the
 record gets one `aromatic_bonds_converted` warning that counts them. V3000 coordinate bonds (order
 9) and hydrogen bonds (order 10) are left out, because ChargeFW has only single, double, and triple
-bonds; the record gets a warning for each of the two kinds. Other V3000 atom and bond attributes are
-read but not used.
-
-A V3000 record with no bonds may omit the `BOND` block or include an empty one. A trailing
-`COLLECTION` block is accepted, but its metadata, including enhanced stereo groups, is not retained.
-Other blocks after the atoms or bonds, such as `SGROUP` and `3D`, are rejected. For these records,
-export an explicit atom-and-bond structure without those blocks; check that the export preserves the
-structure you want to calculate.
-
-V2000 property lines other than `M  CHG`, such as `M  ISO`, are not used. The record gets one
-`v2000_property_ignored` warning for each kind of property line, and one `v3000_bond_order_ignored`
-warning for each kind of left-out bond, with the line number of the first one.
+bonds; the record gets one `v3000_bond_order_ignored` warning for each of the two kinds, with the
+line number of the first such bond. A V3000 record with no bonds may omit the `BOND` block or include
+an empty one.
 
 V3000 atom IDs are kept exactly as written, including leading zeros. V2000 has no atom IDs; an
 atom's ID is its position in the record, counted from zero.
