@@ -48,7 +48,6 @@ Findings where this rule changes the proposal:
 | --- | --- | --- |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
-| A7 | Document the stream check | comment in `json_output.h` |
 | A10 | Leave | — |
 | A12 (enum members) | Leave | — |
 | X9 (PDB serials, trimmed V2000 lines) | Document if confirmed | `docs/reference/formats.md` |
@@ -73,7 +72,7 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B2–B8 |
-| A | Public API design | A7–A12 |
+| A | Public API design | A10, A12 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | T | Tests that protect nothing | T1–T25 |
@@ -171,16 +170,6 @@ for realistic input.
 ---
 
 ## A. Public API design
-
-### A7. `JsonWriter::write` does not check stream failure
-
-- **Status:** reported.
-- **Where:** `include/chargefw/adapters/native/json_output.h:16`.
-- **Problem:** It is the only writer that does not throw when the stream fails; the others end with
-  `if (!*output_) throw`. The CLI checks the stream itself, so only direct C++ users are affected.
-- **Fix:** add the same stream check.
-- **Resolution:** either add the check or say in the comment at the declaration that the caller checks
-  the stream after `write()`; the example in `docs/interfaces/cpp.md:162` should then show that check.
 
 ### A10. "Read-only" fit arrays can be made writable again
 

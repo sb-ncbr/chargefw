@@ -306,6 +306,9 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
                   {"results", std::move(records)}};
     document["calculation_provenance"] = provenance_json(result, execution_metrics);
     std::print(*output_, "{}\n", document.dump(2));
+    if (!*output_) {
+        throw std::runtime_error{"failed to write JSON output"};
+    }
 }
 
 } // namespace chargefw::adapters::native::json_output

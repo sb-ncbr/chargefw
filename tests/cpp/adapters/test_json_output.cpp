@@ -25,6 +25,7 @@
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -111,6 +112,14 @@ auto make_component_record(const std::string_view id,
 }
 
 } // namespace
+
+TEST_CASE("JSON output rejects a failed stream", "[adapters][json]") {
+    const auto result = adapters::make_failed_request_result({}, {}, "invalid request");
+    auto output = std::ostringstream{};
+    output.setstate(std::ios::badbit);
+
+    CHECK_THROWS_AS(json_output::JsonWriter{output}.write(result), std::runtime_error);
+}
 
 TEST_CASE("JSON output serializes ordered records and calculation provenance", "[adapters][json]") {
     auto sites = std::vector<adapters::SourceAtomReference>{
