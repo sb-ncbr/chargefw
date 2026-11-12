@@ -4,6 +4,7 @@
 #include "adapters/gemmi/component_templates.h"
 #include "adapters/gemmi/mmcif_attachment.h"
 #include "adapters/gemmi/mmcif_labels.h"
+#include "adapters/output_helpers.h"
 #include "adapters/record_assignments.h"
 
 #include <chargefw/config.h>
@@ -93,11 +94,7 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
 
 [[nodiscard]] auto block_name(const ImportedMoleculeRecord& record, const std::size_t index)
     -> std::string {
-    auto candidate = record.identity.record_id.empty() ? std::string{record.molecule.name()}
-                                                       : record.identity.record_id.display_string();
-    if (candidate.empty()) {
-        candidate = "molecule_" + std::to_string(index + 1);
-    }
+    auto candidate = detail::record_display_name(record, index);
     for (auto& character : candidate) {
         if (std::isalnum(static_cast<unsigned char>(character)) == 0 && character != '_' &&
             character != '-' && character != '.') {

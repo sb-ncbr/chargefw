@@ -21,6 +21,7 @@ target_sources(chargefw_core_objects
         fixed_ions.cpp
         fixed_ions.h
         imported_records.h
+        output_helpers.h
         record_assignments.h
         gemmi/bonds.cpp
         gemmi/bonds.h
