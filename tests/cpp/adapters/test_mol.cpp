@@ -441,8 +441,8 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
 TEST_CASE("MOL2 markers tolerate trailing whitespace without losing records",
           "[adapters][native]") {
     std::istringstream input{"@<TRIPOS>MOLECULE \t\r\nfirst\n1 0\nSMALL\nNO_CHARGES\n"
-                             "@<TRIPOS>ATOM \t\n1 Na 0 0 0 Na\n"
-                             "@<TRIPOS>BOND \t\n"
+                             "@<TRIPOS>ATOM \t\n1 Na 0 0 0 Na\n \t\n# atoms end\n"
+                             "@<TRIPOS>BOND \t\n \t# no bonds\n"
                              "@<TRIPOS>UNITY_ATOM_ATTR \t\n1 1\ncharge 1\n"
                              "@<TRIPOS>MOLECULE \t\nsecond\n1 0\nSMALL\nNO_CHARGES\n"
                              "@<TRIPOS>ATOM \t\n1 Cl 1 0 0 Cl\n"
@@ -470,6 +470,25 @@ TEST_CASE("MOL2 rejects repeated atom and bond sections", "[adapters][native]") 
                                  repeated};
         mol2::Mol2Reader reader{input, "duplicate.mol2"};
         CHECK_THROWS_AS(reader.next(), std::runtime_error);
+    }
+}
+
+TEST_CASE("MOL2 rejects atom and bond counts smaller than their sections", "[adapters][native]") {
+    for (const auto counts : {"1 0", "2 0", "2 1"}) {
+        CAPTURE(counts);
+        std::istringstream input{
+            std::string{"@<TRIPOS>MOLECULE\npair\n"} + counts +
+            "\n@<TRIPOS>ATOM\n1 C 0 0 0 C.3\n2 H 1 0 0 H\n@<TRIPOS>BOND\n1 1 2 1\n"};
+        mol2::Mol2Reader reader{input, "counts.mol2"};
+        if (std::string_view{counts} == "2 1") {
+            const auto record = reader.next();
+            REQUIRE(record.has_value());
+            CHECK(record->molecule.atom_count() == 2);
+            CHECK(record->molecule.bond_count() == 1);
+            CHECK_FALSE(reader.next().has_value());
+        } else {
+            CHECK_THROWS_AS(reader.next(), std::runtime_error);
+        }
     }
 }
 

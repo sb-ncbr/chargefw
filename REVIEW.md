@@ -71,7 +71,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B2–B8 |
+| B | Behaviour bugs | B3–B8 |
 | A | Public API design | A10, A12 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
@@ -81,24 +81,6 @@ for realistic input.
 ---
 
 ## B. Behaviour bugs
-
-### B2. MOL2 silently drops atoms or bonds when the declared count is too small
-
-- **Status:** re-checked.
-- **Where:** `src/adapters/native/mol2_input.cpp:85` (`read_atoms`), `:144` (`read_bonds`), `:59-67`
-  (`next_section`), `:234-246` (section loop).
-- **Problem:** `read_atoms` and `read_bonds` read exactly the declared number of lines. `next_section`
-  then discards every following line that does not start with `@`, so surplus atom or bond lines are
-  skipped as if they were padding. A count that is too large is an error; a count that is too small
-  is not.
-- **Failure:** a counts line `8 5` followed by seven bond lines imports with two bonds missing and no
-  warning. `docs/reference/formats.md` states that wrong atom or bond counts are errors.
-- **Check:** copy a small MOL2 fixture, lower the bond count on the counts line by one, and read it;
-  the record is returned with one bond fewer instead of an error.
-- **Fix:** after `read_atoms` and `read_bonds`, require the next non-blank, non-comment line to start
-  with `@` or be the end of input; otherwise throw `std::runtime_error`, as the reader does for other
-  malformed input.
-- **Tests:** one case in `tests/cpp/adapters/` next to the existing MOL2 count checks.
 
 ### B3. Writing result JSON throws on non-UTF-8 text taken from input files
 

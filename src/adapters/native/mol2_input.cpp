@@ -43,13 +43,29 @@ constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATT
     return symbol;
 }
 
-// Skips the data lines of a section and returns the next record type indicator, or nothing at the
-// end of the input.
+// Skips unused section data and returns the next record type indicator, or nothing at end of input.
 [[nodiscard]] auto next_section(std::istream& input, std::size_t& line)
     -> std::optional<std::string> {
     while (auto text = common::try_read_line(input, line)) {
         if (text->starts_with('@')) {
             return text;
+        }
+    }
+    return std::nullopt;
+}
+
+// After a counted section, only blank lines and comments may precede the next section marker.
+[[nodiscard]] auto end_counted_section(std::istream& input, std::size_t& line,
+                                       const std::string_view section)
+    -> std::optional<std::string> {
+    while (auto text = common::try_read_line(input, line)) {
+        if (text->starts_with('@')) {
+            return text;
+        }
+        const auto trimmed = common::trim(*text);
+        if (!trimmed.empty() && !trimmed.starts_with('#')) {
+            throw std::runtime_error{"MOL2 " + std::string{section} +
+                                     " section has more lines than its declared count"};
         }
     }
     return std::nullopt;
@@ -235,13 +251,13 @@ struct FormalCharge {
                     throw std::runtime_error{"repeated MOL2 ATOM section"};
                 }
                 atom_section = read_atoms(input, line, atom_count);
-                section = next_section(input, line);
+                section = end_counted_section(input, line, "ATOM");
             } else if (marker == bond_marker) {
                 if (source_bonds.has_value()) {
                     throw std::runtime_error{"repeated MOL2 BOND section"};
                 }
                 source_bonds = read_bonds(input, line, bond_count);
-                section = next_section(input, line);
+                section = end_counted_section(input, line, "BOND");
             } else if (marker == unity_atom_attributes_marker) {
                 section = read_formal_charges(input, line, formal_charges);
             } else {
