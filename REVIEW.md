@@ -47,7 +47,6 @@ Findings where this rule changes the proposal:
 | Finding | Resolution | Where |
 | --- | --- | --- |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
-| B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
 | X9 (PDB serials, trimmed V2000 lines) | Document if confirmed | `docs/reference/formats.md` |
 
 Every other finding in sections B and A is reached by a common workflow, or is a consistency or
@@ -69,7 +68,7 @@ for realistic input.
 
 | Section | Content | Findings |
 | --- | --- | --- |
-| B | Behaviour bugs | B5–B8 |
+| B | Behaviour bugs | B6 |
 | A | Public API design | No remaining findings |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
@@ -79,29 +78,6 @@ for realistic input.
 ---
 
 ## B. Behaviour bugs
-
-### B5. Fixed-ion errors print zero-based indices
-
-- **Status:** re-checked (lines 24-41 and 100-129 were read).
-- **Where:** `src/calculation/fixed_charge_partition.cpp:27-28, 33-35, 39-40, 50-53, 76-78, 82-84,
-  89-90, 94-95, 105-107, 126-129`.
-- **Problem:** these messages print raw indices. Every other diagnostic is one-based through
-  `core::detail::molecule_description` and `atom_description`
-  (`src/core/diagnostic_description.h:31, 52`). The same feature mixes both conventions:
-  `remap_fixed_ion_issue` in `src/calculation/assessment.cpp:214, 226` is one-based.
-
-  ```cpp
-  "fixed charge source at molecule " + std::to_string(source.molecule_index) +
-  ", atom " + std::to_string(source.atom_index) + " has non-finite charge"
-  ```
-- **Failure:** `chargefw calculate --fixed-ions CA` on a structure with a bonded ion names
-  "molecule 0, atom 1234"; a reader who treats it like any other message looks at the wrong atom.
-- **Check:** `grep -n "std::to_string(.*_index)" src/calculation/fixed_charge_partition.cpp`.
-- **Open question:** the zero-based text may have been meant to mirror `FixedAtomCharge` indices for
-  native callers. Decide before changing.
-- **Fix:** build the messages with `molecule_description` / `atom_description`.
-- **Tests:** `tests/cpp/calculation/test_fixed_ion_planning.cpp:692, 712` pin the current wording and
-  need updating; per AGENTS.md they should not assert complete wording at all.
 
 ### B6. Unsupported V3000 blocks need a representation decision
 
