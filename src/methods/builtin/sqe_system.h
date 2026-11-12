@@ -40,9 +40,6 @@ auto solve(System& system) -> void;
 // q = T^T p + q_initial.
 [[nodiscard]] auto atom_charges(const System& system) -> Eigen::VectorXd;
 
-// The initial charges of SQE+q0 (sqeq0.cpp): the formal charges.
-[[nodiscard]] auto formal_initial_charges(const CalculationInput& input) -> std::vector<double>;
-
 // The initial charges of SQE+qp (sqeqp.cpp), as its calculate() uses them.
 struct ParameterizedInitialCharges {
     // None without atoms; the reference charges when the input has them; otherwise the atom

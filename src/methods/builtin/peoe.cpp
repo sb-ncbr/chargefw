@@ -1,43 +1,20 @@
 #include "methods/builtin/peoe.h"
 
+#include "methods/builtin/initial_charges.h"
 #include "methods/builtin/prerequisite_helpers.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <cmath>
-#include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace chargefw::methods::builtin {
-namespace {
-
-[[nodiscard]] auto is_hydrogen(const core::Atom& atom) noexcept -> bool {
-    return atom.atomic_number() == 1;
-}
-
-[[nodiscard]] auto atom_denominator(const parameters::AtomParameterAccessor& parameter_a,
-                                    const parameters::AtomParameterAccessor& parameter_b,
-                                    const parameters::AtomParameterAccessor& parameter_c,
-                                    const std::size_t atom_index) -> double {
-    return parameter_a[atom_index] + parameter_b[atom_index] + parameter_c[atom_index];
-}
-
-[[nodiscard]] auto uses_formal_initial_charges(const MethodOptions& options) -> bool {
-    const auto option = options.values().find("initial_charges");
-    if (option == options.values().end()) {
-        return false;
-    }
-
-    const auto* value = std::get_if<std::string>(&option->second);
-    return value != nullptr && *value == "formal";
-}
-
-} // namespace
 
 auto PEOEMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
-    if (!uses_formal_initial_charges(input.method_options)) {
+    if (!detail::uses_formal_initial_charges(input.method_options)) {
         detail::add_component_neutrality_prerequisite_issue(input, result, "PEOE");
     }
 }
@@ -55,12 +32,9 @@ auto PEOEMethod::calculate(const CalculationInput& input) const -> charges::Atom
 
     const auto atom_count = molecule.atom_count();
 
-    std::vector charges(atom_count, 0.0);
-    if (input.method_options().get<std::string>("initial_charges") == "formal") {
-        for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
-            charges[atom_index] = static_cast<double>(molecule.atom(atom_index).formal_charge());
-        }
-    }
+    auto charges = input.method_options().get<std::string>("initial_charges") == "formal"
+                       ? detail::formal_initial_charges(molecule)
+                       : std::vector<double>(atom_count, 0.0);
     std::vector electronegativities(atom_count, 0.0);
 
     for (int iteration = 0; iteration < iterations; ++iteration) {
@@ -87,10 +61,11 @@ auto PEOEMethod::calculate(const CalculationInput& input) const -> charges::Atom
 
             const auto& lower_atom = molecule.atom(lower_atom_index);
 
-            const auto denominator =
-                is_hydrogen(lower_atom)
-                    ? damping_hydrogen
-                    : atom_denominator(parameter_a, parameter_b, parameter_c, lower_atom_index);
+            const auto denominator = lower_atom.atomic_number() == 1
+                                         ? damping_hydrogen
+                                         : parameter_a[lower_atom_index] +
+                                               parameter_b[lower_atom_index] +
+                                               parameter_c[lower_atom_index];
 
             const auto difference = std::pow(0.5, alpha) *
                                     (higher_electronegativity - lower_electronegativity) /
