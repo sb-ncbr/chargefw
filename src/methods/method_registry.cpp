@@ -62,6 +62,14 @@ auto MethodRegistry::find(const std::string_view id) const noexcept -> const Met
     return iter->get();
 }
 
+auto MethodRegistry::require(const std::string_view id) const -> const Method& {
+    const auto* method = find(id);
+    if (method == nullptr) {
+        throw std::invalid_argument{"method '" + std::string{id} + "' is not registered"};
+    }
+    return *method;
+}
+
 auto MethodRegistry::methods() const noexcept -> std::span<const std::unique_ptr<Method>> {
     return methods_;
 }

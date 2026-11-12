@@ -1,27 +1,43 @@
 target_sources(chargefw_core_objects
         PRIVATE
         charge_result.cpp
+        component.h
+        text_encoding.h
+        native/bond_format.h
         native/json_output.cpp
         native/common_input.cpp
+        native/common_input.h
         native/json_input.cpp
         native/mol_input.cpp
         native/mol2_input.cpp
         native/mol2_atom_types.cpp
+        native/mol2_atom_types.h
         native/mol2_output.cpp
+        native/mol_record_parser.h
         native/pqr_output.cpp
         native/sdf_input.cpp
         conformer_selection.cpp
         molecule_record.cpp
         fixed_ions.cpp
+        fixed_ions.h
         imported_records.h
+        output_helpers.h
+        record_assignments.h
         gemmi/bonds.cpp
+        gemmi/bonds.h
         gemmi/input_options.cpp
         gemmi/structure_import.cpp
+        gemmi/structure_import.h
         gemmi/component_templates.cpp
+        gemmi/component_templates.h
+        gemmi/component_templates.inc
+        gemmi/mmcif_attachment.h
         gemmi/mmcif_input.cpp
+        gemmi/mmcif_labels.h
         gemmi/mmcif_output.cpp
         gemmi/pdb_input.cpp
         gemmi/selection.cpp
+        gemmi/selection.h
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS

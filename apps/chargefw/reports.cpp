@@ -222,13 +222,10 @@ void print_methods(const std::string& method_id) {
         return;
     }
 
-    const auto* method = registry.find(method_id);
-    if (method == nullptr) {
-        throw std::invalid_argument{"method '" + method_id + "' is not registered"};
-    }
+    const auto& method = registry.require(method_id);
 
-    const auto& metadata = method->metadata();
-    const auto requirements = method->requirements();
+    const auto& metadata = method.metadata();
+    const auto requirements = method.requirements();
     std::println("id: {}", metadata.id);
     std::println("name: {}", metadata.name);
     std::println("full name: {}", metadata.full_name);
@@ -244,8 +241,8 @@ void print_methods(const std::string& method_id) {
     std::println("supports cover: {}", requirements.resources.supports_cover ? "yes" : "no");
     std::println("supports fixed ions: {}",
                  requirements.supports_fixed_point_sources ? "yes" : "no");
-    std::println("options:{}", method->option_schema().empty() ? " none" : "");
-    for (const auto& option : method->option_schema()) {
+    std::println("options:{}", method.option_schema().empty() ? " none" : "");
+    for (const auto& option : method.option_schema()) {
         std::print("  {} (default=", option.id);
         std::visit([](const auto& value) { std::print("{}", value); }, option.default_value);
         std::print(")");
@@ -275,8 +272,8 @@ void print_parameter_sets(const std::string& parameter_set_id, const std::string
                           const bool keys) {
     const auto parameter_sets = parameters::load_default_parameter_sets();
     if (parameter_set_id.empty()) {
-        if (!method_id.empty() && methods::method_registry().find(method_id) == nullptr) {
-            throw std::invalid_argument{"method '" + method_id + "' is not registered"};
+        if (!method_id.empty()) {
+            static_cast<void>(methods::method_registry().require(method_id));
         }
         const auto visible = [&method_id](const parameters::ParameterSet& parameter_set) {
             return method_id.empty() || parameter_set.method_id() == method_id;

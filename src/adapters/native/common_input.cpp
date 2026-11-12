@@ -1,5 +1,7 @@
 #include "common_input.h"
 
+#include "adapters/text_encoding.h"
+
 #include <gemmi/atof.hpp>
 
 #include <charconv>
@@ -38,6 +40,10 @@ auto try_read_line(std::istream& input, std::size_t& line) -> std::optional<std:
     }
 
     ++line;
+    if (adapters::detail::first_non_ascii_line(result).has_value()) {
+        throw std::runtime_error{
+            "non-ASCII character; MOL, SDF, and MOL2 files must be ASCII text"};
+    }
     return result;
 }
 

@@ -69,11 +69,18 @@ created, and an existing file of that name from an earlier run stays as it was.
 
 ### Progress and cancelling
 
-`--progress` shows the progress of the calculation. Press `Ctrl+C` once to request cancellation.
-ChargeFW checks for it before each molecule, conformer, and fragment; when it stops there, it writes the
-result JSON with status `cancelled` and no charges, and exits with status 5. A request that arrives
-during the last calculation step comes too late, and the calculation finishes normally. Reading the
-input and writing the results do not check for cancellation.
+`--progress` shows the progress of the calculation. During assessment or calculation, press `Ctrl+C`
+once to request cancellation. ChargeFW checks for it before each molecule, conformer, and fragment;
+when it stops there, it writes the result JSON with status `cancelled` and no charges, and exits with
+status 5. A request that arrives during the last calculation step comes too late, and the calculation
+finishes normally.
+
+Press `Ctrl+C` again to terminate without waiting for a cancellation check, for example during a long
+calculation of one large molecule with `--execution full`. While reading input or writing results,
+`Ctrl+C` terminates the process rather than requesting cancellation. Output files already completed
+remain. If you stop ChargeFW before it finishes writing a file, the file from an earlier run stays
+unchanged, and a temporary file ending in `.tmp` may be left in the output directory. The result JSON
+may not have been written yet.
 
 ## Options
 
@@ -182,3 +189,6 @@ publications.
 
 Statuses 3 to 6 come only from `chargefw calculate`. `chargefw applicability` exits with 0 once it has
 assessed the input, also when it finds no plan that can run.
+
+On Linux and macOS, a forced stop with `Ctrl+C` terminates the process with `SIGINT`, rather than a
+ChargeFW exit status. Shells typically report this as status 130.

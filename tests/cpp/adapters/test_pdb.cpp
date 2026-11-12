@@ -611,3 +611,13 @@ ATOM      2  N   GLY A  82C      1.000   0.000   0.000  1.00 20.00           N
 END
 )pdb") == 0);
 }
+
+TEST_CASE("PDB input rejects non-ASCII text", "[adapters][pdb]") {
+    const auto read = [](const std::string& text) {
+        std::istringstream input{text};
+        static_cast<void>(pdb::PdbReader{input, {}, {}});
+    };
+    CHECK_THROWS_MATCHES(read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O")),
+                         std::runtime_error,
+                         snitch::matchers::with_what_contains{"line 2 contains a non-ASCII"});
+}

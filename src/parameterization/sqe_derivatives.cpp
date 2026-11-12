@@ -21,6 +21,7 @@
 
 #include "features/topology_helpers.h"
 #include "methods/atom_parameter_values.h"
+#include "methods/builtin/initial_charges.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
 
@@ -47,6 +48,7 @@ namespace {
 
 using methods::CalculationInput;
 namespace sqe_core = methods::builtin::sqe_core;
+namespace builtin_detail = methods::builtin::detail;
 
 // interaction() (sqe.cpp) depends on width_i through s = 2 width_i^2 + 2 width_j^2:
 // d/dwidth_i erf(d / sqrt(s)) / d = width_i * g with g = -(4 / sqrt(pi)) exp(-d^2 / s) / s^(3/2).
@@ -327,7 +329,7 @@ class Sqeq0Derivatives final : public MethodDerivatives {
     // The formal charges are input, not parameters: their derivative is zero.
     [[nodiscard]] auto linearize(const CalculationInput& input) const
         -> std::unique_ptr<LinearizedCharges> override {
-        return linearize_sqe(input, sqe_core::formal_initial_charges(input));
+        return linearize_sqe(input, builtin_detail::formal_initial_charges(input.molecule()));
     }
 };
 

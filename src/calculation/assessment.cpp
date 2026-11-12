@@ -69,19 +69,11 @@ namespace {
     return candidates;
 }
 
-[[nodiscard]] auto require_method(const std::string_view id) -> const methods::Method& {
-    const auto* method = methods::method_registry().find(id);
-    if (method == nullptr) {
-        throw std::invalid_argument{"method '" + std::string{id} + "' is not registered"};
-    }
-    return *method;
-}
-
 [[nodiscard]] auto assessment_methods(const AssessmentRequest& request)
     -> std::vector<const methods::Method*> {
     const auto& registry = methods::method_registry();
     if (request.method_id.has_value()) {
-        return {&require_method(*request.method_id)};
+        return {&registry.require(*request.method_id)};
     }
 
     auto result = std::vector<const methods::Method*>{};
@@ -96,7 +88,7 @@ namespace {
 
 auto validate_assessment_method_options(const AssessmentRequest& request) -> void {
     for (const auto& [method_id, overrides] : request.method_options) {
-        const auto& method = require_method(method_id);
+        const auto& method = methods::method_registry().require(method_id);
         if (request.method_id.has_value() && method_id != *request.method_id) {
             throw std::invalid_argument{"method options supplied for '" + method_id +
                                         "' but method '" + *request.method_id + "' was requested"};
@@ -142,7 +134,7 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
         throw std::invalid_argument{"parameter-set selection requires an explicit method"};
     }
 
-    const auto& method = require_method(*request.method_id);
+    const auto& method = methods::method_registry().require(*request.method_id);
     if (!method.requirements().requires_parameters()) {
         throw std::invalid_argument{"method '" + *request.method_id +
                                     "' does not accept a parameter set"};

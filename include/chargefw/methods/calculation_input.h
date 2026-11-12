@@ -21,6 +21,8 @@ class CalculationInput {
   public:
     // fixed_sources and reference_charges are borrowed and must outlive every call using this
     // input.
+    // Supplied parameter classifications must match the molecule's atom/bond counts and refer
+    // to existing parameter entries; otherwise construction throws std::invalid_argument.
     //
     // reference_charges is empty or has one value per atom. A method that starts from per-atom
     // reference charges uses these values as they are, instead of deriving and normalizing its

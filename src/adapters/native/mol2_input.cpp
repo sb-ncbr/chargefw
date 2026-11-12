@@ -43,13 +43,29 @@ constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATT
     return symbol;
 }
 
-// Skips the data lines of a section and returns the next record type indicator, or nothing at the
-// end of the input.
+// Skips unused section data and returns the next record type indicator, or nothing at end of input.
 [[nodiscard]] auto next_section(std::istream& input, std::size_t& line)
     -> std::optional<std::string> {
     while (auto text = common::try_read_line(input, line)) {
         if (text->starts_with('@')) {
             return text;
+        }
+    }
+    return std::nullopt;
+}
+
+// After a counted section, only blank lines and comments may precede the next section marker.
+[[nodiscard]] auto end_counted_section(std::istream& input, std::size_t& line,
+                                       const std::string_view section)
+    -> std::optional<std::string> {
+    while (auto text = common::try_read_line(input, line)) {
+        if (text->starts_with('@')) {
+            return text;
+        }
+        const auto trimmed = common::trim(*text);
+        if (!trimmed.empty() && !trimmed.starts_with('#')) {
+            throw std::runtime_error{"MOL2 " + std::string{section} +
+                                     " section has more lines than its declared count"};
         }
     }
     return std::nullopt;
@@ -235,13 +251,13 @@ struct FormalCharge {
                     throw std::runtime_error{"repeated MOL2 ATOM section"};
                 }
                 atom_section = read_atoms(input, line, atom_count);
-                section = next_section(input, line);
+                section = end_counted_section(input, line, "ATOM");
             } else if (marker == bond_marker) {
                 if (source_bonds.has_value()) {
                     throw std::runtime_error{"repeated MOL2 BOND section"};
                 }
                 source_bonds = read_bonds(input, line, bond_count);
-                section = next_section(input, line);
+                section = end_counted_section(input, line, "BOND");
             } else if (marker == unity_atom_attributes_marker) {
                 section = read_formal_charges(input, line, formal_charges);
             } else {
@@ -332,18 +348,22 @@ Mol2Reader::Mol2Reader(std::istream& input, std::string source)
     : input_{std::addressof(input)}, source_{std::move(source)} {}
 
 auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
+    auto identity =
+        MoleculeRecordIdentity{.source = source_, .record_index = record_index_, .record_id = {}};
     auto found = std::exchange(next_record_started_, false);
-    while (!found) {
-        const auto line = common::try_read_line(*input_, line_);
-        if (!line.has_value()) {
-            return std::nullopt;
+    try {
+        while (!found) {
+            const auto line = common::try_read_line(*input_, line_);
+            if (!line.has_value()) {
+                return std::nullopt;
+            }
+            found = line->starts_with('@') && common::trim(*line) == molecule_marker;
         }
-        found = line->starts_with('@') && common::trim(*line) == molecule_marker;
+    } catch (...) {
+        common::rethrow_with_context(identity, line_);
     }
-    return parse_record(
-        *input_,
-        MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}},
-        next_record_started_, line_);
+    ++record_index_;
+    return parse_record(*input_, std::move(identity), next_record_started_, line_);
 }
 
 } // namespace chargefw::adapters::native::mol2_input

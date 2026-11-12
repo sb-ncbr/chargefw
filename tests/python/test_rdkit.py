@@ -29,6 +29,9 @@ class FakePoint:
 
 
 class FakeConformer:
+    def __init__(self, distance: float = 0.96) -> None:
+        self.distance = distance
+
     def GetId(self) -> int:
         return 0
 
@@ -36,7 +39,7 @@ class FakeConformer:
         return True
 
     def GetAtomPosition(self, index: int) -> FakePoint:
-        return (FakePoint(0.0, 0.0, 0.0), FakePoint(0.96, 0.0, 0.0))[index]
+        return (FakePoint(0.0, 0.0, 0.0), FakePoint(self.distance, 0.0, 0.0))[index]
 
 
 class FakeAtom:
@@ -175,6 +178,12 @@ def test_conversion_without_conformers_supports_coordinate_independent_methods()
     assert not molecule.has_coordinates
     result = chargefw.calculate(molecule, method="formal")
     np.testing.assert_array_equal(result.assignments[0].values, [0.0, 0.0])
+    with pytest.raises(chargefw.NoExecutablePlanError) as raised:
+        chargefw.calculate(molecule, method="eem")
+    with pytest.raises(IndexError):
+        chargefw_rdkit.attach_charges(target, raised.value.result)
+    assert not any(atom.properties for atom in target.atoms)
+    assert not target.properties
 
 
 @pytest.mark.usefixtures("fake_rdkit")
@@ -182,6 +191,10 @@ def test_conversion_and_charge_attachment() -> None:
     target: Any = FakeMol()
     molecule = chargefw_rdkit.from_mol(target, source_name="water")
     result = chargefw.calculate(molecule, method="formal")
+    with pytest.raises(ValueError):
+        chargefw_rdkit.attach_charges(target, result, conformer=0)
+    assert not any(atom.properties for atom in target.atoms)
+    assert not target.properties
     chargefw_rdkit.attach_charges(target, result)
     invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
     for value in invalid_indices:
@@ -196,6 +209,39 @@ def test_conversion_and_charge_attachment() -> None:
     assert molecule.atom_ids == (0, 1)
     assert target.atoms[0].properties["ChargeFWPartialCharge"] == 0.0
     assert target.properties["atom.dprop.ChargeFWPartialCharge"] == "created"
+
+
+@pytest.mark.usefixtures("fake_rdkit")
+@pytest.mark.parametrize("conformer_count", [1, 2])
+def test_attachment_selects_source_conformer(conformer_count: int) -> None:
+    target: Any = FakeMol()
+    target.conformers = tuple(FakeConformer(0.96 + index) for index in range(conformer_count))
+    molecule = chargefw_rdkit.from_mol(target)
+    result = chargefw.calculate(molecule, method="eem")
+
+    for conformer in (-1, conformer_count):
+        with pytest.raises(IndexError):
+            chargefw_rdkit.attach_charges(target, result, conformer=conformer)
+        assert not any(atom.properties for atom in target.atoms)
+        assert not target.properties
+    if conformer_count > 1:
+        with pytest.raises(ValueError):
+            chargefw_rdkit.attach_charges(target, result)
+        assert not any(atom.properties for atom in target.atoms)
+        assert not target.properties
+    else:
+        chargefw_rdkit.attach_charges(target, result)
+        np.testing.assert_array_equal(
+            [atom.properties["ChargeFWPartialCharge"] for atom in target.atoms],
+            result.assignment(molecule=0, conformer=0).values,
+        )
+
+    conformer = conformer_count - 1
+    chargefw_rdkit.attach_charges(target, result, conformer=conformer, overwrite=True)
+    np.testing.assert_array_equal(
+        [atom.properties["ChargeFWPartialCharge"] for atom in target.atoms],
+        result.assignment(molecule=0, conformer=conformer).values,
+    )
 
 
 @pytest.mark.usefixtures("fake_rdkit")

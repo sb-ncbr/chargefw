@@ -1,6 +1,7 @@
 # The command-line sources are compiled once. The native executable links the shared library, and the
 # Python package links them into its own copy of the command line (python/CMakeLists.txt).
 add_library(chargefw_cli_objects OBJECT
+        cli_support.h
         main.cpp
         input.cpp
         reports.cpp

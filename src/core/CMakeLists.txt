@@ -7,6 +7,7 @@ target_sources(chargefw_core_objects
         molecule_collection.cpp
         periodic_table.cpp
         position.cpp
+        diagnostic_description.h
         elements.h
         elements.cpp
 

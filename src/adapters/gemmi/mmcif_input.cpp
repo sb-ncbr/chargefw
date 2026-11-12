@@ -1,6 +1,7 @@
 #include <chargefw/adapters/gemmi/mmcif_input.h>
 
 #include "adapters/imported_records.h"
+#include "adapters/text_encoding.h"
 #include "bonds.h"
 #include "mmcif_labels.h"
 #include "selection.h"
@@ -139,6 +140,10 @@ MmcifReader::MmcifReader(std::istream& input, std::string source,
     const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read mmCIF input"};
+    }
+    if (const auto line = adapters::detail::first_non_ascii_line(text)) {
+        throw std::runtime_error{"line " + std::to_string(*line) +
+                                 " contains a non-ASCII character; mmCIF files must be ASCII text"};
     }
     document_ = ::gemmi::cif::read_memory(text.data(), text.size(), source_.c_str());
 

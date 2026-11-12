@@ -305,7 +305,21 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
                   {"diagnostics", diagnostics_json(charge_result_diagnostics(result))},
                   {"results", std::move(records)}};
     document["calculation_provenance"] = provenance_json(result, execution_metrics);
-    std::print(*output_, "{}\n", document.dump(2));
+    std::string serialized;
+    try {
+        serialized = document.dump(2);
+    } catch (const Json::type_error& error) {
+        // Error 316 is invalid UTF-8, such as a file name in another encoding on Linux.
+        if (error.id != 316) {
+            throw;
+        }
+        throw std::invalid_argument{"result JSON cannot hold text that is not valid UTF-8, such "
+                                    "as a file name in another encoding"};
+    }
+    std::print(*output_, "{}\n", serialized);
+    if (!*output_) {
+        throw std::runtime_error{"failed to write JSON output"};
+    }
 }
 
 } // namespace chargefw::adapters::native::json_output

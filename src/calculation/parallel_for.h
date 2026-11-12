@@ -1,5 +1,6 @@
 #pragma once
 
+#include "calculation/calculation_cancelled.h"
 #include "calculation/observer_notifications.h"
 
 #include <chargefw/calculation/observer.h>

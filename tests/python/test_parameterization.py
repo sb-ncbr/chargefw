@@ -83,6 +83,8 @@ def test_parameter_template_has_the_types_of_its_molecules() -> None:
     # Three atom parameters per atom type and one bond parameter per bond type, all zero.
     assert len(evaluator.layout) == 4 * 3 + 3 * 1
     np.testing.assert_array_equal(evaluator.values, np.zeros(15))
+    with pytest.raises(ValueError):
+        evaluator.values.setflags(write=True)
 
 
 def test_parameter_template_rejects_bundled_ids_and_methods_without_parameters() -> None:
@@ -1028,6 +1030,16 @@ def test_observer_follows_every_trial_point_and_the_best_so_far() -> None:
     )
 
     events = observer.events
+    for array in (
+        result.values,
+        result.start,
+        *result.bounds,
+        result.diagnostics.singular_values,
+        events[0].best_values,
+    ):
+        with pytest.raises(ValueError):
+            array.setflags(write=True)
+    np.testing.assert_allclose(events[0].best_values, FIT_START)
     assert [event.evaluation for event in events] == list(range(1, len(events) + 1))
     assert len(events) == result.evaluations
     # The first trial point is the start.

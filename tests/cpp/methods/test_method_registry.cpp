@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <snitch/snitch.hpp>
+#include <stdexcept>
 
 namespace methods = chargefw::methods;
 
@@ -13,10 +14,12 @@ TEST_CASE("method registry finds built-in methods in selection order",
     REQUIRE_FALSE(registry.methods().empty());
     CHECK(registry.find("eem") != nullptr);
     CHECK(registry.find("missing") == nullptr);
+    CHECK_THROWS_AS(registry.require("missing"), std::invalid_argument);
 
     for (const auto& method : registry.methods()) {
         CAPTURE(method->id());
         CHECK(registry.find(method->id()) == method.get());
+        CHECK(&registry.require(method->id()) == registry.find(method->id()));
     }
 
     // Selection order: higher priority first, then ID.

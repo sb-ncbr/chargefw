@@ -139,16 +139,9 @@ def _assignment(
     result: CalculationResult, molecule_index: int, conformer: int | None
 ) -> ChargeAssignment:
     assignments = result.assignments_by_molecule[molecule_index]
-    if conformer is not None:
-        matches = tuple(value for value in assignments if value.conformer_index == conformer)
-        if len(matches) == 1:
-            return matches[0]
-        if len(assignments) == 1 and assignments[0].conformer_index is None:
-            return assignments[0]
-        raise ValueError("selected conformer has no charge assignment")
-    if len(assignments) != 1:
-        raise ValueError("conformer is required when the result has multiple assignments")
-    return assignments[0]
+    if conformer is None and len(assignments) == 1:
+        return assignments[0]
+    return result.assignment(molecule=molecule_index, conformer=conformer)
 
 
 def attach_charges(
@@ -172,8 +165,6 @@ def attach_charges(
         raise IndexError("molecule_index is outside the calculation input collection")
     if conformer is not None:
         conformer = as_integer(conformer, "conformer", expected="an integer or None")
-        if conformer < 0:
-            raise ValueError("conformer must be non-negative")
     if not isinstance(property_name, str):
         raise TypeError("property_name must be a string")
     if not property_name:

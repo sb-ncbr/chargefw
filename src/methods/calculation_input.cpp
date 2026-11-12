@@ -3,6 +3,7 @@
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method_options.h>
+#include <chargefw/parameters/classification/parameter_classification.h>
 
 #include <stdexcept>
 
@@ -17,6 +18,11 @@ CalculationInput::CalculationInput(const features::PreparedMolecule& prepared_mo
     : prepared_molecule_{prepared_molecule}, method_options_{method_options},
       target_charge_{target_charge}, geometry_{geometry}, parameters_{parameters},
       fixed_sources_{fixed_sources}, reference_charges_{reference_charges} {
+    if (parameters != nullptr) {
+        parameters::validate_parameter_classification(prepared_molecule.molecule(),
+                                                      parameters->parameter_set(),
+                                                      parameters->classification());
+    }
     if (!reference_charges.empty() &&
         reference_charges.size() != prepared_molecule.molecule().atom_count()) {
         throw std::invalid_argument{"reference charge count must match atom count"};

@@ -106,7 +106,6 @@ script runs; every warning is recorded in `molecule.import_issues`, `result.inpu
 | `aromatic_bonds_converted` | Aromatic bonds were read as single bonds, which changes the charges of methods that use bond orders | Write the file with Kekulé bonds |  |
 | `coordinates_2d_ignored` | A 2D drawing was read without coordinates | For methods that use coordinates, generate 3D coordinates |  |
 | `partial_charges_ignored` | The file contains partial charges, which ChargeFW does not use | Nothing |  |
-| `v2000_property_ignored` | A property line of a MOL or SDF file, such as `M  ISO`, was not used | Usually nothing |  |
 | `v3000_bond_order_ignored` | Coordinate or hydrogen bonds of a V3000 record were left out | Usually nothing |  |
 | `resource_threshold_exceeded` | You requested full execution of a structure above the [size limit](large-structures.md) | Nothing; expect a long calculation |  |
 

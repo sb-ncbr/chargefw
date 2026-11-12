@@ -15,6 +15,8 @@ target_sources(chargefw_core_objects
         applicable_method_execution.cpp
         calculation_input.cpp
         applicable_method_execution.h
+        atom_parameter_values.h
+        reference_charges.h
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS

@@ -238,11 +238,8 @@ auto make_parameter_template_catalog(const nb::sequence& molecules, const std::s
     }
 
     nb::gil_scoped_release release;
-    const auto* method = methods::method_registry().find(method_id);
-    if (method == nullptr) {
-        throw std::invalid_argument{"method '" + method_id + "' is not registered"};
-    }
-    const auto requirements = method->requirements();
+    const auto& method = methods::method_registry().require(method_id);
+    const auto requirements = method.requirements();
     if (!requirements.requires_parameters()) {
         throw std::invalid_argument{"method '" + method_id + "' has no parameters"};
     }

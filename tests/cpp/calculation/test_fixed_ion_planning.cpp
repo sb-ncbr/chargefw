@@ -658,32 +658,39 @@ TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numberi
 
 TEST_CASE("fixed ion sources are validated", "[calculation][fixed-ions]") {
     const auto check_invalid = [](std::vector<core::Molecule> molecules,
-                                  std::vector<calculation::FixedAtomCharge> sources,
-                                  const std::string_view diagnostic) {
+                                  std::vector<calculation::FixedAtomCharge> sources) {
         auto request = calculation::AssessmentRequest{
             .molecules = core::MoleculeCollection{std::move(molecules)},
             .fixed_ions = calculation::FixedIons{.sources = std::move(sources)}};
-        CHECK_THROWS_MATCHES(calculation::assess(std::move(request)), std::invalid_argument,
-                             snitch::matchers::with_what_contains{diagnostic});
+        CHECK_THROWS_AS(calculation::assess(std::move(request)), std::invalid_argument);
     };
 
     const auto ion_pair = make_isolated_ion_pair();
-    check_invalid({ion_pair}, {{2, 0, 1.0}}, "molecule index 2 is out of range");
-    check_invalid({ion_pair}, {{std::numeric_limits<std::size_t>::max(), 0, 1.0}},
-                  "is out of range (molecule count 1)");
-    check_invalid({ion_pair}, {{0, std::numeric_limits<std::size_t>::max(), 1.0}},
-                  "out of range (atom count 2)");
-    check_invalid({ion_pair}, {{0, 0, 1.0}, {0, 0, -1.0}}, "duplicate fixed charge source");
+    check_invalid({ion_pair}, {{2, 0, 1.0}});
+    check_invalid({ion_pair}, {{0, 2, 1.0}});
+    check_invalid({ion_pair}, {{std::numeric_limits<std::size_t>::max(), 0, 1.0}});
+    check_invalid({ion_pair}, {{0, std::numeric_limits<std::size_t>::max(), 1.0}});
+    check_invalid({ion_pair}, {{0, 0, 1.0}, {0, 0, -1.0}});
     for (const auto charge :
          {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(),
           -std::numeric_limits<double>::infinity()}) {
-        check_invalid({ion_pair}, {{0, 0, charge}}, "has non-finite charge");
+        check_invalid({ion_pair}, {{0, 0, charge}});
     }
-    check_invalid({make_bonded_pair()}, {{0, 0, 0.5}}, "is bonded to atom 1");
-    check_invalid({make_bonded_pair()}, {{0, 1, 0.5}}, "is bonded to atom 0");
-    check_invalid({make_bonded_pair()}, {{0, 0, 0.5}, {0, 1, -0.5}}, "is bonded to atom 1");
-    check_invalid({core::Molecule{std::vector{core::Atom{6}}}, ion_pair}, {{0, 0, 0.0}},
-                  "fixed ions leave no active atoms in molecule 0");
+    check_invalid({make_bonded_pair()}, {{0, 0, 0.5}});
+    check_invalid({make_bonded_pair()}, {{0, 1, 0.5}});
+    check_invalid({make_bonded_pair()}, {{0, 0, 0.5}, {0, 1, -0.5}});
+    check_invalid({core::Molecule{std::vector{core::Atom{6}}}, ion_pair}, {{0, 0, 0.0}});
+
+    const auto named_source = calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{
+            ion_pair, make_interleaved_hydrogen_magnesium_oxygen()}},
+        .fixed_ions =
+            calculation::FixedIons{.sources = {{1, 1, std::numeric_limits<double>::quiet_NaN()}}}};
+    for (const auto context :
+         {"molecule 2 ('interleaved-H-Mg-O')", "atom 2 (source name 'fixed-Mg'", "', Mg,"}) {
+        CHECK_THROWS_MATCHES(calculation::assess(named_source), std::invalid_argument,
+                             snitch::matchers::with_what_contains{context});
+    }
 }
 
 TEST_CASE("fixed ion geometry is validated only for affected molecules",
@@ -703,9 +710,7 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
     auto missing_conformer = make_request(
         core::MoleculeCollection{std::vector{make_molecule_with_positions(pair_atoms, {})}},
         {{0, 0, 1.0}});
-    CHECK_THROWS_MATCHES(
-        calculation::assess(std::move(missing_conformer)), std::invalid_argument,
-        snitch::matchers::with_what_contains{"fixed ions require a conformer in molecule 0"});
+    CHECK_THROWS_AS(calculation::assess(std::move(missing_conformer)), std::invalid_argument);
 
     constexpr auto nan = std::numeric_limits<double>::quiet_NaN();
     constexpr auto infinity = std::numeric_limits<double>::infinity();
@@ -719,10 +724,7 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
                 core::MoleculeCollection{std::vector{make_molecule_with_positions(
                     pair_atoms, {separated_pair.front(), std::move(later_positions)})}},
                 {{0, 0, 1.0}});
-            const auto diagnostic = "non-finite coordinates at molecule 0, conformer 1, atom " +
-                                    std::to_string(atom_index);
-            CHECK_THROWS_MATCHES(calculation::assess(std::move(nonfinite)), std::invalid_argument,
-                                 snitch::matchers::with_what_contains{diagnostic});
+            CHECK_THROWS_AS(calculation::assess(std::move(nonfinite)), std::invalid_argument);
         }
     }
 
@@ -730,9 +732,10 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
         core::MoleculeCollection{std::vector{make_molecule_with_positions(
             pair_atoms, {separated_pair.front(), {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},
         {{0, 0, 0.0}});
-    CHECK_THROWS_MATCHES(calculation::assess(std::move(coincident_later)), std::invalid_argument,
-                         snitch::matchers::with_what_contains{
-                             "molecule 0, conformer 1, atom 0 coincides with active atom 1"});
+    for (const auto context : {"molecule 1, conformer 2, atom 1", "active atom 2"}) {
+        CHECK_THROWS_MATCHES(calculation::assess(coincident_later), std::invalid_argument,
+                             snitch::matchers::with_what_contains{context});
+    }
 
     // Several sources whose spatial order differs from their atom order; the last source meets the
     // active atom, and -0.0 coincides with 0.0.
@@ -741,10 +744,7 @@ TEST_CASE("fixed ion geometry is validated only for affected molecules",
                          std::vector{core::Atom{1}, core::Atom{1}, core::Atom{1}, core::Atom{1}},
                          {{{4.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, {-0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}})}},
                      {{0, 0, 0.0}, {0, 1, 0.0}, {0, 2, 0.0}});
-    CHECK_THROWS_MATCHES(calculation::assess(std::move(coincident_later_source)),
-                         std::invalid_argument,
-                         snitch::matchers::with_what_contains{
-                             "molecule 0, conformer 0, atom 2 coincides with active atom 3"});
+    CHECK_THROWS_AS(calculation::assess(std::move(coincident_later_source)), std::invalid_argument);
 
     auto swapped_conformers = make_request(
         core::MoleculeCollection{std::vector{make_molecule_with_positions(

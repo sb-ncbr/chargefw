@@ -25,6 +25,8 @@ endif()
 
 target_sources(chargefw_platform
         PRIVATE
+        library_location.h
+        peak_memory.h
         ${platform_directory}/library_location.cpp
         ${platform_directory}/peak_memory.cpp
 )

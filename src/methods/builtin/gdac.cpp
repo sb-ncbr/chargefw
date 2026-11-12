@@ -16,12 +16,6 @@ namespace {
     return core::periodic_table().element(atom.atomic_number()).van_der_waals_radius;
 }
 
-[[nodiscard]] auto atom_denominator(const parameters::AtomParameterAccessor& parameter_a,
-                                    const parameters::AtomParameterAccessor& parameter_b,
-                                    const std::size_t atom_index) -> double {
-    return parameter_a[atom_index] + parameter_b[atom_index];
-}
-
 } // namespace
 
 auto GDACMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
@@ -70,7 +64,7 @@ auto GDACMethod::calculate(const CalculationInput& input) const -> charges::Atom
             const auto& lower_atom = molecule.atom(lower_atom_index);
             const auto& higher_atom = molecule.atom(higher_atom_index);
 
-            const auto denominator = atom_denominator(parameter_a, parameter_b, lower_atom_index);
+            const auto denominator = parameter_a[lower_atom_index] + parameter_b[lower_atom_index];
 
             if (denominator == 0.0) {
                 throw std::logic_error{"GDAC denominator is zero"};

@@ -5,6 +5,11 @@
 ### Input
 
 - Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
+- MOL, SDF, MOL2, PDB, and mmCIF input must be ASCII text. A character outside ASCII on any line,
+  including comments and SDF data items, is an error that names the line.
+- MOL and SDF records are read for their atoms, bonds, and charges only; everything else is ignored.
+  V3000 `SGROUP`, `3D`, and other blocks and V2000 lines such as atom aliases, which were errors, are
+  now ignored. Breaking change: the `v2000_property_ignored` warning was removed.
 
 ### Installation
 
@@ -15,6 +20,11 @@
 
 ### Python
 
+- Breaking change: RDKit `attach_charges()` delegates explicit conformer selection to
+  `CalculationResult.assignment()`. Negative or missing conformers now raise `IndexError` instead of
+  `ValueError`; explicit selection no longer falls back to geometry-independent charges and raises
+  `ValueError` instead. Omitting `conformer` still selects a single assignment automatically,
+  including a conformer-specific assignment.
 - Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
   `Molecule.source_name` is unchanged.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with
@@ -38,6 +48,17 @@
 
 ### C++
 
+- `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
+  `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
+- Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`
+  now require a valid atom or bond index, matching the other indexed containers. Use `at()` for
+  bounds checking and `std::out_of_range` on an invalid index. Named parameter lookup remains
+  checked in both forms.
+- `methods::CalculationInput` now rejects supplied parameter classifications with mismatched
+  atom or bond counts or references to nonexistent parameter entries.
+- Breaking change: removed `calculation::CalculationCancelled` from the public headers. Public
+  `calculate()` overloads report cooperative cancellation as `ExecutionStatus::cancelled`; check
+  the returned status instead of catching this internal exception.
 - Breaking change: `methods::ExecutionIssue` and `methods::ExecutionIssueKind` are now
   `calculation::ExecutionIssue` and `calculation::ExecutionIssueKind`, declared in
   `<chargefw/calculation/execution_issues.h>`. Removed `methods::ExecutionAvailability`,
