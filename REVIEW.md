@@ -115,25 +115,6 @@ for realistic input.
 - **Fix:** `document.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)`.
 - **Tests:** one case in `tests/cpp/adapters/test_json_output.cpp` with an invalid byte in a record ID.
 
-### B4. Ctrl+C is ignored outside the calculation loop
-
-- **Status:** re-checked.
-- **Where:** `apps/chargefw/main.cpp:27-31` (flag and handler), `:54-77` (`ScopedInterruptHandler`),
-  `:218` (its scope), `:261` (`write_calculation_outputs`).
-- **Problem:** the handler is installed at `:218` and lives until `run()` returns, so it is still
-  installed while outputs are written, where nothing reads the flag. The handler only sets the flag;
-  it never restores the default action, so a second Ctrl+C does nothing either.
-- **Failure:** on POSIX the process cannot be stopped with Ctrl+C during `assess()`, during one long
-  full solve (a single target is not interruptible), or while large outputs are written.
-  `docs/interfaces/cli.md:72-76` says writing does not check for cancellation, but not that the
-  signal is swallowed.
-- **Check:** read `main.cpp:210-265`; `interrupt_handler` is declared before the `execution` lambda
-  and destroyed at the end of the function.
-- **Fix:** move `interrupt_handler` and `interruptible_observer` inside the `execution` lambda. Make a
-  second signal fatal: in `request_interruption`, if `test_and_set` returns true, call
-  `std::signal(SIGINT, SIG_DFL)` and `std::raise(SIGINT)`. Update `docs/interfaces/cli.md` if the
-  described behaviour changes.
-
 ### B5. Fixed-ion errors print zero-based indices
 
 - **Status:** re-checked (lines 24-41 and 100-129 were read).

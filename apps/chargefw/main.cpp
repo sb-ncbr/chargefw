@@ -27,7 +27,10 @@ namespace {
 std::atomic_flag interruption_requested;
 
 extern "C" void request_interruption(int /*signal*/) {
-    interruption_requested.test_and_set(std::memory_order_relaxed);
+    if (interruption_requested.test_and_set(std::memory_order_relaxed)) {
+        std::signal(SIGINT, SIG_DFL);
+        std::raise(SIGINT);
+    }
 }
 
 class InterruptibleCalculationObserver final : public chargefw::calculation::CalculationObserver {
@@ -215,11 +218,11 @@ auto run(std::span<char*> arguments) -> int {
         chargefw::cli::make_requested_provenance(request, calculate_selection.max_threads);
     const auto max_threads = calculate_selection.max_threads;
     const auto progress_observer = TerminalProgressObserver{};
-    const auto interrupt_handler = ScopedInterruptHandler{};
-    const auto interruptible_observer =
-        InterruptibleCalculationObserver{progress ? std::addressof(progress_observer) : nullptr};
     auto failure_message = std::string{};
     auto execution = [&]() -> std::optional<chargefw::calculation::ExecutionResult> {
+        const auto interrupt_handler = ScopedInterruptHandler{};
+        const auto interruptible_observer = InterruptibleCalculationObserver{
+            progress ? std::addressof(progress_observer) : nullptr};
         try {
             auto assessment = chargefw::calculation::assess(std::move(request));
             const auto* plan = assessment.default_plan();
