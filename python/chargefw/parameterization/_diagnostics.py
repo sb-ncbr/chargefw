@@ -10,6 +10,7 @@ from types import MappingProxyType
 import numpy as np
 from numpy.typing import NDArray
 
+from .._arrays import immutable_array
 from .._elements import periodic_table
 from .._parameters import AtomParameterKey
 from ._compression import undetermined
@@ -159,7 +160,6 @@ def _diagnostics(
         for index in np.argsort(-weakest_direction, kind="stable")
         if weakest_direction[index] >= 0.5 * weakest_direction.max()
     )
-    singular_values.setflags(write=False)
     return Diagnostics(
         r2=r2,
         by_element=MappingProxyType(by_element),
@@ -167,7 +167,7 @@ def _diagnostics(
         matches=matches,
         at_bounds=at_bounds,
         failed_messages=tuple(failed_messages),
-        singular_values=singular_values,
+        singular_values=immutable_array(singular_values),
         rank=rank,
         weakest=weakest,
     )

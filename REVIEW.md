@@ -48,7 +48,6 @@ Findings where this rule changes the proposal:
 | --- | --- | --- |
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
-| A10 | Leave | — |
 | X9 (PDB serials, trimmed V2000 lines) | Document if confirmed | `docs/reference/formats.md` |
 
 Every other finding in sections B and A is reached by a common workflow, or is a consistency or
@@ -71,7 +70,7 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B3–B8 |
-| A | Public API design | A10 |
+| A | Public API design | No remaining findings |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | T | Tests that protect nothing | T1–T25 |
@@ -128,25 +127,6 @@ for realistic input.
 - **Resolution (design-sensitive):** determine which additional blocks can be ignored safely and
   which require interpretation or explicit rejection. Do not replace the current rejection with
   blanket block skipping. The supported subset is documented in `docs/reference/formats.md`.
-
----
-
-## A. Public API design
-
-### A10. "Read-only" fit arrays can be made writable again
-
-- **Status:** reported; the NumPy behaviour was reproduced with plain NumPy.
-- **Where:** `python/chargefw/parameterization/_evaluator.py:76-77` (`Evaluator.values`),
-  `_fit.py:332, 447-448, 625-628` (`best_values`, `values`, `start`, `bounds`),
-  `_diagnostics.py:162` (`singular_values`).
-- **Problem:** these call `setflags(write=False)` on arrays that own their data, which a caller can
-  reverse. `evaluator.values.setflags(write=True); evaluator.values[:] = 0` changes
-  `Evaluator._values`, which later fits read (`_fit.py:567`).
-- **Fix:** use `immutable_array()` from `python/chargefw/_arrays.py:136`, as the rest of the package
-  does.
-- **Resolution:** leave. Reaching this takes a deliberate `setflags(write=True)` on an array the
-  package marked read-only. Switch to `immutable_array()` only if these lines are edited for another
-  reason. Nothing to document.
 
 ---
 

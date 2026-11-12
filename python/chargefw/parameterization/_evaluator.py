@@ -10,7 +10,7 @@ from typing import SupportsIndex
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .._arrays import as_integer
+from .._arrays import as_integer, immutable_array
 from .._chargefw import parameterization as _native_parameterization
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
@@ -73,8 +73,7 @@ class Evaluator:
             _slot(scope, index, name, parameter_set)
             for scope, index, name in self._native._layout()
         )
-        self._values = np.array(self._native._values(), dtype=np.float64)
-        self._values.setflags(write=False)
+        self._values = immutable_array(np.asarray(self._native._values(), dtype=np.float64))
         # The method provides exact derivatives, which fit() uses through _normal_equations().
         self._exact = self._native._exact_derivatives()
         # The number of charges and the molecule of each assignment, known after the first

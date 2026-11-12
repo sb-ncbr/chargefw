@@ -11,6 +11,7 @@ from typing import Literal, SupportsIndex
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from .._arrays import immutable_array
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
 from . import profiles
@@ -307,8 +308,7 @@ def fit(
             best_objective, best_rmsd, best_free = objective, rmsd, free_values.copy()
         if observer is None:
             return
-        best_values = values_of(best_free) if best_free is not None else initial.copy()
-        best_values.setflags(write=False)
+        best_values = immutable_array(values_of(best_free) if best_free is not None else initial)
         observer.on_evaluation(
             FitProgress(
                 evaluation=count,
@@ -422,9 +422,8 @@ def fit(
             "cancelled by the observer; the values are the best so far",
             count,
         )
-    fitted = values_of(solved)
-    fitted.setflags(write=False)
-    initial.setflags(write=False)
+    fitted = immutable_array(values_of(solved))
+    initial = immutable_array(initial)
     # The diagnostics use the weighted derivatives in the parameter values, not the internal
     # coordinates.
     if exact:
@@ -453,7 +452,7 @@ def fit(
         values=fitted,
         start=initial,
         free=tuple(free_slots),
-        bounds=(_read_only(lower), _read_only(upper)),
+        bounds=(immutable_array(lower), immutable_array(upper)),
         success=success,
         message=message,
         evaluations=evaluations,
@@ -599,12 +598,6 @@ def _linear_step(
     jacobian = weight[:, np.newaxis] * evaluator.jacobian(values, slots, bounds)
     residuals = weight * (evaluator.charges(values) - reference)
     return determined_step(jacobian.T @ jacobian, jacobian.T @ residuals)
-
-
-def _read_only(values: NDArray[np.float64]) -> NDArray[np.float64]:
-    copy = np.array(values)
-    copy.setflags(write=False)
-    return copy
 
 
 def _check_start_in_bounds(
