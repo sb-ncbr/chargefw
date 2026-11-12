@@ -99,17 +99,14 @@ listed at the end of the section.
 - **Fix:** move the shared helpers into `prerequisite_helpers.h` or a small `peoe_common.h`, and use
   the option helper in `calculate()` too.
 
-### C14. Python package
+### C14. Python numerical helpers
 
-- **Status:** remaining behavior differences need a separate decision.
-- `rdkit.attach_charges` raises `ValueError` for a negative conformer while
-  `CalculationResult.assignment` raises `IndexError`. Range checks remain local to preserve these
-  exception types.
-- `io/rdkit.py:137-150` (`_assignment`) picks an assignment by other rules than
-  `CalculationResult.assignment` (`_calculation_values.py:477-511`): it falls back silently where the
-  latter raises. Plausible; check the RDKit tests before changing error types.
-- `parameterization/_diagnostics.py:97-105` repeats `_compression.py:51-63` (scale to unit diagonal,
-  `eigh`, undetermined check). The first clips a negative diagonal, the second raises. Low value.
+- **Status:** remaining numerical policy difference needs a separate decision.
+- `parameterization/_diagnostics.py` and `_compression.py` both scale a Gram matrix to unit
+  diagonal and diagonalize it. Diagnostics clips negative diagonal entries when computing the
+  scale; compression rejects them. Both reject sufficiently negative eigenvalues. Their inputs
+  differ: diagnostics uses parameter-value coordinates, while compression uses optimizer
+  coordinates. Sharing the implementation is low value unless these policies are first aligned.
 
 ### Considered and not recommended
 

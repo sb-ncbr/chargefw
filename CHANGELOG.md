@@ -20,6 +20,11 @@
 
 ### Python
 
+- Breaking change: RDKit `attach_charges()` delegates explicit conformer selection to
+  `CalculationResult.assignment()`. Negative or missing conformers now raise `IndexError` instead of
+  `ValueError`; explicit selection no longer falls back to geometry-independent charges and raises
+  `ValueError` instead. Omitting `conformer` still selects a single assignment automatically,
+  including a conformer-specific assignment.
 - Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
   `Molecule.source_name` is unchanged.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with

@@ -140,7 +140,7 @@ molecule.
 | `status` | `"success"`, `"no_executable_plan"`, `"numerical_failure"`, or `"cancelled"` |
 | `assignments` | Tuple of `ChargeAssignment`; empty when the calculation failed |
 | `assignments_by_molecule` | The same, as one tuple per input molecule |
-| `assignment(molecule=..., conformer=None)` | One assignment; see [Results](../interfaces/python.md#results) |
+| `assignment(molecule=..., conformer=None)` | One assignment; see [Selecting an assignment](#selecting-an-assignment) |
 | `plan` | `ExecutedPlan` that was used, also after a numerical failure or cancellation; `None` when no plan could run |
 | `requested` | `RequestedCalculation`: the arguments of the call |
 | `molecules` | The input `MoleculeCollection` |
@@ -149,6 +149,18 @@ molecule.
 | `charge_warnings` | Tuple of `ChargeIssue`: cautions about the calculated charges |
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
+
+#### Selecting an assignment
+
+`result.assignment(molecule=..., conformer=None)` returns one set of charges. `molecule` is required.
+Omit `conformer` for charges that do not depend on coordinates; otherwise supply its position in the
+input molecule, counted from 0.
+
+| Exception | Cause |
+| --- | --- |
+| `IndexError` | The molecule index is out of range, the molecule has no charges, or a supplied conformer index is negative or absent from the per-conformer results |
+| `ValueError` | You omitted `conformer` for charges calculated per conformer, or supplied it for charges that do not depend on coordinates |
+| `TypeError` | An index is not an integer; booleans are not accepted |
 
 ### ChargeAssignment
 

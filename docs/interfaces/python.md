@@ -485,10 +485,12 @@ molecule whose atom count, elements, or formal charges no longer match. It does 
 coordinates, so reordered atoms of the same element, changed bonds, or new coordinates go unnoticed:
 the charges then sit on the wrong atoms or belong to another structure.
 
-`molecule_index` selects the input molecule (default `0`). When that molecule has a single
-assignment, it is used; otherwise pass `conformer`, the ChargeFW conformer index, not the RDKit
-conformer ID. The property belongs to the molecule, not to a conformer, so keep separate copies or
-property names to store several sets of charges.
+`molecule_index` selects the input molecule (default `0`). If you omit `conformer` and that molecule
+has one set of charges, it is used. Otherwise, pass `conformer`: the conformer's position in the
+ChargeFW molecule, counted from 0, not the RDKit conformer ID. Selection follows
+[`result.assignment()`](../reference/python-api.md#selecting-an-assignment), with the same errors.
+When selection fails, the RDKit molecule is left unchanged. The property belongs to the molecule,
+not to a conformer, so keep separate copies or property names to store several sets of charges.
 
 ## Gemmi
 
