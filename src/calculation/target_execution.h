@@ -1,5 +1,6 @@
 #pragma once
 
+#include "calculation/calculation_cancelled.h"
 #include "calculation/parallel_for.h"
 #include "methods/applicable_method_execution.h"
 

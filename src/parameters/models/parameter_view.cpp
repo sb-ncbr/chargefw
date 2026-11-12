@@ -11,7 +11,8 @@ AtomParameterAccessor::AtomParameterAccessor(const AtomParameters& parameters,
       parameter_name_{std::move(parameter_name)} {}
 
 auto AtomParameterAccessor::operator[](const std::size_t atom_index) const -> double {
-    return at(atom_index);
+    const auto parameter_entry_index = (*classification_)[atom_index];
+    return parameters_->parameter(parameter_entry_index, parameter_name_);
 }
 
 auto AtomParameterAccessor::at(const std::size_t atom_index) const -> double {
@@ -26,7 +27,8 @@ BondParameterAccessor::BondParameterAccessor(const BondParameters& parameters,
       parameter_name_{std::move(parameter_name)} {}
 
 auto BondParameterAccessor::operator[](const std::size_t bond_index) const -> double {
-    return at(bond_index);
+    const auto parameter_entry_index = (*classification_)[bond_index];
+    return parameters_->parameter(parameter_entry_index, parameter_name_);
 }
 
 auto BondParameterAccessor::at(const std::size_t bond_index) const -> double {

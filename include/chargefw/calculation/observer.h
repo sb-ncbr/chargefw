@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <string_view>
 
 namespace chargefw::calculation {
@@ -92,12 +91,5 @@ class CalculationObserver {
     static const auto observer = CalculationObserver{};
     return observer;
 }
-
-// Thrown when a cooperative cancellation request is observed mid-calculation. The facade catches
-// it and converts the result to a clean cancellation rather than a partial charge set.
-class CalculationCancelled : public std::runtime_error {
-  public:
-    CalculationCancelled() : std::runtime_error{"calculation was cancelled"} {}
-};
 
 } // namespace chargefw::calculation

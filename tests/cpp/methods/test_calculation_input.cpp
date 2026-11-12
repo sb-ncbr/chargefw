@@ -118,3 +118,21 @@ TEST_CASE("calculation input exposes molecule, topology, geometry, and parameter
     CHECK(value[1] == 1.0);
     CHECK(value[2] == 1.0);
 }
+
+TEST_CASE("calculation input rejects invalid parameter classifications",
+          "[methods][calculation-input]") {
+    const auto water = chargefw::test::make_water();
+    const features::PreparedMolecule prepared_water{water};
+    const methods::MethodOptions options;
+    const auto parameter_set = make_water_parameters();
+
+    for (const auto& indices :
+         {std::vector<std::size_t>{1, 0}, std::vector<std::size_t>{1, 0, 0, 0},
+          std::vector<std::size_t>{2, 0, 0}}) {
+        const parameters::ParameterClassification classification{
+            parameters::AtomParameterClassification{indices}};
+        const parameters::ParameterView view{parameter_set, classification};
+        CHECK_THROWS_AS((methods::CalculationInput{prepared_water, options, 0.0, nullptr, &view}),
+                        std::invalid_argument);
+    }
+}

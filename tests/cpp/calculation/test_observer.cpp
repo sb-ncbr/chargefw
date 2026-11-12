@@ -1,3 +1,4 @@
+#include "calculation/calculation_cancelled.h"
 #include "calculation/calculation_request.h"
 #include "support/test_calculation.h"
 #include "support/test_methods.h"

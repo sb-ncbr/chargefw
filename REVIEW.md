@@ -49,7 +49,6 @@ Findings where this rule changes the proposal:
 | B6 | Fix or document, after checking real files | `docs/reference/formats.md` |
 | B8 | Document | `molecule_record.h`, result schema, `docs/reference/formats.md` |
 | A10 | Leave | — |
-| A12 (enum members) | Leave | — |
 | X9 (PDB serials, trimmed V2000 lines) | Document if confirmed | `docs/reference/formats.md` |
 
 Every other finding in sections B and A is reached by a common workflow, or is a consistency or
@@ -72,7 +71,7 @@ for realistic input.
 | Section | Content | Findings |
 | --- | --- | --- |
 | B | Behaviour bugs | B3–B8 |
-| A | Public API design | A10, A12 |
+| A | Public API design | A10 |
 | D | Dead code | D4–D13 |
 | C | Duplicated code | C1–C15 |
 | T | Tests that protect nothing | T1–T25 |
@@ -148,23 +147,6 @@ for realistic input.
 - **Resolution:** leave. Reaching this takes a deliberate `setflags(write=True)` on an array the
   package marked read-only. Switch to `immutable_array()` only if these lines are edited for another
   reason. Nothing to document.
-
-### A12. Smaller native API items
-
-- **Status:** reported.
-- `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]` delegate to checked
-  `at()` (`src/parameters/models/parameter_view.cpp:13-15, 28-30`), unlike the unchecked `noexcept`
-  indexing on parameter containers and classifications. Whether to align or document this difference
-  remains a separate API decision; changing bounds semantics needs explicit approval.
-- `include/chargefw/methods/method_prerequisites.h:32` and
-  `include/chargefw/methods/method_applicability.h:36, 42-43`: `PrerequisiteIssue::kind`,
-  `ExecutionIssue::kind`, and `ExecutionAssessment::mode` / `availability` have no default member
-  initializer while their sibling members do, so `ExecutionAssessment a;` leaves the enums
-  indeterminate. No misuse was found. No enumerator is a natural default. Resolution: leave; the
-  library creates these values, and callers only read them.
-- `include/chargefw/calculation/observer.h:98`: `CalculationCancelled` is public, but no public
-  `calculate()` overload lets it escape (`src/calculation/calculation.cpp:219`). It could move to an
-  internal header. The internal `calculate(CalculationRequest)` overload lets it propagate.
 
 ---
 

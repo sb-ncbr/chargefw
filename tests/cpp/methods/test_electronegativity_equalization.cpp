@@ -46,8 +46,10 @@ auto calculate_eem(const core::Molecule& molecule,
                    const double target_charge, const double kappa = 1.7)
     -> chargefw::charges::AtomicCharges {
     const auto parameter_set = chargefw::test::make_eem_ho_parameters(kappa);
-    const auto classification = parameters::ParameterClassification{
-        parameters::AtomParameterClassification{std::vector<std::size_t>{0, 1}}};
+    const auto classification =
+        parameters::ParameterClassification{parameters::AtomParameterClassification{
+            molecule.atom_count() == 0 ? std::vector<std::size_t>{}
+                                       : std::vector<std::size_t>{0, 1}}};
     const auto parameter_view = parameters::ParameterView{parameter_set, classification};
     const auto prepared = features::PreparedMolecule{molecule};
     auto geometry = std::optional<features::ConformerFeatures>{};

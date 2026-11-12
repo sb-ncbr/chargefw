@@ -38,6 +38,15 @@
 
 ### C++
 
+- Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`
+  now require a valid atom or bond index, matching the other indexed containers. Use `at()` for
+  bounds checking and `std::out_of_range` on an invalid index. Named parameter lookup remains
+  checked in both forms.
+- `methods::CalculationInput` now rejects supplied parameter classifications with mismatched
+  atom or bond counts or references to nonexistent parameter entries.
+- Breaking change: removed `calculation::CalculationCancelled` from the public headers. Public
+  `calculate()` overloads report cooperative cancellation as `ExecutionStatus::cancelled`; check
+  the returned status instead of catching this internal exception.
 - Breaking change: `methods::ExecutionIssue` and `methods::ExecutionIssueKind` are now
   `calculation::ExecutionIssue` and `calculation::ExecutionIssueKind`, declared in
   `<chargefw/calculation/execution_issues.h>`. Removed `methods::ExecutionAvailability`,

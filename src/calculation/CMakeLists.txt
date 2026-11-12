@@ -3,6 +3,7 @@ target_sources(chargefw_core_objects
         assessment.cpp
         calculation.cpp
         assessment_access.h
+        calculation_cancelled.h
         calculation_request.h
         charge_issues.cpp
         cover_execution.cpp

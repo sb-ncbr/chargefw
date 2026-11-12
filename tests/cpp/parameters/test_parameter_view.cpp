@@ -11,6 +11,7 @@
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <snitch/snitch.hpp>
+#include <stdexcept>
 #include <type_traits>
 
 namespace features = chargefw::features;
@@ -54,4 +55,12 @@ TEST_CASE("parameter view exposes immutable classified parameter access", "[para
     CHECK(view.atom("atom")[2] == 1.0);
     CHECK(view.bond("bond")[0] == 3.0);
     CHECK(view.bond("bond")[1] == 3.0);
+    for (std::size_t index = 0; index < water.atom_count(); ++index) {
+        CHECK(view.atom("atom").at(index) == view.atom("atom")[index]);
+    }
+    for (std::size_t index = 0; index < water.bond_count(); ++index) {
+        CHECK(view.bond("bond").at(index) == view.bond("bond")[index]);
+    }
+    CHECK_THROWS_AS(view.atom("atom").at(water.atom_count()), std::out_of_range);
+    CHECK_THROWS_AS(view.bond("bond").at(water.bond_count()), std::out_of_range);
 }

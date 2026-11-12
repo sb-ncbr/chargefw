@@ -1,6 +1,7 @@
 #include <chargefw/calculation/calculation.h>
 
 #include "calculation/assessment_state.h"
+#include "calculation/calculation_cancelled.h"
 #include "calculation/calculation_request.h"
 #include "calculation/charge_checks.h"
 #include "calculation/cover_execution.h"
