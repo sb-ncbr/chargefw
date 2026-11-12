@@ -150,6 +150,7 @@ molecule.
 | `failure_message` | Text of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
 
+(selecting-an-assignment)=
 #### Selecting an assignment
 
 `result.assignment(molecule=..., conformer=None)` returns one set of charges. `molecule` is required.
