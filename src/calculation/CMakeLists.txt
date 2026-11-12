@@ -3,6 +3,7 @@ target_sources(chargefw_core_objects
         assessment.cpp
         calculation.cpp
         assessment_access.h
+        assessment_state.h
         calculation_cancelled.h
         calculation_request.h
         charge_issues.cpp
@@ -18,6 +19,7 @@ target_sources(chargefw_core_objects
         reduced_execution.cpp
         charge_checks.h
         cover_execution.h
+        cutoff_execution.h
         execution_assessment.h
         fixed_charge_partition.h
         full_execution.h

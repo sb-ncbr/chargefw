@@ -1,5 +1,7 @@
 target_sources(chargefw_core_objects
         PRIVATE
+        dense_solve.h
+        prerequisite_helpers.h
         dummy.h
         dummy.cpp
         formal.h

@@ -134,10 +134,16 @@ configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.
 
 nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
     src/adapters.cpp
+    src/bindings.h
     src/calculation.cpp
+    src/calculation.h
     src/core.cpp
     src/methods.cpp
     src/module.cpp
+    src/native_execution_result.h
+    src/native_input_metadata.h
+    src/native_parameter_catalog.h
+    src/numpy_values.h
     src/parameters.cpp
     src/parameterization.cpp
 )
