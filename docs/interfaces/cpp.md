@@ -352,6 +352,10 @@ leave it empty.
 
 ## Methods and parameter sets
 
+To look up a method by ID, use `methods::method_registry().find(id)`, which returns a pointer or
+`nullptr` if the ID is unknown, or `.require(id)`, which returns a reference and throws
+`std::invalid_argument` if the ID is unknown.
+
 `methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
 metadata, notes, requirements, and option schemas. `MethodMetadata::recommended` tells whether the
 method's charges are recommended for general use. `methods::complexity_notation()` formats the declared

@@ -13,6 +13,7 @@ namespace chargefw::methods {
 class MethodRegistry {
   public:
     [[nodiscard]] auto find(std::string_view id) const noexcept -> const Method*;
+    [[nodiscard]] auto require(std::string_view id) const -> const Method&;
 
     [[nodiscard]] auto methods() const noexcept -> std::span<const std::unique_ptr<Method>>;
 

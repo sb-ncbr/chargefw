@@ -43,6 +43,8 @@
 
 ### C++
 
+- `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
+  `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`
   now require a valid atom or bond index, matching the other indexed containers. Use `at()` for
   bounds checking and `std::out_of_range` on an invalid index. Named parameter lookup remains
