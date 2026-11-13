@@ -226,9 +226,10 @@ residue name it was selected by, such as `"MG"`), `molecule_index`, `atom_index`
 
 ### RequestedCalculation
 
-The arguments of a call as ChargeFW read them: `method` and `parameter_set` as IDs or `None`,
-`method_scope`, `options_by_method`, `parameter_matching`, `execution`, `radius`, `cutoff_threshold`,
-`cover_threshold`, `threads`, and `fixed_ions` as a tuple of residue names.
+The arguments of a call as ChargeFW read them: `method` as a `Method` and `parameter_set` as a
+`ParameterSet`, or `None` when not given, `method_scope`, `options_by_method`, `parameter_matching`,
+`execution`, `radius`, `cutoff_threshold`, `cover_threshold`, `threads`, and `fixed_ions` as a tuple
+of residue names.
 
 ## Assessment
 
@@ -359,7 +360,7 @@ Python warnings for cautions that can make the charges wrong; see
 | Attribute | Content |
 | --- | --- |
 | `id`, `name` | Such as `"EEM_Cheminf_b3lyp_npa"` |
-| `method` | ID of the method the set is for |
+| `method` | `Method` the set is for |
 | `publication`, `notes` | Source of the values and remarks |
 | `atom_keys` | Tuple of `AtomParameterKey`, each with `element`, `classifier`, and `type` |
 | `bond_keys` | Tuple of `BondParameterKey`, each with `atoms` (two `AtomParameterKey`), `classifier`, and `type` |
@@ -476,7 +477,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | --- | --- |
 | `phase` | `"computation_started"`, `"target_started"`, `"fragment_progress"`, `"target_finished"`, or `"computation_finished"` |
 | `mode` | Execution mode |
-| `method_id` | ID of the method |
+| `method` | `Method` being calculated |
 | `target_index`, `target_count` | Position of the current target and the number of targets; a target is a conformer for methods that use coordinates, otherwise a molecule |
 | `completed_fragment_count`, `fragment_count` | Fragments done and in total, for cutoff and cover |
 | `molecule_index`, `conformer_index` | The molecule and conformer being calculated |

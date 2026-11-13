@@ -134,7 +134,7 @@ def _method_descriptor(
             tuple(
                 parameter_set
                 for parameter_set in parameter_sets.values()
-                if parameter_set.method == value["id"]
+                if parameter_set._method_id == value["id"]
             )
         ),
     )
@@ -143,12 +143,19 @@ def _method_descriptor(
 def _method_catalog(parameter_sets: ParameterSetCatalog) -> MethodCatalog:
     """Build method descriptors linked to the bundled parameter catalog."""
 
-    return MethodCatalog(
+    catalog = MethodCatalog(
         tuple(
             _method_descriptor(value, parameter_sets)
             for value in _native_methods._method_descriptors()
         )
     )
+    for method in catalog.values():
+        for parameter_set in method.parameter_sets.values():
+            parameter_set._link(method)
+    unlinked = [value.id for value in parameter_sets.values() if value._method_id not in catalog]
+    if unlinked:
+        raise RuntimeError(f"bundled parameter sets for unknown methods: {', '.join(unlinked)}")
+    return catalog
 
 
 set_public_module("chargefw", PrerequisiteIssue, ExecutionIssue, MethodOption, Method)

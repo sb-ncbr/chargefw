@@ -138,7 +138,7 @@ def test_observer_receives_owned_execution_progress() -> None:
         "computation_finished",
     ]
     started = observer.events[0]
-    assert started.method_id == "formal"
+    assert started.method.id == "formal"
     assert started.mode == "full"
     targets = [event for event in observer.events if event.phase == "target_started"]
     assert [event.target_index for event in targets] == [0, 1]
@@ -407,7 +407,7 @@ def test_assessment_and_full_calculation() -> None:
     assert np.isclose(assignment.values.sum(), 0.0)
     assert np.asarray(assignment) is assignment.values
     assert np.asarray(assignment, dtype=np.float32).dtype == np.dtype(np.float32)
-    assert result.requested.method == "eem"
+    assert result.requested.method is chargefw.methods["eem"]
     assert result.requested.execution == "full"
     executed = result.plan
     assert executed is not None, "successful calculation must report plan provenance"
@@ -509,7 +509,7 @@ def test_objects_that_chargefw_creates_cannot_be_constructed() -> None:
     with pytest.raises(TypeError):
         cast(Any, chargefw.ParameterSet)(
             id=bundled.id,
-            method=bundled.method,
+            method=bundled.method.id,
             name=bundled.name,
             publication=bundled.publication,
             notes=bundled.notes,
@@ -941,7 +941,7 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
 
     assert isinstance(chargefw.parameter_sets, Mapping)
     assert eem.parameter_sets
-    assert all(parameter_set.method == "eem" for parameter_set in eem.parameter_sets.values())
+    assert all(parameter_set.method.id == "eem" for parameter_set in eem.parameter_sets.values())
     parameter_set = next(iter(eem.parameter_sets.values()))
     assert chargefw.parameter_sets[parameter_set.id] == parameter_set
 
@@ -988,7 +988,7 @@ def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
 def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> None:
     equal = chargefw.read_parameter_set(write_eem_set(tmp_path / "equal.json", "water-equal", 2.0))
     polar = chargefw.read_parameter_set(write_eem_set(tmp_path / "polar.json", "water-polar", 3.0))
-    assert equal.id == "water-equal" and equal.method == "eem"
+    assert equal.id == "water-equal" and equal.method.id == "eem"
     assert "water-equal" not in chargefw.parameter_sets
 
     # Equal electronegativities give zero charges; a higher one for oxygen makes it negative.
@@ -1028,6 +1028,11 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
     malformed.write_text('{"metadata": {"id": "broken"}}')
     with pytest.raises(ValueError):
         chargefw.read_parameter_set(malformed)
+
+    unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
+    unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
+    with pytest.raises(ValueError, match="no-such-method"):
+        chargefw.read_parameter_set(unknown_method)
 
 
 def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(

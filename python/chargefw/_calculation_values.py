@@ -126,7 +126,7 @@ class CalculationProgress:
 
     phase: CalculationPhase
     mode: ExecutionMode
-    method_id: str
+    method: Method
     target_index: int
     target_count: int
     completed_fragment_count: int
@@ -149,24 +149,40 @@ class CalculationObserver:
 
 
 class _NativeObserverAdapter:
-    __slots__ = ("_observer",)
+    __slots__ = ("_observer", "_methods")
 
-    def __init__(self, observer: CalculationObserver) -> None:
+    def __init__(self, observer: CalculationObserver, methods: MethodCatalog) -> None:
         self._observer = observer
+        self._methods = methods
 
     def on_progress(self, progress: CalculationProgressPayload) -> None:
-        self._observer.on_progress(CalculationProgress(**progress))
+        self._observer.on_progress(
+            CalculationProgress(
+                phase=progress["phase"],
+                mode=progress["mode"],
+                method=self._methods[progress["method_id"]],
+                target_index=progress["target_index"],
+                target_count=progress["target_count"],
+                completed_fragment_count=progress["completed_fragment_count"],
+                fragment_count=progress["fragment_count"],
+                molecule_index=progress["molecule_index"],
+                conformer_index=progress["conformer_index"],
+                elapsed_seconds=progress["elapsed_seconds"],
+            )
+        )
 
     def cancelled(self) -> bool:
         return self._observer.cancelled()
 
 
-def _observer_adapter(observer: CalculationObserver | None) -> _NativeObserverAdapter | None:
+def _observer_adapter(
+    observer: CalculationObserver | None, methods: MethodCatalog
+) -> _NativeObserverAdapter | None:
     if observer is None:
         return None
     if not isinstance(observer, CalculationObserver):
         raise TypeError("observer must be a CalculationObserver or None")
-    return _NativeObserverAdapter(observer)
+    return _NativeObserverAdapter(observer, methods)
 
 
 def _normalized_threads(threads: int | None) -> int | None:
@@ -366,7 +382,7 @@ class Plan:
         The molecules are not prepared or matched to parameters again.
         """
 
-        result = self._execute(threads, _observer_adapter(observer))
+        result = self._execute(threads, _observer_adapter(observer, self._methods))
         # Raised here rather than in a helper, so that the traceback ends at this method.
         error, cautions = _outcome(result)
         if error is not None:

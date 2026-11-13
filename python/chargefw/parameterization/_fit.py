@@ -146,7 +146,9 @@ def fit(
         ) from error
 
     chosen = (
-        profiles.PROFILES.get(evaluator._parameter_set.method) if profile == "default" else profile
+        profiles.PROFILES.get(evaluator._parameter_set.method.id)
+        if profile == "default"
+        else profile
     )
     layout = evaluator.layout
     lower, upper = evaluator._bounds(

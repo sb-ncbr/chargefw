@@ -36,6 +36,11 @@
   `MethodOption`, `ParameterSet`, `AtomParameterKey`, `BondParameterKey`, and `Element`. Their
   attributes no longer match positional patterns in `match` statements. `Plan.estimate()` takes
   `threads` as a keyword argument only.
+- Breaking change: an attribute named `method` is always a `Method`, and one named `parameter_set`
+  always a `ParameterSet`. `ParameterSet.method`, `RequestedCalculation.method`, and
+  `RequestedCalculation.parameter_set` were IDs, and `CalculationProgress.method_id` is now
+  `CalculationProgress.method`; use `.id` for the ID. `read_parameter_set()` rejects a file for a
+  method ChargeFW does not have; such a set could be read before but never calculated.
 - Breaking change: `ParameterSet`, `CalculationSettings`, `Plan`, `Assessment`, and
   `CalculationResult` cannot be constructed; calling the class raises `TypeError`. Get them from
   `chargefw.parameter_sets`, `read_parameter_set()`, `assess()`, and `calculate()`. `ParameterSet` is

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ._catalog import _Catalog
 from ._chargefw.parameters import _NativeParameterCatalog
@@ -13,6 +14,9 @@ from ._payloads import (
 )
 from ._public import set_public_module
 from ._types import AtomClassifier, BondClassifier
+
+if TYPE_CHECKING:
+    from ._methods import Method
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -38,6 +42,7 @@ class ParameterSet:
 
     __slots__ = (
         "_id",
+        "_method_id",
         "_method",
         "_name",
         "_publication",
@@ -48,7 +53,9 @@ class ParameterSet:
     )
 
     _id: str
-    _method: str
+    # The ID compares and hashes the set; _link() sets the Method once the methods exist, because
+    # each Method lists its bundled sets.
+    _method_id: str
     _name: str
     _publication: str
     _notes: str
@@ -71,7 +78,7 @@ class ParameterSet:
     ) -> ParameterSet:
         parameter_set = object.__new__(cls)
         parameter_set._id = value["id"]
-        parameter_set._method = value["method_id"]
+        parameter_set._method_id = value["method_id"]
         parameter_set._name = value["name"]
         parameter_set._publication = value["publication"]
         parameter_set._notes = value["notes"]
@@ -84,8 +91,13 @@ class ParameterSet:
     def id(self) -> str:
         return self._id
 
+    def _link(self, method: Method) -> None:
+        if method.id != self._method_id:
+            raise RuntimeError(f"parameter set {self._id!r} is not for method {method.id!r}")
+        self._method = method
+
     @property
-    def method(self) -> str:
+    def method(self) -> Method:
         return self._method
 
     @property
@@ -113,7 +125,7 @@ class ParameterSet:
         # that share its native set, which compares by identity.
         return (
             self._id,
-            self._method,
+            self._method_id,
             self._name,
             self._publication,
             self._notes,
@@ -131,7 +143,9 @@ class ParameterSet:
         return hash(self._identity())
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(id={self.id!r}, method={self.method!r}, name={self.name!r})"
+        return (
+            f"{type(self).__name__}(id={self.id!r}, method={self._method_id!r}, name={self.name!r})"
+        )
 
 
 class ParameterSetCatalog(_Catalog[ParameterSet]):

@@ -122,8 +122,8 @@ def _frozen_options_by_method(
 class RequestedCalculation:
     """Normalized policy requested for an assessment or calculation."""
 
-    method: str | None
-    parameter_set: str | None
+    method: Method | None
+    parameter_set: ParameterSet | None
     method_scope: MethodScope
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
     parameter_matching: ParameterMatching
@@ -137,8 +137,8 @@ class RequestedCalculation:
     def __init__(
         self,
         *,
-        method: str | Method | None = None,
-        parameter_set: str | ParameterSet | None = None,
+        method: Method | None = None,
+        parameter_set: ParameterSet | None = None,
         method_scope: MethodScope = "recommended",
         options: Mapping[str, MethodOptionValue] | None = None,
         options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
@@ -150,14 +150,11 @@ class RequestedCalculation:
         threads: int = 0,
         fixed_ions: Sequence[str] | None = None,
     ) -> None:
-        if method is not None and not isinstance(method, (str, Method)):
-            raise TypeError("method must be a method ID, Method, or None")
-        if parameter_set is not None and not isinstance(parameter_set, (str, ParameterSet)):
-            raise TypeError("parameter_set must be a parameter-set ID, ParameterSet, or None")
-        method_id = method.id if isinstance(method, Method) else method
-        parameter_set_id = (
-            parameter_set.id if isinstance(parameter_set, ParameterSet) else parameter_set
-        )
+        if method is not None and not isinstance(method, Method):
+            raise TypeError("method must be a Method or None")
+        if parameter_set is not None and not isinstance(parameter_set, ParameterSet):
+            raise TypeError("parameter_set must be a ParameterSet or None")
+        method_id = None if method is None else method.id
         if not isinstance(method_scope, str):
             raise TypeError("method_scope must be a string")
         if method_scope not in ("recommended", "all"):
@@ -210,8 +207,8 @@ class RequestedCalculation:
             if any(not isinstance(ion, str) for ion in normalized_fixed_ions):
                 raise TypeError("fixed_ions must contain only strings")
 
-        object.__setattr__(self, "method", method_id)
-        object.__setattr__(self, "parameter_set", parameter_set_id)
+        object.__setattr__(self, "method", method)
+        object.__setattr__(self, "parameter_set", parameter_set)
         object.__setattr__(self, "method_scope", method_scope)
         object.__setattr__(
             self,

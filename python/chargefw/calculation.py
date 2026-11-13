@@ -135,10 +135,38 @@ def _check_custom_parameter_id(id: str, source: str | None = None) -> None:
 
 
 def _parameter_set_from_catalog(
-    native: _native_parameters._NativeParameterCatalog,
+    native: _native_parameters._NativeParameterCatalog, source: str | None = None
 ) -> ParameterSet:
     (descriptor,) = native._descriptors()
-    return ParameterSet._create(descriptor, native)
+    result = ParameterSet._create(descriptor, native)
+    if result._method_id not in methods:
+        where = f" in {source!r}" if source else ""
+        raise ValueError(
+            f"parameter set {result.id!r}{where} is for method {result._method_id!r}, "
+            "which ChargeFW does not have"
+        )
+    result._link(methods[result._method_id])
+    return result
+
+
+def _requested_method(method: str | Method | None) -> Method | None:
+    if method is None or isinstance(method, Method):
+        return method
+    if not isinstance(method, str):
+        raise TypeError("method must be a method ID, Method, or None")
+    if method not in methods:
+        raise ValueError(f"method {method!r} is not registered")
+    return methods[method]
+
+
+def _requested_parameter_set(parameter_set: str | ParameterSet | None) -> ParameterSet | None:
+    if parameter_set is None or isinstance(parameter_set, ParameterSet):
+        return parameter_set
+    if not isinstance(parameter_set, str):
+        raise TypeError("parameter_set must be a parameter-set ID, ParameterSet, or None")
+    if parameter_set not in parameter_sets:
+        raise ValueError(f"unknown parameter set {parameter_set!r}")
+    return parameter_sets[parameter_set]
 
 
 def _native_catalog_for(parameter_set: ParameterSet) -> _native_parameters._NativeParameterCatalog:
@@ -153,7 +181,7 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     """
 
     native = _native_parameters._load_parameter_set_catalog(os.fspath(path))
-    result = _parameter_set_from_catalog(native)
+    result = _parameter_set_from_catalog(native, os.fspath(path))
     _check_custom_parameter_id(result.id, os.fspath(path))
     return result
 
@@ -175,7 +203,7 @@ def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSe
 
 
 def _parameter_catalogs(
-    parameter_set: str | ParameterSet | None,
+    parameter_set: ParameterSet | None,
 ) -> tuple[_native_parameters._NativeParameterCatalog, ParameterSetCatalog]:
     """The native catalog for an assessment and the catalog that resolves its results.
 
@@ -183,7 +211,7 @@ def _parameter_catalogs(
     sets; read_parameter_set() guarantees that its ID does not collide with theirs.
     """
 
-    if isinstance(parameter_set, ParameterSet) and parameter_set._native is not None:
+    if parameter_set is not None and parameter_set._native is not None:
         return parameter_set._native, ParameterSetCatalog((*parameter_sets.values(), parameter_set))
     return _default_parameter_catalog(), parameter_sets
 
@@ -319,8 +347,8 @@ def assess(
         fixed_ions = settings.fixed_ions
 
     requested = RequestedCalculation(
-        method=method,
-        parameter_set=parameter_set,
+        method=_requested_method(method),
+        parameter_set=_requested_parameter_set(parameter_set),
         method_scope="recommended" if method_scope is None else method_scope,
         options=options,
         options_by_method=options_by_method,
@@ -333,7 +361,7 @@ def assess(
         fixed_ions=fixed_ions,
     )
     collection = _as_collection(molecules)
-    native_catalog, catalog = _parameter_catalogs(parameter_set)
+    native_catalog, catalog = _parameter_catalogs(requested.parameter_set)
     native = _native_calculation._make_assessment(
         collection._native_molecules,
         tuple(getattr(molecule, "_native_input_metadata", None) for molecule in collection),
@@ -348,8 +376,8 @@ def assess(
         tuple(molecule._caller_atom_ids for molecule in collection),
         collection.name,
         native_catalog,
-        requested.method,
-        requested.parameter_set,
+        None if requested.method is None else requested.method.id,
+        None if requested.parameter_set is None else requested.parameter_set.id,
         requested.method_scope,
         {
             method_id: dict(overrides)
@@ -392,7 +420,7 @@ def calculate(
     """
 
     collection = _as_collection(molecules)
-    native_observer = _observer_adapter(observer)
+    native_observer = _observer_adapter(observer, methods)
     assessment = assess(
         collection,
         method=method,

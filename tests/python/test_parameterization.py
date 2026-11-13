@@ -64,7 +64,7 @@ def test_parameter_template_has_the_types_of_its_molecules() -> None:
     molecules = chargefw.MoleculeCollection((water(), formaldehyde()))
     template = make_parameter_template(molecules, "sqe", atom_types="hbo", bond_types="bo")
 
-    assert (template.id, template.method) == ("template", "sqe")
+    assert (template.id, template.method.id) == ("template", "sqe")
     assert [(key.element, key.type) for key in template.atom_keys] == [
         ("H", "1"),
         ("C", "2"),
@@ -431,7 +431,7 @@ def test_fitted_values_become_a_parameter_set_to_calculate_and_write(tmp_path: P
     result = fit(evaluator, references, start=FIT_START, free=FIT_FREE, max_evaluations=5)
 
     fitted = result.parameter_set(id="water-fit", name="Water fit", notes="Fitted in a test")
-    assert (fitted.id, fitted.method, fitted.name, fitted.notes) == (
+    assert (fitted.id, fitted.method.id, fitted.name, fitted.notes) == (
         "water-fit",
         "eem",
         "Water fit",
