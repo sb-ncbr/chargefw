@@ -1,7 +1,5 @@
 #include "cli_support.h"
 
-#include <chargefw/methods/method_applicability.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>

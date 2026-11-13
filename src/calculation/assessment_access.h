@@ -2,11 +2,11 @@
 
 #include "calculation/assessment_state.h"
 #include "calculation/fixed_charge_partition.h"
+#include "methods/method_applicability.h"
 
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_set.h>
 

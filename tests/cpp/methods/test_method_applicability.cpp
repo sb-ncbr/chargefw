@@ -1,4 +1,5 @@
 #include "methods/find_applicable_methods.h"
+#include "methods/method_applicability.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -10,7 +11,6 @@
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/models/atom_parameters.h>

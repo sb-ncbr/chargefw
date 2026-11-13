@@ -54,6 +54,9 @@
   Applications that use either dependency directly must find and link it explicitly. Rebuild C++
   consumers because the reader layouts changed. Fetched native installations retain the Gemmi and
   oneTBB runtime libraries but no longer install third-party development packages.
+- Breaking change: removed `<chargefw/methods/method_applicability.h>` with
+  `methods::ApplicableMethod`, `methods::RejectedCandidate`, and `methods::ApplicabilityResult`. No
+  public function produced them. Read the plans and rejections of an assessment instead.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`
@@ -69,8 +72,7 @@
   `calculation::ExecutionIssue` and `calculation::ExecutionIssueKind`, declared in
   `<chargefw/calculation/execution_issues.h>`. Removed `methods::ExecutionAvailability`,
   `methods::ExecutionAssessment`, and `methods::ApplicableMethod::execution_assessments`; read the
-  plans and rejections of an assessment instead. `<chargefw/methods/method_applicability.h>` no
-  longer includes a calculation header. Rebuild downstream C++ code.
+  plans and rejections of an assessment instead. Rebuild downstream C++ code.
 - Breaking change: an `ExecutionPlan` keeps the molecules and parameter sets of its assessment, so
   the functions that took an assessment and one of its plans take only the plan:
   `calculation::calculate(plan, ...)`, `calculate(plan, candidate, ...)`, `estimate(plan, ...)`,

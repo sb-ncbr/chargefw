@@ -5,7 +5,8 @@
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
-#include <chargefw/methods/method_applicability.h>
+#include <chargefw/methods/method_options.h>
+#include <chargefw/methods/method_prerequisites.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/classification_result.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
@@ -21,6 +22,11 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+
+namespace chargefw::methods {
+class Method;
+struct ApplicableMethod;
+} // namespace chargefw::methods
 
 namespace chargefw::calculation {
 

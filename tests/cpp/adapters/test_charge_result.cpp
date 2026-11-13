@@ -8,7 +8,6 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_prerequisites.h>
 
 #include <snitch/snitch.hpp>

@@ -11,9 +11,9 @@
 #include "calculation/input_checks.h"
 #include "calculation/observer_notifications.h"
 #include "methods/applicable_method_execution.h"
+#include "methods/method_applicability.h"
 
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <chrono>

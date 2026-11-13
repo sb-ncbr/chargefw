@@ -1,5 +1,6 @@
 #include "calculation/calculation_cancelled.h"
 #include "calculation/calculation_request.h"
+#include "methods/method_applicability.h"
 #include "support/test_calculation.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
@@ -16,7 +17,6 @@
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_metadata.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>

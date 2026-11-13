@@ -10,13 +10,13 @@
 #include "calculation/target_execution.h"
 #include "calculation/target_input.h"
 #include "methods/applicable_method_execution.h"
+#include "methods/method_applicability.h"
 
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 

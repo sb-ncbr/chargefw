@@ -16,7 +16,6 @@
 #include <chargefw/calculation/observer.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 
 #include <nanobind/nanobind.h>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "calculation/fixed_charge_partition.h"
+#include "methods/method_applicability.h"
 
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/observer.h>
@@ -11,7 +12,6 @@
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/features/spatial_fragment.h>
 #include <chargefw/methods/calculation_input.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 
