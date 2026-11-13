@@ -182,8 +182,10 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
         .add_option("--method-scope", arguments.method_scope,
                     "Methods automatic selection may use: recommended or all")
         ->excludes(arguments.method_option);
-    command.add_option("--fixed-ions", arguments.fixed_ion_ids,
-                       "Fixed-ion component ID (repeatable)");
+    // One value per occurrence, as --method-option: a value after it would be read as an ion.
+    command
+        .add_option("--fixed-ions", arguments.fixed_ion_ids, "Fixed-ion component ID (repeatable)")
+        ->allow_extra_args(false);
     command.add_option("--parameter-matching", arguments.parameter_matching,
                        "Parameter matching: strict or permissive");
     command

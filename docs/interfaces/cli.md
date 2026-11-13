@@ -103,9 +103,9 @@ A malformed record in the input stops the command before any calculation.
 | `--method ID` | Use this method |
 | `--parameter-set ID` | Use this parameter set; requires `--method` |
 | `--method-scope SCOPE` | Methods automatic selection may use: `recommended` (default) or `all`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; not with `--method` |
-| `--method-option OPTION=VALUE` | Set an option of the method given by `--method`, such as `iters=8`; repeatable |
+| `--method-option OPTION=VALUE` | Set an option of the method given by `--method`, such as `iters=8`; give it once per option |
 | `--parameter-matching strict\|permissive` | `permissive` lets a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) (default `strict`) |
-| `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; repeatable; see [Fixed ions](../guide/fixed-ions.md) |
+| `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; give it once per residue name; see [Fixed ions](../guide/fixed-ions.md) |
 
 ### Execution
 

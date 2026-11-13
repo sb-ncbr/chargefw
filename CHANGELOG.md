@@ -278,6 +278,8 @@
 
 ### Command line
 
+- Breaking change: `--fixed-ions` takes one residue name per occurrence, as `--method-option`
+  takes one option: write `--fixed-ions MG --fixed-ions CA`, not `--fixed-ions MG CA`.
 - Breaking change: options are named as the arguments of `chargefw.calculate()` in Python.
   `--permissive-types` is now `--parameter-matching permissive` (default `strict`), and
   `--cutoff-atom-threshold` and `--cover-atom-threshold` are now `--cutoff-threshold` and
