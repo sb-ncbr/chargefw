@@ -34,6 +34,11 @@ declaration and the suffix is `CHARGEFW_VERSION_SUFFIX`, empty for final release
 the Python package version, `chargefw.__version__`, the generator version in output files, and the tag
 name `vVERSION`; the CMake package version is the numeric part.
 
+Raise `PATCH` for a release of fixes only, `MINOR` for one that adds features or changes a documented
+interface, and `MAJOR` only for a redesign, as [docs/about/versions.md](docs/about/versions.md)
+promises users. The CMake package accepts only the same minor version, and every release gives the
+shared library its own name, so C++ applications are rebuilt against each one.
+
 Published files cannot be replaced. If an artifact must change after it has been uploaded to either
 package index, release a new version. Do not delete or reuse a published version or move a release tag.
 

@@ -16,6 +16,10 @@
 
 ### Installation
 
+- A patch release, such as 3.0.1, contains fixes only; a minor release, such as 3.1.0, may also
+  change documented interfaces, with every breaking change marked here. Pin `chargefw~=3.0.0` to stay
+  within one minor version. `chargefw.parameterization` is experimental and may change in any release.
+  [Versions and changes](https://chargefw.readthedocs.io/en/latest/about/versions.html) has the details.
 - On x86-64, the wheels, the Docker image, and source builds target x86-64-v3 (AVX2 and FMA: Intel
   Haswell, AMD Excavator, or newer). Full calculations on large structures run about twice as fast
   with the wheels. On an older CPU, `import chargefw` raises an `ImportError`; build from source with
@@ -69,6 +73,7 @@
 
 ### C++
 
+- `find_package(chargefw 3.0)` accepts only 3.0.x, because a minor release may change interfaces.
 - Breaking change: the CMake target is `chargefw::chargefw` instead of `chargefw::core`, and the
   library file is `libchargefw.so` instead of `libchargefw_core.so`; `chargefw::core` named both the
   whole library and the namespace of atoms and molecules, which keeps its name. Link

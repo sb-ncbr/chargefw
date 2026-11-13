@@ -36,6 +36,9 @@ find_package(chargefw CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE chargefw::chargefw)
 ```
 
+To require a minor version, write `find_package(chargefw 3.0 CONFIG REQUIRED)`; it accepts 3.0.x and
+refuses 3.1.0, which may change interfaces, as [Versions and changes](../about/versions.md) describes.
+
 Point CMake at the installation when you configure that project:
 
 ```bash
@@ -410,7 +413,9 @@ library, and `parameters::default_parameter_directories()`, every directory
 ## Fitting parameters
 
 `chargefw::parameterization` provides the pieces for fitting parameter values to reference charges;
-from Python, `fit()` does the whole fit, as [Fitting parameters](fitting.md) describes. Start from a
+from Python, `fit()` does the whole fit, as [Fitting parameters](fitting.md) describes. It is
+experimental and may change in any release, as [Versions and changes](../about/versions.md)
+describes. Start from a
 template:
 `parameterization::make_parameter_template()`, declared in
 `<chargefw/parameterization/parameter_template.h>`, makes one entry for every atom type and bond type

@@ -375,7 +375,7 @@ The [parameter-set format](parameter-format.md#classifiers) explains classifiers
 ## Fitting
 
 `chargefw.parameterization` fits parameter values to reference charges; [Fitting
-parameters](../interfaces/fitting.md) shows how.
+parameters](../interfaces/fitting.md) shows how. It is experimental and may change in any release.
 
 | Function | Returns |
 | --- | --- |

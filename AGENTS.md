@@ -127,6 +127,8 @@ reuse or adapt existing tests before adding cases, and add coverage only for a d
 contract not already protected. Update the owning user documentation when its contract changes. Remove a
 TODO only when its complete deliverable is qualified. Stop for user approval before out-of-scope public
 API changes, automatic chemistry policy, heavyweight dependencies, destructive commands, or broad rewrites.
+Releases follow [docs/about/versions.md](docs/about/versions.md): an incompatible change to a documented
+interface waits for the next minor release and is marked as a breaking change in the changelog.
 Preserve the scientific and architectural rules above.
 
 ### Test design

@@ -1,9 +1,12 @@
 # Versions and changes
 
-The native library, the command-line application, and the Python package share one
-[PEP 440](https://peps.python.org/pep-0440/) version, which continues ChargeFW2's lineage. Pre-releases
-such as `3.0.0a1` may change any interface. From 3.0.0, incompatible changes to documented interfaces
-wait for a new major version, and every change that affects calculated charges is listed in the
-[changelog](https://github.com/sb-ncbr/chargefw/blob/main/CHANGELOG.md). New parameter sets can change
-automatic selection, so name the method and parameter set explicitly when results must stay the same
-across releases.
+The library, the command line, and the Python package share one version, such as `3.0.0`. A patch
+release, such as `3.0.1`, only fixes bugs. A minor release, such as `3.1.0`, may also change
+documented interfaces; the [changelog](https://github.com/sb-ncbr/chargefw/blob/main/CHANGELOG.md)
+marks every such change and says what to do instead. To stay within one minor version, install
+`chargefw~=3.0.0`. `chargefw.parameterization` is experimental and may change in any release.
+Rebuild C++ applications against every release.
+
+A bundled parameter set never changes its values under the same ID, and every change to calculated
+charges is listed in the changelog. Automatic selection may choose differently in a minor release,
+so name the method, the parameter set, and the execution when results must stay the same.
