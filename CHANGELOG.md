@@ -4,6 +4,11 @@
 
 ### Input
 
+- Breaking change: parameter-set files are read strictly. An unknown section, key member, or entry
+  member is an error, and so is a parameter name the method does not use, reported as the new
+  prerequisite issue kind `unknown_parameters`. A set made for another version could otherwise give
+  charges without values it contains. `metadata` may still hold other members, and its new optional
+  `format_version` must be `1`.
 - Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
 - MOL, SDF, MOL2, PDB, and mmCIF input must be ASCII text. A character outside ASCII on any line,
   including comments and SDF data items, is an error that names the line.

@@ -39,6 +39,8 @@ namespace {
         return "unsupported_molecule";
     case methods::PrerequisiteIssueKind::missing_parameters:
         return "missing_parameters";
+    case methods::PrerequisiteIssueKind::unknown_parameters:
+        return "unknown_parameters";
     case methods::PrerequisiteIssueKind::parameter_classification_failed:
         return "parameter_classification_failed";
     case methods::PrerequisiteIssueKind::unsupported_fixed_ions:

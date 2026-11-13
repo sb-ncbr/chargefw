@@ -463,6 +463,34 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
 }
 
+TEST_CASE("a parameter set with values the method does not use is rejected",
+          "[calculation][calculation]") {
+    // EEM uses the atom parameters A and B; a set made for a variant with a third term must not
+    // give charges without it.
+    const auto atom_parameters = [](const int atomic_number, const double a) {
+        return parameters::AtomParameterEntry{
+            .key = chargefw::test::atom_key(
+                atomic_number, parameters::AtomParameterClassificationKind::plain, "*"),
+            .parameters = {{.name = "A", .value = a},
+                           {.name = "B", .value = 1.0},
+                           {.name = "C", .value = 0.5}}};
+    };
+    const auto assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .parameter_sets = {parameters::ParameterSet{
+            parameters::ParameterSetMetadata{.id = "extra-term", .method_id = "eem"},
+            parameters::CommonParameters{{{.name = "kappa", .value = 1.0}}},
+            parameters::AtomParameters{{atom_parameters(1, 1.0), atom_parameters(8, 2.0)}}}},
+        .method_id = "eem",
+        .parameter_set_id = "extra-term"});
+
+    CHECK(assessment.default_plan() == nullptr);
+    REQUIRE(assessment.rejections().size() == 1);
+    REQUIRE(assessment.rejections()[0].issues.size() == 1);
+    CHECK(std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]).kind ==
+          methods::PrerequisiteIssueKind::unknown_parameters);
+}
+
 TEST_CASE("missing parameters give one issue for the atoms and one for the bonds",
           "[calculation][calculation]") {
     const auto only_issue = [](const calculation::AssessmentResult& assessment) {

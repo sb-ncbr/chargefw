@@ -19,6 +19,8 @@ auto to_string(const PrerequisiteIssueKind value) -> std::string_view {
         return "unsupported_molecule";
     case PrerequisiteIssueKind::missing_parameters:
         return "missing_parameters";
+    case PrerequisiteIssueKind::unknown_parameters:
+        return "unknown_parameters";
     case PrerequisiteIssueKind::parameter_classification_failed:
         return "parameter_classification_failed";
     case PrerequisiteIssueKind::unsupported_fixed_ions:

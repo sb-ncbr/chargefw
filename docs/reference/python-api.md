@@ -275,6 +275,7 @@ A reason why a method or parameter set does not apply to the molecules.
 | --- | --- |
 | `parameter_classification_failed` | The parameter set has no entry matching some atoms or bonds of the molecule; one issue lists all such atoms, another all such bonds. [Permissive matching](parameter-format.md#strict-and-permissive-matching) may help |
 | `missing_parameters` | The parameter set lacks values the method needs for every molecule, or no parameter set was available |
+| `unknown_parameters` | The parameter set has values the method does not use, such as a set for another version of the method |
 | `missing_feature` | The method needs coordinates and the molecule has none |
 | `invalid_geometry` | Coordinates that are not finite, or two atoms at the same position |
 | `unsupported_molecule` | The method does not handle this molecule, for example a charged component where it needs neutral ones, or elements it has no values for; one issue lists all such atoms |
