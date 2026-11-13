@@ -10,8 +10,8 @@
   JSON, `import.policy` has `selection`, `bonds`, `conformers`, and `alternate_locations` instead of
   `record_selection`, `bond_strategy`, `conformer_selection`, and `alternate_location_selection`. In
   Python, these four are in `SourceMapping.policy`, a new `chargefw.SourcePolicy`; in C++, in
-  `MoleculeImportMetadata::policy`, an `adapters::ImportPolicy`, and
-  `gemmi::InputOptions::bond_strategy` is `bonds`.
+  `MoleculeImportMetadata::policy`, an `io::ImportPolicy`, and the reader options'
+  `bond_strategy` is `bonds` (`io::StructureOptions`, formerly `adapters::gemmi::InputOptions`).
 - Breaking change: parameter-set files are read strictly. An unknown section, key member, or entry
   member is an error, and so is a parameter name the method does not use, reported as the new
   prerequisite issue kind `unknown_parameters`. A set made for another version could otherwise give
@@ -65,8 +65,8 @@
 - Breaking change: `Molecule()` takes only `atomic_numbers` by position; the other arguments are
   keyword-only. The record it came from is given only by `source_name`, `record_index`, and
   `record_id`; the `source` argument is removed. `name` and `source_name` default to `""` and
-  no longer accept `None`. `SourceIdentity.source` is now `source_name`, as the argument of
-  `Molecule()` and `chargefw.io.parse()`.
+  no longer accept `None`. `SourceIdentity` has only `source_name`, as the argument of
+  `Molecule()` and `chargefw.io.parse()`; its `source` field is removed.
 - Breaking change: `chargefw.ChargeFWError` is the base class of every ChargeFW error and no longer
   a `RuntimeError`. A failed calculation raises a `chargefw.CalculationError`, which holds `result`
   and is the base class of `NoExecutablePlanError`, `NumericalFailureError`, and
@@ -85,7 +85,7 @@
   `ValueError` instead. Omitting `conformer` still selects a single assignment automatically,
   including a conformer-specific assignment.
 - Breaking change: the value classes take their attributes as keyword arguments only, for example
-  `SourceIdentity(source="input.sdf", record_index=0)` and
+  `SourceIdentity(source_name="input.sdf", record_index=0)` and
   `AtomParameterKey(element="C", classifier="bonded", type="COO")`. This covers the issue classes,
   `SourceIdentity` and the other `Source*` classes, `ChargeAssignment`, `ExecutedPlan`, `Execution`,
   `ResourceEstimate`, `CalculationProgress`, `CalculationTimings`, `Rejection`, `Method`,
@@ -102,8 +102,6 @@
   `chargefw.parameter_sets`, `read_parameter_set()`, `assess()`, and `calculate()`. `ParameterSet` is
   no longer a dataclass, so `dataclasses.replace()` no longer makes a copy that names a parameter set
   that does not exist. Two `CalculationSettings` with the same choices are now equal.
-- Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
-  `Molecule.source_name` is unchanged.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with
   `plan.calculate(threads=None, observer=None)`; it calculates the molecules the plan was assessed with.
 - `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
@@ -125,25 +123,22 @@
 
 ### C++
 
-- Breaking change: the namespace `chargefw::adapters` is `chargefw::io`, as Python's `chargefw.io`,
-  and its headers are in `chargefw/io/` without the `native/` and `gemmi/` subdirectories, for example
-  `<chargefw/io/sdf_input.h>`. One `<chargefw/io/all.h>` replaces the two umbrella headers, and
-  `gemmi/input_options.h` is `io/structure_options.h`.
-- Breaking change: the file readers and writers are in `chargefw::adapters`, without the
-  per-format namespaces: `adapters::SdfReader` instead of `adapters::native::sdf_input::SdfReader`,
-  `adapters::MmcifWriter` instead of `adapters::gemmi::mmcif_output::MmcifWriter`, and so on.
-  `adapters::gemmi::InputOptions` is `adapters::StructureOptions`, and `RecordSelection`,
-  `BondStrategy`, and their conversion functions are in `chargefw::adapters`. Public names no
-  longer hide the `::gemmi` namespace. The header paths are unchanged.
-- `adapters::make_requested_provenance()` creates the `RequestedCalculationProvenance` of a
-  request, with the thread limit and the residue names of the fixed ions, instead of copying its
-  fields by hand.
-- Breaking change: `adapters::ImportedMoleculeRecord::issues` is now `import_warnings`, as in
-  Python.
-- Breaking change: `adapters::ExecutionMetrics::peak_resident_memory_mb` is now
-  `peak_resident_memory_bytes`, a `std::uint64_t`.
-- Breaking change: `adapters::MoleculeRecordIdentity::source` is now `source_name`, as in Python
-  and result JSON.
+- Breaking change: the readers, writers, records, and results are in `chargefw::io`, as Python's
+  `chargefw.io`, instead of `chargefw::adapters` and its per-format namespaces: `io::SdfReader`
+  instead of `adapters::native::sdf_input::SdfReader`, `io::MmcifWriter` instead of
+  `adapters::gemmi::mmcif_output::MmcifWriter`, and so on. Their headers are in `chargefw/io/`
+  without the `native/` and `gemmi/` subdirectories, for example `<chargefw/io/sdf_input.h>`, and one
+  `<chargefw/io/all.h>` replaces the two umbrella headers. `adapters::gemmi::InputOptions` is
+  `io::StructureOptions`, in `<chargefw/io/structure_options.h>` with `RecordSelection`,
+  `BondStrategy`, and their conversion functions. Public names no longer hide the `::gemmi`
+  namespace.
+- `io::make_requested_provenance()` creates the `RequestedCalculationProvenance` of a request, with
+  the thread limit and the residue names of the fixed ions, instead of copying its fields by hand.
+- Breaking change: `ImportedMoleculeRecord::issues` is now `import_warnings`, as in Python.
+- Breaking change: `ExecutionMetrics::peak_resident_memory_mb` is now `peak_resident_memory_bytes`,
+  a `std::uint64_t`.
+- Breaking change: `MoleculeRecordIdentity::source` is now `source_name`, as in Python and result
+  JSON.
 - The MOL, SDF, and MOL2 readers throw `std::runtime_error` for an unknown element symbol, as
   documented for input they cannot parse, instead of `std::out_of_range`.
 - Breaking change: the request and its provenance use the names of the Python arguments.
@@ -224,7 +219,7 @@
   copied nor moved, and `features::PreparedMoleculeCollection` can be moved but not copied. Build
   them where they are used, and pass references. Rebuild downstream C++ code.
 - Breaking change: removed `PdbReader::options()` and `MmcifReader::options()`. Keep the
-  `InputOptions` supplied to the constructor if you need to inspect them later.
+  `StructureOptions` supplied to the constructor if you need to inspect them later.
 - Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
   result from `try_classify_parameters()`, or construct it explicitly from a classification or issues.
 - Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace
@@ -241,10 +236,11 @@
   `has_parameters()`, and `parameters_if_available()`. Use `geometry()` and `parameters()` to access
   supplied values; these return references and throw `std::logic_error` when the value is missing.
   Rebuild downstream C++ code.
-- Breaking source and ABI change: `adapters::RequestedCalculationProvenance::method_scope` and
-  `execution_kind` now use `calculation::MethodScope` and `calculation::ExecutionSelectionKind`
-  instead of strings. Replace string assignments and comparisons with enum values, using
-  `ExecutionSelectionKind::automatic` for `"auto"`, and rebuild downstream C++ code. The defaults
+- Breaking source and ABI change: `RequestedCalculationProvenance::method_scope` and `execution`
+  (formerly `execution_kind`) use `calculation::MethodScope` and
+  `calculation::ExecutionSelectionMode` instead of strings. Replace string assignments and
+  comparisons with enum values, using `ExecutionSelectionMode::automatic` for `"auto"`, and rebuild
+  downstream C++ code. The defaults
   remain recommended methods and automatic execution; result JSON and Python strings are unchanged.
 - Breaking change: the enumerators of `parameters::ClassificationIssueKind`,
   `parameters::AtomParameterClassificationKind`, and `parameters::BondParameterClassificationKind`
@@ -277,7 +273,7 @@
 - `parameters::compatible()` tells whether two parameter sets differ only in their values and
   descriptive metadata, and parameter keys can be compared with `==`.
 - `calculation::to_string()` names a `CalculationPhase`.
-- `adapters::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
+- `io::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
   `molecular_source_format_from_string()` reads a format name.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter
   set, without checking the molecules again.
