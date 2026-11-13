@@ -196,6 +196,27 @@ def test_mmcif_applies_geometry_independent_charges_to_selected_conformers(
     ]
 
 
+def test_result_schema_accepts_later_minor_versions() -> None:
+    molecules = chargefw.io.parse(TOPOLOGY_JSON, format="molecule-json")
+    document = result_json(chargefw.calculate(molecules, method="formal"))
+
+    # A later 1.x version may add members and values to the lists the schema leaves open.
+    document["schema_version"] = "1.2"
+    document["added_member"] = {"value": 1}
+    document["status"] = "added_status"
+    imported = document["results"][0]["input"]["import"]
+    imported["format"] = "added_format"
+    imported["policy"]["conformer_selection"] = "added_selection"
+    provenance = document["calculation_provenance"]
+    provenance["requested"]["execution"]["kind"] = "added_kind"
+    provenance["effective"]["execution"]["mode"] = "added_mode"
+    validate(document, "result-1.0.schema.json")
+
+    document["schema_version"] = "2.0"
+    with pytest.raises(jsonschema.ValidationError):
+        validate(document, "result-1.0.schema.json")
+
+
 def test_failed_result_json_preserves_input_identity() -> None:
     validate(json.loads(TOPOLOGY_JSON), "molecule-input-1.0.schema.json")
     imported = chargefw.io.parse(TOPOLOGY_JSON, format="molecule-json", source_name="topology.json")

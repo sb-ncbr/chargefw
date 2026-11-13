@@ -222,6 +222,15 @@
   be far too large. In cutoff and cover execution, each fragment is checked. Solving the system takes
   about half the time.
 
+### Output
+
+- The result JSON Schema accepts every 1.x document: `schema_version` is any `1.x`, objects may have
+  members it does not list, and status, severity, input format, selections, execution kind and mode,
+  and method scope may have values it does not list; assignment scope and source connectivity stay
+  fixed. Later 1.x versions add members and values but never remove or rename them;
+  [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#chargefw-result-json-10)
+  says how to read them. Documents written by this version are unchanged.
+
 ## 3.0.0rc3
 
 ### Input

@@ -418,6 +418,12 @@ has:
   came from, its `status` and `diagnostics`, and the `assignments` of a successful calculation; and
 - `calculation_provenance`: what was requested, what was used, and the run time and memory.
 
+Later versions 1.x add members and values but do not remove or rename any, so a program that reads
+1.0 can read every 1.x document. Check only that `schema_version` starts with `1.`, ignore members
+you do not know, and accept values you do not know, such as a new status or input format. Two lists
+stay fixed in every 1.x version: an assignment's `scope` and a record's `source_connectivity`. A
+version 2.0 would be incompatible.
+
 Each assignment has its `scope`, `molecule` or `conformer`, the `charge_unit` `e`, and a `target`
 with the molecule index and, for methods that use coordinates, the conformer index, both counted
 from zero. `charges` follows the atom order of the molecule, at full precision, and `total_charge`
@@ -448,5 +454,4 @@ time in UTC, the time of each step, and the peak memory, rounded to three decima
 With fixed ions, `effective` also has `fixed_ions`: one entry per residue name and charge, with
 `component_id`, the residue name (mmCIF label name first), the `charge`, and `instances`, each with
 the `molecule_index` and `atom_index` of one ion. An ion given in C++ without a residue name has
-`component_id: null`. `fixed_ions` was added to schema 1.0 after its first release, so validate such
-documents against the current schema.
+`component_id: null`.
