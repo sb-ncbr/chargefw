@@ -38,7 +38,7 @@ struct SelectionArguments {
     std::string cutoff_atom_threshold;
     std::string cover_atom_threshold;
     std::size_t max_threads = 0;
-    bool permissive_types = false;
+    std::string parameter_matching = "strict";
     std::vector<std::string> method_options;
     std::vector<std::string> fixed_ion_ids;
     CLI::Option* method_option = nullptr;

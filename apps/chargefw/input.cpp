@@ -39,6 +39,14 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
                               .records = std::move(records)};
 }
 
+[[nodiscard]] auto permissive_types(const std::string& parameter_matching) -> bool {
+    if (parameter_matching != "strict" && parameter_matching != "permissive") {
+        throw std::invalid_argument{"Parameter matching must be 'strict' or 'permissive': " +
+                                    parameter_matching};
+    }
+    return parameter_matching == "permissive";
+}
+
 [[nodiscard]] auto parse_atom_threshold(const std::string& value, const std::string_view name)
     -> std::optional<std::size_t> {
     if (value == "unlimited") {
@@ -189,8 +197,8 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
         ->excludes(arguments.method_option);
     command.add_option("--fixed-ions", arguments.fixed_ion_ids,
                        "Fixed-ion component ID (repeatable)");
-    command.add_flag("--permissive-types", arguments.permissive_types,
-                     "Allow permissive parameter type classification");
+    command.add_option("--parameter-matching", arguments.parameter_matching,
+                       "Parameter matching: strict or permissive");
     command
         .add_option("--method-option", arguments.method_options,
                     "Method option METHOD.OPTION=VALUE (repeatable)")
@@ -199,10 +207,10 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
                        "Execution: auto, full, cutoff, or cover");
     command.add_option("--radius", arguments.radius, "Cutoff or cover radius in angstrom");
     arguments.cutoff_atom_threshold_option =
-        command.add_option("--cutoff-atom-threshold", arguments.cutoff_atom_threshold,
+        command.add_option("--cutoff-threshold", arguments.cutoff_atom_threshold,
                            "Automatic full-to-cutoff atom threshold, or unlimited");
     arguments.cover_atom_threshold_option =
-        command.add_option("--cover-atom-threshold", arguments.cover_atom_threshold,
+        command.add_option("--cover-threshold", arguments.cover_atom_threshold,
                            "Automatic cutoff-to-cover atom threshold, or unlimited");
 }
 
@@ -235,7 +243,8 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
                                 : std::optional{arguments.parameter_set_id},
         .method_scope = calculation::method_scope_from_string(arguments.method_scope),
         .method_options = std::move(method_options),
-        .classification_options = {.permissive_types = arguments.permissive_types},
+        .classification_options = {.permissive_types =
+                                       permissive_types(arguments.parameter_matching)},
         .execution_selection =
             calculation::ExecutionSelection{
                 calculation::execution_selection_kind_from_string(arguments.execution),
@@ -244,13 +253,11 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
             .cutoff_atom_threshold =
                 arguments.cutoff_atom_threshold_option->count() == 0
                     ? std::optional<std::size_t>{calculation::default_cutoff_atom_threshold}
-                    : parse_atom_threshold(arguments.cutoff_atom_threshold,
-                                           "Cutoff atom threshold"),
+                    : parse_atom_threshold(arguments.cutoff_atom_threshold, "Cutoff threshold"),
             .cover_atom_threshold =
                 arguments.cover_atom_threshold_option->count() == 0
                     ? std::optional<std::size_t>{calculation::default_cover_atom_threshold}
-                    : parse_atom_threshold(arguments.cover_atom_threshold,
-                                           "Cover atom threshold")}};
+                    : parse_atom_threshold(arguments.cover_atom_threshold, "Cover threshold")}};
     if (!arguments.fixed_ion_ids.empty()) {
         auto resolved = adapters::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
         if (!resolved.sources.empty()) {

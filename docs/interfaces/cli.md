@@ -104,7 +104,7 @@ A malformed record in the input stops the command before any calculation.
 | `--parameter-set ID` | Use this parameter set; requires `--method` |
 | `--method-scope SCOPE` | Methods automatic selection may use: `recommended` (default) or `all`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; not with `--method` |
 | `--method-option METHOD.OPTION=VALUE` | Set an option of a method, such as `peoe.iters=8`; repeatable |
-| `--permissive-types` | Let a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
+| `--parameter-matching strict\|permissive` | `permissive` lets a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) (default `strict`) |
 | `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; repeatable; see [Fixed ions](../guide/fixed-ions.md) |
 
 ### Execution
@@ -113,8 +113,8 @@ A malformed record in the input stops the command before any calculation.
 | --- | --- |
 | `--execution auto\|full\|cutoff\|cover` | Calculate the whole molecule or fragments (default `auto`); see [Large structures](../guide/large-structures.md) |
 | `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
-| `--cutoff-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
-| `--cover-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
+| `--cutoff-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
+| `--cover-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
 | `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
 
 ### Output and progress

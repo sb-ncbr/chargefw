@@ -235,6 +235,13 @@
   be far too large. In cutoff and cover execution, each fragment is checked. Solving the system takes
   about half the time.
 
+### Command line
+
+- Breaking change: options are named as the arguments of `chargefw.calculate()` in Python.
+  `--permissive-types` is now `--parameter-matching permissive` (default `strict`), and
+  `--cutoff-atom-threshold` and `--cover-atom-threshold` are now `--cutoff-threshold` and
+  `--cover-threshold`.
+
 ### Output
 
 - The result JSON Schema accepts every 1.x document: `schema_version` is any `1.x`, objects may have

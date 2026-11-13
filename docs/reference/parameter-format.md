@@ -139,8 +139,8 @@ allowed; a later entry that also matches is not used.
 
 ## Strict and permissive matching
 
-Strict matching is the default. With permissive matching (`--permissive-types` on the command line,
-`parameter_matching="permissive"` in Python), an atom or bond that no entry matches tries again with
+Strict matching is the default. With permissive matching (`parameter_matching="permissive"` in
+Python, `--parameter-matching permissive` on the command line), an atom or bond that no entry matches tries again with
 its `hbo` or `bo` type lowered by one: an atom with a double bond, type `"2"`, can then use an entry
 for `"1"`, and a triple bond an entry for `"2"`. An atom without bonds, type `"0"`, can use an entry
 for `"1"`. `plain` and `bonded` keys match the same way in both modes.

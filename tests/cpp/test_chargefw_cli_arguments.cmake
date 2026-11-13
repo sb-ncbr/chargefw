@@ -14,6 +14,8 @@ run_cli(method_option_preserves_positionals 0 applicability --method-option peoe
 run_cli(method_scope_with_method 2 applicability --method-scope all --method eem
         "${CHARGEFW_INPUT}")
 run_cli(unknown_method_scope 2 applicability --method-scope some "${CHARGEFW_INPUT}")
+run_cli(permissive_matching 0 applicability --parameter-matching permissive "${CHARGEFW_INPUT}")
+run_cli(unknown_parameter_matching 2 applicability --parameter-matching loose "${CHARGEFW_INPUT}")
 run_cli(all_methods 0 applicability --method-scope all "${CHARGEFW_INPUT}")
 
 run_cli(help 0 --help)

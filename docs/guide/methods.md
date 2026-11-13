@@ -47,14 +47,15 @@ In Python, `chargefw.assess()` returns the combinations of method and parameter 
 in `rejections` the reason for each one that does not; see
 [Python](../interfaces/python.md#assessing-before-calculating).
 
-When a parameter set is rejected because a few atoms of a large structure have no matching entry, for
-example the oxygen of a water molecule without its hydrogens,
-[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms
-use the entry for the next lower bond order, and an atom without bonds the entry for single bonds:
-`--permissive-types` on the command line, or `parameter_matching="permissive"` in Python. The values
-were not fitted for those atoms, so their charges, and with methods that couple every atom such as EEM
-the charges near them, are less reliable. To leave out the water instead, read the structure with
-`--selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
+When a parameter set is rejected because a few atoms of a large structure have no matching entry,
+for example the oxygen of a water molecule without its hydrogens, [permissive
+matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms use the
+entry for the next lower bond order, and an atom without bonds the entry for single bonds:
+`parameter_matching="permissive"` in Python, or `--parameter-matching permissive` on the command
+line. The values were not fitted for those atoms, so their charges, and with methods that couple
+every atom such as EEM the charges near them, are less reliable. To leave out the water instead,
+read the structure with `--selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in
+Python.
 
 `chargefw parameters --method METHOD` lists the parameter sets of a method, and
 `chargefw parameters ID --keys` the atom and bond types a set has values for.

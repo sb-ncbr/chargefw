@@ -157,7 +157,7 @@ file(REMOVE_RECURSE "${import_warning_directory}")
 
 fresh_output_directory(invalid_directory invalid)
 set(invalid_json_path "${invalid_directory}/water_3d.chargefw.json")
-run_cli(invalid_request 2 calculate --cutoff-atom-threshold unlimited --cover-atom-threshold 1
+run_cli(invalid_request 2 calculate --cutoff-threshold unlimited --cover-threshold 1
         "${CHARGEFW_INPUT}" "${invalid_directory}")
 expect_files_exist(invalid_request "${invalid_json_path}")
 file(READ "${invalid_json_path}" invalid_json)
