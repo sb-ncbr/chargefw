@@ -2,6 +2,7 @@
 
 #include "calculation/fixed_charge_partition.h"
 #include "methods/method_applicability.h"
+#include "parameters/classification/classification_checks.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/features/conformer_features.h>

@@ -2,6 +2,7 @@
 #include "calculation/target_execution.h"
 #include "features/topology_helpers.h"
 #include "methods/reference_charges.h"
+#include "parameters/classification/classification_checks.h"
 
 #include <chargefw/features/conformer_features.h>
 #include <chargefw/features/prepared_molecule.h>

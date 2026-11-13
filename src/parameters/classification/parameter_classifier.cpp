@@ -2,6 +2,7 @@
 #include <chargefw/parameters/classification/parameter_classifier.h>
 
 #include "core/diagnostic_description.h"
+#include "parameters/classification/classification_checks.h"
 #include "parameters/classification/type_keys.h"
 
 #include <algorithm>

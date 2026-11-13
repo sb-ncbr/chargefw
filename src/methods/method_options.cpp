@@ -117,6 +117,8 @@ auto MethodOptions::set(std::string id, MethodOptionValue value) -> void {
     values_.insert_or_assign(std::move(id), std::move(value));
 }
 
+namespace {
+
 auto validate_method_option_schema(std::span<const MethodOptionSpec> schema) -> void {
     std::vector<std::string_view> ids;
     ids.reserve(schema.size());
@@ -182,6 +184,8 @@ auto validate_method_option_schema(std::span<const MethodOptionSpec> schema) -> 
         }
     }
 }
+
+} // namespace
 
 auto make_default_options(std::span<const MethodOptionSpec> schema) -> MethodOptions {
     validate_method_option_schema(schema);

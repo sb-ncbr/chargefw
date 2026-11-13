@@ -59,6 +59,12 @@
   public function produced them. Read the plans and rejections of an assessment instead.
 - Breaking change: removed `features::TopologyFeatures::adjacency()`. Use
   `neighbor_indices(atom_index)` for each atom.
+- Breaking change: removed `methods::validate_method_option_schema()` and
+  `parameters::validate_parameter_classification()`. `make_default_options()` and
+  `validate_method_options()` still reject an invalid option schema, and `CalculationInput` still
+  rejects a classification that does not fit its molecule and parameter set.
+  `<chargefw/parameters/classification/parameter_classification.h>` no longer includes the molecule
+  and parameter-set headers.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`

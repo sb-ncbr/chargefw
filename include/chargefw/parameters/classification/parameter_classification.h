@@ -1,8 +1,5 @@
 #pragma once
 
-#include <chargefw/core/molecule.h>
-#include <chargefw/parameters/models/parameter_set.h>
-
 #include <cstddef>
 #include <span>
 #include <vector>
@@ -59,9 +56,5 @@ class ParameterClassification {
     AtomParameterClassification atom_;
     BondParameterClassification bond_;
 };
-
-auto validate_parameter_classification(const core::Molecule& molecule,
-                                       const ParameterSet& parameters,
-                                       const ParameterClassification& classification) -> void;
 
 } // namespace chargefw::parameters

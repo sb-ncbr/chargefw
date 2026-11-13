@@ -2,6 +2,7 @@ target_sources(chargefw_core_objects
         PRIVATE
         classification_result.cpp
         parameter_classification.cpp
+        classification_checks.h
         parameter_classifier.cpp
         type_keys.h
         PUBLIC

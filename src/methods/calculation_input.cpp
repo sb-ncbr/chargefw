@@ -1,3 +1,5 @@
+#include "parameters/classification/classification_checks.h"
+
 #include <chargefw/core/molecule.h>
 #include <chargefw/features/conformer_features.h>
 #include <chargefw/features/prepared_molecule.h>

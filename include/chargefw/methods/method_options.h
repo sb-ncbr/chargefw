@@ -70,8 +70,6 @@ template <typename T> auto MethodOptions::get(const std::string_view id) const -
     return *value;
 }
 
-auto validate_method_option_schema(std::span<const MethodOptionSpec> schema) -> void;
-
 [[nodiscard]] auto make_default_options(std::span<const MethodOptionSpec> schema) -> MethodOptions;
 
 auto validate_method_options(std::span<const MethodOptionSpec> schema, const MethodOptions& options)
