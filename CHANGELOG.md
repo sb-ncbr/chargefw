@@ -33,6 +33,11 @@
   `MethodOption`, `ParameterSet`, `AtomParameterKey`, `BondParameterKey`, and `Element`. Their
   attributes no longer match positional patterns in `match` statements. `Plan.estimate()` takes
   `threads` as a keyword argument only.
+- Breaking change: `ParameterSet`, `CalculationSettings`, `Plan`, `Assessment`, and
+  `CalculationResult` cannot be constructed; calling the class raises `TypeError`. Get them from
+  `chargefw.parameter_sets`, `read_parameter_set()`, `assess()`, and `calculate()`. `ParameterSet` is
+  no longer a dataclass, so `dataclasses.replace()` no longer makes a copy that names a parameter set
+  that does not exist. Two `CalculationSettings` with the same choices are now equal.
 - Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
   `Molecule.source_name` is unchanged.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with

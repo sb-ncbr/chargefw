@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ._catalog import _Catalog
 from ._chargefw.parameters import _NativeParameterCatalog
@@ -33,21 +33,102 @@ class BondParameterKey:
     type: str
 
 
-@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class ParameterSet:
     """Metadata for an immutable parameter set, bundled or read from a file."""
 
-    id: str
-    method: str
-    name: str
-    publication: str
-    notes: str
-    atom_keys: tuple[AtomParameterKey, ...]
-    bond_keys: tuple[BondParameterKey, ...]
-    # The native set of a parameter set that is not bundled; None for bundled sets. It takes part in
-    # equality and hashing by identity: the fields above do not include the values, so a set read
-    # from a file equals only itself, and two reads with the same keys but other values never do.
-    _native: _NativeParameterCatalog | None = field(default=None, repr=False)
+    __slots__ = (
+        "_id",
+        "_method",
+        "_name",
+        "_publication",
+        "_notes",
+        "_atom_keys",
+        "_bond_keys",
+        "_native",
+    )
+
+    _id: str
+    _method: str
+    _name: str
+    _publication: str
+    _notes: str
+    _atom_keys: tuple[AtomParameterKey, ...]
+    _bond_keys: tuple[BondParameterKey, ...]
+    # The native set of a parameter set that is not bundled; None for bundled sets.
+    _native: _NativeParameterCatalog | None
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError(
+            "ParameterSet objects come from chargefw.parameter_sets and "
+            "chargefw.read_parameter_set()"
+        )
+
+    @classmethod
+    def _create(
+        cls,
+        value: ParameterSetDescriptorPayload,
+        native: _NativeParameterCatalog | None = None,
+    ) -> ParameterSet:
+        parameter_set = object.__new__(cls)
+        parameter_set._id = value["id"]
+        parameter_set._method = value["method_id"]
+        parameter_set._name = value["name"]
+        parameter_set._publication = value["publication"]
+        parameter_set._notes = value["notes"]
+        parameter_set._atom_keys = tuple(_atom_key(key) for key in value["atom_keys"])
+        parameter_set._bond_keys = tuple(_bond_key(key) for key in value["bond_keys"])
+        parameter_set._native = native
+        return parameter_set
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def method(self) -> str:
+        return self._method
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def publication(self) -> str:
+        return self._publication
+
+    @property
+    def notes(self) -> str:
+        return self._notes
+
+    @property
+    def atom_keys(self) -> tuple[AtomParameterKey, ...]:
+        return self._atom_keys
+
+    @property
+    def bond_keys(self) -> tuple[BondParameterKey, ...]:
+        return self._bond_keys
+
+    def _identity(self) -> tuple[object, ...]:
+        # The metadata does not include the values, so a set read from a file equals only sets
+        # that share its native set, which compares by identity.
+        return (
+            self._id,
+            self._method,
+            self._name,
+            self._publication,
+            self._notes,
+            self._atom_keys,
+            self._bond_keys,
+            self._native,
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ParameterSet):
+            return NotImplemented
+        return self._identity() == other._identity()
+
+    def __hash__(self) -> int:
+        return hash(self._identity())
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(id={self.id!r}, method={self.method!r}, name={self.name!r})"
@@ -74,21 +155,6 @@ def _bond_key(value: BondParameterKeyPayload) -> BondParameterKey:
         atoms=(_atom_key(first), _atom_key(second)),
         classifier=value["classifier"],
         type=value["type"],
-    )
-
-
-def _parameter_set(
-    value: ParameterSetDescriptorPayload, native: _NativeParameterCatalog | None = None
-) -> ParameterSet:
-    return ParameterSet(
-        id=value["id"],
-        method=value["method_id"],
-        name=value["name"],
-        publication=value["publication"],
-        notes=value["notes"],
-        atom_keys=tuple(_atom_key(key) for key in value["atom_keys"]),
-        bond_keys=tuple(_bond_key(key) for key in value["bond_keys"]),
-        _native=native,
     )
 
 

@@ -4,6 +4,7 @@ import gc
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from threading import Lock
 from typing import Any, cast
 from unittest.mock import patch
@@ -455,16 +456,6 @@ def test_plans_are_filtered_and_reusable() -> None:
 
 
 def test_settings_apply_exactly_the_choices_of_a_plan_to_other_molecules() -> None:
-    def choices(settings: chargefw.CalculationSettings) -> tuple[object, ...]:
-        return (
-            settings.method,
-            settings.parameter_set,
-            dict(settings.options),
-            settings.parameter_matching,
-            settings.execution,
-            settings.fixed_ions,
-        )
-
     # The threshold makes automatic execution choose cutoff; CA is absent from the molecules.
     reference = chargefw.calculate(
         fixed_groups_molecules(),
@@ -481,10 +472,10 @@ def test_settings_apply_exactly_the_choices_of_a_plan_to_other_molecules() -> No
     # With the default thresholds, automatic execution would choose full.
     plan = chargefw.assess(fixed_groups_molecules(), settings=settings).default_plan
     assert plan is not None
-    assert choices(plan.settings) == choices(settings)
+    assert plan.settings == settings
     result = plan.calculate(threads=1)
     assert result.plan is not None and result.plan.fixed_ions is not None
-    assert choices(result.plan.settings) == choices(settings)
+    assert result.plan.settings == settings
     assert [source.component_id for source in result.plan.fixed_ions.sources] == ["MG"]
 
     # Also an argument that has its default value is a choice that settings cannot be combined with.
@@ -510,6 +501,35 @@ def test_settings_apply_exactly_the_choices_of_a_plan_to_other_molecules() -> No
     assert [
         (rejection.method, rejection.parameter_set) for rejection in context.value.result.rejections
     ] == [(water_plan.method, water_plan.parameter_set)]
+
+
+def test_objects_that_chargefw_creates_cannot_be_constructed() -> None:
+    # Arguments that the constructors accepted when they were public.
+    bundled = chargefw.parameter_sets["EEM_Cheminf_b3lyp_npa"]
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.ParameterSet)(
+            id=bundled.id,
+            method=bundled.method,
+            name=bundled.name,
+            publication=bundled.publication,
+            notes=bundled.notes,
+            atom_keys=bundled.atom_keys,
+            bond_keys=bundled.bond_keys,
+        )
+    result = chargefw.calculate(water(), method="eem")
+    assert result.plan is not None
+    settings = result.plan.settings
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.CalculationSettings)(
+            settings.method,
+            settings.parameter_set,
+            settings.options,
+            settings.execution,
+            result.requested,
+        )
+    # A copy with another ID would name a set that does not exist.
+    with pytest.raises(TypeError):
+        replace(cast(Any, bundled), id="mine")
 
 
 def test_plan_estimates_resources_for_a_thread_limit() -> None:

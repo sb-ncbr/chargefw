@@ -34,7 +34,7 @@ from ._calculation_values import (
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
 from ._methods import Method, _method_catalog
-from ._parameters import ParameterSet, ParameterSetCatalog, _parameter_set
+from ._parameters import ParameterSet, ParameterSetCatalog
 from ._public import set_public_module
 from ._types import (
     MethodOptionValue,
@@ -119,7 +119,7 @@ def _default_parameter_descriptors() -> ParameterSetCatalog:
         with _bundled_parameter_catalog_lock:
             if _bundled_parameter_descriptors is None:
                 _bundled_parameter_descriptors = ParameterSetCatalog(
-                    tuple(_parameter_set(value) for value in catalog._descriptors())
+                    tuple(ParameterSet._create(value) for value in catalog._descriptors())
                 )
     return _bundled_parameter_descriptors
 
@@ -138,7 +138,7 @@ def _parameter_set_from_catalog(
     native: _native_parameters._NativeParameterCatalog,
 ) -> ParameterSet:
     (descriptor,) = native._descriptors()
-    return _parameter_set(descriptor, native)
+    return ParameterSet._create(descriptor, native)
 
 
 def _native_catalog_for(parameter_set: ParameterSet) -> _native_parameters._NativeParameterCatalog:
@@ -209,23 +209,38 @@ class Assessment:
         "_seconds",
     )
 
-    def __init__(
-        self,
+    _native: _native_calculation._NativeAssessment
+    _requested: RequestedCalculation
+    _parameter_sets: ParameterSetCatalog
+    _plans: tuple[Plan, ...]
+    _rejections: tuple[Rejection, ...]
+    _input_warnings: tuple[InputIssue, ...]
+    _seconds: float
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError("Assessment objects come from chargefw.assess()")
+
+    @classmethod
+    def _create(
+        cls,
         native: _native_calculation._NativeAssessment,
         molecules: MoleculeCollection,
         requested: RequestedCalculation,
         parameter_sets: ParameterSetCatalog,
-    ) -> None:
+    ) -> Assessment:
+        assessment = object.__new__(cls)
         payload = native.report()
-        self._native = native
-        self._requested = requested
-        self._parameter_sets = parameter_sets
-        self._plans = tuple(
-            Plan(plan, molecules, methods, parameter_sets, requested) for plan in native.plans()
+        assessment._native = native
+        assessment._requested = requested
+        assessment._parameter_sets = parameter_sets
+        assessment._plans = tuple(
+            Plan._create(plan, molecules, methods, parameter_sets, requested)
+            for plan in native.plans()
         )
-        self._rejections = _rejections(payload["rejections"], methods, parameter_sets)
-        self._input_warnings = _input_issues(payload["input_warnings"])
-        self._seconds = payload["applicability_seconds"]
+        assessment._rejections = _rejections(payload["rejections"], methods, parameter_sets)
+        assessment._input_warnings = _input_issues(payload["input_warnings"])
+        assessment._seconds = payload["applicability_seconds"]
+        return assessment
 
     @property
     def plans(self) -> tuple[Plan, ...]:
@@ -348,7 +363,7 @@ def assess(
         requested.threads,
         requested.fixed_ions,
     )
-    return Assessment(native, collection, requested, catalog)
+    return Assessment._create(native, collection, requested, catalog)
 
 
 def calculate(
@@ -396,7 +411,7 @@ def calculate(
     )
     plan = assessment.default_plan
     if plan is None:
-        result = CalculationResult(
+        result = CalculationResult._create(
             assessment._native.calculate_default(native_observer),
             collection,
             assessment._requested,

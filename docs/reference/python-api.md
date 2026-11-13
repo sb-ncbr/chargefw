@@ -203,7 +203,7 @@ input molecule, counted from 0.
 
 The choices of a plan, which `settings` in `calculate()` and `assess()` apply to other molecules; see
 [One model for all molecules](../interfaces/python.md#one-model-for-all-molecules). You get them
-from `plan.settings` or `result.plan.settings`.
+from `plan.settings` or `result.plan.settings`. Two settings are equal when all their choices are.
 
 | Attribute | Content |
 | --- | --- |

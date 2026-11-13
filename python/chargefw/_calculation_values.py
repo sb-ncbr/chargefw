@@ -189,21 +189,36 @@ class CalculationSettings:
         "_fixed_ions",
     )
 
-    def __init__(
-        self,
+    _method: Method
+    _parameter_set: ParameterSet | None
+    _options: Mapping[str, MethodOptionValue]
+    _parameter_matching: ParameterMatching
+    _execution: Execution
+    _fixed_ions: tuple[str, ...]
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError(
+            "CalculationSettings objects come from plan.settings and result.plan.settings"
+        )
+
+    @classmethod
+    def _create(
+        cls,
         method: Method,
         parameter_set: ParameterSet | None,
         options: Mapping[str, MethodOptionValue],
         execution: Execution,
         requested: RequestedCalculation,
-    ) -> None:
-        self._method = method
-        self._parameter_set = parameter_set
-        self._options = MappingProxyType(dict(options))
-        self._parameter_matching = requested.parameter_matching
-        self._execution = execution
+    ) -> CalculationSettings:
+        settings = object.__new__(cls)
+        settings._method = method
+        settings._parameter_set = parameter_set
+        settings._options = MappingProxyType(dict(options))
+        settings._parameter_matching = requested.parameter_matching
+        settings._execution = execution
         # The requested names, so that ions absent from the assessed molecules are fixed in others.
-        self._fixed_ions = requested.fixed_ions
+        settings._fixed_ions = requested.fixed_ions
+        return settings
 
     @property
     def method(self) -> Method:
@@ -228,6 +243,19 @@ class CalculationSettings:
     @property
     def fixed_ions(self) -> tuple[str, ...]:
         return self._fixed_ions
+
+    def __eq__(self, other: object) -> bool:
+        # Not hashable, because a Method is not.
+        if not isinstance(other, CalculationSettings):
+            return NotImplemented
+        return (
+            self._method is other._method
+            and self._parameter_set == other._parameter_set
+            and self._options == other._options
+            and self._parameter_matching == other._parameter_matching
+            and self._execution == other._execution
+            and self._fixed_ions == other._fixed_ions
+        )
 
     def __repr__(self) -> str:
         parameter_set = self.parameter_set.id if self.parameter_set is not None else None
@@ -256,29 +284,47 @@ class Plan:
         "_settings",
     )
 
-    def __init__(
-        self,
+    _method: Method
+    _parameter_set: ParameterSet | None
+    _options: Mapping[str, MethodOptionValue]
+    _execution: Execution
+    _warnings: tuple[ExecutionIssue, ...]
+    _native: _native_calculation._NativePlan
+    _molecules: MoleculeCollection
+    _requested: RequestedCalculation
+    _methods: MethodCatalog
+    _parameter_sets: ParameterSetCatalog
+    _settings: CalculationSettings
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError("Plan objects come from chargefw.assess()")
+
+    @classmethod
+    def _create(
+        cls,
         native: _native_calculation._NativePlan,
         molecules: MoleculeCollection,
         methods: MethodCatalog,
         parameter_sets: ParameterSetCatalog,
         requested: RequestedCalculation,
-    ) -> None:
+    ) -> Plan:
+        plan = object.__new__(cls)
         payload = native.report()
-        self._method = methods[payload["method_id"]]
-        self._parameter_set = _resolved_parameter_set(payload["parameter_set_id"], parameter_sets)
-        self._options = MappingProxyType(dict(payload["method_options"]))
-        self._execution = _execution(payload["execution_policy"])
-        self._warnings = tuple(_execution_issue(issue) for issue in payload["warnings"])
-        self._native = native
-        self._molecules = molecules
-        self._requested = requested
-        self._methods = methods
+        plan._method = methods[payload["method_id"]]
+        plan._parameter_set = _resolved_parameter_set(payload["parameter_set_id"], parameter_sets)
+        plan._options = MappingProxyType(dict(payload["method_options"]))
+        plan._execution = _execution(payload["execution_policy"])
+        plan._warnings = tuple(_execution_issue(issue) for issue in payload["warnings"])
+        plan._native = native
+        plan._molecules = molecules
+        plan._requested = requested
+        plan._methods = methods
         # Resolves the parameter set of results, including a set that is not bundled.
-        self._parameter_sets = parameter_sets
-        self._settings = CalculationSettings(
-            self._method, self._parameter_set, self._options, self._execution, requested
+        plan._parameter_sets = parameter_sets
+        plan._settings = CalculationSettings._create(
+            plan._method, plan._parameter_set, plan._options, plan._execution, requested
         )
+        return plan
 
     @property
     def method(self) -> Method:
@@ -338,7 +384,7 @@ class Plan:
             if normalized_threads is None
             else replace(self._requested, threads=normalized_threads)
         )
-        return CalculationResult(
+        return CalculationResult._create(
             self._native.calculate(normalized_threads, observer),
             self._molecules,
             requested,
@@ -500,7 +546,7 @@ def _executed_plan(
         execution=execution,
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
         fixed_ions=_fixed_ions_provenance(value["fixed_ions"], molecules),
-        settings=CalculationSettings(
+        settings=CalculationSettings._create(
             method, parameter_set, value["method_options"], execution, requested
         ),
     )
@@ -580,15 +626,22 @@ class CalculationResult:
     _failure_message: str | None
     _timings: CalculationTimings
 
-    def __init__(
-        self,
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError(
+            "CalculationResult objects come from chargefw.calculate() and Plan.calculate()"
+        )
+
+    @classmethod
+    def _create(
+        cls,
         native: _native_calculation._NativeExecutionResult,
         molecules: MoleculeCollection,
         requested: RequestedCalculation,
         methods: MethodCatalog,
         parameter_sets: ParameterSetCatalog,
         rejections: tuple[Rejection, ...] = (),
-    ) -> None:
+    ) -> CalculationResult:
+        result = object.__new__(cls)
         payload = native.report()
         assignments: list[ChargeAssignment] = []
         assignments_by_molecule: list[list[ChargeAssignment]] = [[] for _ in molecules]
@@ -607,23 +660,26 @@ class CalculationResult:
                 )
                 assignments.append(assignment)
                 assignments_by_molecule[molecule_index].append(assignment)
-        self._native = native
-        self._molecules = molecules
-        self._status = payload["status"]
-        self._requested = requested
-        self._assignments = tuple(assignments)
-        self._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
-        self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
-        self._input_warnings = _input_issues(payload["input_warnings"])
-        self._charge_warnings = _charge_issues(payload["charge_warnings"])
-        self._plan = _executed_plan(
+        result._native = native
+        result._molecules = molecules
+        result._status = payload["status"]
+        result._requested = requested
+        result._assignments = tuple(assignments)
+        result._assignments_by_molecule = tuple(tuple(group) for group in assignments_by_molecule)
+        result._rejections = rejections or _rejections(
+            payload["rejections"], methods, parameter_sets
+        )
+        result._input_warnings = _input_issues(payload["input_warnings"])
+        result._charge_warnings = _charge_issues(payload["charge_warnings"])
+        result._plan = _executed_plan(
             payload["effective"], methods, parameter_sets, molecules, requested
         )
-        self._failure_message = payload["failure_message"]
-        self._timings = CalculationTimings(
+        result._failure_message = payload["failure_message"]
+        result._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],
             computation_seconds=payload["metrics"]["computation_seconds"],
         )
+        return result
 
     @property
     def status(self) -> ExecutionStatus:
