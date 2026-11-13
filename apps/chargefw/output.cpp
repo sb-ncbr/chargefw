@@ -156,24 +156,6 @@ auto utc_timestamp() -> std::string {
                                         std::chrono::system_clock::now()));
 }
 
-auto make_requested_provenance(const calculation::AssessmentRequest& request,
-                               const SelectionArguments& arguments)
-    -> adapters::RequestedCalculationProvenance {
-    auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = request.method_id,
-        .parameter_set_id = request.parameter_set_id,
-        .method_scope = request.method_scope,
-        .parameter_matching = request.parameter_matching,
-        .cutoff_threshold = request.resource_policy.cutoff_threshold,
-        .cover_threshold = request.resource_policy.cover_threshold,
-        .threads = arguments.max_threads,
-        .execution = request.execution.mode(),
-        .radius = request.execution.radius(),
-        .fixed_ions = arguments.fixed_ion_ids};
-    requested.method_options = request.method_options;
-    return requested;
-}
-
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
                                const adapters::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)

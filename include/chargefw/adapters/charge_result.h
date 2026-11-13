@@ -8,7 +8,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -126,6 +125,13 @@ class ChargeCalculationResult {
                                                   RequestedCalculationProvenance requested,
                                                   calculation::ExecutionResult execution)
     -> ChargeCalculationResult;
+
+// What was requested, for result JSON: the choices of `request`, the thread limit given to
+// calculate(), and the residue names the fixed ions were selected by.
+[[nodiscard]] auto make_requested_provenance(const calculation::AssessmentRequest& request,
+                                             std::size_t threads,
+                                             std::vector<std::string> fixed_ions = {})
+    -> RequestedCalculationProvenance;
 
 // For a request that failed with an exception after its records and options were available.
 [[nodiscard]] auto make_failed_request_result(std::vector<ImportedMoleculeRecord> inputs,

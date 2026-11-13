@@ -31,6 +31,30 @@ namespace methods = chargefw::methods;
 
 using chargefw::test::full_effective;
 
+TEST_CASE("requested provenance takes the request's choices", "[adapters][result]") {
+    auto request = calculation::AssessmentRequest{.molecules = core::MoleculeCollection{{}}};
+    request.method_id = "peoe";
+    request.method_scope = calculation::MethodScope::recommended;
+    request.method_options.set("iters", 8);
+    request.parameter_matching = chargefw::parameters::ParameterMatching::permissive;
+    request.execution =
+        calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff, 10.0};
+    request.resource_policy.cover_threshold = std::nullopt;
+
+    const auto requested = adapters::make_requested_provenance(request, 4, {"MG"});
+
+    CHECK(requested.method_id == request.method_id);
+    CHECK_FALSE(requested.parameter_set_id.has_value());
+    CHECK(requested.method_options.values() == request.method_options.values());
+    CHECK(requested.parameter_matching == chargefw::parameters::ParameterMatching::permissive);
+    CHECK(requested.execution == calculation::ExecutionSelectionMode::cutoff);
+    CHECK(requested.radius == std::optional{10.0});
+    CHECK(requested.cutoff_threshold == request.resource_policy.cutoff_threshold);
+    CHECK_FALSE(requested.cover_threshold.has_value());
+    CHECK(requested.threads == 4);
+    CHECK(requested.fixed_ions == std::vector<std::string>{"MG"});
+}
+
 TEST_CASE("result assembly validates fixed ion provenance", "[adapters][result]") {
     const auto records = std::vector{adapters::ImportedMoleculeRecord{
         .molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{8}}}}};

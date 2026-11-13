@@ -125,6 +125,9 @@
 
 ### C++
 
+- `adapters::make_requested_provenance()` creates the `RequestedCalculationProvenance` of a
+  request, with the thread limit and the residue names of the fixed ions, instead of copying its
+  fields by hand.
 - Breaking change: `adapters::ImportedMoleculeRecord::issues` is now `import_warnings`, as in
   Python.
 - Breaking change: `adapters::ExecutionMetrics::peak_resident_memory_mb` is now

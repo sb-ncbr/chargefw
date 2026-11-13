@@ -360,6 +360,23 @@ auto ChargeCalculationResult::requested() const noexcept -> const RequestedCalcu
     return requested_;
 }
 
+auto make_requested_provenance(const calculation::AssessmentRequest& request,
+                               const std::size_t threads, std::vector<std::string> fixed_ions)
+    -> RequestedCalculationProvenance {
+    return RequestedCalculationProvenance{
+        .method_id = request.method_id,
+        .parameter_set_id = request.parameter_set_id,
+        .method_scope = request.method_scope,
+        .parameter_matching = request.parameter_matching,
+        .cutoff_threshold = request.resource_policy.cutoff_threshold,
+        .cover_threshold = request.resource_policy.cover_threshold,
+        .threads = threads,
+        .execution = request.execution.mode(),
+        .radius = request.execution.radius(),
+        .method_options = request.method_options,
+        .fixed_ions = std::move(fixed_ions)};
+}
+
 auto make_failed_request_result(std::vector<ImportedMoleculeRecord> inputs,
                                 RequestedCalculationProvenance requested, std::string message)
     -> ChargeCalculationResult {

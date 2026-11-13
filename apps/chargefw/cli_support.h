@@ -69,9 +69,6 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments);
                                 const SelectionArguments& arguments,
                                 std::span<const adapters::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest;
-[[nodiscard]] auto make_requested_provenance(const calculation::AssessmentRequest& request,
-                                             const SelectionArguments& arguments)
-    -> adapters::RequestedCalculationProvenance;
 
 void print_inspection(const ImportedCollection& imported);
 void print_applicability(const calculation::AssessmentResult& assessment, std::size_t max_threads);

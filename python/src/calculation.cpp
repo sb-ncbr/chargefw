@@ -392,7 +392,6 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         source_caller_atom_ids.push_back(portable_ids(caller_atom_ids[index]));
     }
     auto native_method_options = method_options(options);
-    auto requested_options = native_method_options;
     nb::gil_scoped_release release;
     auto inputs = std::vector<adapters::ImportedMoleculeRecord>{};
     inputs.reserve(source_molecules.size());
@@ -430,18 +429,8 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                           ? std::nullopt
                           : std::optional{std::move(resolved_fixed_ions)},
     };
-    auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = request.method_id,
-        .parameter_set_id = request.parameter_set_id,
-        .method_scope = request.method_scope,
-        .parameter_matching = request.parameter_matching,
-        .cutoff_threshold = request.resource_policy.cutoff_threshold,
-        .cover_threshold = request.resource_policy.cover_threshold,
-        .threads = max_threads,
-        .execution = request.execution.mode(),
-        .radius = request.execution.radius(),
-        .method_options = std::move(requested_options),
-        .fixed_ions = std::move(fixed_ions)};
+    auto requested =
+        adapters::make_requested_provenance(request, max_threads, std::move(fixed_ions));
     return NativeAssessment{calculation::assess(std::move(request)), std::move(inputs),
                             std::move(requested), max_threads};
 }

@@ -159,6 +159,8 @@ int main() {
         .method_id = "eem",
         .parameter_set_id = "EEM_Cheminf_b3lyp_npa",
     };
+    // Before assess() takes the request.
+    const auto requested = adapters::make_requested_provenance(request, 0);
     auto assessment = calculation::assess(std::move(request));
     auto execution = calculation::calculate(assessment);
     if (!execution.calculated()) {
@@ -166,8 +168,6 @@ int main() {
         return 1;
     }
 
-    const auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = "eem", .parameter_set_id = "EEM_Cheminf_b3lyp_npa"};
     const auto result =
         adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
 
@@ -222,11 +222,9 @@ no `ExecutionResult`. To still write result JSON for the records, as the command
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
 `ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
-`RequestedCalculationProvenance` records what was requested, for the result JSON. Copy its
-`method_scope`, `method_options`, and `parameter_matching` from your request, its `execution` from
-`request.execution.mode()` (`automatic` is written as `"auto"` in JSON), its `radius` from
-`request.execution.radius()`, its `cutoff_threshold` and `cover_threshold` from
-`request.resource_policy`, and list the residue names you selected fixed ions by in `fixed_ions`.
+`RequestedCalculationProvenance` records what was requested, for the result JSON. Create it with
+`make_requested_provenance(request, threads, fixed_ions)` from your request, the thread limit you
+pass to `calculate()`, and the residue names you selected fixed ions by.
 
 ## Namespaces
 
