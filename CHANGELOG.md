@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: `SourceComponentInstance.atom_indices` is a read-only NumPy `int64` array, as
+  the `atom_indices` of the issues, not a tuple, so it indexes charges directly. Components
+  compare by identity.
 - Breaking change: slicing a `MoleculeCollection` returns a `MoleculeCollection` with the same
   `name`, not a tuple. Its `name` argument is keyword-only, defaults to `""`, and no longer
   accepts `None`.

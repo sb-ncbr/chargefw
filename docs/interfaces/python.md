@@ -595,7 +595,7 @@ print(residue.name, residue.seqid.num, atom.name, f"{assignment.values[0]:+.3f}"
 # Total charge of each residue
 for component in molecules[0].source_mapping.components[:3]:
     residue, _ = gemmi_atoms[sites[component.atom_indices[0]].position]
-    charge = assignment.values[list(component.atom_indices)].sum()
+    charge = assignment.values[component.atom_indices].sum()
     print(residue.name, residue.seqid.num, f"{charge:+.3f}")
 ```
 

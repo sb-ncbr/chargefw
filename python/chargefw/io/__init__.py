@@ -99,7 +99,9 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
             source_connectivity=import_metadata["source_connectivity"],
             policy=SourcePolicy(**import_metadata["policy"]),
             components=tuple(
-                SourceComponentInstance(component_id=component_id, atom_indices=tuple(atom_indices))
+                SourceComponentInstance(
+                    component_id=component_id, atom_indices=index_array(atom_indices)
+                )
                 for component_id, atom_indices in import_metadata["components"]
             ),
         )

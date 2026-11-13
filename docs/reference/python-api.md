@@ -140,8 +140,8 @@ as `"N"`, `"GLU"`, `"A"`, and `"1"`.
 
 ### SourceComponentInstance
 
-`component_id` is the residue name, such as `"GLU"`, and `atom_indices` the indices of its atoms in the
-molecule.
+`component_id` is the residue name, such as `"GLU"`, and `atom_indices` a read-only NumPy `int64`
+array of the indices of its atoms in the molecule.
 
 ## Results
 

@@ -92,12 +92,13 @@ class SourceConformerReference:
     sites: tuple[SourceAtomReference, ...]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class SourceComponentInstance:
     """Selected structural residue membership in calculation-atom order."""
 
     component_id: str
-    atom_indices: tuple[int, ...]
+    # A read-only array, as on the issues, so that it indexes charges directly.
+    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
