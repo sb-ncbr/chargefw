@@ -367,11 +367,11 @@ class MoleculeCollection(Sequence[Molecule]):
     _name: str
     _native_molecules: tuple[_native_core._NativeMolecule, ...]
 
-    def __init__(self, molecules: Iterable[Molecule], name: str | None = None) -> None:
+    def __init__(self, molecules: Iterable[Molecule], *, name: str = "") -> None:
         if isinstance(molecules, (str, bytes, Molecule)):
             raise TypeError("molecules must be an iterable of Molecule values")
-        if name is not None and not isinstance(name, str):
-            raise TypeError("name must be a string or None")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string")
         try:
             values = tuple(molecules)
         except TypeError as error:
@@ -379,7 +379,7 @@ class MoleculeCollection(Sequence[Molecule]):
         if not all(isinstance(molecule, Molecule) for molecule in values):
             raise TypeError("molecules must contain only Molecule values")
         object.__setattr__(self, "_molecules", values)
-        object.__setattr__(self, "_name", name or "")
+        object.__setattr__(self, "_name", name)
         object.__setattr__(
             self,
             "_native_molecules",
@@ -396,9 +396,12 @@ class MoleculeCollection(Sequence[Molecule]):
     def __getitem__(self, item: int) -> Molecule: ...
 
     @overload
-    def __getitem__(self, item: slice) -> tuple[Molecule, ...]: ...
+    def __getitem__(self, item: slice) -> MoleculeCollection: ...
 
-    def __getitem__(self, item: int | slice) -> Molecule | tuple[Molecule, ...]:
+    def __getitem__(self, item: int | slice) -> Molecule | MoleculeCollection:
+        # A slice keeps the name: its molecules still come from the same source.
+        if isinstance(item, slice):
+            return MoleculeCollection(self._molecules[item], name=self._name)
         return self._molecules[item]
 
     def __iter__(self) -> Iterator[Molecule]:

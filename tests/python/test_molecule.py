@@ -110,7 +110,10 @@ def test_collection_exposes_sequence_operations_and_preserves_identity() -> None
 
     assert len(collection) == 1
     assert collection[0] is molecule
-    assert collection[:] == (molecule,)
+    sliced = collection[:1]
+    assert isinstance(sliced, chargefw.MoleculeCollection)
+    assert sliced.molecules == (molecule,)
+    assert sliced.name == "fixture"
     assert tuple(collection) == (molecule,)
     assert collection.molecules == (molecule,)
     assert collection.name == "fixture"

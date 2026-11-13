@@ -147,7 +147,7 @@ def _collection(
     payloads: list[_native_adapters.MoleculePayload], source_name: str
 ) -> MoleculeCollection:
     molecules = tuple(_molecule(payload) for payload in payloads)
-    return MoleculeCollection(molecules, source_name)
+    return MoleculeCollection(molecules, name=source_name)
 
 
 def _validate_options(

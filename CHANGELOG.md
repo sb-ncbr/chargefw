@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: slicing a `MoleculeCollection` returns a `MoleculeCollection` with the same
+  `name`, not a tuple. Its `name` argument is keyword-only, defaults to `""`, and no longer
+  accepts `None`.
 - Breaking change: `CalculationResult.assignment()` takes `molecule_index` and `conformer_index`
   instead of `molecule` and `conformer`, and `chargefw.io.rdkit.attach_charges()` takes
   `conformer_index` instead of `conformer`, as the attributes of `ChargeAssignment` are named.

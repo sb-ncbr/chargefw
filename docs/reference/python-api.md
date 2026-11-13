@@ -76,8 +76,9 @@ of atoms.
 
 ### MoleculeCollection
 
-`MoleculeCollection(molecules, name=None)` holds molecules in order. Index it and iterate over it
-like a tuple; `molecules` returns the tuple.
+`MoleculeCollection(molecules, *, name="")` holds molecules in order. Index it and iterate over it
+like a tuple; a slice is a `MoleculeCollection` with the same `name`, and `molecules` returns the
+tuple.
 
 ### ImportIssue
 
