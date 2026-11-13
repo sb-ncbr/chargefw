@@ -131,7 +131,7 @@ auto prepare_reduced_charge_context(
     case methods::ReducedChargePolicy::unsupported:
         throw std::invalid_argument{"unsupported reduced charge policy"};
     }
-    context.conservation_groups = features::connected_components(source.topology().adjacency());
+    context.conservation_groups = features::connected_components(source.topology());
     return context;
 }
 

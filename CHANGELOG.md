@@ -57,6 +57,8 @@
 - Breaking change: removed `<chargefw/methods/method_applicability.h>` with
   `methods::ApplicableMethod`, `methods::RejectedCandidate`, and `methods::ApplicabilityResult`. No
   public function produced them. Read the plans and rejections of an assessment instead.
+- Breaking change: removed `features::TopologyFeatures::adjacency()`. Use
+  `neighbor_indices(atom_index)` for each atom.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`

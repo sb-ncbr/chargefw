@@ -40,9 +40,6 @@ auto TopologyFeatures::degree(const std::size_t atom_index) const -> std::size_t
     validate_atom_index(molecule(), atom_index);
     return neighbor_indices_[atom_index].size();
 }
-auto TopologyFeatures::adjacency() const noexcept -> const std::vector<std::vector<std::size_t>>& {
-    return neighbor_indices_;
-}
 
 auto TopologyFeatures::neighbor_indices(const std::size_t atom_index) const
     -> std::span<const std::size_t> {

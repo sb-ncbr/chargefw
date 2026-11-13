@@ -26,8 +26,7 @@ inline auto add_component_neutrality_prerequisite_issue(const MethodPrerequisite
                                                         const std::string_view reason = {})
     -> void {
     const auto& molecule = input.prepared_molecule.molecule();
-    const auto components =
-        features::connected_components(input.prepared_molecule.topology().adjacency());
+    const auto components = features::connected_components(input.prepared_molecule.topology());
 
     for (const auto& component : components) {
         const auto formal_charge =

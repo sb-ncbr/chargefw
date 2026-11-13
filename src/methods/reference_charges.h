@@ -28,7 +28,7 @@ namespace chargefw::methods::detail {
         return charges;
     }
     auto formal_total = 0.0;
-    for (const auto& component : features::connected_components(topology.adjacency())) {
+    for (const auto& component : features::connected_components(topology)) {
         auto reference = 0.0;
         auto formal = 0.0;
         for (const auto atom_index : component) {

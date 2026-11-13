@@ -340,7 +340,7 @@ class SqeqpDerivatives final : public MethodDerivatives {
         const auto initial_charges = sqe_core::parameterized_initial_charges(input);
         auto components = std::optional<std::vector<std::vector<std::size_t>>>{};
         if (initial_charges.from_q0) {
-            components = features::connected_components(input.topology().adjacency());
+            components = features::connected_components(input.topology());
         }
         return std::make_unique<SqeqpLinearization>(linearize_sqe(input, initial_charges.values),
                                                     std::move(components));

@@ -698,8 +698,8 @@ TEST_CASE("SQE+qp fragments start pieces of a split component from its reference
                                                                          fragment, context);
 
     const auto source_indices = fragment.local_to_source_atom_indices();
-    const auto pieces = features::connected_components(
-        features::PreparedMolecule{fragment.molecule()}.topology().adjacency());
+    const auto pieces =
+        features::connected_components(features::PreparedMolecule{fragment.molecule()}.topology());
     REQUIRE(pieces.size() == 3);
     auto budget_differs_from_formal_charge = false;
     for (const auto& piece : pieces) {

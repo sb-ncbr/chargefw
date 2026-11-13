@@ -2,6 +2,7 @@
 #include "methods/builtin/prerequisite_helpers.h"
 
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/features/topology_features.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <algorithm>
@@ -42,22 +43,23 @@ struct Charge2Shells {
     std::vector<RemoteEffect> three_bonds;
 };
 
-[[nodiscard]] auto precompute_charge2_shells(const std::vector<std::vector<std::size_t>>& adjacency)
+[[nodiscard]] auto precompute_charge2_shells(const features::TopologyFeatures& topology)
     -> std::vector<Charge2Shells> {
-    auto shells_by_atom = std::vector<Charge2Shells>(adjacency.size());
+    const auto atom_count = topology.molecule().atom_count();
+    auto shells_by_atom = std::vector<Charge2Shells>(atom_count);
 
-    for (std::size_t atom_index = 0; atom_index < adjacency.size(); ++atom_index) {
+    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
         auto& shells = shells_by_atom[atom_index];
-        for (const auto first_neighbor : adjacency[atom_index]) {
+        for (const auto first_neighbor : topology.neighbor_indices(atom_index)) {
             shells.one_bond.push_back(first_neighbor);
 
-            for (const auto second_neighbor : adjacency[first_neighbor]) {
+            for (const auto second_neighbor : topology.neighbor_indices(first_neighbor)) {
                 if (second_neighbor == atom_index) {
                     continue;
                 }
                 shells.two_bonds.push_back({first_neighbor, second_neighbor});
 
-                for (const auto third_neighbor : adjacency[second_neighbor]) {
+                for (const auto third_neighbor : topology.neighbor_indices(second_neighbor)) {
                     if (third_neighbor == atom_index || third_neighbor == first_neighbor) {
                         continue;
                     }
@@ -97,8 +99,7 @@ auto Charge2Method::calculate(const CalculationInput& input) const -> charges::A
     const auto alpha = parameters.common("alpha");
 
     const auto atom_count = molecule.atom_count();
-    const auto& adjacency = input.topology().adjacency();
-    const auto shells_by_atom = precompute_charge2_shells(adjacency);
+    const auto shells_by_atom = precompute_charge2_shells(input.topology());
 
     auto q = std::vector(atom_count, 0.0);
     auto next_q = std::vector(atom_count, 0.0);

@@ -2,6 +2,7 @@
 
 #include "features/topology_helpers.h"
 
+#include <chargefw/core/molecule.h>
 #include <chargefw/features/topology_features.h>
 
 #include <span>
@@ -10,6 +11,7 @@
 
 #include <snitch/snitch.hpp>
 
+namespace core = chargefw::core;
 namespace features = chargefw::features;
 
 namespace {
@@ -57,13 +59,16 @@ TEST_CASE("topology features reject invalid atom indices", "[features][topology]
 }
 
 TEST_CASE("topology helpers identify connected components", "[features][topology]") {
-    const std::vector<std::vector<std::size_t>> adjacency{{1}, {0}, {3}, {2}, {}};
+    const core::Molecule pieces{
+        {core::Atom{1}, core::Atom{1}, core::Atom{1}, core::Atom{1}, core::Atom{2}},
+        {core::Bond{0, 1}, core::Bond{2, 3}}};
+    const core::Molecule empty{{}};
 
-    const auto components = features::connected_components(adjacency);
+    const auto components = features::connected_components(features::TopologyFeatures{pieces});
 
     REQUIRE(components.size() == 3);
     CHECK(components[0] == std::vector<std::size_t>{0, 1});
     CHECK(components[1] == std::vector<std::size_t>{2, 3});
     CHECK(components[2] == std::vector<std::size_t>{4});
-    CHECK(features::connected_components({}).empty());
+    CHECK(features::connected_components(features::TopologyFeatures{empty}).empty());
 }
