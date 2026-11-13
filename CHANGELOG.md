@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: `cutoff_threshold` and `cover_threshold` take `"unlimited"` for no limit, as
+  on the command line and in result JSON, instead of `None`, which is now rejected.
+  `RequestedCalculation` holds `"unlimited"` too.
 - Breaking change: `SourceComponentInstance.atom_indices` is a read-only NumPy `int64` array, as
   the `atom_indices` of the issues, not a tuple, so it indexes charges directly. Components
   compare by identity.

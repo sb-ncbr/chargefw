@@ -63,9 +63,9 @@ With automatic execution, a radius sets the radius ChargeFW uses if it switches 
 
 Explicit full execution also runs above the size limits; the result then carries a warning. The limits
 themselves can be changed with `cutoff_threshold` and `cover_threshold` in Python, or
-`--cutoff-threshold` and `--cover-threshold` on the command line. `None` in Python, or `unlimited` on
-the command line, removes a limit. The cover limit must not be lower than the cutoff limit, and removing the
-cutoff limit requires removing the cover limit too.
+`--cutoff-threshold` and `--cover-threshold` on the command line. `unlimited` removes a limit. The
+cover limit must not be lower than the cutoff limit, and removing the cutoff limit requires removing
+the cover limit too.
 
 Before a long calculation, `chargefw applicability` estimates the memory and the number of
 operations of every plan: each combination of method, parameter set, and execution mode that

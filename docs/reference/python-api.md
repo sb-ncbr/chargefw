@@ -154,7 +154,7 @@ array of the indices of its atoms in the molecule.
 | `assignments_by_molecule` | The same, as one tuple per input molecule |
 | `assignment(molecule_index=..., conformer_index=None)` | One assignment; see [Selecting an assignment](#selecting-an-assignment) |
 | `plan` | `ExecutedPlan` that was used, also after a numerical failure or cancellation; `None` when no plan could run |
-| `requested` | `RequestedCalculation`: the arguments of the call |
+| `requested` | `RequestedCalculation`: what was requested, the arguments of the call or the choices of `settings`, with defaults filled in |
 | `molecules` | The input `MoleculeCollection` |
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |

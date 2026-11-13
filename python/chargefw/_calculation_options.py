@@ -14,7 +14,13 @@ from ._arrays import as_integer
 from ._chargefw import calculation as _native_calculation
 from ._methods import Method
 from ._parameters import ParameterSet
-from ._types import MethodOptionValue, MethodScope, ParameterMatching, RequestedExecution
+from ._types import (
+    MethodOptionValue,
+    MethodScope,
+    ParameterMatching,
+    RequestedExecution,
+    ResourceThreshold,
+)
 
 _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
@@ -26,6 +32,17 @@ def _normalized_nonnegative_integer(value: SupportsIndex, name: str) -> int:
     if result > np.iinfo(np.uintp).max:
         raise ValueError(f"{name} is outside the native size range")
     return result
+
+
+def _normalized_threshold(value: ResourceThreshold, name: str) -> ResourceThreshold:
+    # "unlimited" as on the command line and in result JSON; None means "not given" elsewhere.
+    if isinstance(value, str):
+        if value != "unlimited":
+            raise ValueError(f"{name} must be a non-negative integer or 'unlimited'")
+        return value
+    if value is None:
+        raise TypeError(f"{name} must be a non-negative integer or 'unlimited'")
+    return _normalized_nonnegative_integer(value, name)
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -106,8 +123,8 @@ class RequestedCalculation:
     parameter_matching: ParameterMatching
     execution: RequestedExecution
     radius: float | None
-    cutoff_threshold: int | None
-    cover_threshold: int | None
+    cutoff_threshold: ResourceThreshold
+    cover_threshold: ResourceThreshold
     threads: int
     fixed_ions: tuple[str, ...]
 
@@ -121,8 +138,8 @@ class RequestedCalculation:
         parameter_matching: ParameterMatching = "strict",
         execution: RequestedExecution = "auto",
         radius: float | None = None,
-        cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
-        cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
+        cutoff_threshold: ResourceThreshold = _native_calculation._default_cutoff_atom_threshold,
+        cover_threshold: ResourceThreshold = _native_calculation._default_cover_atom_threshold,
         threads: int = 0,
         fixed_ions: Sequence[str] | None = None,
     ) -> None:
@@ -161,16 +178,8 @@ class RequestedCalculation:
                 raise TypeError("radius must be a real number or None")
             radius = float(radius)
 
-        normalized_cutoff = (
-            None
-            if cutoff_threshold is None
-            else _normalized_nonnegative_integer(cutoff_threshold, "cutoff_threshold")
-        )
-        normalized_cover = (
-            None
-            if cover_threshold is None
-            else _normalized_nonnegative_integer(cover_threshold, "cover_threshold")
-        )
+        normalized_cutoff = _normalized_threshold(cutoff_threshold, "cutoff_threshold")
+        normalized_cover = _normalized_threshold(cover_threshold, "cover_threshold")
         normalized_threads = _normalized_nonnegative_integer(threads, "threads")
         normalized_fixed_ions: tuple[str, ...]
         if fixed_ions is None:

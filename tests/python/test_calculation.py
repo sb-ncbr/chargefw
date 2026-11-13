@@ -699,6 +699,16 @@ def test_automatic_thresholds_and_explicit_full_warnings() -> None:
         "resource_threshold_exceeded"
     ]
 
+    unlimited = chargefw.calculate(
+        water(), method="eem", cutoff_threshold="unlimited", cover_threshold="unlimited"
+    )
+    assert unlimited.plan is not None
+    assert unlimited.plan.execution.mode == "full"
+    assert unlimited.requested.cutoff_threshold == "unlimited"
+    # Without a cutoff limit, cover could never be reached.
+    with pytest.raises(ValueError):
+        chargefw.assess(water(), method="eem", cutoff_threshold="unlimited")
+
 
 def test_molecules_without_hydrogens_are_reported() -> None:
     # A molecule built without hydrogens, as from RDKit without AddHs(), next to water.
@@ -866,6 +876,8 @@ def test_invalid_options_are_rejected_early() -> None:
         (ValueError, {"parameter_matching": "guess"}),
         (TypeError, {"threads": True}),
         (TypeError, {"cutoff_threshold": False}),
+        (TypeError, {"cutoff_threshold": None}),
+        (ValueError, {"cover_threshold": "none"}),
         (ValueError, {"cover_threshold": np.iinfo(np.uintp).max + 1}),
     )
     for error_type, options in invalid_options:

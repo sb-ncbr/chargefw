@@ -39,6 +39,7 @@ from ._types import (
     MethodScope,
     ParameterMatching,
     RequestedExecution,
+    ResourceThreshold,
 )
 
 __all__ = [
@@ -301,8 +302,8 @@ def assess(
     parameter_matching: ParameterMatching | None = None,
     execution: RequestedExecution | None = None,
     radius: float | None = None,
-    cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
-    cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
+    cutoff_threshold: ResourceThreshold = _native_calculation._default_cutoff_atom_threshold,
+    cover_threshold: ResourceThreshold = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     fixed_ions: Sequence[str] | None = None,
     settings: CalculationSettings | None = None,
@@ -378,8 +379,8 @@ def assess(
         requested.parameter_matching,
         requested.execution,
         requested.radius,
-        requested.cutoff_threshold,
-        requested.cover_threshold,
+        None if requested.cutoff_threshold == "unlimited" else requested.cutoff_threshold,
+        None if requested.cover_threshold == "unlimited" else requested.cover_threshold,
         requested.threads,
         requested.fixed_ions,
     )
@@ -396,8 +397,8 @@ def calculate(
     parameter_matching: ParameterMatching | None = None,
     execution: RequestedExecution | None = None,
     radius: float | None = None,
-    cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
-    cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
+    cutoff_threshold: ResourceThreshold = _native_calculation._default_cutoff_atom_threshold,
+    cover_threshold: ResourceThreshold = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,
