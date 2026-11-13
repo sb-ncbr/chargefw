@@ -52,6 +52,10 @@ that names it, instead of loading another release.
 `CHARGEFW_VERSION_MAJOR`, `CHARGEFW_VERSION_MINOR`, and `CHARGEFW_VERSION_PATCH` are numbers, and
 `CHARGEFW_VERSION_STRING` is the full release, such as `"3.0.0"` or `"3.0.0rc3"`.
 
+Enumerations and `std::variant` types, such as `calculation::RejectionIssue`, may gain values and
+alternatives in later releases. Give a `switch` a `default`, and give `std::visit` a fallback
+overload, so that your code still compiles.
+
 To build your application against installed ChargeFW, you do not need its dependencies' development
 packages. The shared libraries ChargeFW was linked against, including oneTBB and Gemmi when linked
 dynamically, must remain available at runtime. With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the native

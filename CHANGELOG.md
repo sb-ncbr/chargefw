@@ -95,6 +95,8 @@
   rejects a classification that does not fit its molecule and parameter set.
   `<chargefw/parameters/classification/parameter_classification.h>` no longer includes the molecule
   and parameter-set headers.
+- Enumerations and `std::variant` types, such as `calculation::RejectionIssue`, may gain values and
+  alternatives in later releases; give a `switch` a `default` and `std::visit` a fallback overload.
 - `methods::Method` is the interface of the built-in methods, and only ChargeFW implements it:
   requests select methods by ID from `methods::method_registry()`, so a class derived elsewhere is
   never selected. Later releases may add pure virtual functions to it.
