@@ -134,6 +134,7 @@ keyword arguments:
 | `cover_threshold` | Size of the largest molecule above which `"auto"` uses cover for expensive methods; default `80_000` atoms, `None` for no limit |
 | `threads` | Maximum number of threads; by default, and with `0`, all available cores |
 | `fixed_ions` | Residue names of ions to keep as fixed charges; see [below](#fixed-ions) |
+| `settings` | The choices of an earlier plan, instead of the arguments that make them; see [One model for all molecules](#one-model-for-all-molecules) |
 | `observer` | Receives progress and can cancel; see [Progress and cancellation](#progress-and-cancellation) |
 
 `options` and `options_by_method` cannot be used together. Thresholds must satisfy
@@ -169,6 +170,34 @@ for molecule in molecules:
     print(molecule.name, result.plan.method.id, result.plan.execution.mode)
 ```
 
+Separate calls also choose separately: when you calculate a series of structures one file at a
+time, each can get another parameter set or execution mode. A structure of 19,500 atoms is calculated
+in full, and one of 20,500 atoms with cutoff. To calculate later structures with the choices ChargeFW
+made for the first one, pass its `result.plan.settings` as `settings`:
+
+```python
+first = chargefw.io.read("wild-type.cif", format="mmcif")
+reference = chargefw.calculate(first, fixed_ions=chargefw.COMMON_IONS)
+
+for path in ["mutant-1.cif", "mutant-2.cif"]:
+    structure = chargefw.io.read(path, format="mmcif")
+    result = chargefw.calculate(structure, settings=reference.plan.settings)
+```
+
+The settings hold the method, the parameter set, the value of every method option, the parameter
+matching, the execution mode with its radius, and the fixed-ion names you requested, also those not
+found in the first structure. `calculate()` uses exactly these. If they do not apply to a structure,
+for example because the parameter set has no values for one of its atoms, it raises
+[`NoExecutablePlanError`](#errors) instead of choosing something else. If every choice is already
+named in your call, you do not need settings.
+
+`settings` cannot be combined with `method`, `parameter_set`, `method_scope`, `options`,
+`options_by_method`, `parameter_matching`, `execution`, `radius`, or `fixed_ions`. You can still pass
+`threads`. The execution mode stays the same for every structure: settings from a structure that was
+calculated in full also calculate a structure of 100,000 atoms in full, with a warning and the memory
+that requires (see [Large structures](../guide/large-structures.md)). If your structures differ that
+much in size, or you want any other choice, name the arguments in the call instead of passing settings.
+
 ### Fixed ions
 
 `fixed_ions` takes residue names such as `["MG", "CA"]`, or `chargefw.COMMON_IONS` or
@@ -190,7 +219,7 @@ result = chargefw.calculate(
 | --- | --- |
 | `assignments` | All sets of charges, as `ChargeAssignment` values |
 | `assignments_by_molecule` | The same, grouped by input molecule |
-| `plan` | The method, parameter set, options, execution mode and radius, and warnings that were used; a record, not a plan you can calculate again (use [`assess()`](#assessing-before-calculating) for that) |
+| `plan` | The method, parameter set, options, execution mode and radius, and warnings that were used; `plan.settings` calculates other molecules with the same choices |
 | `requested` | What was requested |
 | `molecules` | The input molecules |
 | `status` | `"success"`, or the reason for a failure |
@@ -407,7 +436,9 @@ if plan is not None:
 overrides it for that call.
 
 A plan keeps its molecules and stays usable after the assessment is deleted. Several threads can
-calculate the same plan at once. To calculate other molecules, assess them.
+calculate the same plan at once. To calculate other molecules with the choices of a plan, pass
+`plan.settings` as `settings` to `calculate()` or `assess()`, as described in
+[One model for all molecules](#one-model-for-all-molecules).
 
 ## Progress and cancellation
 

@@ -454,6 +454,64 @@ def test_plans_are_filtered_and_reusable() -> None:
     assert all(result.status == "success" for result in results)
 
 
+def test_settings_apply_exactly_the_choices_of_a_plan_to_other_molecules() -> None:
+    def choices(settings: chargefw.CalculationSettings) -> tuple[object, ...]:
+        return (
+            settings.method,
+            settings.parameter_set,
+            dict(settings.options),
+            settings.parameter_matching,
+            settings.execution,
+            settings.fixed_ions,
+        )
+
+    # The threshold makes automatic execution choose cutoff; CA is absent from the molecules.
+    reference = chargefw.calculate(
+        fixed_groups_molecules(),
+        method="eem",
+        cutoff_threshold=1,
+        parameter_matching="permissive",
+        fixed_ions=["MG", "CA"],
+    )
+    assert reference.plan is not None
+    settings = reference.plan.settings
+    assert settings.execution == chargefw.Execution(mode="cutoff", radius=12.0)
+    assert settings.fixed_ions == ("MG", "CA")
+
+    # With the default thresholds, automatic execution would choose full.
+    plan = chargefw.assess(fixed_groups_molecules(), settings=settings).default_plan
+    assert plan is not None
+    assert choices(plan.settings) == choices(settings)
+    result = plan.calculate(threads=1)
+    assert result.plan is not None and result.plan.fixed_ions is not None
+    assert choices(result.plan.settings) == choices(settings)
+    assert [source.component_id for source in result.plan.fixed_ions.sources] == ["MG"]
+
+    # Also an argument that has its default value is a choice that settings cannot be combined with.
+    conflicts: list[dict[str, Any]] = [
+        {"execution": "full"},
+        {"execution": "auto"},
+        {"parameter_matching": "strict"},
+        {"method_scope": "recommended"},
+        {"fixed_ions": []},
+    ]
+    for function in (chargefw.calculate, chargefw.assess):
+        for conflict in conflicts:
+            with pytest.raises(ValueError):
+                cast(Any, function)(fixed_groups_molecules(), settings=settings, **conflict)
+
+    # Automatic selection finds a method for xenon; the settings of an EEM plan do not fall back.
+    xenon = chargefw.Molecule([54], coordinates=[[0.0, 0.0, 0.0]])
+    water_plan = chargefw.calculate(water(), method="eem").plan
+    assert water_plan is not None
+    assert chargefw.calculate(xenon).status == "success"
+    with pytest.raises(chargefw.NoExecutablePlanError) as context:
+        chargefw.calculate(xenon, settings=water_plan.settings)
+    assert [
+        (rejection.method, rejection.parameter_set) for rejection in context.value.result.rejections
+    ] == [(water_plan.method, water_plan.parameter_set)]
+
+
 def test_plan_estimates_resources_for_a_thread_limit() -> None:
     molecules = [water(), water()]
     plan = chargefw.assess(molecules, method="eqeq", execution="full").default_plan

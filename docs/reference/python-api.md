@@ -185,6 +185,7 @@ input molecule, counted from 0.
 | `execution` | `Execution` |
 | `warnings` | Tuple of `ExecutionIssue` |
 | `fixed_ions` | `FixedIons`; `None` without fixed ions |
+| `settings` | `CalculationSettings` of the plan |
 
 ### Execution
 
@@ -192,6 +193,21 @@ input molecule, counted from 0.
 | --- | --- |
 | `mode` | `"full"`, `"cutoff"`, or `"cover"` |
 | `radius` | Fragment radius in ångströms; `None` for full execution |
+
+### CalculationSettings
+
+The choices of a plan, which `settings` in `calculate()` and `assess()` apply to other molecules; see
+[One model for all molecules](../interfaces/python.md#one-model-for-all-molecules). You get them
+from `plan.settings` or `result.plan.settings`.
+
+| Attribute | Content |
+| --- | --- |
+| `method` | `Method` |
+| `parameter_set` | `ParameterSet`; `None` for methods without parameter sets |
+| `options` | Values of all method options, including defaults |
+| `parameter_matching` | `"strict"` or `"permissive"` |
+| `execution` | `Execution` |
+| `fixed_ions` | Tuple of the residue names requested for fixed ions, also those not found in the molecules |
 
 ### FixedIons and FixedAtomCharge
 
@@ -225,7 +241,7 @@ The arguments of a call as ChargeFW read them: `method` and `parameter_set` as I
 
 | Attribute | Content |
 | --- | --- |
-| `method`, `parameter_set`, `options`, `execution`, `warnings` | As in `ExecutedPlan` |
+| `method`, `parameter_set`, `options`, `execution`, `warnings`, `settings` | As in `ExecutedPlan` |
 | `estimate(threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
 | `calculate(*, threads=None, observer=None)` | `CalculationResult` for the molecules the plan was assessed with; raises and warns as `chargefw.calculate()` does |
 

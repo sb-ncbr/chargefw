@@ -13,6 +13,7 @@ from ._calculation_values import (
     CalculationObserver,
     CalculationProgress,
     CalculationResult,
+    CalculationSettings,
     CalculationTimings,
     ChargeFWError,
     ChargeIssue,
@@ -49,6 +50,7 @@ __all__ = [
     "CalculationProgress",
     "CalculationCancelledError",
     "CalculationResult",
+    "CalculationSettings",
     "CalculationTimings",
     "ChargeFWError",
     "ExecutedPlan",
@@ -79,6 +81,7 @@ set_public_module(
     RequestedCalculation,
     Execution,
     ExecutedPlan,
+    CalculationSettings,
     CalculationTimings,
     ChargeFWError,
     NoExecutablePlanError,
@@ -252,27 +255,62 @@ def assess(
     *,
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
-    method_scope: MethodScope = "recommended",
+    method_scope: MethodScope | None = None,
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
-    parameter_matching: ParameterMatching = "strict",
-    execution: RequestedExecution = "auto",
+    parameter_matching: ParameterMatching | None = None,
+    execution: RequestedExecution | None = None,
     radius: float | None = None,
     cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
     cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     fixed_ions: Sequence[str] | None = None,
+    settings: CalculationSettings | None = None,
 ) -> Assessment:
-    """Inspect applicability and return reusable executable calculation plans."""
+    """Inspect applicability and return reusable executable calculation plans.
+
+    ``method_scope``, ``parameter_matching``, and ``execution`` default to ``"recommended"``,
+    ``"strict"``, and ``"auto"``. ``settings`` from ``plan.settings`` or ``result.plan.settings``
+    apply exactly the choices of that plan, and cannot be combined with the arguments that make
+    those choices.
+    """
+
+    if settings is not None:
+        if not isinstance(settings, CalculationSettings):
+            raise TypeError("settings must be CalculationSettings or None")
+        combined = [
+            name
+            for name, value in (
+                ("method", method),
+                ("parameter_set", parameter_set),
+                ("method_scope", method_scope),
+                ("options", options),
+                ("options_by_method", options_by_method),
+                ("parameter_matching", parameter_matching),
+                ("execution", execution),
+                ("radius", radius),
+                ("fixed_ions", fixed_ions),
+            )
+            if value is not None
+        ]
+        if combined:
+            raise ValueError(f"settings cannot be combined with {', '.join(combined)}")
+        method = settings.method
+        parameter_set = settings.parameter_set
+        options = settings.options
+        parameter_matching = settings.parameter_matching
+        execution = settings.execution.mode
+        radius = settings.execution.radius
+        fixed_ions = settings.fixed_ions
 
     requested = RequestedCalculation(
         method=method,
         parameter_set=parameter_set,
-        method_scope=method_scope,
+        method_scope="recommended" if method_scope is None else method_scope,
         options=options,
         options_by_method=options_by_method,
-        parameter_matching=parameter_matching,
-        execution=execution,
+        parameter_matching="strict" if parameter_matching is None else parameter_matching,
+        execution="auto" if execution is None else execution,
         radius=radius,
         cutoff_threshold=cutoff_threshold,
         cover_threshold=cover_threshold,
@@ -318,22 +356,24 @@ def calculate(
     *,
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
-    method_scope: MethodScope = "recommended",
+    method_scope: MethodScope | None = None,
     options: Mapping[str, MethodOptionValue] | None = None,
     options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
-    parameter_matching: ParameterMatching = "strict",
-    execution: RequestedExecution = "auto",
+    parameter_matching: ParameterMatching | None = None,
+    execution: RequestedExecution | None = None,
     radius: float | None = None,
     cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
     cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
     threads: int = 0,
     observer: CalculationObserver | None = None,
     fixed_ions: Sequence[str] | None = None,
+    settings: CalculationSettings | None = None,
 ) -> CalculationResult:
     """Assess the molecules and calculate the default plan.
 
     Without an explicit method, selection uses the deterministic catalog order among applicable
-    methods. To choose another plan, use ``assess()`` and ``Plan.calculate()``.
+    methods. To choose another plan, use ``assess()`` and ``Plan.calculate()``. ``settings`` from
+    ``plan.settings`` or ``result.plan.settings`` apply exactly the choices of that plan.
     """
 
     collection = _as_collection(molecules)
@@ -352,6 +392,7 @@ def calculate(
         cover_threshold=cover_threshold,
         threads=threads,
         fixed_ions=fixed_ions,
+        settings=settings,
     )
     plan = assessment.default_plan
     if plan is None:

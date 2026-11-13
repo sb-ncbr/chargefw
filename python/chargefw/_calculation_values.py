@@ -38,6 +38,7 @@ from ._types import (
     ExecutionStatus,
     InputIssueKind,
     MethodOptionValue,
+    ParameterMatching,
 )
 from ._warnings import (
     CHARGE_WARNING_KINDS,
@@ -172,6 +173,72 @@ def _normalized_threads(threads: int | None) -> int | None:
     return None if threads is None else RequestedCalculation(threads=threads).threads
 
 
+class CalculationSettings:
+    """The choices of a plan, to calculate other molecules with exactly those choices.
+
+    Get it from ``plan.settings`` or ``result.plan.settings`` and pass it as ``settings`` to
+    ``calculate()`` or ``assess()``.
+    """
+
+    __slots__ = (
+        "_method",
+        "_parameter_set",
+        "_options",
+        "_parameter_matching",
+        "_execution",
+        "_fixed_ions",
+    )
+
+    def __init__(
+        self,
+        method: Method,
+        parameter_set: ParameterSet | None,
+        options: Mapping[str, MethodOptionValue],
+        execution: Execution,
+        requested: RequestedCalculation,
+    ) -> None:
+        self._method = method
+        self._parameter_set = parameter_set
+        self._options = MappingProxyType(dict(options))
+        self._parameter_matching = requested.parameter_matching
+        self._execution = execution
+        # The requested names, so that ions absent from the assessed molecules are fixed in others.
+        self._fixed_ions = requested.fixed_ions
+
+    @property
+    def method(self) -> Method:
+        return self._method
+
+    @property
+    def parameter_set(self) -> ParameterSet | None:
+        return self._parameter_set
+
+    @property
+    def options(self) -> Mapping[str, MethodOptionValue]:
+        return self._options
+
+    @property
+    def parameter_matching(self) -> ParameterMatching:
+        return self._parameter_matching
+
+    @property
+    def execution(self) -> Execution:
+        return self._execution
+
+    @property
+    def fixed_ions(self) -> tuple[str, ...]:
+        return self._fixed_ions
+
+    def __repr__(self) -> str:
+        parameter_set = self.parameter_set.id if self.parameter_set is not None else None
+        return (
+            f"{type(self).__name__}(method={self.method.id!r}, "
+            f"parameter_set={parameter_set!r}, options={dict(self.options)!r}, "
+            f"parameter_matching={self.parameter_matching!r}, execution={self.execution!r}, "
+            f"fixed_ions={self.fixed_ions!r})"
+        )
+
+
 class Plan:
     """A complete reusable execution plan bound to one assessed molecule collection."""
 
@@ -186,6 +253,7 @@ class Plan:
         "_requested",
         "_methods",
         "_parameter_sets",
+        "_settings",
     )
 
     def __init__(
@@ -208,6 +276,9 @@ class Plan:
         self._methods = methods
         # Resolves the parameter set of results, including a set that is not bundled.
         self._parameter_sets = parameter_sets
+        self._settings = CalculationSettings(
+            self._method, self._parameter_set, self._options, self._execution, requested
+        )
 
     @property
     def method(self) -> Method:
@@ -228,6 +299,12 @@ class Plan:
     @property
     def warnings(self) -> tuple[ExecutionIssue, ...]:
         return self._warnings
+
+    @property
+    def settings(self) -> CalculationSettings:
+        """The choices of this plan, to calculate other molecules with them."""
+
+        return self._settings
 
     def estimate(self, threads: int | None = None) -> ResourceEstimate:
         """Estimate execution with a thread limit; None uses the assessment's threads."""
@@ -306,7 +383,9 @@ class ExecutedPlan:
     options: Mapping[str, MethodOptionValue]
     execution: Execution
     warnings: tuple[ExecutionIssue, ...]
-    fixed_ions: FixedIons | None = None
+    fixed_ions: FixedIons | None
+    # The choices of this plan, to calculate other molecules with them.
+    settings: CalculationSettings = field(repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "options", MappingProxyType(dict(self.options)))
@@ -407,16 +486,23 @@ def _executed_plan(
     methods: MethodCatalog,
     parameter_sets: ParameterSetCatalog,
     molecules: MoleculeCollection,
+    requested: RequestedCalculation,
 ) -> ExecutedPlan | None:
     if value is None:
         return None
+    method = methods[value["method_id"]]
+    parameter_set = _resolved_parameter_set(value["parameter_set_id"], parameter_sets)
+    execution = _execution(value["execution_policy"])
     return ExecutedPlan(
-        method=methods[value["method_id"]],
-        parameter_set=_resolved_parameter_set(value["parameter_set_id"], parameter_sets),
+        method=method,
+        parameter_set=parameter_set,
         options=value["method_options"],
-        execution=_execution(value["execution_policy"]),
+        execution=execution,
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
         fixed_ions=_fixed_ions_provenance(value["fixed_ions"], molecules),
+        settings=CalculationSettings(
+            method, parameter_set, value["method_options"], execution, requested
+        ),
     )
 
 
@@ -530,7 +616,9 @@ class CalculationResult:
         self._rejections = rejections or _rejections(payload["rejections"], methods, parameter_sets)
         self._input_warnings = _input_issues(payload["input_warnings"])
         self._charge_warnings = _charge_issues(payload["charge_warnings"])
-        self._plan = _executed_plan(payload["effective"], methods, parameter_sets, molecules)
+        self._plan = _executed_plan(
+            payload["effective"], methods, parameter_sets, molecules, requested
+        )
         self._failure_message = payload["failure_message"]
         self._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],

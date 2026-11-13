@@ -28,13 +28,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
   `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
 
-## Calculation
-
-- [ ] Python: reuse the choices of a plan on other molecules. A plan would give its fully explicit
-  settings (method, parameter set, options, parameter matching, execution mode and radius, fixed
-  ions), which `calculate()` and `assess()` accept for new molecules; they apply exactly those
-  choices and fail instead of falling back. Needs a design sketch and review first.
-
 ## Parameterization
 
 - [ ] Fit to several targets at once: electrostatic potentials at points, and the response of the
