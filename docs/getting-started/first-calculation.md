@@ -24,7 +24,7 @@ covering every atom of paracetamol. The result file records what was used:
   "effective": {
     "method": {"id": "sqeqp"},
     "parameter_set": {"id": "SQEqp_Schindler2021_CCD_gen"},
-    "execution": {"mode": "full", "radius_angstrom": null}
+    "execution": {"mode": "full", "radius": null}
   }
 }
 ```

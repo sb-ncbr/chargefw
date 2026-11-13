@@ -201,12 +201,12 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(requested.at("method").is_null());
     CHECK(requested.at("parameter_set").is_null());
     CHECK(requested.at("method_scope") == "all");
-    CHECK(requested.at("execution").at("kind") == "auto");
-    CHECK(requested.at("execution").at("radius_angstrom").is_null());
-    CHECK(requested.at("classification").at("permissive_types") == true);
-    CHECK(requested.at("resource_policy").at("cutoff_atom_threshold") == "unlimited");
-    CHECK(requested.at("resource_policy").at("cover_atom_threshold") == "unlimited");
-    CHECK(requested.at("resource_policy").at("max_threads") == 0);
+    CHECK(requested.at("execution") == "auto");
+    CHECK(requested.at("radius").is_null());
+    CHECK(requested.at("parameter_matching") == "permissive");
+    CHECK(requested.at("cutoff_threshold") == "unlimited");
+    CHECK(requested.at("cover_threshold") == "unlimited");
+    CHECK(requested.at("threads") == 0);
     CHECK(requested.at("method_options").at("qeq").at("overlap_term") == "Ohno");
     const auto& effective = provenance.at("effective");
     const auto& encoded_metrics = provenance.at("execution_metrics");
@@ -220,7 +220,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(effective.at("execution").at("mode") == "cutoff");
     CHECK(effective.at("method").at("id") == "formal");
     CHECK(effective.at("parameter_set").at("id") == "test-formal");
-    CHECK(effective.at("execution").at("radius_angstrom") == 8.0);
+    CHECK(effective.at("execution").at("radius") == 8.0);
     CHECK(effective.at("warnings").at(0) == "full execution exceeds the shared threshold");
     CHECK(effective.at("method_options").at("formal").empty());
     CHECK_FALSE(effective.contains("fixed_ions"));

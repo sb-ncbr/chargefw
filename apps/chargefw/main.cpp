@@ -213,7 +213,7 @@ auto run(std::span<char*> arguments) -> int {
     auto request =
         chargefw::cli::make_request(std::move(imported.molecules), calculate_selection, records);
     const auto requested_provenance =
-        chargefw::cli::make_requested_provenance(request, calculate_selection.max_threads);
+        chargefw::cli::make_requested_provenance(request, calculate_selection);
     const auto max_threads = calculate_selection.max_threads;
     const auto progress_observer = TerminalProgressObserver{};
     auto failure_message = std::string{};

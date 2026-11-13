@@ -249,47 +249,39 @@
     },
     "requested": {
       "type": "object",
-      "required": ["method", "parameter_set", "classification", "resource_policy", "execution", "method_options"],
+      "description": "The calculation as requested, named as the arguments of chargefw.calculate() in Python except method_options, which holds the options of any method by method ID.",
+      "required": ["method", "parameter_set", "method_scope", "method_options", "parameter_matching", "execution", "radius", "cutoff_threshold", "cover_threshold", "threads", "fixed_ions"],
       "properties": {
         "method": { "$ref": "#/$defs/optionalId" },
         "parameter_set": { "$ref": "#/$defs/optionalId" },
         "method_scope": { "anyOf": [{ "enum": ["recommended", "all"] }, { "type": "string", "description": "A value added by a later 1.x version." }] },
-        "classification": {
-          "type": "object",
-          "required": ["permissive_types"],
-          "properties": { "permissive_types": { "type": "boolean" } }
-        },
-        "resource_policy": {
-          "type": "object",
-          "required": ["cutoff_atom_threshold", "cover_atom_threshold", "max_threads"],
-          "properties": {
-            "cutoff_atom_threshold": { "$ref": "#/$defs/threshold" },
-            "cover_atom_threshold": { "$ref": "#/$defs/threshold" },
-            "max_threads": { "type": "integer", "minimum": 0 }
-          }
+        "method_options": { "$ref": "#/$defs/methodOptions" },
+        "parameter_matching": {
+          "anyOf": [
+            { "const": "strict", "title": "Strict", "description": "Use only parameter entries for an atom's or bond's own type." },
+            { "const": "permissive", "title": "Permissive", "description": "Also try the entry for the next lower bond order." },
+            { "type": "string", "description": "A value added by a later 1.x version." }
+          ]
         },
         "execution": {
-          "type": "object",
-          "required": ["kind", "radius_angstrom"],
-          "properties": {
-            "kind": {
-              "anyOf": [
-                { "const": "auto", "title": "Automatic", "description": "Let assessment choose an applicable execution mode according to method capabilities and resource policy." },
-                { "const": "full", "title": "Full", "description": "Request a complete calculation for the molecular target." },
-                { "const": "cutoff", "title": "Cutoff", "description": "Request radius-fragment calculations centered on source atoms." },
-                { "const": "cover", "title": "Cover", "description": "Request radius-fragment calculations around pivots, retaining charges in covered interiors." },
-                { "type": "string", "description": "A value added by a later 1.x version." }
-              ]
-            },
-            "radius_angstrom": {
-              "oneOf": [
-                { "type": "number", "exclusiveMinimum": 0, "title": "Radius in angstroms" },
-                { "type": "null", "title": "No explicit radius", "description": "The request does not specify a radius." }
-              ]
-            }
-          }
+          "anyOf": [
+            { "const": "auto", "title": "Automatic", "description": "Let assessment choose an applicable execution mode according to method capabilities and resource policy." },
+            { "const": "full", "title": "Full", "description": "Request a complete calculation for the molecular target." },
+            { "const": "cutoff", "title": "Cutoff", "description": "Request radius-fragment calculations centered on source atoms." },
+            { "const": "cover", "title": "Cover", "description": "Request radius-fragment calculations around pivots, retaining charges in covered interiors." },
+            { "type": "string", "description": "A value added by a later 1.x version." }
+          ]
         },
-        "method_options": { "$ref": "#/$defs/methodOptions" }
+        "radius": {
+          "oneOf": [
+            { "type": "number", "exclusiveMinimum": 0, "title": "Radius in angstroms" },
+            { "type": "null", "title": "No explicit radius", "description": "The request does not specify a radius." }
+          ]
+        },
+        "cutoff_threshold": { "$ref": "#/$defs/threshold" },
+        "cover_threshold": { "$ref": "#/$defs/threshold" },
+        "threads": { "type": "integer", "minimum": 0, "description": "Requested thread limit; 0 uses all available threads." },
+        "fixed_ions": { "type": "array", "items": { "type": "string" }, "description": "Residue names requested as fixed ions, also those not found in the molecules." }
       }
     },
     "effective": {
@@ -301,7 +293,7 @@
         "warnings": { "type": "array", "items": { "type": "string" } },
         "execution": {
           "type": "object",
-          "required": ["mode", "radius_angstrom"],
+          "required": ["mode", "radius"],
           "properties": {
             "mode": {
               "anyOf": [
@@ -311,7 +303,7 @@
                 { "type": "string", "description": "A value added by a later 1.x version." }
               ]
             },
-            "radius_angstrom": {
+            "radius": {
               "oneOf": [
                 { "type": "number", "exclusiveMinimum": 0, "title": "Radius in angstroms" },
                 { "type": "null", "title": "No effective radius", "description": "The effective execution mode uses no spatial radius." }

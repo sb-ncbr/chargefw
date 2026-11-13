@@ -160,7 +160,7 @@ auto peak_resident_memory_mb() -> double {
 }
 
 auto make_requested_provenance(const calculation::AssessmentRequest& request,
-                               const std::size_t max_threads)
+                               const SelectionArguments& arguments)
     -> adapters::RequestedCalculationProvenance {
     auto requested = adapters::RequestedCalculationProvenance{
         .method_id = request.method_id,
@@ -169,9 +169,10 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
         .parameter_matching = request.parameter_matching,
         .cutoff_threshold = request.resource_policy.cutoff_threshold,
         .cover_threshold = request.resource_policy.cover_threshold,
-        .threads = max_threads,
+        .threads = arguments.max_threads,
         .execution = request.execution.mode(),
-        .radius = request.execution.radius()};
+        .radius = request.execution.radius(),
+        .fixed_ions = arguments.fixed_ion_ids};
     for (const auto& [method_id, options] : request.method_options) {
         requested.method_options.emplace(method_id, options);
     }

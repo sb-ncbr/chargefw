@@ -451,7 +451,8 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         .threads = max_threads,
         .execution = request.execution.mode(),
         .radius = request.execution.radius(),
-        .method_options = std::move(requested_options)};
+        .method_options = std::move(requested_options),
+        .fixed_ions = std::move(fixed_ions)};
     return NativeAssessment{calculation::assess(std::move(request)), std::move(inputs),
                             std::move(requested), max_threads};
 }

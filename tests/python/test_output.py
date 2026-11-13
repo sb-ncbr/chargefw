@@ -13,6 +13,7 @@ import pytest
 
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 AROMATIC_MOL2 = Path(__file__).parents[1] / "fixtures" / "synthetic" / "mol2" / "aromatic.mol2"
+FIXED_IONS_MMCIF = Path(__file__).parents[1] / "fixtures" / "synthetic" / "cif" / "fixed_ions.cif"
 CHARGES_DICTIONARY = (
     Path(__file__).parents[1] / "fixtures" / "dictionaries" / "mmcif_charges_v11.dic"
 )
@@ -82,7 +83,8 @@ def test_json_records_requested_scope_and_execution() -> None:
     result = chargefw.calculate(water(), method_scope="all", execution="full")
     requested = result_json(result)["calculation_provenance"]["requested"]
     assert requested["method_scope"] == "all"
-    assert requested["execution"] == {"kind": "full", "radius_angstrom": None}
+    assert (requested["execution"], requested["radius"]) == ("full", None)
+    assert (requested["parameter_matching"], requested["fixed_ions"]) == ("strict", [])
 
     named = chargefw.calculate(
         water(), method="eem", parameter_set="EEM_Baek1991", execution="full"
@@ -90,6 +92,14 @@ def test_json_records_requested_scope_and_execution() -> None:
     requested = result_json(named)["calculation_provenance"]["requested"]
     assert requested["method"] == {"id": "eem"}
     assert requested["parameter_set"] == {"id": "EEM_Baek1991"}
+
+
+def test_json_records_requested_fixed_ions() -> None:
+    molecules = chargefw.io.read(FIXED_IONS_MMCIF, format="mmcif")
+    result = chargefw.calculate(molecules, fixed_ions=["MG", "CA", "NA"])
+    requested = result_json(result)["calculation_provenance"]["requested"]
+    # NA is not in the structure, but it was requested.
+    assert requested["fixed_ions"] == ["MG", "CA", "NA"]
 
 
 def test_pqr_requires_structural_input() -> None:
@@ -208,7 +218,7 @@ def test_result_schema_accepts_later_minor_versions() -> None:
     imported["format"] = "added_format"
     imported["policy"]["conformers"] = "added_selection"
     provenance = document["calculation_provenance"]
-    provenance["requested"]["execution"]["kind"] = "added_kind"
+    provenance["requested"]["execution"] = "added_kind"
     provenance["effective"]["execution"]["mode"] = "added_mode"
     validate(document, "result-1.0.schema.json")
 

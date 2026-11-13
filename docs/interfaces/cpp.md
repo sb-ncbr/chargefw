@@ -225,8 +225,8 @@ result with `make_failed_request_result()` and the exception's message. Its `sta
 `RequestedCalculationProvenance` records what was requested, for the result JSON. Copy its
 `method_scope` and `parameter_matching` from your request, its `execution` from
 `request.execution.mode()` (`automatic` is written as `"auto"` in JSON), its `radius` from
-`request.execution.radius()`, and its `cutoff_threshold` and `cover_threshold` from
-`request.resource_policy`.
+`request.execution.radius()`, its `cutoff_threshold` and `cover_threshold` from
+`request.resource_policy`, and list the residue names you selected fixed ions by in `fixed_ions`.
 
 ## Namespaces
 

@@ -61,6 +61,8 @@ struct RequestedCalculationProvenance {
     calculation::ExecutionSelectionMode execution = calculation::ExecutionSelectionMode::automatic;
     std::optional<double> radius;
     std::map<std::string, methods::MethodOptions> method_options;
+    // The residue names requested as fixed ions, also those not found in the molecules.
+    std::vector<std::string> fixed_ions;
 };
 
 struct ExecutionMetrics {

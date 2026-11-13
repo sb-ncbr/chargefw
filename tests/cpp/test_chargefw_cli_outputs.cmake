@@ -174,23 +174,20 @@ file(READ "${default_prefix}.json" default_json)
 expect_json(default_output "${default_json}" 1.0 schema_version)
 expect_json(default_output "${default_json}" "${CHARGEFW_VERSION}" generator version)
 expect_json(default_output "${default_json}" success results 0 status)
-expect_json(default_output "${default_json}" auto calculation_provenance requested execution kind)
+expect_json(default_output "${default_json}" auto calculation_provenance requested execution)
 expect_json(default_output "${default_json}" recommended
             calculation_provenance requested method_scope)
 expect_json(default_output "${default_json}" full calculation_provenance effective execution mode)
 expect_json(default_output "${default_json}" 20000
-            calculation_provenance requested resource_policy cutoff_atom_threshold)
+            calculation_provenance requested cutoff_threshold)
 expect_json(default_output "${default_json}" 80000
-            calculation_provenance requested resource_policy cover_atom_threshold)
+            calculation_provenance requested cover_threshold)
 string(JSON selected_method GET "${default_json}" calculation_provenance effective method id)
 if(selected_method STREQUAL "")
     message(FATAL_ERROR "Selected method provenance is empty")
 endif()
-string(JSON permissive_types GET "${default_json}"
-       calculation_provenance requested classification permissive_types)
-if(permissive_types)
-    message(FATAL_ERROR "Expected strict type classification by default")
-endif()
+expect_json(default_output "${default_json}" strict
+            calculation_provenance requested parameter_matching)
 file(REMOVE_RECURSE "${default_directory}")
 
 fresh_output_directory(explicit_directory explicit_outputs)

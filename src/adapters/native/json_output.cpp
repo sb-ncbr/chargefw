@@ -235,20 +235,18 @@ constexpr auto metric_scale = 1000.0;
     };
 
     const auto& requested_provenance = result.requested();
+    // Named as the arguments of chargefw.calculate() in Python, except method_options.
     Json requested{
         {"method", optional_id(requested_provenance.method_id)},
         {"parameter_set", optional_id(requested_provenance.parameter_set_id)},
         {"method_scope", calculation::to_string(requested_provenance.method_scope)},
-        {"classification",
-         {{"permissive_types",
-           requested_provenance.parameter_matching == parameters::ParameterMatching::permissive}}},
-        {"resource_policy",
-         {{"cutoff_atom_threshold", threshold_value(requested_provenance.cutoff_threshold)},
-          {"cover_atom_threshold", threshold_value(requested_provenance.cover_threshold)},
-          {"max_threads", requested_provenance.threads}}},
-        {"execution",
-         {{"kind", calculation::to_string(requested_provenance.execution)},
-          {"radius_angstrom", optional_radius(requested_provenance.radius)}}}};
+        {"parameter_matching", parameters::to_string(requested_provenance.parameter_matching)},
+        {"execution", calculation::to_string(requested_provenance.execution)},
+        {"radius", optional_radius(requested_provenance.radius)},
+        {"cutoff_threshold", threshold_value(requested_provenance.cutoff_threshold)},
+        {"cover_threshold", threshold_value(requested_provenance.cover_threshold)},
+        {"threads", requested_provenance.threads},
+        {"fixed_ions", requested_provenance.fixed_ions}};
     requested["method_options"] = method_options_json(requested_provenance.method_options);
 
     auto effective = Json{{"method", nullptr},
@@ -263,9 +261,8 @@ constexpr auto metric_scale = 1000.0;
         for (const auto& issue : value.warnings) {
             effective["warnings"].push_back(issue.message);
         }
-        effective["execution"] = {
-            {"mode", calculation::to_string(value.execution_policy.mode())},
-            {"radius_angstrom", optional_radius(value.execution_policy.radius())}};
+        effective["execution"] = {{"mode", calculation::to_string(value.execution_policy.mode())},
+                                  {"radius", optional_radius(value.execution_policy.radius())}};
         effective["method_options"] =
             method_options_json({{value.method_id, value.method_options}});
         if (value.fixed_ions.has_value()) {

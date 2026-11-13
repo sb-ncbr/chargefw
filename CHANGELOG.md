@@ -254,6 +254,13 @@
 
 ### Output
 
+- Breaking change: `calculation_provenance.requested` in result JSON is flat and uses the names of
+  the arguments of `chargefw.calculate()`: `parameter_matching` (`"strict"` or `"permissive"`)
+  replaces `classification.permissive_types`; `execution` is a string and `radius` a number or
+  `null` beside it, instead of `execution.kind` and `execution.radius_angstrom`; `cutoff_threshold`,
+  `cover_threshold`, and `threads` replace the `resource_policy` object; and the new `fixed_ions`
+  lists the residue names requested as fixed ions. `effective.execution.radius_angstrom` is
+  `radius`.
 - The result JSON Schema accepts every 1.x document: `schema_version` is any `1.x`, objects may have
   members it does not list, and status, severity, input format, selections, execution kind and mode,
   and method scope may have values it does not list; assignment scope and source connectivity stay

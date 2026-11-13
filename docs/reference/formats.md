@@ -443,13 +443,16 @@ too. Molecules built in code have no `input.import`, and their atom IDs are list
 `input.atom_ids`. Record and atom IDs are strings or signed 64-bit integers, written as JSON strings
 or numbers.
 
-`calculation_provenance.requested` records the method and parameter set you asked for,
-`method_scope`, the parameter matching (`classification`), the method options, the execution, the
-size limits, and the thread limit. `effective` records the method, parameter set, all option values,
-and execution that were used, and the warnings. Each warning also appears as a diagnostic with
-severity `warning` and its code, such as `resource_threshold_exceeded`: in the record of the
-molecule it concerns, or in the document's diagnostics. `execution_metrics` gives the start and end
-time in UTC, the time of each step, and the peak memory, rounded to three decimal places.
+`calculation_provenance.requested` records what you asked for, mostly with the names of the
+arguments of `chargefw.calculate()` in Python: `method`, `parameter_set`, `method_scope`,
+`method_options` (the options given with `options` or `options_by_method`, by method),
+`parameter_matching`, `execution`, `radius` in Å, `cutoff_threshold` and `cover_threshold` in atoms
+or `"unlimited"`, `threads`, and the residue names in `fixed_ions`. `effective` records the method,
+parameter set, all option values, and execution that were used, and the warnings. Each warning also
+appears as a diagnostic with severity `warning` and its code, such as `resource_threshold_exceeded`:
+in the record of the molecule it concerns, or in the document's diagnostics. `execution_metrics`
+gives the start and end time in UTC, the time of each step, and the peak memory, rounded to three
+decimal places.
 
 With fixed ions, `effective` also has `fixed_ions`: one entry per residue name and charge, with
 `component_id`, the residue name (mmCIF label name first), the `charge`, and `instances`, each with
