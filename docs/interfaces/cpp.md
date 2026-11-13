@@ -240,6 +240,21 @@ pass to `calculate()`, and the residue names you selected fixed ions by.
 | `chargefw::charges` | Charge assignments and charge sets |
 | `chargefw::io` | File readers and writers |
 
+The assessment and calculation workflow prepares the molecules, matches parameters, checks
+prerequisites, and builds fragments itself. The pieces it uses are public, for code that needs one of
+these steps on its own:
+
+| Header | Contents |
+| --- | --- |
+| `chargefw/core/periodic_table.h` | `core::periodic_table()`: elements by atomic number or symbol |
+| `chargefw/features/prepared_molecule.h` | `PreparedMolecule`: cached topology and geometry checks for a molecule, which must outlive it |
+| `chargefw/features/conformer_features.h` | `ConformerFeatures`: the geometry of one conformer |
+| `chargefw/features/spatial_fragment.h` | `SpatialFragmentBuilder`: the fragments of cutoff and cover execution |
+| `chargefw/parameters/classification/parameter_classifier.h` | `classify_parameters()` and `try_classify_parameters()`: match the entries of a parameter set to a molecule's atoms and bonds |
+| `chargefw/parameters/models/parameter_view.h` | `ParameterView`: the matched values of one molecule, as a method reads them |
+| `chargefw/methods/method_prerequisites.h`, `parameter_prerequisites.h` | `check_method_prerequisites()` and `check_parameter_prerequisites()`: the checks behind a rejection |
+| `chargefw/methods/calculation_input.h` | `CalculationInput`, for calling `Method::calculate()` directly; see [Fixed ions](#fixed-ions) |
+
 ## Molecules
 
 `core::Molecule` holds:
