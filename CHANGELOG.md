@@ -40,6 +40,11 @@
 
 ### Python
 
+- Breaking change: `Molecule()` takes only `atomic_numbers` by position; the other arguments are
+  keyword-only. The record it came from is given only by `source_name`, `record_index`, and
+  `record_id`; the `source` argument is removed. `name` and `source_name` default to `""` and
+  no longer accept `None`. `SourceIdentity.source` is now `source_name`, as the argument of
+  `Molecule()` and `chargefw.io.parse()`.
 - Breaking change: `chargefw.ChargeFWError` is the base class of every ChargeFW error and no longer
   a `RuntimeError`. A failed calculation raises a `chargefw.CalculationError`, which holds `result`
   and is the base class of `NoExecutablePlanError`, `NumericalFailureError`, and

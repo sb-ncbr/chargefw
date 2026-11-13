@@ -607,7 +607,7 @@ def test_assignment_cardinality_and_mapping() -> None:
 
 
 def test_public_charge_assignment_is_validated_and_comparable() -> None:
-    source = chargefw.SourceIdentity(source="fixture", record_index=1, record_id="record")
+    source = chargefw.SourceIdentity(source_name="fixture", record_index=1, record_id="record")
     assignment = chargefw.ChargeAssignment(
         values=np.array([0.25, -0.25]),
         molecule_index=cast(Any, np.int64(2)),

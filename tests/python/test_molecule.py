@@ -81,7 +81,7 @@ def test_molecule_owns_normalized_input() -> None:
     assert molecule.coordinates.shape == (2, 4, 3)
     assert molecule.coordinates[0, 0].tolist() == [2.0, 1.0, 0.0]
     assert molecule.source == chargefw.SourceIdentity(
-        source="fixture.sdf", record_index=3, record_id="record-4"
+        source_name="fixture.sdf", record_index=3, record_id="record-4"
     )
     assert molecule.atom_ids == ("O", 17, 23, "H")
     assert len(molecule) == 4
@@ -182,6 +182,9 @@ def test_invalid_inputs_are_rejected() -> None:
         (TypeError, lambda: chargefw.Molecule([1], atom_ids=cast(Any, [True]))),
         (ValueError, lambda: chargefw.Molecule([1], atom_ids=[2**100])),
         (TypeError, lambda: chargefw.Molecule([1], atom_names="H")),
+        (TypeError, lambda: cast(Any, chargefw.Molecule)([1], [0])),
+        (TypeError, lambda: chargefw.Molecule([1], name=cast(Any, None))),
+        (TypeError, lambda: chargefw.Molecule([1], source_name=cast(Any, None))),
         (ValueError, lambda: chargefw.SourceIdentity(record_index=-1)),
         (TypeError, lambda: chargefw.SourceIdentity(record_index=cast(Any, 1.5))),
         (TypeError, lambda: chargefw.SourceIdentity(record_index=True)),

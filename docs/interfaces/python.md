@@ -80,7 +80,7 @@ molecule = chargefw.Molecule(
 | `coordinates` | Ångströms, shape `(N, 3)` for one conformer or `(C, N, 3)` for several |
 | `name`, `atom_names`, `conformer_names` | Optional names |
 | `atom_ids` | Optional IDs, strings or 64-bit integers; default the atom positions |
-| `source`, or `source_name`, `record_index`, `record_id` | Optional record of where the molecule came from |
+| `source_name`, `record_index`, `record_id` | Optional record of where the molecule came from |
 
 ChargeFW copies the arrays and checks them: bonds of an atom to itself, repeated bonds, indices out of
 range, non-integer values, and shapes that do not fit are errors. The molecule's arrays are read-only,

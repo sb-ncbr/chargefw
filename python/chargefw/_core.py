@@ -31,13 +31,13 @@ type PortableId = _PortableId
 class SourceIdentity:
     """Identity of the source record represented by a molecule."""
 
-    source: str = ""
+    source_name: str = ""
     record_index: int = 0
     record_id: PortableId | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.source, str):
-            raise TypeError("source must be a string")
+        if not isinstance(self.source_name, str):
+            raise TypeError("source_name must be a string")
         normalized_record_index = as_integer(self.record_index, "record_index")
         if normalized_record_index < 0:
             raise ValueError("record_index must be non-negative")
@@ -169,20 +169,20 @@ class Molecule:
     def __init__(
         self,
         atomic_numbers: Any,
+        *,
         formal_charges: Any = None,
         bonds: Any = None,
         coordinates: Any = None,
-        name: str | None = None,
+        name: str = "",
         atom_names: Sequence[str] | None = None,
         conformer_names: Sequence[str] | None = None,
-        source: SourceIdentity | None = None,
-        source_name: str | None = None,
+        source_name: str = "",
         record_index: int = 0,
         record_id: PortableId | None = None,
         atom_ids: Iterable[PortableId] | None = None,
     ) -> None:
-        if name is not None and not isinstance(name, str):
-            raise TypeError("name must be a string or None")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string")
         atomic = as_integer_array(atomic_numbers, "atomic_numbers", 1)
         if np.any((atomic < 1) | (atomic > 100)):
             raise ValueError("atomic_numbers must contain values in range 1..100")
@@ -218,18 +218,9 @@ class Molecule:
         conformer_count = coordinate_values.shape[0]
         conformer_name_values = as_names(conformer_names, conformer_count, "conformer_names")
 
-        if source is not None:
-            if not isinstance(source, SourceIdentity):
-                raise TypeError("source must be a SourceIdentity")
-            if source_name is not None or record_index != 0 or record_id is not None:
-                raise ValueError("source cannot be combined with source identity fields")
-            source_identity = source
-        else:
-            if source_name is not None and not isinstance(source_name, str):
-                raise TypeError("source_name must be a string or None")
-            source_identity = SourceIdentity(
-                source=source_name or "", record_index=record_index, record_id=record_id
-            )
+        source_identity = SourceIdentity(
+            source_name=source_name, record_index=record_index, record_id=record_id
+        )
 
         atom_id_values = as_ids(atom_ids, atom_count, "atom_ids")
 
@@ -242,7 +233,7 @@ class Molecule:
         object.__setattr__(self, "_formal_charges", formal)
         object.__setattr__(self, "_bonds", bond_array)
         object.__setattr__(self, "_coordinates", coordinate_values)
-        object.__setattr__(self, "_name", name or "")
+        object.__setattr__(self, "_name", name)
         object.__setattr__(self, "_atom_names", atom_name_values)
         object.__setattr__(self, "_conformer_names", conformer_name_values)
         object.__setattr__(self, "_source", source_identity)
@@ -259,7 +250,7 @@ class Molecule:
                 coordinate_values,
                 atom_name_values,
                 conformer_name_values,
-                name or "",
+                name,
             ),
         )
 
@@ -315,7 +306,7 @@ class Molecule:
 
     @property
     def source_name(self) -> str:
-        return self._source.source
+        return self._source.source_name
 
     @property
     def import_issues(self) -> tuple[ImportIssue, ...]:

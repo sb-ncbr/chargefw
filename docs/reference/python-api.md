@@ -51,9 +51,10 @@ same molecules and use different combinations of method and parameter set; see t
 
 ### Molecule
 
-`Molecule(atomic_numbers, formal_charges=None, bonds=None, coordinates=None, name=None, ...)` builds
-a molecule from arrays; [Molecules from arrays](../interfaces/python.md#molecules-from-arrays) lists
-the arguments. `len(molecule)` is its number of atoms.
+`Molecule(atomic_numbers, *, formal_charges=None, bonds=None, coordinates=None, name="", ...)`
+builds a molecule from arrays. The arguments after `atomic_numbers` are keyword-only; [Molecules
+from arrays](../interfaces/python.md#molecules-from-arrays) lists them. `len(molecule)` is its number
+of atoms.
 
 | Attribute | Content |
 | --- | --- |
@@ -69,7 +70,7 @@ the arguments. `len(molecule)` is its number of atoms.
 | `source_name` | File the molecule was read from, or the `source_name` you gave |
 | `record_index` | Position of the record in the file, such as the third SDF record |
 | `record_id` | ID of the record in the file, such as the SDF title line or the mmCIF block name; `None` when there is none |
-| `source` | `SourceIdentity` with `source`, `record_index`, and `record_id` together |
+| `source` | `SourceIdentity` with `source_name`, `record_index`, and `record_id` together |
 | `source_mapping` | `SourceMapping` linking atoms and conformers to the file; `None` for molecules built from arrays; see [Where atoms came from](../interfaces/python.md#where-atoms-came-from) |
 | `import_issues` | Tuple of `ImportIssue`: what the reader left out of the record |
 
