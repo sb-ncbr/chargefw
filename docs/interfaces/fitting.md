@@ -9,6 +9,9 @@ install it with the `parameterization` extra:
 $ pip install "chargefw[parameterization]"
 ```
 
+`chargefw.parameterization` is experimental: it may change in any release, as
+[Versions and changes](../about/versions.md) describes.
+
 This fits SQE+qp from scratch to reference charges stored as one text file per molecule, with one
 charge per line in atom order:
 

@@ -1,10 +1,9 @@
 #pragma once
 
 #include <CLI/CLI.hpp>
-#include <chargefw/adapters/gemmi/all.h>
-#include <chargefw/adapters/native/all.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/io/all.h>
 
 #include <chrono>
 #include <optional>
@@ -17,7 +16,7 @@ namespace chargefw::cli {
 
 struct ImportedCollection {
     core::MoleculeCollection molecules;
-    std::vector<adapters::ImportedMoleculeRecord> records;
+    std::vector<io::ImportedMoleculeRecord> records;
 };
 
 struct InputArguments {
@@ -35,10 +34,10 @@ struct SelectionArguments {
     std::string method_scope = "recommended";
     std::string execution = "auto";
     std::optional<double> radius;
-    std::string cutoff_atom_threshold;
-    std::string cover_atom_threshold;
+    std::string cutoff_threshold;
+    std::string cover_threshold;
     std::size_t max_threads = 0;
-    bool permissive_types = false;
+    std::string parameter_matching = "strict";
     std::vector<std::string> method_options;
     std::vector<std::string> fixed_ion_ids;
     CLI::Option* method_option = nullptr;
@@ -54,25 +53,21 @@ struct OutputArguments {
 };
 
 struct CalculationRun {
-    adapters::ExecutionMetrics metrics;
+    io::ExecutionMetrics metrics;
     std::chrono::steady_clock::time_point started;
     // Diagnostics already printed, by code and message, so that they are not printed again.
     std::set<std::pair<std::string, std::string>> reported;
 };
 
 [[nodiscard]] auto utc_timestamp() -> std::string;
-[[nodiscard]] auto peak_resident_memory_mb() -> double;
 
 void add_input_options(CLI::App& command, InputArguments& arguments);
 void add_selection_options(CLI::App& command, SelectionArguments& arguments);
 [[nodiscard]] auto import_input(const InputArguments& arguments) -> ImportedCollection;
 [[nodiscard]] auto make_request(core::MoleculeCollection molecules,
                                 const SelectionArguments& arguments,
-                                std::span<const adapters::ImportedMoleculeRecord> records)
+                                std::span<const io::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest;
-[[nodiscard]] auto make_requested_provenance(const calculation::AssessmentRequest& request,
-                                             std::size_t max_threads)
-    -> adapters::RequestedCalculationProvenance;
 
 void print_inspection(const ImportedCollection& imported);
 void print_applicability(const calculation::AssessmentResult& assessment, std::size_t max_threads);
@@ -82,7 +77,7 @@ void print_parameter_sets(const std::string& parameter_set_id, const std::string
 
 [[nodiscard]] auto write_calculation_outputs(const std::string& output_directory,
                                              const std::string& input_path,
-                                             const adapters::ChargeCalculationResult& owned_result,
+                                             const io::ChargeCalculationResult& owned_result,
                                              const OutputArguments& output_arguments,
                                              CalculationRun& run) -> int;
 

@@ -1,4 +1,5 @@
 #include "methods/find_applicable_methods.h"
+#include "methods/method_applicability.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -10,7 +11,6 @@
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/models/atom_parameters.h>
@@ -132,11 +132,11 @@ TEST_CASE("applicability rejects invalid method options", "[methods][method-appl
     auto invalid_gdac_options = methods::MethodOptions{};
     invalid_gdac_options.set("iters", 0);
     const std::vector<const methods::Method*> gdac_methods{gdac};
-    const auto invalid_gdac_result = methods::find_applicable_methods(
-        {.molecules = prepared_collection,
-         .methods = gdac_methods,
-         .parameter_sets = {},
-         .method_options = {{"gdac", std::move(invalid_gdac_options)}}});
+    const auto invalid_gdac_result =
+        methods::find_applicable_methods({.molecules = prepared_collection,
+                                          .methods = gdac_methods,
+                                          .parameter_sets = {},
+                                          .method_options = std::move(invalid_gdac_options)});
     CHECK(invalid_gdac_result.applicable.empty());
     REQUIRE(invalid_gdac_result.rejected.size() == 1);
     REQUIRE(!invalid_gdac_result.rejected[0].issues.empty());
@@ -247,11 +247,12 @@ TEST_CASE("applicability honors permissive parameter classification",
     CHECK(strict_result.rejected[0].issues[0].kind ==
           methods::PrerequisiteIssueKind::parameter_classification_failed);
 
-    const auto permissive_result =
-        methods::find_applicable_methods({.molecules = double_bonded_prepared,
-                                          .methods = permissive_methods,
-                                          .parameter_sets = permissive_only_parameters,
-                                          .classification_options = {.permissive_types = true}});
+    const auto permissive_result = methods::find_applicable_methods(
+        {.molecules = double_bonded_prepared,
+         .methods = permissive_methods,
+         .parameter_sets = permissive_only_parameters,
+         .classification_options = {.parameter_matching =
+                                        parameters::ParameterMatching::permissive}});
     REQUIRE(permissive_result.applicable.size() == 1);
     REQUIRE(permissive_result.applicable[0].classifications.size() == 1);
     REQUIRE(permissive_result.applicable[0].classifications[0].atom().size() == 2);
@@ -259,11 +260,12 @@ TEST_CASE("applicability honors permissive parameter classification",
     CHECK(permissive_result.applicable[0].classifications[0].atom()[1] == 0);
 
     const std::vector exact_and_permissive_parameters{make_permissive_parameters(true)};
-    const auto exact_result =
-        methods::find_applicable_methods({.molecules = double_bonded_prepared,
-                                          .methods = permissive_methods,
-                                          .parameter_sets = exact_and_permissive_parameters,
-                                          .classification_options = {.permissive_types = true}});
+    const auto exact_result = methods::find_applicable_methods(
+        {.molecules = double_bonded_prepared,
+         .methods = permissive_methods,
+         .parameter_sets = exact_and_permissive_parameters,
+         .classification_options = {.parameter_matching =
+                                        parameters::ParameterMatching::permissive}});
     REQUIRE(exact_result.applicable.size() == 1);
     REQUIRE(exact_result.applicable[0].classifications.size() == 1);
     REQUIRE(exact_result.applicable[0].classifications[0].atom().size() == 2);

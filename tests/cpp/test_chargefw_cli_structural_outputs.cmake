@@ -15,9 +15,9 @@ function(run_structural_input extension contents input_stem expected_selection e
     file(READ "${output_prefix}.json" json_output)
     expect_json("${input_stem}" "${json_output}" success results 0 status)
     expect_json("${input_stem}" "${json_output}" "${expected_selection}"
-                results 0 input import policy record_selection)
+                results 0 input import policy selection)
     expect_json("${input_stem}" "${json_output}" "${expected_bonds}"
-                results 0 input import policy bond_strategy)
+                results 0 input import policy bonds)
 
     file(REMOVE "${input_path}")
     file(REMOVE_RECURSE "${output_directory}")
@@ -29,7 +29,7 @@ function(expect_non_structural_options_rejected)
     file(WRITE "${input_path}" "{\"schema_version\": \"1.0\", \"molecules\": [{\"atoms\": [{\"atomic_number\": 8, \"formal_charge\": 0}]}]}\n")
     file(REMOVE_RECURSE "${output_directory}")
 
-    run_cli(non_structural_options 2 calculate --structural-bonds templates
+    run_cli(non_structural_options 2 calculate --bonds templates
             "${input_path}" "${output_directory}")
 
     file(REMOVE "${input_path}")
@@ -44,8 +44,8 @@ run_structural_input(
         structural_pdb
         all
         templates
-        --structural-selection all
-        --structural-bonds templates
+        --selection all
+        --bonds templates
 )
 
 run_structural_input(

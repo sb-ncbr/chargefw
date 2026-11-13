@@ -56,7 +56,7 @@ auto add_coordinate_prerequisite_issues(const Method& method,
 
 } // namespace
 
-auto complexity_notation(const ComplexityTerm value) -> std::string_view {
+auto to_string(const ComplexityTerm value) -> std::string_view {
     switch (value) {
     case ComplexityTerm::constant:
         return "O(1)";

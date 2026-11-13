@@ -146,7 +146,9 @@ def fit(
         ) from error
 
     chosen = (
-        profiles.PROFILES.get(evaluator._parameter_set.method) if profile == "default" else profile
+        profiles.PROFILES.get(evaluator._parameter_set.method.id)
+        if profile == "default"
+        else profile
     )
     layout = evaluator.layout
     lower, upper = evaluator._bounds(
@@ -577,7 +579,10 @@ def _unordered(
         first, second = sorted(
             key.atoms, key=lambda atom: (atom.element, atom.classifier, atom.type)
         )
-        return (BondParameterKey((first, second), key.classifier, key.type), name)
+        return (
+            BondParameterKey(atoms=(first, second), classifier=key.classifier, type=key.type),
+            name,
+        )
     return (key, name)
 
 

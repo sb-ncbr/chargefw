@@ -1,5 +1,7 @@
 #include <chargefw/parameters/classification/parameter_classification.h>
 
+#include "parameters/classification/classification_checks.h"
+
 #include <stdexcept>
 #include <string>
 #include <utility>

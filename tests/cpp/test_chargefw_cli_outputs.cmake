@@ -2,9 +2,14 @@ include("${CMAKE_CURRENT_LIST_DIR}/support/test_cli.cmake")
 
 fresh_output_directory(json_failure_directory json_failure)
 file(MAKE_DIRECTORY "${json_failure_directory}/water_3d.chargefw.json")
-run_cli(json_output_failure 2 calculate --method eem "${CHARGEFW_INPUT}"
+run_cli(json_output_failure 6 calculate --method eem "${CHARGEFW_INPUT}"
         "${json_failure_directory}")
 file(REMOVE_RECURSE "${json_failure_directory}")
+
+fresh_output_directory(file_as_directory file_as_directory)
+file(WRITE "${file_as_directory}" "")
+run_cli(output_directory_failure 6 calculate --method eem "${CHARGEFW_INPUT}" "${file_as_directory}")
+file(REMOVE "${file_as_directory}")
 
 fresh_output_directory(export_failure_directory export_failure)
 set(export_failure_prefix "${export_failure_directory}/water_3d.chargefw")
@@ -157,7 +162,7 @@ file(REMOVE_RECURSE "${import_warning_directory}")
 
 fresh_output_directory(invalid_directory invalid)
 set(invalid_json_path "${invalid_directory}/water_3d.chargefw.json")
-run_cli(invalid_request 2 calculate --cutoff-atom-threshold unlimited --cover-atom-threshold 1
+run_cli(invalid_request 2 calculate --cutoff-threshold unlimited --cover-threshold 1
         "${CHARGEFW_INPUT}" "${invalid_directory}")
 expect_files_exist(invalid_request "${invalid_json_path}")
 file(READ "${invalid_json_path}" invalid_json)
@@ -174,23 +179,20 @@ file(READ "${default_prefix}.json" default_json)
 expect_json(default_output "${default_json}" 1.0 schema_version)
 expect_json(default_output "${default_json}" "${CHARGEFW_VERSION}" generator version)
 expect_json(default_output "${default_json}" success results 0 status)
-expect_json(default_output "${default_json}" auto calculation_provenance requested execution kind)
+expect_json(default_output "${default_json}" auto calculation_provenance requested execution)
 expect_json(default_output "${default_json}" recommended
             calculation_provenance requested method_scope)
 expect_json(default_output "${default_json}" full calculation_provenance effective execution mode)
 expect_json(default_output "${default_json}" 20000
-            calculation_provenance requested resource_policy cutoff_atom_threshold)
+            calculation_provenance requested cutoff_threshold)
 expect_json(default_output "${default_json}" 80000
-            calculation_provenance requested resource_policy cover_atom_threshold)
+            calculation_provenance requested cover_threshold)
 string(JSON selected_method GET "${default_json}" calculation_provenance effective method id)
 if(selected_method STREQUAL "")
     message(FATAL_ERROR "Selected method provenance is empty")
 endif()
-string(JSON permissive_types GET "${default_json}"
-       calculation_provenance requested classification permissive_types)
-if(permissive_types)
-    message(FATAL_ERROR "Expected strict type classification by default")
-endif()
+expect_json(default_output "${default_json}" strict
+            calculation_provenance requested parameter_matching)
 file(REMOVE_RECURSE "${default_directory}")
 
 fresh_output_directory(explicit_directory explicit_outputs)

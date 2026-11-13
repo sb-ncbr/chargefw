@@ -172,7 +172,7 @@ TEST_CASE("assessment owns its inputs across lvalue, rvalue, and relocation",
             .parameter_sets = {make_permissive_peoe_parameter_set()},
             .method_id = "peoe",
             .parameter_set_id = "permissive-peoe-parameters",
-            .classification_options = {.permissive_types = true}};
+            .parameter_matching = parameters::ParameterMatching::permissive};
     };
     // The lvalue overload copies its inputs, so the assessment outlives the request.
     const auto copied = [&] {
@@ -309,8 +309,8 @@ TEST_CASE("method options are validated and recorded in effective provenance",
         .parameter_sets = {make_permissive_peoe_parameter_set()},
         .method_id = "peoe",
         .parameter_set_id = "permissive-peoe-parameters",
-        .method_options = {{"peoe", peoe_options}},
-        .classification_options = {.permissive_types = true}});
+        .method_options = peoe_options,
+        .parameter_matching = parameters::ParameterMatching::permissive});
     REQUIRE(configured_peoe_result.calculated());
     REQUIRE(configured_peoe_result.effective.has_value());
     CHECK(configured_peoe_result.effective->method_options.get<int>("iters") == 1);
@@ -323,8 +323,8 @@ TEST_CASE("method options are validated and recorded in effective provenance",
             .parameter_sets = {make_permissive_peoe_parameter_set()},
             .method_id = "peoe",
             .parameter_set_id = "permissive-peoe-parameters",
-            .method_options = {{"peoe", invalid_peoe_options}},
-            .classification_options = {.permissive_types = true}}));
+            .method_options = invalid_peoe_options,
+            .parameter_matching = parameters::ParameterMatching::permissive}));
     };
     CHECK_THROWS_AS(calculate_with_invalid_peoe_options(), std::invalid_argument);
 }
@@ -463,6 +463,34 @@ TEST_CASE("execution warns about close atoms only for methods using coordinates"
     CHECK(close.location.atom_indices == std::vector<std::size_t>{0, 1});
 }
 
+TEST_CASE("a parameter set with values the method does not use is rejected",
+          "[calculation][calculation]") {
+    // EEM uses the atom parameters A and B; a set made for a variant with a third term must not
+    // give charges without it.
+    const auto atom_parameters = [](const int atomic_number, const double a) {
+        return parameters::AtomParameterEntry{
+            .key = chargefw::test::atom_key(
+                atomic_number, parameters::AtomParameterClassificationKind::plain, "*"),
+            .parameters = {{.name = "A", .value = a},
+                           {.name = "B", .value = 1.0},
+                           {.name = "C", .value = 0.5}}};
+    };
+    const auto assessment = calculation::assess(calculation::AssessmentRequest{
+        .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+        .parameter_sets = {parameters::ParameterSet{
+            parameters::ParameterSetMetadata{.id = "extra-term", .method_id = "eem"},
+            parameters::CommonParameters{{{.name = "kappa", .value = 1.0}}},
+            parameters::AtomParameters{{atom_parameters(1, 1.0), atom_parameters(8, 2.0)}}}},
+        .method_id = "eem",
+        .parameter_set_id = "extra-term"});
+
+    CHECK(assessment.default_plan() == nullptr);
+    REQUIRE(assessment.rejections().size() == 1);
+    REQUIRE(assessment.rejections()[0].issues.size() == 1);
+    CHECK(std::get<methods::PrerequisiteIssue>(assessment.rejections()[0].issues[0]).kind ==
+          methods::PrerequisiteIssueKind::unknown_parameters);
+}
+
 TEST_CASE("missing parameters give one issue for the atoms and one for the bonds",
           "[calculation][calculation]") {
     const auto only_issue = [](const calculation::AssessmentResult& assessment) {
@@ -585,8 +613,7 @@ TEST_CASE("explicit full execution reports its plan and effective provenance",
     const auto assessment = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full}});
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full}});
     REQUIRE(assessment.plans().size() == 1);
     REQUIRE(assessment.default_plan() != nullptr);
     CHECK(assessment.default_plan()->method().id() == "formal");
@@ -600,7 +627,7 @@ TEST_CASE("explicit full execution reports its plan and effective provenance",
     CHECK(result.effective->method_id == "formal");
     CHECK_FALSE(result.effective->parameter_set_id.has_value());
     CHECK(result.effective->execution_policy.mode() == calculation::ExecutionMode::full);
-    CHECK(result.effective->execution_issues.empty());
+    CHECK(result.effective->warnings.empty());
 }
 
 TEST_CASE("resource thresholds guide automatic execution and warn on explicit full execution",
@@ -608,20 +635,20 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
     const auto automatic_fallback_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {},
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .resource_policy = {.cutoff_threshold = 2}});
     REQUIRE(automatic_fallback_result.calculated());
     CHECK(automatic_fallback_result.charges->method_id() == std::string_view{"eqeq"});
     REQUIRE(automatic_fallback_result.effective.has_value());
     CHECK(automatic_fallback_result.effective->method_id == "eqeq");
     CHECK(automatic_fallback_result.effective->execution_policy.mode() ==
           calculation::ExecutionMode::cutoff);
-    CHECK(automatic_fallback_result.effective->execution_issues.empty());
+    CHECK(automatic_fallback_result.effective->warnings.empty());
 
     const auto automatic_mgc_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {},
         .method_id = "mgc",
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .resource_policy = {.cutoff_threshold = 2}});
     CHECK(automatic_mgc_result.status == calculation::ExecutionStatus::no_executable_plan);
     CHECK_FALSE(automatic_mgc_result.calculated());
     CHECK_FALSE(automatic_mgc_result.effective.has_value());
@@ -630,35 +657,33 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {},
         .method_id = "mgc",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full},
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full},
+        .resource_policy = {.cutoff_threshold = 2}});
     REQUIRE(explicit_full_result.calculated());
     CHECK(explicit_full_result.charges->method_id() == std::string_view{"mgc"});
     REQUIRE(explicit_full_result.effective.has_value());
     CHECK(explicit_full_result.effective->execution_policy.mode() ==
           calculation::ExecutionMode::full);
-    REQUIRE(explicit_full_result.effective->execution_issues.size() == 1);
-    CHECK(explicit_full_result.effective->execution_issues[0].kind ==
+    REQUIRE(explicit_full_result.effective->warnings.size() == 1);
+    CHECK(explicit_full_result.effective->warnings[0].kind ==
           calculation::ExecutionIssueKind::resource_threshold_exceeded);
 
     const auto unlimited_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {},
         .method_id = "mgc",
-        .resource_policy = {.cutoff_atom_threshold = std::nullopt,
-                            .cover_atom_threshold = std::nullopt}});
+        .resource_policy = {.cutoff_threshold = std::nullopt, .cover_threshold = std::nullopt}});
     REQUIRE(unlimited_result.calculated());
     CHECK(unlimited_result.charges->method_id() == std::string_view{"mgc"});
     REQUIRE(unlimited_result.effective.has_value());
-    CHECK(unlimited_result.effective->execution_issues.empty());
+    CHECK(unlimited_result.effective->warnings.empty());
 
     const auto unsupported_cutoff_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {},
         .method_id = "mgc",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff, 8.0}});
+        .execution =
+            calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff, 8.0}});
     CHECK(unsupported_cutoff_result.status == calculation::ExecutionStatus::no_executable_plan);
     CHECK_FALSE(unsupported_cutoff_result.calculated());
 }
@@ -710,15 +735,15 @@ TEST_CASE("plan estimates compose unit costs by execution mode", "[calculation][
           calculation::estimate(*full.default_plan()).memory_bytes);
     CHECK(calculation::calculate(*full.default_plan(), unlimited).calculated());
 
-    const auto reduced = [&](const calculation::ExecutionSelectionKind kind) {
+    const auto reduced = [&](const calculation::ExecutionSelectionMode kind) {
         return calculation::assess(calculation::AssessmentRequest{
             .molecules = molecules,
             .method_id = "eqeq",
-            .execution_selection =
+            .execution =
                 calculation::ExecutionSelection{kind, calculation::minimum_reduced_radius}});
     };
-    const auto cutoff = reduced(calculation::ExecutionSelectionKind::cutoff);
-    const auto cover = reduced(calculation::ExecutionSelectionKind::cover);
+    const auto cutoff = reduced(calculation::ExecutionSelectionMode::cutoff);
+    const auto cover = reduced(calculation::ExecutionSelectionMode::cover);
     REQUIRE(cutoff.default_plan() != nullptr);
     REQUIRE(cover.default_plan() != nullptr);
     const auto cutoff_serial = calculation::estimate(*cutoff.default_plan(), 1);
@@ -733,6 +758,8 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
     const auto water = core::MoleculeCollection{std::vector{chargefw::test::make_water()}};
     const auto invalid_requests = std::vector<calculation::AssessmentRequest>{
         {.molecules = water, .method_id = "missing"},
+        // Options belong to a named method.
+        {.molecules = water, .method_options = methods::MethodOptions{{{"iters", 2}}}},
         {.molecules = water, .method_id = "formal", .parameter_set_id = "missing"},
         {.molecules = water,
          .parameter_sets = {make_singular_eem_parameter_set()},
@@ -746,9 +773,8 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
          .method_id = "qeq",
          .parameter_set_id = "singular-eem"},
         {.molecules = water,
-         .resource_policy = {.cutoff_atom_threshold = std::nullopt, .cover_atom_threshold = 10}},
-        {.molecules = water,
-         .resource_policy = {.cutoff_atom_threshold = 20, .cover_atom_threshold = 10}}};
+         .resource_policy = {.cutoff_threshold = std::nullopt, .cover_threshold = 10}},
+        {.molecules = water, .resource_policy = {.cutoff_threshold = 20, .cover_threshold = 10}}};
     for (const auto& request : invalid_requests) {
         CAPTURE(request.method_id.value_or("automatic"), request.parameter_set_id.value_or(""));
         CHECK_THROWS_AS(static_cast<void>(calculation::assess(request)), std::invalid_argument);
@@ -777,8 +803,8 @@ TEST_CASE("assessments expose reusable target-bound execution plans",
     const auto cutoff_only = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "eqeq",
-        .execution_selection = calculation::ExecutionSelection{
-            calculation::ExecutionSelectionKind::cutoff, calculation::minimum_reduced_radius}});
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff,
+                                                     calculation::minimum_reduced_radius}});
     REQUIRE_FALSE(cutoff_only.plans().empty());
     CHECK(std::ranges::all_of(cutoff_only.plans(), [](const calculation::ExecutionPlan& plan) {
         return plan.policy().mode() == calculation::ExecutionMode::cutoff;
@@ -787,7 +813,7 @@ TEST_CASE("assessments expose reusable target-bound execution plans",
     const auto resource_limited = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "eqeq",
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .resource_policy = {.cutoff_threshold = 2}});
     REQUIRE_FALSE(resource_limited.plans().empty());
     CHECK(resource_limited.default_plan()->policy().mode() == calculation::ExecutionMode::cutoff);
     CHECK(

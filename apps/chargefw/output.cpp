@@ -9,6 +9,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <new>
 #include <print>
 #include <random>
 #include <set>
@@ -21,36 +22,35 @@
 namespace chargefw::cli {
 namespace {
 
-void report_diagnostics(const adapters::ChargeCalculationResult& result,
+void report_diagnostics(const io::ChargeCalculationResult& result,
                         std::set<std::pair<std::string, std::string>>& reported) {
-    const auto print = [](const adapters::ResultDiagnostic& diagnostic,
-                          const std::string_view message) {
-        const auto label = diagnostic.severity == adapters::DiagnosticSeverity::warning ? "Warning"
-                           : diagnostic.severity == adapters::DiagnosticSeverity::info  ? "Info"
-                                                                                        : "Error";
+    const auto print = [](const io::ResultDiagnostic& diagnostic, const std::string_view message) {
+        const auto label = diagnostic.severity == io::DiagnosticSeverity::warning ? "Warning"
+                           : diagnostic.severity == io::DiagnosticSeverity::info  ? "Info"
+                                                                                  : "Error";
         std::println(std::cerr, "{}: {}", label, message);
     };
-    const auto report = [&](const adapters::ResultDiagnostic& diagnostic) {
+    const auto report = [&](const io::ResultDiagnostic& diagnostic) {
         if (reported.emplace(diagnostic.code, diagnostic.message).second) {
             print(diagnostic, diagnostic.message);
         }
     };
-    for (const auto& diagnostic : adapters::charge_result_diagnostics(result)) {
+    for (const auto& diagnostic : io::charge_result_diagnostics(result)) {
         report(diagnostic);
     }
 
     // Warnings about molecules name the molecule and are grouped by code, so that a file of many
     // records gives one line per kind: the first molecule, or the count with the first example.
     struct WarningGroup {
-        adapters::ResultDiagnostic first;
+        io::ResultDiagnostic first;
         std::set<std::size_t> molecules;
     };
     auto groups = std::vector<WarningGroup>{};
-    auto errors = std::vector<adapters::ResultDiagnostic>{};
+    auto errors = std::vector<io::ResultDiagnostic>{};
     const auto records = result.inputs();
     for (std::size_t index = 0; index < records.size(); ++index) {
-        for (auto& diagnostic : adapters::charge_record_diagnostics(result, index)) {
-            if (diagnostic.severity != adapters::DiagnosticSeverity::warning ||
+        for (auto& diagnostic : io::charge_record_diagnostics(result, index)) {
+            if (diagnostic.severity != io::DiagnosticSeverity::warning ||
                 !diagnostic.molecule_index.has_value()) {
                 errors.push_back(std::move(diagnostic));
                 continue;
@@ -120,31 +120,22 @@ template <typename Writer> void write_output(const std::filesystem::path& path, 
     }
 }
 
-void write_json(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result,
-                const adapters::ExecutionMetrics& metrics) {
-    write_output(path, [&result, &metrics](auto& output) {
-        adapters::native::json_output::JsonWriter{output}.write(result, metrics);
-    });
+void write_json(const std::filesystem::path& path, const io::ChargeCalculationResult& result,
+                const io::ExecutionMetrics& metrics) {
+    write_output(
+        path, [&result, &metrics](auto& output) { io::JsonWriter{output}.write(result, metrics); });
 }
 
-void write_mmcif(const std::filesystem::path& path,
-                 const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) {
-        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(result);
-    });
+void write_mmcif(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::MmcifWriter{output}.write(result); });
 }
 
-void write_mol2(const std::filesystem::path& path,
-                const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) {
-        adapters::native::mol2_output::Mol2Writer{output}.write(result);
-    });
+void write_mol2(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::Mol2Writer{output}.write(result); });
 }
 
-void write_pqr(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) {
-        adapters::native::pqr_output::PqrWriter{output}.write(result);
-    });
+void write_pqr(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::PqrWriter{output}.write(result); });
 }
 
 } // namespace
@@ -155,64 +146,53 @@ auto utc_timestamp() -> std::string {
                                         std::chrono::system_clock::now()));
 }
 
-auto peak_resident_memory_mb() -> double {
-    return static_cast<double>(platform::peak_resident_memory_bytes()) / (1024.0 * 1024.0);
-}
-
-auto make_requested_provenance(const calculation::AssessmentRequest& request,
-                               const std::size_t max_threads)
-    -> adapters::RequestedCalculationProvenance {
-    auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = request.method_id,
-        .parameter_set_id = request.parameter_set_id,
-        .method_scope = request.method_scope,
-        .permissive_types = request.classification_options.permissive_types,
-        .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
-        .cover_atom_threshold = request.resource_policy.cover_atom_threshold,
-        .max_threads = max_threads,
-        .execution_kind = request.execution_selection.kind(),
-        .execution_radius = request.execution_selection.radius()};
-    for (const auto& [method_id, options] : request.method_options) {
-        requested.method_options.emplace(method_id, options);
-    }
-    return requested;
-}
-
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                               const adapters::ChargeCalculationResult& owned_result,
+                               const io::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
+    // Every output that cannot be written, the result JSON too, exits with 6. Running out of memory
+    // before the result JSON is written exits with 1.
+    const auto write_failed = [](const std::exception& error) -> int {
+        std::println(std::cerr, "Write error: {}", error.what());
+        return 6;
+    };
     const auto directory = std::filesystem::path{output_directory};
-    std::error_code directory_error;
-    std::filesystem::create_directories(directory, directory_error);
-    if (directory_error) {
-        throw std::runtime_error{"Unable to create output directory: " + directory.string() + ": " +
-                                 directory_error.message()};
-    }
-    if (!std::filesystem::is_directory(directory)) {
-        throw std::runtime_error{"Output path is not a directory: " + directory.string()};
-    }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
+    run.metrics.peak_resident_memory_bytes = platform::peak_resident_memory_bytes();
     run.metrics.ended_at = utc_timestamp();
     run.metrics.runtime_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
     const auto json_path = std::filesystem::path{prefix.string() + ".json"};
-    write_json(json_path, owned_result, run.metrics);
+    try {
+        std::error_code directory_error;
+        std::filesystem::create_directories(directory, directory_error);
+        if (directory_error) {
+            throw std::runtime_error{"Unable to create output directory: " + directory.string() +
+                                     ": " + directory_error.message()};
+        }
+        if (!std::filesystem::is_directory(directory)) {
+            throw std::runtime_error{"Output path is not a directory: " + directory.string()};
+        }
+        write_json(json_path, owned_result, run.metrics);
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception& error) {
+        return write_failed(error);
+    }
     report_diagnostics(owned_result, run.reported);
 
     if (owned_result.charges() == nullptr) {
         switch (owned_result.status()) {
-        case adapters::ResultStatus::invalid_request:
+        case io::ResultStatus::invalid_input_or_request:
             return 2;
-        case adapters::ResultStatus::no_executable_plan:
+        case io::ResultStatus::no_executable_plan:
             return 3;
-        case adapters::ResultStatus::numerical_failure:
+        case io::ResultStatus::numerical_failure:
             return 4;
-        case adapters::ResultStatus::cancelled:
+        case io::ResultStatus::cancelled:
             return 5;
-        case adapters::ResultStatus::success:
+        case io::ResultStatus::success:
             throw std::logic_error{"successful result has no charges"};
         }
     }
@@ -236,8 +216,8 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
             std::println("Wrote {}", pqr_path.string());
         }
     } catch (const std::exception& error) {
-        std::println(std::cerr, "Export error: {}", error.what());
-        return 6;
+        // Also for running out of memory: the result JSON is written, which status 1 rules out.
+        return write_failed(error);
     }
     return 0;
 }

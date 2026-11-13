@@ -42,5 +42,6 @@ endif()
 
 run_cli(unknown_fixed_ion 2 applicability --fixed-ions UNKNOWN "${input_path}")
 run_cli(missing_fixed_ion 2 applicability "${input_path}" --fixed-ions)
+run_cli(several_fixed_ions_in_one_occurrence 2 applicability --fixed-ions MG CA "${input_path}")
 
 file(REMOVE_RECURSE "${output_directory}")

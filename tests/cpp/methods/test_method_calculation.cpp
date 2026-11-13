@@ -1,15 +1,15 @@
 #include "calculation/calculation_request.h"
+#include "methods/method_applicability.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
 
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/classification/parameter_classification.h>

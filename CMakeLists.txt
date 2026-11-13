@@ -74,15 +74,15 @@ chargefw_setup_developer_tools()
 
 # The library sources are compiled once. The installed shared library is built from these objects, and
 # the Python extension links them directly, so wheels contain no separate ChargeFW library.
-add_library(chargefw_core_objects OBJECT)
-set_target_properties(chargefw_core_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(chargefw_objects OBJECT)
+set_target_properties(chargefw_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-target_compile_features(chargefw_core_objects
+target_compile_features(chargefw_objects
   PUBLIC
     cxx_std_23
 )
 
-target_include_directories(chargefw_core_objects
+target_include_directories(chargefw_objects
   PRIVATE
     src
 
@@ -91,65 +91,71 @@ target_include_directories(chargefw_core_objects
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
 )
 
-target_link_libraries(chargefw_core_objects
-  PUBLIC
+target_link_libraries(chargefw_objects
+  PRIVATE
     nlohmann_json::nlohmann_json
     gemmi::gemmi_cpp
-  PRIVATE
     $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
     $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
     TBB::tbb
     $<BUILD_LOCAL_INTERFACE:chargefw_platform>
 )
 
-target_compile_definitions(chargefw_core_objects
+target_compile_definitions(chargefw_objects
   PRIVATE
     EIGEN_DONT_PARALLELIZE
+    CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY="${CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY}"
+    CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE="${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}"
 )
 
-chargefw_enable_optimizations(chargefw_core_objects)
+chargefw_enable_optimizations(chargefw_objects)
 
 configure_file(
-  ${PROJECT_SOURCE_DIR}/include/chargefw/config.h.in
-  ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
+  ${PROJECT_SOURCE_DIR}/include/chargefw/version.h.in
+  ${PROJECT_BINARY_DIR}/generated/chargefw/version.h
   @ONLY
 )
 
 if(CHARGEFW_ENABLE_WARNINGS)
-  chargefw_enable_warnings(chargefw_core_objects)
+  chargefw_enable_warnings(chargefw_objects)
 endif()
 
 # Sanitizer options are public: the objects need them to compile, and programs linking the library need
 # them to link.
-set(CHARGEFW_SANITIZED_TARGETS chargefw_core_objects)
+set(CHARGEFW_SANITIZED_TARGETS chargefw_objects)
 
 # Python package builds need only the objects, so they skip the shared library and its installation.
 if(CHARGEFW_BUILD_LIBRARY)
-  add_library(chargefw_core SHARED)
-  add_library(chargefw::core ALIAS chargefw_core)
-  set_target_properties(chargefw_core PROPERTIES EXPORT_NAME core)
+  add_library(chargefw SHARED)
+  add_library(chargefw::chargefw ALIAS chargefw)
+  # Releases keep no binary compatibility, so every release, pre-releases included, gets its own
+  # library name, and a program loads only the library of the release it was built against. Mach-O
+  # versions must be numeric.
+  set_target_properties(chargefw PROPERTIES
+    VERSION ${CHARGEFW_VERSION}
+    SOVERSION ${CHARGEFW_VERSION}
+    MACHO_CURRENT_VERSION ${PROJECT_VERSION}
+    MACHO_COMPATIBILITY_VERSION ${PROJECT_VERSION}
+  )
 
-  target_compile_features(chargefw_core
+  target_compile_features(chargefw
     PUBLIC
       cxx_std_23
   )
 
-  target_include_directories(chargefw_core
+  target_include_directories(chargefw
     PUBLIC
       $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/generated>
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-  target_link_libraries(chargefw_core
-    PUBLIC
-      nlohmann_json::nlohmann_json
-      gemmi::gemmi_cpp
+  target_link_libraries(chargefw
     PRIVATE
-      $<BUILD_LOCAL_INTERFACE:chargefw_core_objects>
+      $<BUILD_LOCAL_INTERFACE:chargefw_objects>
   )
 
-  list(APPEND CHARGEFW_SANITIZED_TARGETS chargefw_core)
+  list(APPEND CHARGEFW_SANITIZED_TARGETS chargefw)
 endif()
 
 foreach(target IN LISTS CHARGEFW_SANITIZED_TARGETS)

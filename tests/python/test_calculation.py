@@ -4,6 +4,7 @@ import gc
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from threading import Lock
 from typing import Any, cast
 from unittest.mock import patch
@@ -113,7 +114,9 @@ def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> 
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "ALL_IONS must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 1.0, "CU1"),)
+    assert result.plan.fixed_ions.sources == (
+        chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=1.0, component_id="CU1"),
+    )
 
 
 def test_observer_receives_owned_execution_progress() -> None:
@@ -137,7 +140,7 @@ def test_observer_receives_owned_execution_progress() -> None:
         "computation_finished",
     ]
     started = observer.events[0]
-    assert started.method_id == "formal"
+    assert started.method.id == "formal"
     assert started.mode == "full"
     targets = [event for event in observer.events if event.phase == "target_started"]
     assert [event.target_index for event in targets] == [0, 1]
@@ -200,8 +203,17 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "executed plan must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
-    assert result.plan.fixed_ions == chargefw.FixedIons([chargefw.FixedAtomCharge(0, 3, 2.0, "MG")])
+    assert result.plan.fixed_ions.sources == (
+        chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG"),
+    )
+    assert result.plan.fixed_ions == chargefw.FixedIons(
+        sources=[
+            chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG")
+        ]
+    )
+    # Keyword arguments only, as the other value classes.
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.FixedAtomCharge)(0, 3, 2.0)
     with pytest.raises(AttributeError):
         cast(Any, result.plan.fixed_ions).sources = ()
     with pytest.raises(AttributeError):
@@ -313,7 +325,11 @@ def test_observer_can_cancel_a_reusable_plan() -> None:
         if groups is not None:
             assert cancelled.plan is not None
             assert cancelled.plan.fixed_ions is not None
-            assert cancelled.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
+            assert cancelled.plan.fixed_ions.sources == (
+                chargefw.FixedAtomCharge(
+                    molecule_index=0, atom_index=3, charge=2.0, component_id="MG"
+                ),
+            )
 
         result = plan.calculate(threads=1)
         assert result.status == "success"
@@ -354,6 +370,8 @@ def test_observer_callback_failure_does_not_change_calculation() -> None:
 def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     assert not chargefw.methods["veem"].recommended
     assert chargefw.methods["eem"].recommended
+    # Absent text is "", as for parameter sets.
+    assert chargefw.methods["formal"].publication == ""
 
     # VEEM needs no parameters and applies to water, but it is not recommended.
     recommended = chargefw.assess(water())
@@ -406,7 +424,7 @@ def test_assessment_and_full_calculation() -> None:
     assert np.isclose(assignment.values.sum(), 0.0)
     assert np.asarray(assignment) is assignment.values
     assert np.asarray(assignment, dtype=np.float32).dtype == np.dtype(np.float32)
-    assert result.requested.method == "eem"
+    assert result.requested.method is chargefw.methods["eem"]
     assert result.requested.execution == "full"
     executed = result.plan
     assert executed is not None, "successful calculation must report plan provenance"
@@ -416,7 +434,7 @@ def test_assessment_and_full_calculation() -> None:
     assert result.timings.applicability_seconds >= 0.0
     assert result.timings.computation_seconds >= 0.0
     with pytest.raises(TypeError):
-        cast(Any, result.requested.options_by_method)["eem"] = {"unexpected": True}
+        cast(Any, result.requested.method_options)["iters"] = 1
 
     overridden_threads = plan.calculate(threads=1)
     assert overridden_threads.requested.threads == 1
@@ -454,6 +472,85 @@ def test_plans_are_filtered_and_reusable() -> None:
     assert all(result.status == "success" for result in results)
 
 
+def test_settings_apply_exactly_the_choices_of_a_plan_to_other_molecules() -> None:
+    # The threshold makes automatic execution choose cutoff; CA is absent from the molecules.
+    reference = chargefw.calculate(
+        fixed_groups_molecules(),
+        method="eem",
+        cutoff_threshold=1,
+        parameter_matching="permissive",
+        fixed_ions=["MG", "CA"],
+    )
+    assert reference.plan is not None
+    settings = reference.plan.settings
+    assert settings.execution == chargefw.Execution(mode="cutoff", radius=12.0)
+    assert settings.fixed_ions == ("MG", "CA")
+
+    # With the default thresholds, automatic execution would choose full.
+    plan = chargefw.assess(fixed_groups_molecules(), settings=settings).default_plan
+    assert plan is not None
+    assert plan.settings == settings
+    result = plan.calculate(threads=1)
+    assert result.plan is not None and result.plan.fixed_ions is not None
+    assert result.plan.settings == settings
+    assert [source.component_id for source in result.plan.fixed_ions.sources] == ["MG"]
+
+    # Also an argument that has its default value is a choice that settings cannot be combined with.
+    conflicts: list[dict[str, Any]] = [
+        {"execution": "full"},
+        {"execution": "auto"},
+        {"parameter_matching": "strict"},
+        {"method_scope": "recommended"},
+        {"fixed_ions": []},
+    ]
+    for function in (chargefw.calculate, chargefw.assess):
+        for conflict in conflicts:
+            with pytest.raises(ValueError):
+                cast(Any, function)(fixed_groups_molecules(), settings=settings, **conflict)
+
+    # Automatic selection finds a method for xenon; the settings of an EEM plan do not fall back.
+    xenon = chargefw.Molecule([54], coordinates=[[0.0, 0.0, 0.0]])
+    water_plan = chargefw.calculate(water(), method="eem").plan
+    assert water_plan is not None
+    assert chargefw.calculate(xenon).status == "success"
+    with pytest.raises(chargefw.NoExecutablePlanError) as context:
+        chargefw.calculate(xenon, settings=water_plan.settings)
+    assert [
+        (rejection.method, rejection.parameter_set) for rejection in context.value.result.rejections
+    ] == [(water_plan.method, water_plan.parameter_set)]
+
+
+def test_objects_that_chargefw_creates_cannot_be_constructed() -> None:
+    # Arguments that the constructors accepted when they were public.
+    bundled = chargefw.parameter_sets["EEM_Cheminf_b3lyp_npa"]
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.ParameterSet)(
+            id=bundled.id,
+            method=bundled.method.id,
+            name=bundled.name,
+            publication=bundled.publication,
+            notes=bundled.notes,
+            atom_keys=bundled.atom_keys,
+            bond_keys=bundled.bond_keys,
+        )
+    result = chargefw.calculate(water(), method="eem")
+    assert result.plan is not None
+    settings = result.plan.settings
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.CalculationSettings)(
+            settings.method,
+            settings.parameter_set,
+            settings.method_options,
+            settings.execution,
+            result.requested,
+        )
+    # A copy with another ID would name a set that does not exist.
+    with pytest.raises(TypeError):
+        replace(cast(Any, bundled), id="mine")
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.PeriodicTable)(tuple(chargefw.periodic_table))
+
+
 def test_plan_estimates_resources_for_a_thread_limit() -> None:
     molecules = [water(), water()]
     plan = chargefw.assess(molecules, method="eqeq", execution="full").default_plan
@@ -479,29 +576,35 @@ def test_assignment_cardinality_and_mapping() -> None:
     assert geometry_independent.status == "success"
     assert len(geometry_independent.assignments) == 1
     assert geometry_independent.assignments[0].conformer_index is None
-    assert geometry_independent.assignment(molecule=0) is geometry_independent.assignments[0]
+    assert geometry_independent.assignment(molecule_index=0) is geometry_independent.assignments[0]
     with pytest.raises(ValueError):
-        geometry_independent.assignment(molecule=0, conformer=0)
+        geometry_independent.assignment(molecule_index=0, conformer_index=0)
 
     collection = chargefw.MoleculeCollection([water(2)])
     multi_result = chargefw.calculate(collection, method="qeq", execution="full")
     assert multi_result.status == "success"
     assert [item.conformer_index for item in multi_result.assignments] == [0, 1]
     assert multi_result.assignments_by_molecule == (multi_result.assignments,)
-    assert multi_result.assignment(molecule=0, conformer=0) is multi_result.assignments[0]
-    assert multi_result.assignment(molecule=0, conformer=1) is multi_result.assignments[1]
+    assert (
+        multi_result.assignment(molecule_index=0, conformer_index=0) is multi_result.assignments[0]
+    )
+    assert (
+        multi_result.assignment(molecule_index=0, conformer_index=1) is multi_result.assignments[1]
+    )
     invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
     for value in invalid_indices:
         with pytest.raises(TypeError):
-            multi_result.assignment(molecule=value, conformer=0)
+            multi_result.assignment(molecule_index=value, conformer_index=0)
         with pytest.raises(TypeError):
-            multi_result.assignment(molecule=0, conformer=value)
+            multi_result.assignment(molecule_index=0, conformer_index=value)
     assert (
-        multi_result.assignment(molecule=cast(Any, np.int64(0)), conformer=cast(Any, np.int64(1)))
+        multi_result.assignment(
+            molecule_index=cast(Any, np.int64(0)), conformer_index=cast(Any, np.int64(1))
+        )
         is multi_result.assignments[1]
     )
     with pytest.raises(ValueError):
-        multi_result.assignment(molecule=0)
+        multi_result.assignment(molecule_index=0)
 
     mapped_collection = chargefw.MoleculeCollection(
         [
@@ -529,7 +632,7 @@ def test_assignment_cardinality_and_mapping() -> None:
 
 
 def test_public_charge_assignment_is_validated_and_comparable() -> None:
-    source = chargefw.SourceIdentity("fixture", 1, "record")
+    source = chargefw.SourceIdentity(source_name="fixture", record_index=1, record_id="record")
     assignment = chargefw.ChargeAssignment(
         values=np.array([0.25, -0.25]),
         molecule_index=cast(Any, np.int64(2)),
@@ -615,6 +718,16 @@ def test_automatic_thresholds_and_explicit_full_warnings() -> None:
         "resource_threshold_exceeded"
     ]
 
+    unlimited = chargefw.calculate(
+        water(), method="eem", cutoff_threshold="unlimited", cover_threshold="unlimited"
+    )
+    assert unlimited.plan is not None
+    assert unlimited.plan.execution.mode == "full"
+    assert unlimited.requested.cutoff_threshold == "unlimited"
+    # Without a cutoff limit, cover could never be reached.
+    with pytest.raises(ValueError):
+        chargefw.assess(water(), method="eem", cutoff_threshold="unlimited")
+
 
 def test_molecules_without_hydrogens_are_reported() -> None:
     # A molecule built without hydrogens, as from RDKit without AddHs(), next to water.
@@ -659,7 +772,7 @@ def test_issues_that_can_make_charges_wrong_raise_python_warnings() -> None:
         lambda: chargefw.io.parse(FIXED_IONS_MMCIF, format="mmcif", bonds="explicit")
     )
     assert unbonded.category is chargefw.InputWarning
-    assert "(unbonded_residue_atoms; see molecule.import_issues)" in str(unbonded.message)
+    assert "(unbonded_residue_atoms; see molecule.import_warnings)" in str(unbonded.message)
     assert unbonded.filename == __file__
     assert chargefw_warnings(lambda: calculate_formal(water())) == []
     assert chargefw_warnings(lambda: chargefw.assess(chargefw.Molecule([6]))) == []
@@ -782,21 +895,22 @@ def test_invalid_options_are_rejected_early() -> None:
         (ValueError, {"parameter_matching": "guess"}),
         (TypeError, {"threads": True}),
         (TypeError, {"cutoff_threshold": False}),
+        (TypeError, {"cutoff_threshold": None}),
+        (ValueError, {"cover_threshold": "none"}),
         (ValueError, {"cover_threshold": np.iinfo(np.uintp).max + 1}),
     )
     for error_type, options in invalid_options:
         with pytest.raises(error_type):
             chargefw.assess(water(), **options)
 
+    # Options belong to a named method.
     with pytest.raises(ValueError):
-        chargefw.assess(water(), options={"iters": 2})
-    with pytest.raises(ValueError):
-        chargefw.assess(
-            water(),
-            method="peoe",
-            options={"iters": 2},
-            options_by_method={"peoe": {"iters": 2}},
-        )
+        chargefw.assess(water(), method_options={"iters": 2})
+    # Also an empty value that is not a mapping is refused, not taken as no options.
+    not_mappings: tuple[object, ...] = ([], "", 0, False)
+    for not_a_mapping in not_mappings:
+        with pytest.raises(TypeError):
+            chargefw.assess(water(), method="peoe", method_options=cast(Any, not_a_mapping))
 
 
 def test_method_option_overrides_are_validated_and_reported() -> None:
@@ -804,12 +918,13 @@ def test_method_option_overrides_are_validated_and_reported() -> None:
     result = chargefw.calculate(
         molecule,
         method="peoe",
-        options={"iters": 2},
+        method_options={"iters": 2},
         execution="full",
     )
     assert result.status == "success"
     assert result.plan is not None, "successful calculation must report plan provenance"
-    assert dict(result.plan.options) == {"initial_charges": "zero", "iters": 2}
+    assert dict(result.requested.method_options) == {"iters": 2}
+    assert dict(result.plan.method_options) == {"initial_charges": "zero", "iters": 2}
 
     for options in (
         {"iters": 0},
@@ -821,16 +936,9 @@ def test_method_option_overrides_are_validated_and_reported() -> None:
             chargefw.assess(
                 molecule,
                 method="peoe",
-                options=options,
+                method_options=options,
                 execution="full",
             )
-    with pytest.raises(ValueError):
-        chargefw.assess(
-            molecule,
-            method="peoe",
-            options_by_method={"qeq": {"overlap_term": "Ohno"}},
-            execution="full",
-        )
 
 
 def test_catalogs_and_descriptors_are_immutable_values() -> None:
@@ -863,7 +971,7 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
 
     assert isinstance(chargefw.parameter_sets, Mapping)
     assert eem.parameter_sets
-    assert all(parameter_set.method == "eem" for parameter_set in eem.parameter_sets.values())
+    assert all(parameter_set.method.id == "eem" for parameter_set in eem.parameter_sets.values())
     parameter_set = next(iter(eem.parameter_sets.values()))
     assert chargefw.parameter_sets[parameter_set.id] == parameter_set
 
@@ -871,7 +979,9 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert {key.classifier for key in qeq.atom_keys} == {"plain"}
     assert qeq.bond_keys == ()
     peptide = chargefw.parameter_sets["SQEqp_Schindler2021_PUB_pept"]
-    assert chargefw.AtomParameterKey("C", "bonded", "COO") in peptide.atom_keys
+    assert (
+        chargefw.AtomParameterKey(element="C", classifier="bonded", type="COO") in peptide.atom_keys
+    )
     bond = peptide.bond_keys[0]
     assert bond.classifier == "bo"
     assert all(atom.classifier == "bonded" for atom in bond.atoms)
@@ -908,7 +1018,7 @@ def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
 def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> None:
     equal = chargefw.read_parameter_set(write_eem_set(tmp_path / "equal.json", "water-equal", 2.0))
     polar = chargefw.read_parameter_set(write_eem_set(tmp_path / "polar.json", "water-polar", 3.0))
-    assert equal.id == "water-equal" and equal.method == "eem"
+    assert equal.id == "water-equal" and equal.method.id == "eem"
     assert "water-equal" not in chargefw.parameter_sets
 
     # Equal electronegativities give zero charges; a higher one for oxygen makes it negative.
@@ -946,8 +1056,16 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     malformed = tmp_path / "malformed.json"
     malformed.write_text('{"metadata": {"id": "broken"}}')
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.ParseError):
         chargefw.read_parameter_set(malformed)
+
+    unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
+    unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
+    with pytest.raises(chargefw.ParseError, match="no-such-method"):
+        chargefw.read_parameter_set(unknown_method)
+
+    with pytest.raises(FileNotFoundError):
+        chargefw.read_parameter_set(tmp_path / "missing.json")
 
 
 def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(

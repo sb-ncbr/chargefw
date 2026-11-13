@@ -5,8 +5,10 @@
 
 #include "methods/parameter_issue_messages.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,6 +29,61 @@ struct ParameterPrerequisiteResult {
 auto add_missing_parameter_issue(ParameterPrerequisiteResult& result, std::string message) -> void {
     result.issues.push_back(PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_parameters,
                                               .message = std::move(message)});
+}
+
+// A value the method does not use would be ignored, so a set made for another version of the
+// method, with a term this version lacks, would give charges without that term.
+auto check_unknown_parameter_names(const std::string_view section,
+                                   const std::span<const std::string_view> known,
+                                   const std::vector<std::string_view>& names,
+                                   const parameters::ParameterSet& parameter_set,
+                                   ParameterPrerequisiteResult& result) -> void {
+    auto unknown = std::vector<std::string_view>{};
+    for (const auto name : names) {
+        if (std::ranges::find(known, name) == known.end() &&
+            std::ranges::find(unknown, name) == unknown.end()) {
+            unknown.push_back(name);
+        }
+    }
+    if (unknown.empty()) {
+        return;
+    }
+    auto listed = std::string{};
+    for (const auto name : unknown) {
+        listed += (listed.empty() ? "'" : ", '") + std::string{name} + "'";
+    }
+    result.issues.push_back(PrerequisiteIssue{
+        .kind = PrerequisiteIssueKind::unknown_parameters,
+        .message = "parameter set '" + std::string{parameter_set.id()} + "' has " +
+                   std::string{section} + " parameters the method does not use: " + listed});
+}
+
+template <typename Entries>
+[[nodiscard]] auto entry_parameter_names(const Entries& entries) -> std::vector<std::string_view> {
+    auto names = std::vector<std::string_view>{};
+    for (const auto& entry : entries) {
+        for (const auto& parameter : entry.parameters) {
+            names.emplace_back(parameter.name);
+        }
+    }
+    return names;
+}
+
+auto check_unknown_parameters(const MethodRequirements& requirements,
+                              const parameters::ParameterSet& parameter_set,
+                              ParameterPrerequisiteResult& result) -> void {
+    auto common = std::vector<std::string_view>{};
+    for (const auto& parameter : parameter_set.common().parameters()) {
+        common.emplace_back(parameter.name);
+    }
+    check_unknown_parameter_names("common", requirements.common_parameters, common, parameter_set,
+                                  result);
+    check_unknown_parameter_names("atom", requirements.atom_parameters,
+                                  entry_parameter_names(parameter_set.atom().entries()),
+                                  parameter_set, result);
+    check_unknown_parameter_names("bond", requirements.bond_parameters,
+                                  entry_parameter_names(parameter_set.bond().entries()),
+                                  parameter_set, result);
 }
 
 auto check_common_parameters(const MethodRequirements& requirements,
@@ -143,6 +200,7 @@ auto check_molecule_parameters(const Method& method,
         return result;
     }
 
+    check_unknown_parameters(requirements, parameter_set, result);
     check_common_parameters(requirements, parameter_set, result);
     check_atom_parameter_names(requirements, parameter_set, result);
     check_bond_parameter_names(requirements, parameter_set, result);

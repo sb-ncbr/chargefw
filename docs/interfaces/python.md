@@ -48,13 +48,13 @@ for molecule in molecules:
     )
 ```
 
-A reader that ignores part of a record says so in `molecule.import_issues`, a tuple of
+A reader that ignores part of a record says so in `molecule.import_warnings`, a tuple of
 `chargefw.ImportIssue` with a `kind`, a `message`, and the file `line` when known. For example,
 partial charges in a MOL2 or mmCIF file give `partial_charges_ignored`, and bonds to symmetry-related
 copies in a crystal structure give `symmetry_connections_ignored`. Molecules created in Python have none.
 
 ```python
-for issue in molecules[0].import_issues:
+for issue in molecules[0].import_warnings:
     print(issue.kind, issue.message)
 ```
 
@@ -80,7 +80,7 @@ molecule = chargefw.Molecule(
 | `coordinates` | Ångströms, shape `(N, 3)` for one conformer or `(C, N, 3)` for several |
 | `name`, `atom_names`, `conformer_names` | Optional names |
 | `atom_ids` | Optional IDs, strings or 64-bit integers; default the atom positions |
-| `source`, or `source_name`, `record_index`, `record_id` | Optional record of where the molecule came from |
+| `source_name`, `record_index`, `record_id` | Optional record of where the molecule came from |
 
 ChargeFW copies the arrays and checks them: bonds of an atom to itself, repeated bonds, indices out of
 range, non-integer values, and shapes that do not fit are errors. The molecule's arrays are read-only,
@@ -125,21 +125,20 @@ keyword arguments:
 | `method` | Method ID or `Method`; default `None`, chosen automatically |
 | `parameter_set` | Parameter-set ID or `ParameterSet`; requires `method` |
 | `method_scope` | Methods automatic selection may use: `"recommended"` (default) or `"all"`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; `"all"` cannot be combined with `method` |
-| `options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
-| `options_by_method` | Options per method ID for automatic selection, such as `{"peoe": {"iters": 8}}` |
+| `method_options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
 | `parameter_matching` | `"strict"` (default) or `"permissive"`; see [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
 | `execution` | `"auto"` (default), `"full"`, `"cutoff"`, or `"cover"`; see [Large structures](../guide/large-structures.md) |
 | `radius` | Fragment radius in ångströms, at least `8.0`; required with `"cutoff"` and `"cover"`, optional with `"auto"` (default 12), not allowed with `"full"` |
-| `cutoff_threshold` | Size of the largest molecule above which `"auto"` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default); default `20_000` atoms, `None` for no limit |
-| `cover_threshold` | Size of the largest molecule above which `"auto"` uses cover for expensive methods; default `80_000` atoms, `None` for no limit |
+| `cutoff_threshold` | Size of the largest molecule above which `"auto"` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default); default `20_000` atoms, `"unlimited"` for no limit |
+| `cover_threshold` | Size of the largest molecule above which `"auto"` uses cover for expensive methods; default `80_000` atoms, `"unlimited"` for no limit |
 | `threads` | Maximum number of threads; by default, and with `0`, all available cores |
 | `fixed_ions` | Residue names of ions to keep as fixed charges; see [below](#fixed-ions) |
+| `settings` | The choices of an earlier plan, instead of the arguments that make them; see [One model for all molecules](#one-model-for-all-molecules) |
 | `observer` | Receives progress and can cancel; see [Progress and cancellation](#progress-and-cancellation) |
 
-`options` and `options_by_method` cannot be used together. Thresholds must satisfy
-`cutoff_threshold <= cover_threshold`. To remove both limits, pass `cutoff_threshold=None` and
-`cover_threshold=None`; `cutoff_threshold=None` alone is an error, `cover_threshold=None` alone keeps the
-cutoff limit.
+Thresholds must satisfy `cutoff_threshold <= cover_threshold`. To remove both limits, pass
+`cutoff_threshold="unlimited"` and `cover_threshold="unlimited"`; `cutoff_threshold="unlimited"`
+alone is an error, `cover_threshold="unlimited"` alone keeps the cutoff limit.
 
 Name both the method and the parameter set when results must be reproducible. Automatic selection, as
 described in [Choosing a method](../guide/methods.md#choosing-a-method), is deterministic, but its order
@@ -169,6 +168,34 @@ for molecule in molecules:
     print(molecule.name, result.plan.method.id, result.plan.execution.mode)
 ```
 
+Separate calls also choose separately: when you calculate a series of structures one file at a
+time, each can get another parameter set or execution mode. A structure of 19,500 atoms is calculated
+in full, and one of 20,500 atoms with cutoff. To calculate later structures with the choices ChargeFW
+made for the first one, pass its `result.plan.settings` as `settings`:
+
+```python
+first = chargefw.io.read("wild-type.cif", format="mmcif")
+reference = chargefw.calculate(first, fixed_ions=chargefw.COMMON_IONS)
+
+for path in ["mutant-1.cif", "mutant-2.cif"]:
+    structure = chargefw.io.read(path, format="mmcif")
+    result = chargefw.calculate(structure, settings=reference.plan.settings)
+```
+
+The settings hold the method, the parameter set, the value of every method option, the parameter
+matching, the execution mode with its radius, and the fixed-ion names you requested, also those not
+found in the first structure. `calculate()` uses exactly these. If they do not apply to a structure,
+for example because the parameter set has no values for one of its atoms, it raises
+[`NoExecutablePlanError`](#errors) instead of choosing something else. If every choice is already
+named in your call, you do not need settings.
+
+`settings` cannot be combined with `method`, `parameter_set`, `method_scope`, `method_options`,
+`parameter_matching`, `execution`, `radius`, or `fixed_ions`. You can still pass `threads`. The
+execution mode stays the same for every structure: settings from a structure that was calculated in
+full also calculate a structure of 100,000 atoms in full, with a warning and the memory that
+requires (see [Large structures](../guide/large-structures.md)). If your structures differ that much
+in size, or you want any other choice, name the arguments in the call instead of passing settings.
+
 ### Fixed ions
 
 `fixed_ions` takes residue names such as `["MG", "CA"]`, or `chargefw.COMMON_IONS` or
@@ -190,7 +217,7 @@ result = chargefw.calculate(
 | --- | --- |
 | `assignments` | All sets of charges, as `ChargeAssignment` values |
 | `assignments_by_molecule` | The same, grouped by input molecule |
-| `plan` | The method, parameter set, options, execution mode and radius, and warnings that were used; a record, not a plan you can calculate again (use [`assess()`](#assessing-before-calculating) for that) |
+| `plan` | The method, parameter set, options, execution mode and radius, and warnings that were used; `plan.settings` calculates other molecules with the same choices |
 | `requested` | What was requested |
 | `molecules` | The input molecules |
 | `status` | `"success"`, or the reason for a failure |
@@ -205,8 +232,9 @@ A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` ar
 `numpy.asarray(assignment)` also returns the charges. [Results](../guide/results.md) explains
 assignments, conformers, and atom order.
 
-`result.assignment(molecule=0, conformer=1)` returns one assignment. For methods that use geometry,
-`conformer` is required, also for molecules with one conformer; for the other methods, omit it.
+`result.assignment(molecule_index=0, conformer_index=1)` returns one assignment. For methods that
+use geometry, `conformer_index` is required, also for molecules with one conformer; for the other
+methods, omit it.
 
 With fixed ions, `result.requested.fixed_ions` holds the names you passed and
 `result.plan.fixed_ions.sources` the ions that were fixed, each with its residue name in
@@ -231,7 +259,7 @@ script.py:4: InputWarning: molecule 1 ('1CRN'): the molecule contains carbon but
 Both derive from `chargefw.ChargeFWWarning`. A call that finds the same problem in several molecules
 raises one warning that counts them. Other cautions, such as partial charges in the file that
 ChargeFW does not use, raise no warning. Every caution, with the atoms it concerns, is recorded in
-`molecule.import_issues`, `result.input_warnings`, `result.charge_warnings`, and
+`molecule.import_warnings`, `result.input_warnings`, `result.charge_warnings`, and
 `result.plan.warnings`. A calculation that fails raises its [error](#errors) instead of warnings;
 the cautions are in the error's `result`.
 
@@ -246,9 +274,14 @@ warnings.simplefilter("error", chargefw.ChargeWarning)
 
 ### Errors
 
-Invalid arguments raise `TypeError` or `ValueError`, and a calculation that runs out of memory raises
-`MemoryError`. A calculation that fails raises a
-`chargefw.ChargeFWError`:
+Invalid arguments raise `TypeError` or `ValueError`, a file that cannot be opened raises `OSError`,
+and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own errors derive from
+`chargefw.ChargeFWError`.
+
+Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
+`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a `ValueError`.
+
+A calculation that fails raises a `chargefw.CalculationError`:
 
 - `NoExecutablePlanError`: no method and parameter set apply with the requested settings;
 - `NumericalFailureError`: the calculation failed, for example did not converge;
@@ -268,7 +301,7 @@ result JSON:
 ```python
 try:
     result = chargefw.calculate(molecules, method="qeq", parameter_set="QEq_original")
-except chargefw.ChargeFWError as error:
+except chargefw.CalculationError as error:
     chargefw.io.write("failed-result.json", error.result, format="result-json")
     raise
 ```
@@ -358,8 +391,8 @@ result = chargefw.calculate(molecules, method=my_set.method, parameter_set=my_se
 ```
 
 The set's ID must differ from the IDs in `chargefw.parameter_sets`; reading a file that reuses one
-raises `ValueError`, as does a file that does not follow the format. Such a set is not added to
-`chargefw.parameter_sets`; results report it in `plan.parameter_set`.
+raises `ValueError`, and a file that does not follow the format raises `chargefw.ParseError`. Such a
+set is not added to `chargefw.parameter_sets`; results report it in `plan.parameter_set`.
 
 `chargefw.write_parameter_set(path, parameter_set)` writes any parameter set, bundled or your own, to a
 JSON file in the same format. Pass a `ParameterSet` object, not its ID; for a bundled set, use
@@ -407,7 +440,9 @@ if plan is not None:
 overrides it for that call.
 
 A plan keeps its molecules and stays usable after the assessment is deleted. Several threads can
-calculate the same plan at once. To calculate other molecules, assess them.
+calculate the same plan at once. To calculate other molecules with the choices of a plan, pass
+`plan.settings` as `settings` to `calculate()` or `assess()`, as described in
+[One model for all molecules](#one-model-for-all-molecules).
 
 ## Progress and cancellation
 
@@ -477,7 +512,7 @@ such as ionic, hydrogen, or zero-order bonds, remain errors.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.
-Existing properties of that name are an error unless you pass `overwrite=True`.
+Existing properties of that name are an error unless you pass `if_exists="replace"`.
 
 Pass the molecule that was given to `from_mol()`, or a copy of it, and do not change it in between: the
 charges are matched to its atoms by index and describe the molecule as it was read. ChargeFW refuses a
@@ -485,9 +520,9 @@ molecule whose atom count, elements, or formal charges no longer match. It does 
 coordinates, so reordered atoms of the same element, changed bonds, or new coordinates go unnoticed:
 the charges then sit on the wrong atoms or belong to another structure.
 
-`molecule_index` selects the input molecule (default `0`). If you omit `conformer` and that molecule
-has one set of charges, it is used. Otherwise, pass `conformer`: the conformer's position in the
-ChargeFW molecule, counted from 0, not the RDKit conformer ID. Selection follows `result.assignment()`,
+`molecule_index` selects the input molecule (default `0`). If you omit `conformer_index` and that
+molecule has one set of charges, it is used. Otherwise, pass `conformer_index`: the conformer's
+position in the ChargeFW molecule, counted from 0, not the RDKit conformer ID. Selection follows `result.assignment()`,
 with the same errors; see {ref}`selecting-an-assignment`.
 When selection fails, the RDKit molecule is left unchanged. The property belongs to the molecule,
 not to a conformer, so keep separate copies or property names to store several sets of charges.
@@ -543,7 +578,7 @@ structure.remove_waters()  # or any other change you make with Gemmi
 
 molecules = chargefw.io.gemmi.from_structure(structure)
 result = chargefw.calculate(molecules, method="sqeqp")
-assignment = result.assignment(molecule=0, conformer=0)
+assignment = result.assignment(molecule_index=0, conformer_index=0)
 sites = molecules[0].source_mapping.conformers[assignment.conformer_index].sites
 
 # The Gemmi residue and atom of every site, in the order of site.position
@@ -560,7 +595,7 @@ print(residue.name, residue.seqid.num, atom.name, f"{assignment.values[0]:+.3f}"
 # Total charge of each residue
 for component in molecules[0].source_mapping.components[:3]:
     residue, _ = gemmi_atoms[sites[component.atom_indices[0]].position]
-    charge = assignment.values[list(component.atom_indices)].sum()
+    charge = assignment.values[component.atom_indices].sum()
     print(residue.name, residue.seqid.num, f"{charge:+.3f}")
 ```
 
@@ -595,5 +630,5 @@ each. Do not change the document between `from_document()` and `attach_charges()
 matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
 document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
 longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
-Existing charge data is an error unless you pass `overwrite=True`. The function replaces the document's
+Existing charge data is an error unless you pass `if_exists="replace"`. The function replaces the document's
 blocks, so get block objects such as `document.sole_block()` again afterwards.

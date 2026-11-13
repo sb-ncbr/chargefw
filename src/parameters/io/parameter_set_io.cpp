@@ -61,6 +61,17 @@ auto ensure_object(const Json& value, const std::string& context) -> void {
     }
 }
 
+// Content this version does not know is an error, not ignored: a file from a later version could
+// otherwise give charges without the content it added. Only metadata may hold other members.
+auto ensure_known_members(const Json& object, const std::initializer_list<std::string_view> known,
+                          const std::string& context) -> void {
+    for (const auto& item : object.items()) {
+        if (std::ranges::find(known, item.key()) == known.end()) {
+            throw_error(context, "unknown member '" + item.key() + "'");
+        }
+    }
+}
+
 auto ensure_array(const Json& value, const std::string& context) -> void {
     if (!value.is_array()) {
         throw_error(context, "expected array, got " + json_type_name(value));
@@ -175,6 +186,15 @@ auto ensure_array(const Json& value, const std::string& context) -> void {
     metadata.publication = optional_string_member(metadata_json, "publication", metadata_context);
     metadata.notes = optional_string_member(metadata_json, "notes", metadata_context);
 
+    // The format version this reader reads; files without one are version 1.
+    if (const auto* format_version = optional_member(metadata_json, "format_version")) {
+        if (!format_version->is_number_integer() || format_version->get<std::int64_t>() != 1) {
+            throw_error(child_context(metadata_context, "format_version"),
+                        "unsupported format version " + format_version->dump() +
+                            "; this version of ChargeFW reads format version 1");
+        }
+    }
+
     if (const auto* priority = optional_member(metadata_json, "priority")) {
         metadata.priority = require_uint16(*priority, child_context(metadata_context, "priority"));
     }
@@ -235,6 +255,7 @@ auto ensure_array(const Json& value, const std::string& context) -> void {
 
     const auto common_context = child_context(context, "common");
     ensure_object(*common_json, common_context);
+    ensure_known_members(*common_json, {"names", "values"}, common_context);
 
     const auto names = parse_names(*common_json, common_context);
 
@@ -285,6 +306,7 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
 [[nodiscard]] auto parse_atom_key(const Json& key_json, const std::string& context)
     -> AtomParameterKey {
     ensure_object(key_json, context);
+    ensure_known_members(key_json, {"element", "classifier", "type"}, context);
 
     const auto element = require_named_string(key_json, "element", context);
     const auto classifier = require_named_string(key_json, "classifier", context);
@@ -303,6 +325,7 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
 [[nodiscard]] auto parse_bond_type_key(const Json& key_json, const std::string& context)
     -> BondTypeKey {
     ensure_object(key_json, context);
+    ensure_known_members(key_json, {"classifier", "type"}, context);
 
     const auto classifier = require_named_string(key_json, "classifier", context);
     const auto type = require_named_string(key_json, "type", context);
@@ -316,6 +339,8 @@ auto ensure_plain_type(const bool plain, const std::string& type, const std::str
 
 [[nodiscard]] auto parse_bond_key(const Json& key_json, const std::string& context)
     -> BondParameterKey {
+    ensure_object(key_json, context);
+    ensure_known_members(key_json, {"atoms", "bond"}, context);
     const auto atoms_context = child_context(context, "atoms");
     const auto& atoms_json = required_member(key_json, "atoms", context);
     ensure_array(atoms_json, atoms_context);
@@ -343,6 +368,7 @@ template <typename Entry, typename KeyParser>
 
     const auto section_context = child_context(context, section);
     ensure_object(*section_json, section_context);
+    ensure_known_members(*section_json, {"names", "data"}, section_context);
 
     const auto names = parse_names(*section_json, section_context);
 
@@ -359,6 +385,7 @@ template <typename Entry, typename KeyParser>
         const auto& entry_json = data_json[entry_index];
 
         ensure_object(entry_json, entry_context);
+        ensure_known_members(entry_json, {"key", "values"}, entry_context);
 
         const auto key_context = child_context(entry_context, "key");
         const auto values_context = child_context(entry_context, "values");
@@ -377,6 +404,7 @@ template <typename Entry, typename KeyParser>
 [[nodiscard]] auto parse_parameter_set(const Json& root, const std::string& context)
     -> ParameterSet {
     ensure_object(root, context);
+    ensure_known_members(root, {"metadata", "common", "atom", "bond"}, context);
 
     auto metadata = parse_metadata(root, context);
     auto common = parse_common_parameters(root, context);

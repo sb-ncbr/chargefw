@@ -192,19 +192,21 @@ def test_conversion_and_charge_attachment() -> None:
     molecule = chargefw_rdkit.from_mol(target, source_name="water")
     result = chargefw.calculate(molecule, method="formal")
     with pytest.raises(ValueError):
-        chargefw_rdkit.attach_charges(target, result, conformer=0)
+        chargefw_rdkit.attach_charges(target, result, conformer_index=0)
     assert not any(atom.properties for atom in target.atoms)
     assert not target.properties
     chargefw_rdkit.attach_charges(target, result)
     invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
     for value in invalid_indices:
         with pytest.raises(TypeError):
-            chargefw_rdkit.attach_charges(target, result, molecule_index=value, overwrite=True)
+            chargefw_rdkit.attach_charges(target, result, molecule_index=value, if_exists="replace")
         with pytest.raises(TypeError):
-            chargefw_rdkit.attach_charges(target, result, conformer=value, overwrite=True)
+            chargefw_rdkit.attach_charges(
+                target, result, conformer_index=value, if_exists="replace"
+            )
     with pytest.raises(ValueError):
         chargefw_rdkit.attach_charges(target, result)
-    chargefw_rdkit.attach_charges(target, result, overwrite=True)
+    chargefw_rdkit.attach_charges(target, result, if_exists="replace")
 
     assert molecule.atom_ids == (0, 1)
     assert target.atoms[0].properties["ChargeFWPartialCharge"] == 0.0
@@ -221,7 +223,7 @@ def test_attachment_selects_source_conformer(conformer_count: int) -> None:
 
     for conformer in (-1, conformer_count):
         with pytest.raises(IndexError):
-            chargefw_rdkit.attach_charges(target, result, conformer=conformer)
+            chargefw_rdkit.attach_charges(target, result, conformer_index=conformer)
         assert not any(atom.properties for atom in target.atoms)
         assert not target.properties
     if conformer_count > 1:
@@ -233,14 +235,14 @@ def test_attachment_selects_source_conformer(conformer_count: int) -> None:
         chargefw_rdkit.attach_charges(target, result)
         np.testing.assert_array_equal(
             [atom.properties["ChargeFWPartialCharge"] for atom in target.atoms],
-            result.assignment(molecule=0, conformer=0).values,
+            result.assignment(molecule_index=0, conformer_index=0).values,
         )
 
     conformer = conformer_count - 1
-    chargefw_rdkit.attach_charges(target, result, conformer=conformer, overwrite=True)
+    chargefw_rdkit.attach_charges(target, result, conformer_index=conformer, if_exists="replace")
     np.testing.assert_array_equal(
         [atom.properties["ChargeFWPartialCharge"] for atom in target.atoms],
-        result.assignment(molecule=0, conformer=conformer).values,
+        result.assignment(molecule_index=0, conformer_index=conformer).values,
     )
 
 

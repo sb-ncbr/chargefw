@@ -9,7 +9,7 @@ add_library(chargefw_test_support
 
 target_link_libraries(chargefw_test_support
         PUBLIC
-        chargefw::core
+        chargefw::chargefw
 )
 
 target_include_directories(chargefw_test_support
@@ -30,7 +30,7 @@ function(chargefw_add_snitch_test name)
 
     target_link_libraries(${name}
             PRIVATE
-            chargefw::core
+            chargefw::chargefw
             chargefw_test_support
             snitch::snitch
     )
@@ -167,7 +167,6 @@ add_test(
         COMMAND ${CMAKE_COMMAND}
                 -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
                 -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
-                -DCHARGEFW_FETCH_DEPENDENCIES=${CHARGEFW_FETCH_DEPENDENCIES}
                 -DCHARGEFW_INSTALL_DOCDIR=${CMAKE_INSTALL_DOCDIR}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cmake_consumer.cmake
 )
@@ -183,7 +182,7 @@ add_test(
 add_subdirectory(core)
 add_subdirectory(charges)
 add_subdirectory(calculation)
-add_subdirectory(adapters)
+add_subdirectory(io)
 add_subdirectory(features)
 add_subdirectory(methods)
 add_subdirectory(parameters)

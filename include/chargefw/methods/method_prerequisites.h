@@ -21,6 +21,7 @@ enum class PrerequisiteIssueKind : std::uint8_t {
     invalid_geometry,
     unsupported_molecule,
     missing_parameters,
+    unknown_parameters,
     parameter_classification_failed,
     unsupported_fixed_ions,
 };

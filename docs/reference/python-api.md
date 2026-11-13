@@ -1,8 +1,13 @@
 # Python API reference
 
-This page lists every public function, class, and attribute of the `chargefw` package.
+This page lists the public functions, classes, and attributes of the `chargefw` package.
 [Python](../interfaces/python.md) shows how to use them together. All values are read-only, and all
 indices of molecules, atoms, bonds, and conformers count from zero.
+
+You create `Molecule`, `MoleculeCollection`, and `SourceIdentity` objects and subclasses of
+`CalculationObserver`; ChargeFW creates all other objects. If you construct one of the others
+yourself, for example an `AtomParameterKey` to compare with the keys of a parameter set, pass its
+attributes as keyword arguments.
 
 ## Functions
 
@@ -17,11 +22,11 @@ indices of molecules, atoms, bonds, and conformers count from zero.
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
 | `chargefw.io.dumps(result, *, format)` | The same output as a string |
 | `chargefw.io.rdkit.from_mol(molecule, *, source_name="", bond_conversion="none")` | `Molecule` converted from an RDKit molecule |
-| `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer=None, property_name="ChargeFWPartialCharge", overwrite=False)` | Stores charges as RDKit atom properties |
+| `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer_index=None, property_name="ChargeFWPartialCharge", if_exists="error")` | Stores charges as RDKit atom properties |
 | `chargefw.io.gemmi.from_document(document, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi mmCIF document |
 | `chargefw.io.gemmi.from_structure(structure, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi structure |
 | `chargefw.io.gemmi.to_document(result)` | A new Gemmi mmCIF document with the charges |
-| `chargefw.io.gemmi.attach_charges(document, result, *, overwrite=False)` | Adds the charges to an existing Gemmi document |
+| `chargefw.io.gemmi.attach_charges(document, result, *, if_exists="error")` | Adds the charges to an existing Gemmi document |
 
 `format` is one of `chargefw.io.INPUT_FORMATS` for reading: `"mol"`, `"sdf"`, `"mol2"`,
 `"molecule-json"`, `"pdb"`, or `"mmcif"`. For writing, it is one of `chargefw.io.OUTPUT_FORMATS`:
@@ -46,9 +51,10 @@ same molecules and use different combinations of method and parameter set; see t
 
 ### Molecule
 
-`Molecule(atomic_numbers, formal_charges=None, bonds=None, coordinates=None, name=None, ...)` builds
-a molecule from arrays; [Molecules from arrays](../interfaces/python.md#molecules-from-arrays) lists
-the arguments. `len(molecule)` is its number of atoms.
+`Molecule(atomic_numbers, *, formal_charges=None, bonds=None, coordinates=None, name="", ...)`
+builds a molecule from arrays. The arguments after `atomic_numbers` are keyword-only; [Molecules
+from arrays](../interfaces/python.md#molecules-from-arrays) lists them. `len(molecule)` is its number
+of atoms.
 
 | Attribute | Content |
 | --- | --- |
@@ -64,14 +70,15 @@ the arguments. `len(molecule)` is its number of atoms.
 | `source_name` | File the molecule was read from, or the `source_name` you gave |
 | `record_index` | Position of the record in the file, such as the third SDF record |
 | `record_id` | ID of the record in the file, such as the SDF title line or the mmCIF block name; `None` when there is none |
-| `source` | `SourceIdentity` with `source`, `record_index`, and `record_id` together |
+| `source` | `SourceIdentity` with `source_name`, `record_index`, and `record_id` together |
 | `source_mapping` | `SourceMapping` linking atoms and conformers to the file; `None` for molecules built from arrays; see [Where atoms came from](../interfaces/python.md#where-atoms-came-from) |
-| `import_issues` | Tuple of `ImportIssue`: what the reader left out of the record |
+| `import_warnings` | Tuple of `ImportIssue`: what the reader left out of the record |
 
 ### MoleculeCollection
 
-`MoleculeCollection(molecules, name=None)` holds molecules in order. Index it and iterate over it
-like a tuple; `molecules` returns the tuple.
+`MoleculeCollection(molecules, *, name="")` holds molecules in order. Index it and iterate over it
+like a tuple; a slice is a `MoleculeCollection` with the same `name`, and `molecules` returns the
+tuple.
 
 ### ImportIssue
 
@@ -94,8 +101,13 @@ How the atoms and conformers of a molecule correspond to its file. See
 | `conformers` | Tuple of `SourceConformerReference`, one per conformer |
 | `components` | Tuple of `SourceComponentInstance`, one per residue; empty for formats without residues |
 | `source_connectivity` | `"present"` when the file listed bonds, `"explicitly-empty"` when its bond section was empty, `"absent"` when it had no bond records, such as a PDB file without `CONECT`, `LINK`, or `SSBOND` records |
-| `record_selection`, `conformer_selection`, `bond_strategy` | The `selection`, `conformers`, and `bonds` values used for reading, such as `"all"` and `"hybrid"`; `None` where the reader has no such option |
-| `alternate_location_selection` | `"first-source-order"` for PDB and mmCIF, where the first [alternate location](formats.md#structural-selection) of each atom is read; otherwise `None` |
+| `policy` | `SourcePolicy`: how the file was read |
+
+`SourcePolicy` has the `selection`, `bonds`, and `conformers` values used for reading, as the
+arguments of `chargefw.io.read()` name them, such as `"all"` and `"hybrid"`, and
+`alternate_locations`, `"first-source-order"` for PDB and mmCIF, where the first
+[alternate location](formats.md#structural-selection) of each atom is read. Each is `None` where the
+reader has no such choice.
 
 ### SourceAtomReference
 
@@ -128,8 +140,8 @@ as `"N"`, `"GLU"`, `"A"`, and `"1"`.
 
 ### SourceComponentInstance
 
-`component_id` is the residue name, such as `"GLU"`, and `atom_indices` the indices of its atoms in the
-molecule.
+`component_id` is the residue name, such as `"GLU"`, and `atom_indices` a read-only NumPy `int64`
+array of the indices of its atoms in the molecule.
 
 ## Results
 
@@ -140,9 +152,9 @@ molecule.
 | `status` | `"success"`, `"no_executable_plan"`, `"numerical_failure"`, or `"cancelled"` |
 | `assignments` | Tuple of `ChargeAssignment`; empty when the calculation failed |
 | `assignments_by_molecule` | The same, as one tuple per input molecule |
-| `assignment(molecule=..., conformer=None)` | One assignment; see [Selecting an assignment](#selecting-an-assignment) |
+| `assignment(molecule_index=..., conformer_index=None)` | One assignment; see [Selecting an assignment](#selecting-an-assignment) |
 | `plan` | `ExecutedPlan` that was used, also after a numerical failure or cancellation; `None` when no plan could run |
-| `requested` | `RequestedCalculation`: the arguments of the call |
+| `requested` | `RequestedCalculation`: what was requested, the arguments of the call or the choices of `settings`, with defaults filled in |
 | `molecules` | The input `MoleculeCollection` |
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
@@ -153,14 +165,14 @@ molecule.
 (selecting-an-assignment)=
 #### Selecting an assignment
 
-`result.assignment(molecule=..., conformer=None)` returns one set of charges. `molecule` is required.
-Omit `conformer` for charges that do not depend on coordinates; otherwise supply its position in the
-input molecule, counted from 0.
+`result.assignment(molecule_index=..., conformer_index=None)` returns one set of charges.
+`molecule_index` is required. Omit `conformer_index` for charges that do not depend on coordinates;
+otherwise supply the conformer's position in the input molecule, counted from 0.
 
 | Exception | Cause |
 | --- | --- |
 | `IndexError` | The molecule index is out of range, the molecule has no charges, or a supplied conformer index is negative or absent from the per-conformer results |
-| `ValueError` | You omitted `conformer` for charges calculated per conformer, or supplied it for charges that do not depend on coordinates |
+| `ValueError` | You omitted `conformer_index` for charges calculated per conformer, or supplied it for charges that do not depend on coordinates |
 | `TypeError` | An index is not an integer; booleans are not accepted |
 
 ### ChargeAssignment
@@ -181,10 +193,11 @@ input molecule, counted from 0.
 | --- | --- |
 | `method` | `Method` |
 | `parameter_set` | `ParameterSet`; `None` for methods without parameter sets |
-| `options` | Values of all method options, including defaults |
+| `method_options` | Values of all options of the method, including defaults |
 | `execution` | `Execution` |
 | `warnings` | Tuple of `ExecutionIssue` |
 | `fixed_ions` | `FixedIons`; `None` without fixed ions |
+| `settings` | `CalculationSettings` of the plan |
 
 ### Execution
 
@@ -192,6 +205,21 @@ input molecule, counted from 0.
 | --- | --- |
 | `mode` | `"full"`, `"cutoff"`, or `"cover"` |
 | `radius` | Fragment radius in ångströms; `None` for full execution |
+
+### CalculationSettings
+
+The choices of a plan, which `settings` in `calculate()` and `assess()` apply to other molecules; see
+[One model for all molecules](../interfaces/python.md#one-model-for-all-molecules). You get them
+from `plan.settings` or `result.plan.settings`. Two settings are equal when all their choices are.
+
+| Attribute | Content |
+| --- | --- |
+| `method` | `Method` |
+| `parameter_set` | `ParameterSet`; `None` for methods without parameter sets |
+| `method_options` | Values of all options of the method, including defaults |
+| `parameter_matching` | `"strict"` or `"permissive"` |
+| `execution` | `Execution` |
+| `fixed_ions` | Tuple of the residue names requested for fixed ions, also those not found in the molecules |
 
 ### FixedIons and FixedAtomCharge
 
@@ -205,9 +233,10 @@ residue name it was selected by, such as `"MG"`), `molecule_index`, `atom_index`
 
 ### RequestedCalculation
 
-The arguments of a call as ChargeFW read them: `method` and `parameter_set` as IDs or `None`,
-`method_scope`, `options_by_method`, `parameter_matching`, `execution`, `radius`, `cutoff_threshold`,
-`cover_threshold`, `threads`, and `fixed_ions` as a tuple of residue names.
+The arguments of a call as ChargeFW read them: `method` as a `Method` and `parameter_set` as a
+`ParameterSet`, or `None` when not given, `method_scope`, `method_options`, `parameter_matching`,
+`execution`, `radius`, `cutoff_threshold`, `cover_threshold`, `threads`, and `fixed_ions` as a tuple
+of residue names.
 
 ## Assessment
 
@@ -225,8 +254,8 @@ The arguments of a call as ChargeFW read them: `method` and `parameter_set` as I
 
 | Attribute | Content |
 | --- | --- |
-| `method`, `parameter_set`, `options`, `execution`, `warnings` | As in `ExecutedPlan` |
-| `estimate(threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
+| `method`, `parameter_set`, `method_options`, `execution`, `warnings`, `settings` | As in `ExecutedPlan` |
+| `estimate(*, threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
 | `calculate(*, threads=None, observer=None)` | `CalculationResult` for the molecules the plan was assessed with; raises and warns as `chargefw.calculate()` does |
 
 ### Rejection
@@ -253,6 +282,7 @@ A reason why a method or parameter set does not apply to the molecules.
 | --- | --- |
 | `parameter_classification_failed` | The parameter set has no entry matching some atoms or bonds of the molecule; one issue lists all such atoms, another all such bonds. [Permissive matching](parameter-format.md#strict-and-permissive-matching) may help |
 | `missing_parameters` | The parameter set lacks values the method needs for every molecule, or no parameter set was available |
+| `unknown_parameters` | The parameter set has values the method does not use, such as a set for another version of the method |
 | `missing_feature` | The method needs coordinates and the molecule has none |
 | `invalid_geometry` | Coordinates that are not finite, or two atoms at the same position |
 | `unsupported_molecule` | The method does not handle this molecule, for example a charged component where it needs neutral ones, or elements it has no values for; one issue lists all such atoms |
@@ -311,7 +341,7 @@ Python warnings for cautions that can make the charges wrong; see
 | Attribute | Content |
 | --- | --- |
 | `id`, `name`, `full_name` | Such as `"peoe"`, `"PEOE"`, and `"Partial Equalization of Orbital Electronegativity"` |
-| `publication` | DOI of the method's publication, or `None` |
+| `publication` | DOI of the method's publication, or `""` |
 | `notes` | Remarks on how ChargeFW implements the method |
 | `recommended` | `True` for methods whose charges are recommended for general use; automatic selection uses only these unless `method_scope="all"` |
 | `requires_coordinates` | `True` for methods that use 3D coordinates |
@@ -338,7 +368,7 @@ Python warnings for cautions that can make the charges wrong; see
 | Attribute | Content |
 | --- | --- |
 | `id`, `name` | Such as `"EEM_Cheminf_b3lyp_npa"` |
-| `method` | ID of the method the set is for |
+| `method` | `Method` the set is for |
 | `publication`, `notes` | Source of the values and remarks |
 | `atom_keys` | Tuple of `AtomParameterKey`, each with `element`, `classifier`, and `type` |
 | `bond_keys` | Tuple of `BondParameterKey`, each with `atoms` (two `AtomParameterKey`), `classifier`, and `type` |
@@ -353,7 +383,7 @@ The [parameter-set format](parameter-format.md#classifiers) explains classifiers
 ## Fitting
 
 `chargefw.parameterization` fits parameter values to reference charges; [Fitting
-parameters](../interfaces/fitting.md) shows how.
+parameters](../interfaces/fitting.md) shows how. It is experimental and may change in any release.
 
 | Function | Returns |
 | --- | --- |
@@ -455,7 +485,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | --- | --- |
 | `phase` | `"computation_started"`, `"target_started"`, `"fragment_progress"`, `"target_finished"`, or `"computation_finished"` |
 | `mode` | Execution mode |
-| `method_id` | ID of the method |
+| `method` | `Method` being calculated |
 | `target_index`, `target_count` | Position of the current target and the number of targets; a target is a conformer for methods that use coordinates, otherwise a molecule |
 | `completed_fragment_count`, `fragment_count` | Fragments done and in total, for cutoff and cover |
 | `molecule_index`, `conformer_index` | The molecule and conformer being calculated |
@@ -465,11 +495,13 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 
 | Exception | Raised when |
 | --- | --- |
-| `chargefw.ChargeFWError` | Base class of the three below; `error.result` holds the `CalculationResult` |
+| `chargefw.ChargeFWError` | Base class of the others below |
+| `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError` |
+| `chargefw.CalculationError` | Base class of the three below; `error.result` holds the `CalculationResult` |
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |
 | `chargefw.CalculationCancelledError` | The observer cancelled the calculation |
 | `chargefw.parameterization.EvaluationError` | A calculation for parameter values failed during fitting or evaluation |
 
-Invalid arguments raise `TypeError` or `ValueError`, files that cannot be read or written raise
+Invalid arguments raise `TypeError` or `ValueError`, files that cannot be opened or written raise
 `OSError`, and a calculation that runs out of memory raises `MemoryError`.

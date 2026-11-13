@@ -1,5 +1,6 @@
 #include "calculation/calculation_request.h"
 #include "methods/find_applicable_methods.h"
+#include "methods/method_applicability.h"
 #include "support/test_calculation.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -13,7 +14,6 @@
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/calculation_input.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/methods/method_requirements.h>
@@ -376,10 +376,7 @@ TEST_CASE("built-in iteration options reach the charge calculation", "[methods][
         REQUIRE(method != nullptr);
         const std::array candidates{method};
         const auto calculate_with = [&](const methods::MethodOptions* configured) {
-            auto method_options = std::unordered_map<std::string, methods::MethodOptions>{};
-            if (configured != nullptr) {
-                method_options.emplace(std::string{method_id}, *configured);
-            }
+            auto method_options = configured == nullptr ? methods::MethodOptions{} : *configured;
             const auto applicability =
                 methods::find_applicable_methods({.molecules = prepared,
                                                   .methods = candidates,
@@ -417,11 +414,11 @@ TEST_CASE("PEOE methods initialize from formal charges when requested",
         const auto ammonium_collection =
             chargefw::core::MoleculeCollection{std::vector{ammonium}, "ammonium"};
         const auto prepared_ammonium = features::PreparedMoleculeCollection{ammonium_collection};
-        const auto ammonium_applicability = methods::find_applicable_methods(
-            {.molecules = prepared_ammonium,
-             .methods = candidates,
-             .parameter_sets = parameter_sets,
-             .method_options = {{std::string{method_id}, formal_options}}});
+        const auto ammonium_applicability =
+            methods::find_applicable_methods({.molecules = prepared_ammonium,
+                                              .methods = candidates,
+                                              .parameter_sets = parameter_sets,
+                                              .method_options = formal_options});
 
         CHECK(ammonium_applicability.rejected.empty());
         REQUIRE(ammonium_applicability.applicable.size() == 1);
@@ -437,11 +434,11 @@ TEST_CASE("PEOE methods initialize from formal charges when requested",
         const auto prepared_pair = features::PreparedMoleculeCollection{pair_collection};
         const auto zero_applicability = methods::find_applicable_methods(
             {.molecules = prepared_pair, .methods = candidates, .parameter_sets = parameter_sets});
-        const auto formal_applicability = methods::find_applicable_methods(
-            {.molecules = prepared_pair,
-             .methods = candidates,
-             .parameter_sets = parameter_sets,
-             .method_options = {{std::string{method_id}, formal_options}}});
+        const auto formal_applicability =
+            methods::find_applicable_methods({.molecules = prepared_pair,
+                                              .methods = candidates,
+                                              .parameter_sets = parameter_sets,
+                                              .method_options = formal_options});
 
         REQUIRE(zero_applicability.applicable.size() == 1);
         REQUIRE(formal_applicability.applicable.size() == 1);

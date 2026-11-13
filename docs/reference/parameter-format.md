@@ -58,13 +58,17 @@ the atoms and bonds that need parameters to entries in the set, as described bel
 `metadata.id` and `metadata.method` are required. The non-empty ID names the parameter set, not the
 file name, and no two loaded parameter sets may share it. `name`, `publication`, `notes`, and
 `priority` are optional. `priority` is an integer from `0` to `65535`; automatic selection tries
-sets with a higher priority first, and orders sets with equal priority by their ID.
+sets with a higher priority first, and orders sets with equal priority by their ID. The optional
+`format_version` is `1`, the version this page describes, and the default; a file with another
+version is refused.
 
 `common`, `atom`, and `bond` are optional. Each has a `names` array that gives the order of its
 `values`: every `values` array has one finite number for each name, in that order. A name may appear
 only once in its section.
 
-Members not described on this page are ignored.
+`metadata` may hold members not described on this page, such as your own notes; ChargeFW ignores
+them. Anywhere else, a member not described here is an error, and so is a parameter name the method
+does not use: a set is refused rather than calculated without values it contains.
 
 ## Atom parameters
 
@@ -135,8 +139,8 @@ allowed; a later entry that also matches is not used.
 
 ## Strict and permissive matching
 
-Strict matching is the default. With permissive matching (`--permissive-types` on the command line,
-`parameter_matching="permissive"` in Python), an atom or bond that no entry matches tries again with
+Strict matching is the default. With permissive matching (`parameter_matching="permissive"` in
+Python, `--parameter-matching permissive` on the command line), an atom or bond that no entry matches tries again with
 its `hbo` or `bo` type lowered by one: an atom with a double bond, type `"2"`, can then use an entry
 for `"1"`, and a triple bond an entry for `"2"`. An atom without bonds, type `"0"`, can use an entry
 for `"1"`. `plain` and `bonded` keys match the same way in both modes.

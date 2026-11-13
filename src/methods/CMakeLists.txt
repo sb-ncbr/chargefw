@@ -1,10 +1,11 @@
-target_sources(chargefw_core_objects
+target_sources(chargefw_objects
         PRIVATE
         method_options.cpp
         method_registry.cpp
         method_prerequisites.cpp
         parameter_prerequisites.cpp
         method_applicability.cpp
+        method_applicability.h
         find_applicable_methods.h
         fixed_source_validation.cpp
         fixed_source_validation.h
@@ -30,7 +31,6 @@ target_sources(chargefw_core_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_registry.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_prerequisites.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/methods/parameter_prerequisites.h
-        ${PROJECT_SOURCE_DIR}/include/chargefw/methods/method_applicability.h
 )
 
 add_subdirectory(builtin)

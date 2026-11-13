@@ -1,6 +1,6 @@
 # C++ library
 
-ChargeFW is a C++23 shared library for Linux, used through the `chargefw::core` CMake target. An
+ChargeFW is a C++23 shared library for Linux, used through the `chargefw::chargefw` CMake target. An
 assessment keeps its own copies of the molecules and parameter sets, and so does a copy of one of
 its plans. Results hold their own charges.
 [Assessment and calculation](#assessment-and-calculation) describes how long each stays valid.
@@ -33,8 +33,11 @@ Use the installed package from another CMake project:
 
 ```cmake
 find_package(chargefw CONFIG REQUIRED)
-target_link_libraries(my_application PRIVATE chargefw::core)
+target_link_libraries(my_application PRIVATE chargefw::chargefw)
 ```
+
+To require a minor version, write `find_package(chargefw 3.0 CONFIG REQUIRED)`; it accepts 3.0.x and
+refuses 3.1.0, which may change interfaces, as [Versions and changes](../about/versions.md) describes.
 
 Point CMake at the installation when you configure that project:
 
@@ -42,11 +45,25 @@ Point CMake at the installation when you configure that project:
 cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install"
 ```
 
-The installed package requires the exact nlohmann/json and Gemmi versions ChargeFW was built against,
-because their types appear in the public headers. With installed dependency packages, your project needs
-those packages discoverable and the oneTBB runtime library available. With
-`CHARGEFW_FETCH_DEPENDENCIES=ON`, the installation also contains the nlohmann/json and Gemmi development
-packages and the oneTBB runtime.
+Rebuild your application against every ChargeFW release you install, pre-releases included. Releases
+do not keep binary compatibility, so each one installs its library under its own name, such as
+`libchargefw.so.3.0.0` for 3.0.0, and your application needs the library of the release it was
+built against. If that library is no longer installed, the application fails to start with an error
+that names it, instead of loading another release.
+
+`<chargefw/version.h>` names the release your application is built against:
+`CHARGEFW_VERSION_MAJOR`, `CHARGEFW_VERSION_MINOR`, and `CHARGEFW_VERSION_PATCH` are numbers, and
+`CHARGEFW_VERSION_STRING` is the full release, such as `"3.0.0"` or `"3.0.0rc3"`.
+
+Enumerations and `std::variant` types, such as `calculation::RejectionIssue`, may gain values and
+alternatives in later releases. Give a `switch` a `default`, and give `std::visit` a fallback
+overload, so that your code still compiles.
+
+To build your application against installed ChargeFW, you do not need its dependencies' development
+packages. The shared libraries ChargeFW was linked against, including oneTBB and Gemmi when linked
+dynamically, must remain available at runtime. With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the native
+installation includes the oneTBB and Gemmi runtime libraries, but not their development packages.
+If your application also uses a dependency directly, find and link that package separately.
 
 The installation can be moved as a whole: `parameters::load_default_parameter_sets()` finds the bundled
 parameter files relative to the loaded library.
@@ -86,8 +103,7 @@ int main() {
             std::vector<core::Molecule>{std::move(molecule)}},
         .parameter_sets = parameters::load_default_parameter_sets(),
         .method_id = "eem",
-        .execution_selection = calculation::ExecutionSelection{
-            calculation::ExecutionSelectionKind::full},
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full},
     };
 
     auto assessment = calculation::assess(std::move(request));
@@ -108,15 +124,15 @@ request.
 
 ## Reading files and writing results
 
-The readers return `adapters::ImportedMoleculeRecord` values, which keep each molecule together with
+The readers return `io::ImportedMoleculeRecord` values, which keep each molecule together with
 where it came from. The writers take the records and the calculation together, as an
-`adapters::ChargeCalculationResult`:
+`io::ChargeCalculationResult`:
 
 ```cpp
-#include <chargefw/adapters/charge_result.h>
-#include <chargefw/adapters/native/json_output.h>
-#include <chargefw/adapters/native/mol2_output.h>
-#include <chargefw/adapters/native/sdf_input.h>
+#include <chargefw/io/charge_result.h>
+#include <chargefw/io/json_output.h>
+#include <chargefw/io/mol2_output.h>
+#include <chargefw/io/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
@@ -129,8 +145,8 @@ int main() {
     using namespace chargefw;
 
     auto input = std::ifstream{"paracetamol.sdf"};
-    auto reader = adapters::native::sdf_input::SdfReader{input, "paracetamol.sdf"};
-    auto records = std::vector<adapters::ImportedMoleculeRecord>{};
+    auto reader = io::SdfReader{input, "paracetamol.sdf"};
+    auto records = std::vector<io::ImportedMoleculeRecord>{};
     auto molecules = std::vector<core::Molecule>{};
     while (auto record = reader.next()) {
         molecules.push_back(record->molecule);
@@ -143,6 +159,8 @@ int main() {
         .method_id = "eem",
         .parameter_set_id = "EEM_Cheminf_b3lyp_npa",
     };
+    // Before assess() takes the request.
+    const auto requested = io::make_requested_provenance(request, 0);
     auto assessment = calculation::assess(std::move(request));
     auto execution = calculation::calculate(assessment);
     if (!execution.calculated()) {
@@ -150,39 +168,38 @@ int main() {
         return 1;
     }
 
-    const auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = "eem", .parameter_set_id = "EEM_Cheminf_b3lyp_npa"};
     const auto result =
-        adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
+        io::make_charge_calculation_result(std::move(records), requested, std::move(execution));
 
     auto mol2 = std::ofstream{"paracetamol.mol2"};
-    adapters::native::mol2_output::Mol2Writer{mol2}.write(result);
+    io::Mol2Writer{mol2}.write(result);
     auto json = std::ofstream{"paracetamol.json"};
-    adapters::native::json_output::JsonWriter{json}.write(result);
+    io::JsonWriter{json}.write(result);
 }
 ```
 
 | Header | Class |
 | --- | --- |
-| `chargefw/adapters/native/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
-| `chargefw/adapters/native/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
-| `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options |
-| `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
-| `chargefw/adapters/native/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
-| `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
-| `chargefw/adapters/native/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
+| `chargefw/io/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
+| `chargefw/io/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
+| `chargefw/io/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
+| `chargefw/io/mol2_output.h` | `Mol2Writer` |
+| `chargefw/io/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
+| `chargefw/io/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
+| `chargefw/io/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
 
 `MmcifWriter` also writes several charge sets for the same records into one file. Pass pointers to
 results calculated from equal records, for example from copies of `records` above:
 
 ```cpp
 auto cif = std::ofstream{"paracetamol.cif"};
-adapters::gemmi::mmcif_output::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
+io::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
 ```
 
 The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
-`chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of a namespace, for applications.
+`chargefw/io/all.h` includes all readers and writers, for applications. They are all in
+`chargefw::io`.
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
 records stay valid after the reader is destroyed.
 
@@ -204,13 +221,11 @@ the records you calculated, so pass the same records whose molecules you calcula
 When the request itself fails, `assess()` or `calculate()` throws `std::invalid_argument` and there is
 no `ExecutionResult`. To still write result JSON for the records, as the command line does, create the
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
-`ResultStatus::invalid_request`, written as `invalid_input_or_request`, and `execution()` is null.
+`ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
-`RequestedCalculationProvenance` records what was requested, for the result JSON. Its `method_scope`
-is a `calculation::MethodScope`, defaulting to `recommended`; its `execution_kind` is a
-`calculation::ExecutionSelectionKind`, defaulting to `automatic` (written as `"auto"` in JSON).
-Copy these values from your request's `method_scope` and `execution_selection.kind()`, and copy
-`execution_selection.radius()` into `execution_radius`.
+`RequestedCalculationProvenance` records what was requested, for the result JSON. Create it with
+`make_requested_provenance(request, threads, fixed_ions)` from your request, the thread limit you
+pass to `calculate()`, and the residue names you selected fixed ions by.
 
 ## Namespaces
 
@@ -223,7 +238,22 @@ Copy these values from your request's `method_scope` and `execution_selection.ki
 | `chargefw::calculation` | Assessment, plans, execution policy, progress, and calculation |
 | `chargefw::parameterization` | Fitting parameter values: templates, value vectors, and normal equations |
 | `chargefw::charges` | Charge assignments and charge sets |
-| `chargefw::adapters` | File readers and writers |
+| `chargefw::io` | File readers and writers |
+
+The assessment and calculation workflow prepares the molecules, matches parameters, checks
+prerequisites, and builds fragments itself. The pieces it uses are public, for code that needs one of
+these steps on its own:
+
+| Header | Contents |
+| --- | --- |
+| `chargefw/core/periodic_table.h` | `core::periodic_table()`: elements by atomic number or symbol |
+| `chargefw/features/prepared_molecule.h` | `PreparedMolecule`: cached topology and geometry checks for a molecule, which must outlive it |
+| `chargefw/features/conformer_features.h` | `ConformerFeatures`: the geometry of one conformer |
+| `chargefw/features/spatial_fragment.h` | `SpatialFragmentBuilder`: the fragments of cutoff and cover execution |
+| `chargefw/parameters/classification/parameter_classifier.h` | `classify_parameters()` and `try_classify_parameters()`: match the entries of a parameter set to a molecule's atoms and bonds |
+| `chargefw/parameters/models/parameter_view.h` | `ParameterView`: the matched values of one molecule, as a method reads them |
+| `chargefw/methods/method_prerequisites.h`, `parameter_prerequisites.h` | `check_method_prerequisites()` and `check_parameter_prerequisites()`: the checks behind a rejection |
+| `chargefw/methods/calculation_input.h` | `CalculationInput`, for calling `Method::calculate()` directly; see [Fixed ions](#fixed-ions) |
 
 ## Molecules
 
@@ -248,9 +278,9 @@ geometry then reject the molecule.
 - an optional method ID and parameter-set ID;
 - a `MethodScope` for automatic selection without a method ID: `recommended` (default) considers only
   the [recommended methods](../guide/methods.md#available-methods), `all` every method;
-- options per method, as `methods::MethodOptions`;
-- strict or permissive parameter matching;
-- an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
+- `method_options`, the options of the method named by `method_id`, as `methods::MethodOptions`;
+- `parameter_matching`: `ParameterMatching::strict` (default) or `permissive`;
+- `execution`, an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
 - a `ResourcePolicy` with the automatic size limits, where `std::nullopt` removes a limit; and
 - optional `FixedIons`, described [below](#fixed-ions).
 
@@ -300,7 +330,7 @@ Issues give where they are in a `core::IssueLocation`: an optional conformer ind
 index the message names, the other atom of a pair it names, such as two atoms too close, and
 `atom_indices` and `bond_indices` with every atom and bond the issue concerns.
 `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`,
-`adapters::ImportIssue`, and `adapters::ResultDiagnostic` hold one in `location`.
+`io::ImportIssue`, and `io::ResultDiagnostic` hold one in `location`.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),
 with its kind, a message, the molecule index, and its location.
@@ -318,12 +348,16 @@ geometry give one assignment per conformer, the others one per molecule. Each `C
 molecule index, an optional conformer index, and the charges in atom order.
 [Results](../guide/results.md) explains assignments and atom order.
 
-Invalid arguments throw `std::invalid_argument`, also from `assess()`. A valid assessment reports
-methods that do not apply as rejections, and `default_plan()` is null when none applies; it has no
-status. `calculate()` reports failures and cancellation through the `ExecutionStatus`. A
-`std::logic_error` or `std::runtime_error` from a method, such as an invalid parameter value
-or a solver that does not converge, becomes `numerical_failure`. Other exceptions, such as
-`std::bad_alloc` when memory runs out, are not caught and reach the caller.
+Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors that check their
+index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
+`operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
+throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
+molecule cannot hold, such as atomic number 0. A valid assessment reports methods that do not apply
+as rejections, and `default_plan()` is null when none applies; it has no status. `calculate()`
+reports failures and cancellation through the `ExecutionStatus`. A `std::logic_error` or
+`std::runtime_error` from a method, such as an invalid parameter value or a solver that does not
+converge, becomes `numerical_failure`. Other exceptions, such as `std::bad_alloc` when memory runs
+out, are not caught and reach the caller.
 
 ## Fixed ions
 
@@ -358,14 +392,16 @@ To look up a method by ID, use `methods::method_registry().find(id)`, which retu
 
 `methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
 metadata, notes, requirements, and option schemas. `MethodMetadata::recommended` tells whether the
-method's charges are recommended for general use. `methods::complexity_notation()` formats the declared
-time and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
+method's charges are recommended for general use. `methods::to_string()` formats the declared time
+and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
 one molecule of a given `TargetSize`. A method supports cutoff and cover when
 `ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`
 says how the fragments' charges are kept, as described in
-[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work). A method that
-declares common parameters must also declare atom or bond parameters; make standalone constants method
-options instead, or assessment refuses the method.
+[How cutoff and cover work](../guide/large-structures.md#how-cutoff-and-cover-work).
+
+`methods::Method` is the interface of the built-in methods. You cannot add a method of your own:
+requests select methods by ID from `methods::method_registry()`, which holds only the built-in
+methods.
 
 `parameters::load_default_parameter_sets()` loads the bundled parameter sets, and
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
@@ -390,7 +426,9 @@ library, and `parameters::default_parameter_directories()`, every directory
 ## Fitting parameters
 
 `chargefw::parameterization` provides the pieces for fitting parameter values to reference charges;
-from Python, `fit()` does the whole fit, as [Fitting parameters](fitting.md) describes. Start from a
+from Python, `fit()` does the whole fit, as [Fitting parameters](fitting.md) describes. It is
+experimental and may change in any release, as [Versions and changes](../about/versions.md)
+describes. Start from a
 template:
 `parameterization::make_parameter_template()`, declared in
 `<chargefw/parameterization/parameter_template.h>`, makes one entry for every atom type and bond type

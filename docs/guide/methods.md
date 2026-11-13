@@ -47,14 +47,15 @@ In Python, `chargefw.assess()` returns the combinations of method and parameter 
 in `rejections` the reason for each one that does not; see
 [Python](../interfaces/python.md#assessing-before-calculating).
 
-When a parameter set is rejected because a few atoms of a large structure have no matching entry, for
-example the oxygen of a water molecule without its hydrogens,
-[permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms
-use the entry for the next lower bond order, and an atom without bonds the entry for single bonds:
-`--permissive-types` on the command line, or `parameter_matching="permissive"` in Python. The values
-were not fitted for those atoms, so their charges, and with methods that couple every atom such as EEM
-the charges near them, are less reliable. To leave out the water instead, read the structure with
-`--structural-selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
+When a parameter set is rejected because a few atoms of a large structure have no matching entry,
+for example the oxygen of a water molecule without its hydrogens, [permissive
+matching](../reference/parameter-format.md#strict-and-permissive-matching) lets those atoms use the
+entry for the next lower bond order, and an atom without bonds the entry for single bonds:
+`parameter_matching="permissive"` in Python, or `--parameter-matching permissive` on the command
+line. The values were not fitted for those atoms, so their charges, and with methods that couple
+every atom such as EEM the charges near them, are less reliable. To leave out the water instead,
+read the structure with `--selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in
+Python.
 
 `chargefw parameters --method METHOD` lists the parameter sets of a method, and
 `chargefw parameters ID --keys` the atom and bond types a set has values for.
@@ -103,8 +104,9 @@ Two further IDs are not charge models: `formal` returns the formal charges of yo
 `dummy` returns zero for every atom. Automatic selection never uses them; name them to use them.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
-method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the
-command line, or `options={"iters": 8}` in Python; see
+method's options and their defaults. Options belong to the method you name: set one with
+`method="peoe", method_options={"iters": 8}` in Python, or `--method peoe --method-option iters=8`
+on the command line; see
 [Choosing the model](../interfaces/cli.md#choosing-the-model) and
 [Calculating charges](../interfaces/python.md#calculating-charges).
 

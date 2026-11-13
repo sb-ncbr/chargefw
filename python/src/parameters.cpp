@@ -22,10 +22,11 @@ auto make_bundled_parameter_catalog() -> NativeParameterCatalog {
     return NativeParameterCatalog{parameters::load_default_parameter_sets()};
 }
 
-// A catalog with the one parameter set of a JSON file, for sets that are not bundled.
-auto load_parameter_set_catalog(const std::string& path) -> NativeParameterCatalog {
+// A catalog with the one parameter set of JSON text, for sets that are not bundled.
+auto parse_parameter_set_catalog(const std::string& text) -> NativeParameterCatalog {
+    auto input = std::istringstream{text};
     auto parameter_sets = std::vector<parameters::ParameterSet>{};
-    parameter_sets.push_back(parameters::load_parameter_set_json_file(path));
+    parameter_sets.push_back(parameters::load_parameter_set_json(input));
     return NativeParameterCatalog{std::move(parameter_sets)};
 }
 
@@ -86,7 +87,7 @@ void bind_parameters(nb::module_& module) {
         .def("_json", &parameter_set_json, nb::arg("id"));
     module.def("_load_bundled_parameter_catalog", &make_bundled_parameter_catalog,
                nb::call_guard<nb::gil_scoped_release>());
-    module.def("_load_parameter_set_catalog", &load_parameter_set_catalog, nb::arg("path"),
+    module.def("_parse_parameter_set_catalog", &parse_parameter_set_catalog, nb::arg("text"),
                nb::call_guard<nb::gil_scoped_release>());
 }
 

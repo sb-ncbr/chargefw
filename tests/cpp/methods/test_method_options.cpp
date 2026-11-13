@@ -147,8 +147,7 @@ TEST_CASE("method option schema rejects mismatched bounds and duplicate IDs",
                                   .choices = {},
                                   .minimum = 0.0}};
 
-    CHECK_THROWS_AS(methods::validate_method_option_schema(mismatched_bound_schema),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(methods::make_default_options(mismatched_bound_schema), std::invalid_argument);
 
     const std::array duplicate_id_schema{
         methods::MethodOptionSpec{.id = "limit",
@@ -162,8 +161,7 @@ TEST_CASE("method option schema rejects mismatched bounds and duplicate IDs",
                                   .default_value = 50,
                                   .choices = {}}};
 
-    CHECK_THROWS_AS(methods::validate_method_option_schema(duplicate_id_schema),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(methods::make_default_options(duplicate_id_schema), std::invalid_argument);
 }
 
 TEST_CASE("method option schema rejects wrong default and choice types",
@@ -175,7 +173,7 @@ TEST_CASE("method option schema rejects wrong default and choice types",
                                   .default_value = 25.0,
                                   .choices = {}}};
 
-    CHECK_THROWS_AS(methods::validate_method_option_schema(wrong_default_type_schema),
+    CHECK_THROWS_AS(methods::make_default_options(wrong_default_type_schema),
                     std::invalid_argument);
 
     const std::array wrong_choice_type_schema{
@@ -185,8 +183,7 @@ TEST_CASE("method option schema rejects wrong default and choice types",
                                   .default_value = 25,
                                   .choices = {25, 50.0}}};
 
-    CHECK_THROWS_AS(methods::validate_method_option_schema(wrong_choice_type_schema),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(methods::make_default_options(wrong_choice_type_schema), std::invalid_argument);
 
     const std::array default_not_allowed_schema{
         methods::MethodOptionSpec{.id = "limit",
@@ -195,7 +192,7 @@ TEST_CASE("method option schema rejects wrong default and choice types",
                                   .default_value = 25,
                                   .choices = {50, 100}}};
 
-    CHECK_THROWS_AS(methods::validate_method_option_schema(default_not_allowed_schema),
+    CHECK_THROWS_AS(methods::make_default_options(default_not_allowed_schema),
                     std::invalid_argument);
 }
 

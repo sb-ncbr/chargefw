@@ -7,6 +7,7 @@ type PortableId = str | int
 type RequestedExecution = Literal["auto", "full", "cutoff", "cover"]
 type ParameterMatching = Literal["strict", "permissive"]
 type MethodScope = Literal["recommended", "all"]
+type ResourceThreshold = int | Literal["unlimited"]
 type AtomClassifier = Literal["plain", "hbo", "bonded"]
 type BondClassifier = Literal["plain", "bo"]
 type ExecutionMode = Literal["full", "cutoff", "cover"]
@@ -34,6 +35,7 @@ type PrerequisiteIssueKind = Literal[
     "invalid_geometry",
     "unsupported_molecule",
     "missing_parameters",
+    "unknown_parameters",
     "parameter_classification_failed",
     "unsupported_fixed_ions",
 ]

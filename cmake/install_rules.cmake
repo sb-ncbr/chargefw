@@ -1,11 +1,11 @@
 # Installed dependencies outside the system library paths are referenced by their absolute
 # directories; libraries built within this project are found relative to the installation.
-set_target_properties(chargefw_core
+set_target_properties(chargefw
         PROPERTIES
         INSTALL_RPATH "${CHARGEFW_RUNTIME_ORIGIN}"
         INSTALL_RPATH_USE_LINK_PATH ON
 )
-chargefw_prefer_runtime_path(chargefw_core)
+chargefw_prefer_runtime_path(chargefw)
 
 if(TARGET chargefw_cli)
     set_target_properties(chargefw_cli
@@ -17,7 +17,7 @@ if(TARGET chargefw_cli)
 endif()
 
 install(
-        TARGETS chargefw_core
+        TARGETS chargefw
         EXPORT chargefwTargets
         ARCHIVE
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -29,7 +29,7 @@ install(
 
 # The public headers are registered with the objects the library is built from.
 install(
-        TARGETS chargefw_core_objects
+        TARGETS chargefw_objects
         FILE_SET HEADERS
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
@@ -88,7 +88,7 @@ install(
 
 install(
         FILES
-        ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
+        ${PROJECT_BINARY_DIR}/generated/chargefw/version.h
         DESTINATION
         ${CMAKE_INSTALL_INCLUDEDIR}/chargefw
 )
@@ -101,7 +101,7 @@ configure_package_config_file(
 write_basic_package_version_file(
         ${PROJECT_BINARY_DIR}/chargefwConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion
+        COMPATIBILITY SameMinorVersion
 )
 install(
         EXPORT chargefwTargets

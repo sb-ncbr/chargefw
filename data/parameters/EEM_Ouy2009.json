@@ -5,7 +5,7 @@
     "method": "eem",
     "publication": "10.1039/b821696g",
     "notes": "Parameterized to reproduce B3LYP/6-31G*/NPA charges",
-    "priority": 30
+    "priority": 70
   },
   "common": {
     "names": ["kappa"],

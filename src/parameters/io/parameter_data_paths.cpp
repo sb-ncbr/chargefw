@@ -2,8 +2,6 @@
 
 #include "platform/library_location.h"
 
-#include <chargefw/config.h>
-
 #include <filesystem>
 #include <vector>
 

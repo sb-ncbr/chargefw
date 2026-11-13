@@ -31,8 +31,8 @@ ChargeFW has three build paths, each with its own dependency rules:
 
 - **Native builds** (the library, command line, containers, and CI) use installed packages found with
   `find_package` and download nothing unless `CHARGEFW_FETCH_DEPENDENCIES=ON`. Without downloads, the
-  installation contains only ChargeFW's own files; with them, it also contains the nlohmann/json and
-  Gemmi development packages and the oneTBB runtime.
+  installation contains only ChargeFW's own files; with them, it also contains the Gemmi and oneTBB
+  runtime libraries, but not third-party development packages.
 - **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
   checksum-verified sources, as set in `pyproject.toml`. They link Gemmi statically into the extension
   and the packaged command line, because its library name carries no version and could meet another
@@ -44,11 +44,12 @@ ChargeFW has three build paths, each with its own dependency rules:
 - **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
   [RELEASING.md](RELEASING.md).
 
-ChargeFW's public headers expose nlohmann/json and Gemmi types, so the installed CMake package requires
-the exact json and Gemmi versions the build used; `cmake/chargefwConfig.cmake.in` generates those
-requirements. oneTBB, Eigen, nanoflann, and CLI11 are private: consumers need only the oneTBB runtime
-library. Native binaries, the CLI image, and the wheels all contain code of these dependencies, so their
-license notices in [`licenses/`](licenses/) ship with each of them.
+Third-party dependencies are private to ChargeFW. The JSON and mmCIF readers keep their parser state
+behind private implementation pointers, so installed headers and CMake targets need no third-party
+development packages. Internal targets that use a dependency directly link it explicitly. Consumers
+still need any shared dependency libraries linked by ChargeFW at runtime. Native binaries, the CLI
+image, and the wheels contain dependency code, so the license notices in [`licenses/`](licenses/)
+ship with each of them.
 
 ## Build and test
 
@@ -303,9 +304,9 @@ check against Apple's libc++.
 
 ## Architecture
 
-ChargeFW is library-first. File readers and toolkit adapters translate external representations into an
-owned, toolkit-neutral molecule model; method applicability, parameter matching, execution selection,
-and calculation remain in the native library.
+ChargeFW is library-first. File readers (`chargefw::io`) and the Python toolkit bridges translate
+external representations into an owned, toolkit-neutral molecule model; method applicability,
+parameter matching, execution selection, and calculation remain in the native library.
 
 **Algorithms are reusable and concurrent.** Prepared assessments and concrete plans own the state they
 need and can be executed repeatedly without global mutable calculation state.
@@ -343,13 +344,13 @@ Application-facing calculation functions compose the owned assessment facade rat
 lower-level prepared-feature and classification interfaces. Callers need an explicit assessment only when
 they want to inspect or reuse its concrete plans.
 
-Imported records keep adapter metadata beside the normalized molecule rather than inside
+Imported records keep reader metadata beside the normalized molecule rather than inside
 `core::Molecule`. The metadata owns only source correspondence, record-local import policy, diagnostics,
 and a small connectivity summary; it does not retain source documents, parser objects, normalized-value
 snapshots, or per-bond provenance.
 
 The application-facing charge result owns those ordered imported records together with the toolkit-neutral
-execution result. Output adapters consume that boundary directly, keeping source correspondence out of the
+execution result. The writers consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
 
 ### Parameterization
@@ -431,7 +432,7 @@ does, which gives the published result for a single component.
 Each stage reports what it finds as its own issue type, with a kind enum and only the fields that
 kind needs: `ImportIssue` from readers, `InputIssue` from assessment (and from execution for those that
 concern only the executed method, such as `atoms_too_close`), `PrerequisiteIssue` and `ExecutionIssue`
-from applicability, and `ChargeIssue` for calculated charges. `ResultDiagnostic` is the adapters'
+from applicability, and `ChargeIssue` for calculated charges. `ResultDiagnostic` is the `io`
 projection of all of them into one shape, with a string code and a severity, for result JSON and the
 command line. Cautions never exclude a method; a finding that does is a `PrerequisiteIssue`.
 

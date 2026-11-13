@@ -2,8 +2,8 @@
 
 #include "native_execution_result.h"
 
-#include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/assessment.h>
+#include <chargefw/io/charge_result.h>
 
 #include <nanobind/nanobind.h>
 
@@ -20,15 +20,15 @@ namespace chargefw::python {
 class NativeAssessmentState {
   public:
     NativeAssessmentState(calculation::AssessmentResult assessment,
-                          std::vector<adapters::ImportedMoleculeRecord> inputs,
-                          adapters::RequestedCalculationProvenance requested,
+                          std::vector<io::ImportedMoleculeRecord> inputs,
+                          io::RequestedCalculationProvenance requested,
                           const std::size_t max_threads)
         : assessment_{std::move(assessment)}, inputs_{std::move(inputs)},
           requested_{std::move(requested)}, max_threads_{max_threads} {}
 
     calculation::AssessmentResult assessment_;
-    std::vector<adapters::ImportedMoleculeRecord> inputs_;
-    adapters::RequestedCalculationProvenance requested_;
+    std::vector<io::ImportedMoleculeRecord> inputs_;
+    io::RequestedCalculationProvenance requested_;
     std::size_t max_threads_ = 0;
 };
 

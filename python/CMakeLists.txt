@@ -38,7 +38,6 @@ find_package(nanobind CONFIG REQUIRED)
 
 set(CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY "${PROJECT_BINARY_DIR}/python/chargefw")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}")
-file(REMOVE_RECURSE "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/adapters")
 set(CHARGEFW_PYTHON_IO_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/io")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_IO_DIRECTORY}")
@@ -65,7 +64,7 @@ endforeach()
 
 set(CHARGEFW_PYTHON_STUB_SOURCES
     __init__.pyi
-    adapters.pyi
+    io.pyi
     calculation.pyi
     core.pyi
     methods.pyi
@@ -82,6 +81,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _arrays.py
     _catalog.py
     _elements.py
+    _errors.py
     _calculation_options.py
     _calculation_values.py
     _methods.py
@@ -91,9 +91,9 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _cli.py
     _types.py
     _warnings.py
-    calculation.py
-    charges.py
-    core.py
+    _calculation.py
+    _charges.py
+    _core.py
 )
 foreach(package_source IN LISTS CHARGEFW_PYTHON_PACKAGE_SOURCES)
     configure_file("chargefw/${package_source}"
@@ -133,7 +133,7 @@ configure_file(chargefw/_cpu.py "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_cpu
 configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.typed" COPYONLY)
 
 nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
-    src/adapters.cpp
+    src/io.cpp
     src/bindings.h
     src/calculation.cpp
     src/calculation.h
@@ -156,7 +156,7 @@ set_target_properties(chargefw_python PROPERTIES
 )
 # The extension contains the ChargeFW library itself, so a wheel needs no separate ChargeFW library and
 # Windows needs no exported symbols from one.
-target_link_libraries(chargefw_python PRIVATE chargefw_core_objects)
+target_link_libraries(chargefw_python PRIVATE chargefw_objects gemmi::gemmi_cpp)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
 chargefw_prefer_runtime_path(chargefw_python)
 
@@ -172,7 +172,7 @@ set_target_properties(chargefw_package_cli PROPERTIES
 target_link_libraries(chargefw_package_cli
     PRIVATE
     chargefw_cli_objects
-    chargefw_core_objects
+    chargefw_objects
 )
 chargefw_prefer_runtime_path(chargefw_package_cli)
 

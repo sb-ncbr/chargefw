@@ -143,13 +143,13 @@ auto make_two_diatomic_components(const double separation) -> core::Molecule {
 [[nodiscard]] auto calculate_reduced(const core::Molecule& molecule,
                                      const std::string_view method_id,
                                      std::vector<parameters::ParameterSet> parameter_sets,
-                                     const calculation::ExecutionSelectionKind mode,
+                                     const calculation::ExecutionSelectionMode mode,
                                      const double radius = 8.0) -> charges::AtomicCharges {
-    const auto result = calculate_application(calculation::AssessmentRequest{
-        .molecules = core::MoleculeCollection{std::vector{molecule}},
-        .parameter_sets = std::move(parameter_sets),
-        .method_id = std::string{method_id},
-        .execution_selection = calculation::ExecutionSelection{mode, radius}});
+    const auto result = calculate_application(
+        calculation::AssessmentRequest{.molecules = core::MoleculeCollection{std::vector{molecule}},
+                                       .parameter_sets = std::move(parameter_sets),
+                                       .method_id = std::string{method_id},
+                                       .execution = calculation::ExecutionSelection{mode, radius}});
     REQUIRE(result.calculated());
     REQUIRE(result.charges.has_value());
     return result.charges->assignment(0).charges;
@@ -212,18 +212,18 @@ auto assert_reduced_matches_full(
                                                              .method_id = std::string{method_id}});
     REQUIRE(full.calculated());
 
-    for (const auto selection_kind : {calculation::ExecutionSelectionKind::cutoff,
-                                      calculation::ExecutionSelectionKind::cover}) {
+    for (const auto selection_kind : {calculation::ExecutionSelectionMode::cutoff,
+                                      calculation::ExecutionSelectionMode::cover}) {
         const auto reduced = calculate_application(calculation::AssessmentRequest{
             .molecules = molecules,
             .parameter_sets = parameter_sets,
             .method_id = std::string{method_id},
-            .execution_selection = calculation::ExecutionSelection{selection_kind, 8.0}});
+            .execution = calculation::ExecutionSelection{selection_kind, 8.0}});
 
         REQUIRE(reduced.calculated());
         REQUIRE(reduced.effective.has_value());
         CHECK(reduced.effective->execution_policy.mode() ==
-              (selection_kind == calculation::ExecutionSelectionKind::cutoff
+              (selection_kind == calculation::ExecutionSelectionMode::cutoff
                    ? calculation::ExecutionMode::cutoff
                    : calculation::ExecutionMode::cover));
         REQUIRE(full.charges->size() == reduced.charges->size());
@@ -329,7 +329,7 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {chargefw::test::make_eem_parameters()},
         .method_id = "eem",
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .resource_policy = {.cutoff_threshold = 2}});
     REQUIRE(automatic_cutoff.calculated());
     REQUIRE(automatic_cutoff.effective.has_value());
     CHECK(automatic_cutoff.effective->execution_policy.mode() ==
@@ -341,9 +341,9 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {chargefw::test::make_eem_parameters()},
         .method_id = "eem",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::automatic, 8.0},
-        .resource_policy = {.cutoff_atom_threshold = 2}});
+        .execution =
+            calculation::ExecutionSelection{calculation::ExecutionSelectionMode::automatic, 8.0},
+        .resource_policy = {.cutoff_threshold = 2}});
     REQUIRE(overridden_automatic_cutoff.calculated());
     REQUIRE(overridden_automatic_cutoff.effective.has_value());
     CHECK(overridden_automatic_cutoff.effective->execution_policy.mode() ==
@@ -355,7 +355,7 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .parameter_sets = {chargefw::test::make_eem_parameters()},
         .method_id = "eem",
-        .resource_policy = {.cutoff_atom_threshold = 2, .cover_atom_threshold = 2}});
+        .resource_policy = {.cutoff_threshold = 2, .cover_threshold = 2}});
     REQUIRE(automatic_cover.calculated());
     REQUIRE(automatic_cover.effective.has_value());
     CHECK(automatic_cover.effective->execution_policy.mode() == calculation::ExecutionMode::cover);
@@ -365,15 +365,15 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
             .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
             .parameter_sets = {chargefw::test::make_eem_parameters()},
             .method_id = "eem",
-            .execution_selection =
-                calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff,
+            .execution =
+                calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff,
                                                 calculation::minimum_reduced_radius},
-            .resource_policy = {.cutoff_atom_threshold = 2, .cover_atom_threshold = 2}});
+            .resource_policy = {.cutoff_threshold = 2, .cover_threshold = 2}});
     REQUIRE(explicit_cutoff_above_cover_threshold.calculated());
     REQUIRE(explicit_cutoff_above_cover_threshold.effective.has_value());
     CHECK(explicit_cutoff_above_cover_threshold.effective->execution_policy.mode() ==
           calculation::ExecutionMode::cutoff);
-    CHECK(explicit_cutoff_above_cover_threshold.effective->execution_issues.size() == 1);
+    CHECK(explicit_cutoff_above_cover_threshold.effective->warnings.size() == 1);
 }
 
 TEST_CASE("whole-molecule reduced execution matches full execution for each charge policy",
@@ -413,8 +413,8 @@ TEST_CASE("whole-molecule reduced execution matches full execution for each char
 TEST_CASE("SQE reduced execution preserves original component charge budgets",
           "[calculation][reduced-execution][sqe]") {
     constexpr auto chain_atom_count = std::size_t{12};
-    for (const auto mode : {calculation::ExecutionSelectionKind::cutoff,
-                            calculation::ExecutionSelectionKind::cover}) {
+    for (const auto mode : {calculation::ExecutionSelectionMode::cutoff,
+                            calculation::ExecutionSelectionMode::cover}) {
         CAPTURE(mode);
 
         const auto neutral = make_extended_components(0);
@@ -442,21 +442,21 @@ TEST_CASE("SQE reduced execution preserves original component charge budgets",
 TEST_CASE("SQE reduced execution fails when a fragment system is not positive definite",
           "[calculation][reduced-execution][sqe]") {
     const auto chain = make_extended_components(0);
-    for (const auto mode : {calculation::ExecutionSelectionKind::cutoff,
-                            calculation::ExecutionSelectionKind::cover}) {
+    for (const auto mode : {calculation::ExecutionSelectionMode::cutoff,
+                            calculation::ExecutionSelectionMode::cover}) {
         CAPTURE(mode);
         const auto result = calculate_application(calculation::AssessmentRequest{
             .molecules = core::MoleculeCollection{std::vector{chain}},
             .parameter_sets = {chargefw::test::make_sqe_ho_parameters("sqe", {.kappa = -50.0})},
             .method_id = "sqe",
-            .execution_selection = calculation::ExecutionSelection{mode, 8.0}});
+            .execution = calculation::ExecutionSelection{mode, 8.0}});
 
         CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
         CHECK_FALSE(result.charges.has_value());
         REQUIRE(result.effective.has_value());
         CHECK(result.effective->method_id == "sqe");
         REQUIRE(result.failure_message.has_value());
-        CHECK(result.failure_message->contains(mode == calculation::ExecutionSelectionKind::cutoff
+        CHECK(result.failure_message->contains(mode == calculation::ExecutionSelectionMode::cutoff
                                                    ? "cutoff fragment around"
                                                    : "cover fragment around"));
     }
@@ -540,8 +540,8 @@ TEST_CASE("reduced approximation remains bounded across a truncated radius sweep
 
         const auto full =
             calculate_full(test_case.molecule, test_case.method_id, test_case.parameter_sets);
-        for (const auto mode : {calculation::ExecutionSelectionKind::cutoff,
-                                calculation::ExecutionSelectionKind::cover}) {
+        for (const auto mode : {calculation::ExecutionSelectionMode::cutoff,
+                                calculation::ExecutionSelectionMode::cover}) {
             for (const auto radius : {8.0, 12.0, 16.0}) {
                 const auto reduced = calculate_reduced(test_case.molecule, test_case.method_id,
                                                        test_case.parameter_sets, mode, radius);
@@ -568,8 +568,8 @@ TEST_CASE("SQE component totals coexist with intermolecular polarization",
     check_component_total(full_near, 2, 4, 0.0);
     CHECK(std::abs(full_near[0] - full_far[0]) > 1.0e-6);
 
-    for (const auto mode : {calculation::ExecutionSelectionKind::cutoff,
-                            calculation::ExecutionSelectionKind::cover}) {
+    for (const auto mode : {calculation::ExecutionSelectionMode::cutoff,
+                            calculation::ExecutionSelectionMode::cover}) {
         const auto reduced_near = calculate_reduced(near, "sqeq0", parameter_sets, mode);
         const auto reduced_far = calculate_reduced(far, "sqeq0", parameter_sets, mode);
         CAPTURE(mode);
@@ -698,8 +698,8 @@ TEST_CASE("SQE+qp fragments start pieces of a split component from its reference
                                                                          fragment, context);
 
     const auto source_indices = fragment.local_to_source_atom_indices();
-    const auto pieces = features::connected_components(
-        features::PreparedMolecule{fragment.molecule()}.topology().adjacency());
+    const auto pieces =
+        features::connected_components(features::PreparedMolecule{fragment.molecule()}.topology());
     REQUIRE(pieces.size() == 3);
     auto budget_differs_from_formal_charge = false;
     for (const auto& piece : pieces) {

@@ -26,8 +26,6 @@ class TopologyFeatures {
 
     [[nodiscard]] auto degree(std::size_t atom_index) const -> std::size_t;
 
-    [[nodiscard]] auto adjacency() const noexcept -> const std::vector<std::vector<std::size_t>>&;
-
     [[nodiscard]] auto neighbor_indices(std::size_t atom_index) const
         -> std::span<const std::size_t>;
 

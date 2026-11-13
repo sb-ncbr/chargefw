@@ -36,7 +36,7 @@ constexpr auto alpha = 14.4;
 
 auto TSEFMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
-    if (!features::is_connected(input.prepared_molecule.topology().adjacency())) {
+    if (!features::is_connected(input.prepared_molecule.topology())) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::unsupported_molecule,
             .message = "TSEF requires all atoms to be joined by bonds into one bonded part"});
@@ -61,7 +61,7 @@ auto TSEFMethod::calculate(const CalculationInput& input) const -> charges::Atom
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n + 1, n + 1);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(n + 1);
 
-    const auto bond_distances = features::all_pairs_bond_distances(input.topology().adjacency());
+    const auto bond_distances = features::all_pairs_bond_distances(input.topology());
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
         const auto i = static_cast<Eigen::Index>(atom_index);

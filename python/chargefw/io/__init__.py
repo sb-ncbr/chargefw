@@ -6,13 +6,12 @@ import warnings
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 from .._arrays import index_array
 from .._calculation_values import CalculationResult
-from .._chargefw import adapters as _native_adapters
-from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
-from ..core import (
+from .._chargefw import io as _native_io
+from .._core import (
     ImportIssue,
     Molecule,
     MoleculeCollection,
@@ -21,8 +20,11 @@ from ..core import (
     SourceConformerReference,
     SourceHierarchyLabels,
     SourceMapping,
+    SourcePolicy,
     SourceStructuralLabels,
 )
+from .._errors import ParseError
+from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 
 if TYPE_CHECKING:
     from .._chargefw.calculation import _NativeExecutionResult
@@ -32,38 +34,56 @@ type OutputFormat = Literal["mol2", "mmcif", "pqr", "result-json"]
 type RecordSelection = Literal["all", "polymers-and-ligands", "polymers"]
 type BondStrategy = Literal["none", "explicit", "templates", "hybrid"]
 type ConformerSelection = Literal["first", "all"]
+type IfExists = Literal["error", "replace"]
 
 INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif")
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "pqr", "result-json")
 _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
+
+
+def _replace_existing(if_exists: IfExists) -> bool:
+    """Whether attach_charges() may replace charges that are already there."""
+
+    if not isinstance(if_exists, str):
+        raise TypeError("if_exists must be a string")
+    if if_exists not in ("error", "replace"):
+        raise ValueError("if_exists must be 'error' or 'replace'")
+    return if_exists == "replace"
+
+
 _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
+_OPTION_VALUES: dict[str, tuple[str, ...]] = {
+    "selection": get_args(RecordSelection.__value__),
+    "bonds": get_args(BondStrategy.__value__),
+    "conformers": get_args(ConformerSelection.__value__),
+}
 
 
 class _ImportedMolecule(Molecule):
-    __slots__ = ("_import_issues", "_native_input_metadata")
+    __slots__ = ("_import_warnings", "_native_input_metadata")
 
-    _import_issues: tuple[ImportIssue, ...]
-    _native_input_metadata: _native_adapters._NativeInputMetadata
+    _import_warnings: tuple[ImportIssue, ...]
+    _native_input_metadata: _native_io._NativeInputMetadata
 
     @property
-    def import_issues(self) -> tuple[ImportIssue, ...]:
+    def import_warnings(self) -> tuple[ImportIssue, ...]:
         """Cautions from reading this molecule's file."""
 
-        return self._import_issues
+        return self._import_warnings
 
 
-def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
+def _molecule(payload: _native_io.MoleculePayload) -> Molecule:
     coordinates = payload["coordinates"] or None
     import_metadata = payload["import_metadata"]
 
     def atom_reference(
-        value: _native_adapters.AtomReferencePayload,
+        value: _native_io.AtomReferencePayload,
     ) -> SourceAtomReference:
         position, source_id, labels = value
         return SourceAtomReference(
-            position,
-            source_id,
-            None
+            position=position,
+            id=source_id,
+            structural_labels=None
             if labels is None
             else SourceStructuralLabels(
                 author=SourceHierarchyLabels(**labels["author"]),
@@ -83,19 +103,18 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
             atoms=tuple(atom_reference(value) for value in import_metadata["atoms"]),
             conformers=tuple(
                 SourceConformerReference(
-                    position,
-                    source_id,
-                    tuple(atom_reference(value) for value in sites),
+                    position=position,
+                    id=source_id,
+                    sites=tuple(atom_reference(value) for value in sites),
                 )
                 for position, source_id, sites in import_metadata["conformers"]
             ),
             source_connectivity=import_metadata["source_connectivity"],
-            record_selection=import_metadata["record_selection"],
-            alternate_location_selection=import_metadata["alternate_location_selection"],
-            conformer_selection=import_metadata["conformer_selection"],
-            bond_strategy=import_metadata["bond_strategy"],
+            policy=SourcePolicy(**import_metadata["policy"]),
             components=tuple(
-                SourceComponentInstance(component_id, tuple(atom_indices))
+                SourceComponentInstance(
+                    component_id=component_id, atom_indices=index_array(atom_indices)
+                )
                 for component_id, atom_indices in import_metadata["components"]
             ),
         )
@@ -108,7 +127,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
         name=payload["name"],
         atom_names=payload["atom_names"],
         conformer_names=payload["conformer_names"],
-        source_name=payload["source"],
+        source_name=payload["source_name"],
         record_index=payload["record_index"],
         record_id=payload["record_id"],
         atom_ids=(
@@ -123,21 +142,25 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
     object.__setattr__(result, "_source_mapping", source_mapping)
     object.__setattr__(
         result,
-        "_import_issues",
+        "_import_warnings",
         tuple(
-            ImportIssue(kind, message, line, index_array(atoms), index_array(bonds))
-            for kind, message, line, atoms, bonds in payload["import_issues"]
+            ImportIssue(
+                kind=kind,
+                message=message,
+                line=line,
+                atom_indices=index_array(atoms),
+                bond_indices=index_array(bonds),
+            )
+            for kind, message, line, atoms, bonds in payload["import_warnings"]
         ),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
     return result
 
 
-def _collection(
-    payloads: list[_native_adapters.MoleculePayload], source_name: str
-) -> MoleculeCollection:
+def _collection(payloads: list[_native_io.MoleculePayload], source_name: str) -> MoleculeCollection:
     molecules = tuple(_molecule(payload) for payload in payloads)
-    return MoleculeCollection(molecules, source_name)
+    return MoleculeCollection(molecules, name=source_name)
 
 
 def _validate_options(
@@ -150,6 +173,15 @@ def _validate_options(
         raise TypeError("format must be a string")
     if format not in INPUT_FORMATS:
         raise ValueError(f"unsupported molecular input format: {format}")
+    # Checked here, so that the native reader rejects only the input, as a ParseError.
+    for name, value in (("selection", selection), ("bonds", bonds), ("conformers", conformers)):
+        if name == "bonds" and value is None:
+            continue
+        if not isinstance(value, str):
+            raise TypeError(f"{name} must be a string")
+        if value not in _OPTION_VALUES[name]:
+            allowed = ", ".join(repr(choice) for choice in _OPTION_VALUES[name])
+            raise ValueError(f"{name} must be one of {allowed}")
     if format not in _STRUCTURAL_FORMATS:
         if selection != "all":
             raise ValueError("selection is only supported for PDB and mmCIF input")
@@ -190,9 +222,13 @@ def _parse(
     if not isinstance(source_name, str):
         raise TypeError("source_name must be a string")
     _validate_options(format, selection, bonds, conformers)
-    payloads = _native_adapters._parse(
-        contents, source_name, format, selection, "hybrid" if bonds is None else bonds, conformers
-    )
+    bond_strategy = "hybrid" if bonds is None else bonds
+    try:
+        payloads = _native_io._parse(
+            contents, source_name, format, selection, bond_strategy, conformers
+        )
+    except (RuntimeError, ValueError, IndexError) as error:
+        raise ParseError(str(error)) from None
     return _collection(payloads, source_name)
 
 
@@ -209,13 +245,13 @@ def _import_warnings(
         (
             (index, issue)
             for index, molecule in enumerate(collection)
-            for issue in molecule.import_issues
+            for issue in molecule.import_warnings
         ),
         kinds=IMPORT_WARNING_KINDS,
         category=InputWarning,
         molecule_count=len(collection),
         describe=describe,
-        attribute="molecule.import_issues",
+        attribute="molecule.import_warnings",
     )
 
 
@@ -232,8 +268,12 @@ def read(
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
+    try:
+        contents = source_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise ParseError(f"{source_path}: {error}") from None
     collection = _parse(
-        source_path.read_text(encoding="utf-8"),
+        contents,
         format,
         str(source_path),
         selection,
@@ -272,7 +312,7 @@ def dumps(
         raise TypeError("format must be a string")
     if format not in OUTPUT_FORMATS:
         raise ValueError(f"unsupported calculation output format: {format}")
-    return _native_adapters._dumps(results, format)
+    return _native_io._dumps(results, format)
 
 
 def write(
@@ -300,6 +340,7 @@ __all__ = [
     "RecordSelection",
     "BondStrategy",
     "ConformerSelection",
+    "IfExists",
     "parse",
     "read",
     "dumps",

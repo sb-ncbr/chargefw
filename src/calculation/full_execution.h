@@ -1,9 +1,10 @@
 #pragma once
 
+#include "methods/method_applicability.h"
+
 #include <chargefw/calculation/observer.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/features/prepared_molecule_collection.h>
-#include <chargefw/methods/method_applicability.h>
 
 #include <cstddef>
 

@@ -1,0 +1,51 @@
+#pragma once
+
+#include <chargefw/core/bond.h>
+#include <chargefw/io/molecule_record.h>
+#include <chargefw/io/structure_options.h>
+
+#include "selection.h"
+
+#include <gemmi/model.hpp>
+
+namespace gemmi::cif {
+struct Block;
+}
+
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+namespace chargefw::io::gemmi::bonds {
+
+// Whether explicit bonds carry source bond orders (mmCIF component bonds) or only connectivity
+// (PDB CONECT). The hybrid strategy lets source orders override template orders for the same pair.
+enum class ExplicitBondOrders : std::uint8_t {
+    connectivity_only,
+    from_source,
+};
+
+[[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
+                          std::vector<core::Bond> explicit_bonds,
+                          ExplicitBondOrders explicit_orders) -> std::vector<core::Bond>;
+
+// Bonds stated in the file. Connections to atoms of a symmetry-related copy are not bonds of
+// the molecule; they are counted, not added.
+struct ExplicitBonds {
+    std::vector<core::Bond> bonds;
+    std::size_t skipped_symmetry_connections = 0;
+    // Indices in bonds of the aromatic bonds, read as single bonds. The record keeps explicit bonds
+    // first and in this order, so these are its bond indices too.
+    std::vector<std::size_t> aromatic_bonds = {};
+};
+
+[[nodiscard]] auto explicit_pdb(const ::gemmi::Structure& structure,
+                                const selection::SelectedModel& model) -> ExplicitBonds;
+
+[[nodiscard]] auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
+                                  const selection::SelectedModel& model) -> ExplicitBonds;
+
+// The record warning for skipped connections to symmetry copies.
+[[nodiscard]] auto symmetry_connections_issue(std::size_t count) -> ImportIssue;
+
+} // namespace chargefw::io::gemmi::bonds

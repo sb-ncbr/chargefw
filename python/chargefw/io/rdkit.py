@@ -9,9 +9,10 @@ from typing import Any, Literal
 import numpy as np
 
 from .._arrays import as_integer
-from ..calculation import CalculationResult
-from ..charges import ChargeAssignment
-from ..core import Molecule
+from .._calculation import CalculationResult
+from .._charges import ChargeAssignment
+from .._core import Molecule
+from . import IfExists, _replace_existing
 
 try:
     from rdkit import Chem as _rdkit  # type: ignore[import-not-found, unused-ignore]
@@ -136,12 +137,12 @@ def from_mol(
 
 
 def _assignment(
-    result: CalculationResult, molecule_index: int, conformer: int | None
+    result: CalculationResult, molecule_index: int, conformer_index: int | None
 ) -> ChargeAssignment:
     assignments = result.assignments_by_molecule[molecule_index]
-    if conformer is None and len(assignments) == 1:
+    if conformer_index is None and len(assignments) == 1:
         return assignments[0]
-    return result.assignment(molecule=molecule_index, conformer=conformer)
+    return result.assignment(molecule_index=molecule_index, conformer_index=conformer_index)
 
 
 def attach_charges(
@@ -149,9 +150,9 @@ def attach_charges(
     result: CalculationResult,
     *,
     molecule_index: int = 0,
-    conformer: int | None = None,
+    conformer_index: int | None = None,
     property_name: str = "ChargeFWPartialCharge",
-    overwrite: bool = False,
+    if_exists: IfExists = "error",
 ) -> None:
     """Attach one calculated charge assignment to RDKit atom properties in place."""
 
@@ -163,21 +164,22 @@ def attach_charges(
     molecule_index = as_integer(molecule_index, "molecule_index")
     if molecule_index < 0 or molecule_index >= len(result.molecules):
         raise IndexError("molecule_index is outside the calculation input collection")
-    if conformer is not None:
-        conformer = as_integer(conformer, "conformer", expected="an integer or None")
+    if conformer_index is not None:
+        conformer_index = as_integer(
+            conformer_index, "conformer_index", expected="an integer or None"
+        )
     if not isinstance(property_name, str):
         raise TypeError("property_name must be a string")
     if not property_name:
         raise ValueError("property_name must not be empty")
-    if not isinstance(overwrite, bool):
-        raise TypeError("overwrite must be a bool")
+    replace = _replace_existing(if_exists)
 
-    assignment = _assignment(result, molecule_index, conformer)
+    assignment = _assignment(result, molecule_index, conformer_index)
     source = result.molecules[molecule_index]
     if molecule.GetNumAtoms() != source.atom_count:
         raise ValueError("RDKit target atom count does not match the calculation input")
     property_list_name = f"atom.dprop.{property_name}"
-    if not overwrite and molecule.HasProp(property_list_name):
+    if not replace and molecule.HasProp(property_list_name):
         raise ValueError(f"RDKit molecule already has property {property_list_name!r}")
     atom_indices: list[int] = []
     for atom_id in source.atom_ids:
@@ -199,7 +201,7 @@ def attach_charges(
             raise ValueError("RDKit target atom mapping does not match atomic numbers")
         if atom.GetFormalCharge() != int(source.formal_charges[source_index]):
             raise ValueError("RDKit target atom mapping does not match formal charges")
-        if not overwrite and atom.HasProp(property_name):
+        if not replace and atom.HasProp(property_name):
             raise ValueError(f"RDKit atom already has property {property_name!r}")
 
     for atom_index, charge in zip(atom_indices, assignment.values, strict=True):

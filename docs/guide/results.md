@@ -43,7 +43,8 @@ peoe 0 None [-0.042  0.041 -0.395]
 
 EEM depends on geometry, so the charges differ between conformers. PEOE does not, and its single
 assignment has no conformer index. To get one assignment directly, use
-`result.assignment(molecule=0, conformer=1)`; omit `conformer` for methods that do not use coordinates.
+`result.assignment(molecule_index=0, conformer_index=1)`; omit `conformer_index` for methods that do
+not use coordinates.
 
 The result JSON written by the command line lists the same assignments under `results[i].assignments`,
 each with a `target` naming its molecule and conformer.
@@ -93,7 +94,7 @@ result JSON lists each one.
 Result JSON records each warning with its code in the `diagnostics` of the molecule's record, or of
 the document when it concerns no single molecule. In Python, the warnings that can make the charges
 wrong are also [Python warnings](../interfaces/python.md#warnings), which Python prints when your
-script runs; every warning is recorded in `molecule.import_issues`, `result.input_warnings`,
+script runs; every warning is recorded in `molecule.import_warnings`, `result.input_warnings`,
 `result.charge_warnings`, or `result.plan.warnings`.
 
 | Code | Meaning | What to do | Python warning |
@@ -135,7 +136,7 @@ the parameter set gives the molecule no single energy minimum at its geometry, a
 through rounding when it comes close to that. With cutoff and cover execution, each fragment's
 equations are checked, not those of the whole molecule. Check the geometry, or use another parameter
 set. The command line still writes the result JSON, with the reasons, and exits with a
-[status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.ChargeFWError`;
+[status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.CalculationError`;
 its `result` attribute holds the same information. Here the parameter set has no values for chlorine
 in chlorobenzene:
 
@@ -147,7 +148,7 @@ molecule = chargefw.io.rdkit.from_mol(chlorobenzene)
 
 try:
     result = chargefw.calculate(molecule, method="eem", parameter_set="EEM_Baek1991")
-except chargefw.ChargeFWError as error:
+except chargefw.CalculationError as error:
     for rejection in error.result.rejections:
         for issue in rejection.issues:
             print(rejection.method.id, issue.message)

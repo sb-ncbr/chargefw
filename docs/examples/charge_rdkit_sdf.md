@@ -6,8 +6,8 @@ RDKit atom properties. For [paracetamol.sdf](../getting-started/paracetamol.sdf)
 ```console
 $ pip install --pre "chargefw[rdkit]"
 $ python charge_rdkit_sdf.py paracetamol.sdf charged.sdf --method eem
-Model: eem/EEM_Ionescu2013_mpa_gas
-'paracetamol': total=+0.000 most positive=C2 (+0.663)
+Model: eem/EEM_NEEMP_ccd2016_npa
+'paracetamol': total=+0.000 most positive=C2 (+0.478)
 ```
 
 The output SDF stores the charges in an `atom.dprop.ChargeFWPartialCharge` property, which RDKit turns
@@ -16,7 +16,7 @@ parameter set are stored as the molecule properties `ChargeFWMethod` and `Charge
 
 ```text
 >  <atom.dprop.ChargeFWPartialCharge>  (1)
--0.59206907471962755 0.6627205551444264 -0.71953022932935029 ...
+-0.59586795804550241 0.47829714521921546 -0.63115993457608788 ...
 
 >  <ChargeFWMethod>  (1)
 eem

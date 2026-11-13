@@ -6,9 +6,9 @@ conformer's net charge and dipole moment of the point charges, in debye. For
 
 ```console
 $ python calculate_dipole_moments.py paracetamol.sdf --format sdf --method eem
-Model: eem/EEM_Ionescu2013_mpa_gas
+Model: eem/EEM_NEEMP_ccd2016_npa
 molecule  conformer  net charge   |mu| (D)     mu_x      mu_y      mu_z
-       0          0      +0.000      5.796    -4.969    +2.548    +1.551
+       0          0      -0.000      5.048    -4.010    +2.672    +1.503
 ```
 
 With a method that does not use geometry, every conformer has the same charges, and only the geometry

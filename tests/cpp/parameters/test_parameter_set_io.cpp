@@ -8,6 +8,8 @@
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
+#include <algorithm>
+#include <array>
 #include <filesystem>
 #include <sstream>
 #include <stdexcept>
@@ -196,6 +198,22 @@ TEST_CASE("bundled parameter sets identify registered methods and satisfy their 
         const auto* method = registry.find(parameter_set.method_id());
         REQUIRE(method != nullptr);
         const auto requirements = method->requirements();
+        const auto used = [](const auto& names, const std::string_view name) {
+            return std::ranges::find(names, name) != names.end();
+        };
+        for (const auto& parameter : parameter_set.common().parameters()) {
+            CHECK(used(requirements.common_parameters, parameter.name));
+        }
+        for (const auto& entry : parameter_set.atom().entries()) {
+            for (const auto& parameter : entry.parameters) {
+                CHECK(used(requirements.atom_parameters, parameter.name));
+            }
+        }
+        for (const auto& entry : parameter_set.bond().entries()) {
+            for (const auto& parameter : entry.parameters) {
+                CHECK(used(requirements.bond_parameters, parameter.name));
+            }
+        }
 
         for (const auto name : requirements.common_parameters) {
             CHECK(parameter_set.common().contains(name));
@@ -265,6 +283,38 @@ TEST_CASE("parameter set rejects malformed JSON", "[parameters][io]") {
                      R"({"element": "H", "classifier": "plain", "type": "*"}], )"
                      R"("bond": {"classifier": "plain", "type": "1"}}, "values": [1.0]}]})"),
         std::invalid_argument, snitch::matchers::with_what_contains{"bond.data[0].key.bond.type"});
+}
+
+TEST_CASE("parameter set rejects content this version does not read", "[parameters][io]") {
+    const auto load = [](const std::string_view metadata, const std::string_view rest) {
+        std::istringstream input{R"({"metadata": {"id": "test", "method": "eem")" +
+                                 std::string{metadata} + "}" + std::string{rest} + "}"};
+        static_cast<void>(parameters::load_parameter_set_json(input));
+    };
+    const auto atom = [](const std::string_view key_extra, const std::string_view entry_extra) {
+        return R"(, "atom": {"names": ["A"], "data": [{"key": {"element": "H", )"
+               R"("classifier": "plain", "type": "*")" +
+               std::string{key_extra} + R"(}, "values": [1.0])" + std::string{entry_extra} + "}]}";
+    };
+
+    // One unknown member at each level, and a later format version.
+    const auto rejected = std::array{
+        std::pair{std::string{}, std::string{R"(, "solvent": {})"}},
+        std::pair{std::string{},
+                  std::string{R"(, "common": {"names": [], "values": [], "unit": "eV"})"}},
+        std::pair{std::string{}, atom(R"(, "charge": 1)", "")},
+        std::pair{std::string{}, atom("", R"(, "weight": 2)")},
+        std::pair{std::string{R"(, "format_version": 2)"}, std::string{}},
+    };
+    for (const auto& [metadata, rest] : rejected) {
+        CAPTURE(metadata, rest);
+        CHECK_THROWS_AS(load(metadata, rest), std::invalid_argument);
+    }
+    CHECK_THROWS_MATCHES(load("", atom(R"(, "charge": 1)", "")), std::invalid_argument,
+                         snitch::matchers::with_what_contains{"atom.data[0].key"});
+
+    // Metadata may hold other members; format version 1 is the default.
+    CHECK_NOTHROW(load(R"(, "format_version": 1, "source": "protein")", atom("", "")));
 }
 
 TEST_CASE("parameter set rejects priorities outside uint16 range", "[parameters][io]") {

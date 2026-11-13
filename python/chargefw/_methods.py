@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -10,7 +11,7 @@ from numpy.typing import NDArray
 from ._arrays import index_array
 from ._catalog import _Catalog
 from ._chargefw import methods as _native_methods
-from ._parameters import ParameterSetCatalog
+from ._parameters import ParameterSet, ParameterSetCatalog
 from ._payloads import MethodDescriptorPayload
 from ._public import set_public_module
 from ._types import (
@@ -20,7 +21,7 @@ from ._types import (
 )
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class PrerequisiteIssue:
     kind: PrerequisiteIssueKind
     message: str
@@ -34,14 +35,14 @@ class PrerequisiteIssue:
     bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ExecutionIssue:
     kind: ExecutionIssueKind
     message: str
     molecule_index: int | None = None
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class MethodOption:
     id: str
     description: str
@@ -66,12 +67,12 @@ class MethodOptionCatalog(_Catalog[MethodOption]):
         super().__init__(values, "method option")
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class Method:
     id: str
     name: str
     full_name: str
-    publication: str | None
+    publication: str
     notes: str
     recommended: bool
     requires_coordinates: bool
@@ -81,8 +82,9 @@ class Method:
     supports_cutoff: bool
     supports_cover: bool
     supports_fixed_ions: bool
-    options: MethodOptionCatalog
-    parameter_sets: ParameterSetCatalog
+    # Mappings by ID, in order; the catalog classes behind them are private.
+    options: Mapping[str, MethodOption]
+    parameter_sets: Mapping[str, ParameterSet]
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(id={self.id!r}, name={self.name!r})"
@@ -104,7 +106,8 @@ def _method_descriptor(
         id=value["id"],
         name=value["name"],
         full_name=value["full_name"],
-        publication=value["publication"],
+        # Absent text is "" in Python, as for parameter sets.
+        publication=value["publication"] or "",
         notes=value["notes"],
         recommended=value["recommended"],
         requires_coordinates=value["requires_coordinates"],
@@ -134,7 +137,7 @@ def _method_descriptor(
             tuple(
                 parameter_set
                 for parameter_set in parameter_sets.values()
-                if parameter_set.method == value["id"]
+                if parameter_set._method_id == value["id"]
             )
         ),
     )
@@ -143,12 +146,19 @@ def _method_descriptor(
 def _method_catalog(parameter_sets: ParameterSetCatalog) -> MethodCatalog:
     """Build method descriptors linked to the bundled parameter catalog."""
 
-    return MethodCatalog(
+    catalog = MethodCatalog(
         tuple(
             _method_descriptor(value, parameter_sets)
             for value in _native_methods._method_descriptors()
         )
     )
+    for method in catalog.values():
+        for parameter_set in method.parameter_sets.values():
+            parameter_set._link(method)
+    unlinked = [value.id for value in parameter_sets.values() if value._method_id not in catalog]
+    if unlinked:
+        raise RuntimeError(f"bundled parameter sets for unknown methods: {', '.join(unlinked)}")
+    return catalog
 
 
 set_public_module("chargefw", PrerequisiteIssue, ExecutionIssue, MethodOption, Method)

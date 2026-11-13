@@ -2,6 +2,7 @@
 #include <chargefw/parameters/classification/parameter_classifier.h>
 
 #include "core/diagnostic_description.h"
+#include "parameters/classification/classification_checks.h"
 #include "parameters/classification/type_keys.h"
 
 #include <algorithm>
@@ -150,7 +151,7 @@ auto find_entry(const Parameters& parameters, const ClassificationOptions& optio
     };
     auto match = scan(false);
 
-    if (!match && options.permissive_types) {
+    if (!match && options.parameter_matching == ParameterMatching::permissive) {
         match = scan(true);
     }
 

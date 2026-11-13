@@ -24,7 +24,7 @@ def test_public_classes_report_a_public_module() -> None:
     # Renaming __module__ must keep annotations resolvable by typing.get_type_hints().
     for module in (
         chargefw,
-        chargefw.calculation,
+        chargefw.io,
         chargefw.parameterization,
         chargefw.parameterization.profiles,
     ):

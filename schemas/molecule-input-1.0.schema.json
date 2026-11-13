@@ -30,6 +30,7 @@
     }
   ],
   "type": "object",
+  "additionalProperties": false,
   "required": ["schema_version", "molecules"],
   "properties": {
     "schema_version": {
@@ -45,6 +46,7 @@
   "$defs": {
     "molecule": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["atoms"],
       "properties": {
         "id": {
@@ -75,6 +77,7 @@
     },
     "atom": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["atomic_number", "formal_charge"],
       "properties": {
         "atomic_number": {
@@ -91,6 +94,7 @@
     },
     "bond": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["atoms", "order"],
       "properties": {
         "atoms": {
@@ -110,6 +114,7 @@
     },
     "conformer": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["coordinates"],
       "properties": {
         "id": {

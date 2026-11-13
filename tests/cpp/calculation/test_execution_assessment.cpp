@@ -31,9 +31,8 @@ TEST_CASE("full execution warns above the cutoff threshold only for expensive me
     const features::PreparedMoleculeCollection molecules{collection};
 
     const chargefw::test::StubMethod inexpensive{"resource-test"};
-    CHECK(
-        assess_execution(inexpensive, molecules, {.cutoff_atom_threshold = 1}, ExecutionMode::full)
-            .availability == ExecutionAvailability::available);
+    CHECK(assess_execution(inexpensive, molecules, {.cutoff_threshold = 1}, ExecutionMode::full)
+              .availability == ExecutionAvailability::available);
 
     const chargefw::test::StubMethod expensive{
         "resource-test",
@@ -43,20 +42,20 @@ TEST_CASE("full execution warns above the cutoff threshold only for expensive me
         return assess_execution(expensive, molecules, policy, ExecutionMode::full);
     };
 
-    const auto below = full({.cutoff_atom_threshold = 3});
+    const auto below = full({.cutoff_threshold = 3});
     CHECK(below.availability == ExecutionAvailability::available);
     CHECK(below.issues.empty());
 
-    const auto above = full({.cutoff_atom_threshold = 2});
+    const auto above = full({.cutoff_threshold = 2});
     CHECK(above.availability == ExecutionAvailability::available_with_warning);
     REQUIRE(above.issues.size() == 1);
     CHECK(above.issues[0].kind == calculation::ExecutionIssueKind::resource_threshold_exceeded);
     CHECK(above.issues[0].molecule_index == std::optional<std::size_t>{0});
 
     // One issue per molecule above the threshold; none without a threshold.
-    CHECK(full({.cutoff_atom_threshold = 1}).issues.size() == molecules.size());
+    CHECK(full({.cutoff_threshold = 1}).issues.size() == molecules.size());
     const auto unlimited =
-        full({.cutoff_atom_threshold = std::nullopt, .cover_atom_threshold = std::nullopt});
+        full({.cutoff_threshold = std::nullopt, .cover_threshold = std::nullopt});
     CHECK(unlimited.availability == ExecutionAvailability::available);
     CHECK(unlimited.issues.empty());
 
@@ -65,7 +64,7 @@ TEST_CASE("full execution warns above the cutoff threshold only for expensive me
     REQUIRE(mgc != nullptr);
     const core::MoleculeCollection graph{std::vector{chargefw::test::make_water_graph()}};
     const features::PreparedMoleculeCollection prepared_graph{graph};
-    const calculation::ResourcePolicy policy{.cutoff_atom_threshold = 2};
+    const calculation::ResourcePolicy policy{.cutoff_threshold = 2};
     CHECK(assess_execution(*mgc, prepared_graph, policy, ExecutionMode::full).availability ==
           ExecutionAvailability::available_with_warning);
     for (const auto mode : {ExecutionMode::cutoff, ExecutionMode::cover}) {
@@ -99,8 +98,7 @@ TEST_CASE("reduced execution requires coordinates and declared support",
     }
 
     // Cutoff execution of a molecule above the cover threshold warns; cover does not.
-    const calculation::ResourcePolicy small_cover{.cutoff_atom_threshold = 1,
-                                                  .cover_atom_threshold = 2};
+    const calculation::ResourcePolicy small_cover{.cutoff_threshold = 1, .cover_threshold = 2};
     CHECK(assess_execution(spatial, molecules, small_cover, ExecutionMode::cutoff).availability ==
           ExecutionAvailability::available_with_warning);
     CHECK(assess_execution(spatial, molecules, small_cover, ExecutionMode::cover).availability ==

@@ -6,17 +6,16 @@
 #include "native_parameter_catalog.h"
 #include "numpy_values.h"
 
-#include "adapters/fixed_ions.h"
+#include "io/fixed_ions.h"
 
-#include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/calculation/observer.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/io/charge_result.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/methods/method_options.h>
 
 #include <nanobind/nanobind.h>
@@ -48,52 +47,44 @@ namespace nb = nanobind;
 namespace chargefw::python {
 namespace {
 
-auto method_options(const nb::dict& values)
-    -> std::unordered_map<std::string, methods::MethodOptions> {
-    std::unordered_map<std::string, methods::MethodOptions> result;
-    for (const auto& [method_value, options_value] : values) {
-        const auto method_id = nb::cast<std::string>(method_value);
-        const auto options = nb::cast<nb::dict>(options_value);
-        std::unordered_map<std::string, methods::MethodOptionValue> native_values;
-        for (const auto& [option_value, value] : options) {
-            const auto option_id = nb::cast<std::string>(option_value);
-            if (nb::isinstance<nb::bool_>(value)) {
-                native_values.emplace(option_id, nb::cast<bool>(value));
-            } else if (nb::isinstance<nb::int_>(value)) {
-                native_values.emplace(option_id, nb::cast<int>(value));
-            } else if (nb::isinstance<nb::float_>(value)) {
-                native_values.emplace(option_id, nb::cast<double>(value));
-            } else if (nb::isinstance<nb::str>(value)) {
-                native_values.emplace(option_id, nb::cast<std::string>(value));
-            } else {
-                throw std::invalid_argument{
-                    "method option values must be bool, int, float, or str"};
-            }
+auto method_options(const nb::dict& options) -> methods::MethodOptions {
+    std::unordered_map<std::string, methods::MethodOptionValue> native_values;
+    for (const auto& [option_value, value] : options) {
+        const auto option_id = nb::cast<std::string>(option_value);
+        if (nb::isinstance<nb::bool_>(value)) {
+            native_values.emplace(option_id, nb::cast<bool>(value));
+        } else if (nb::isinstance<nb::int_>(value)) {
+            native_values.emplace(option_id, nb::cast<int>(value));
+        } else if (nb::isinstance<nb::float_>(value)) {
+            native_values.emplace(option_id, nb::cast<double>(value));
+        } else if (nb::isinstance<nb::str>(value)) {
+            native_values.emplace(option_id, nb::cast<std::string>(value));
+        } else {
+            throw std::invalid_argument{"method option values must be bool, int, float, or str"};
         }
-        result.emplace(method_id, methods::MethodOptions{std::move(native_values)});
     }
-    return result;
+    return methods::MethodOptions{std::move(native_values)};
 }
 
-[[nodiscard]] auto portable_id(const nb::handle value) -> adapters::PortableId {
+[[nodiscard]] auto portable_id(const nb::handle value) -> io::PortableId {
     if (value.is_none()) {
         return {};
     }
     if (nb::isinstance<nb::str>(value)) {
-        return adapters::PortableId{nb::cast<std::string>(value)};
+        return io::PortableId{nb::cast<std::string>(value)};
     }
     if (nb::isinstance<nb::bool_>(value) || !nb::isinstance<nb::int_>(value)) {
         throw std::invalid_argument{"record ID must be a string, integer, or None"};
     }
-    return adapters::PortableId{nb::cast<std::int64_t>(value)};
+    return io::PortableId{nb::cast<std::int64_t>(value)};
 }
 
 [[nodiscard]] auto portable_ids(const nb::handle value)
-    -> std::optional<std::vector<adapters::PortableId>> {
+    -> std::optional<std::vector<io::PortableId>> {
     if (value.is_none()) {
         return std::nullopt;
     }
-    auto result = std::vector<adapters::PortableId>{};
+    auto result = std::vector<io::PortableId>{};
     const auto values = nb::cast<nb::sequence>(value);
     result.reserve(static_cast<std::size_t>(nb::len(values)));
     for (const auto& item : values) {
@@ -156,7 +147,7 @@ auto effective_calculation(const calculation::EffectiveCalculation& effective) -
     result["method_options"] = method_options(effective.method_options);
     result["execution_policy"] = execution_policy(effective.execution_policy);
     auto issues = nb::list{};
-    for (const auto& issue : effective.execution_issues) {
+    for (const auto& issue : effective.warnings) {
         issues.append(execution_issue(issue));
     }
     result["execution_issues"] = std::move(issues);
@@ -316,9 +307,8 @@ auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
 class NativeAssessment {
   public:
     NativeAssessment(calculation::AssessmentResult assessment,
-                     std::vector<adapters::ImportedMoleculeRecord> inputs,
-                     adapters::RequestedCalculationProvenance requested,
-                     const std::size_t max_threads)
+                     std::vector<io::ImportedMoleculeRecord> inputs,
+                     io::RequestedCalculationProvenance requested, const std::size_t max_threads)
         : state_{std::make_shared<NativeAssessmentState>(std::move(assessment), std::move(inputs),
                                                          std::move(requested), max_threads)} {}
 
@@ -348,7 +338,7 @@ class NativeAssessment {
                 return calculation::calculate(state_->assessment_, state_->max_threads_,
                                               native_observer);
             });
-        return NativeExecutionResult{adapters::make_charge_calculation_result(
+        return NativeExecutionResult{io::make_charge_calculation_result(
             state_->inputs_, state_->requested_, std::move(result))};
     }
 
@@ -361,7 +351,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                      std::string molecule_collection_name, const NativeParameterCatalog& catalog,
                      std::optional<std::string> method_id,
                      std::optional<std::string> parameter_set_id, const std::string& method_scope,
-                     const nb::dict& options, const bool permissive_types,
+                     const nb::dict& options, const std::string& parameter_matching,
                      const std::string& execution, const std::optional<double> radius,
                      const std::optional<std::size_t> cutoff_threshold,
                      const std::optional<std::size_t> cover_threshold,
@@ -378,8 +368,8 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
     }
     auto source_molecules = std::vector<const core::Molecule*>{};
     auto source_metadata = std::vector<const NativeInputMetadata*>{};
-    auto source_identities = std::vector<adapters::MoleculeRecordIdentity>{};
-    auto source_caller_atom_ids = std::vector<std::optional<std::vector<adapters::PortableId>>>{};
+    auto source_identities = std::vector<io::MoleculeRecordIdentity>{};
+    auto source_caller_atom_ids = std::vector<std::optional<std::vector<io::PortableId>>>{};
     source_molecules.reserve(molecule_count);
     source_metadata.reserve(molecule_count);
     source_identities.reserve(molecule_count);
@@ -395,18 +385,14 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
             throw std::invalid_argument{"input record identity must contain three values"};
         }
         source_identities.push_back(
-            adapters::MoleculeRecordIdentity{.source = nb::cast<std::string>(identity[0]),
-                                             .record_index = nb::cast<std::size_t>(identity[1]),
-                                             .record_id = portable_id(identity[2])});
+            io::MoleculeRecordIdentity{.source_name = nb::cast<std::string>(identity[0]),
+                                       .record_index = nb::cast<std::size_t>(identity[1]),
+                                       .record_id = portable_id(identity[2])});
         source_caller_atom_ids.push_back(portable_ids(caller_atom_ids[index]));
     }
     auto native_method_options = method_options(options);
-    auto requested_options = std::map<std::string, methods::MethodOptions>{};
-    for (const auto& [id, values] : native_method_options) {
-        requested_options.emplace(id, values);
-    }
     nb::gil_scoped_release release;
-    auto inputs = std::vector<adapters::ImportedMoleculeRecord>{};
+    auto inputs = std::vector<io::ImportedMoleculeRecord>{};
     inputs.reserve(source_molecules.size());
     auto owned_molecules = std::vector<core::Molecule>{};
     owned_molecules.reserve(source_molecules.size());
@@ -414,16 +400,16 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         auto molecule = *source_molecules[index];
         inputs.push_back(
             source_metadata[index] == nullptr
-                ? adapters::ImportedMoleculeRecord{.molecule = molecule,
-                                                   .identity = std::move(source_identities[index]),
-                                                   .caller_atom_ids =
-                                                       std::move(source_caller_atom_ids[index]),
-                                                   .issues = {},
-                                                   .import_metadata = std::nullopt}
+                ? io::ImportedMoleculeRecord{.molecule = molecule,
+                                             .identity = std::move(source_identities[index]),
+                                             .caller_atom_ids =
+                                                 std::move(source_caller_atom_ids[index]),
+                                             .import_warnings = {},
+                                             .import_metadata = std::nullopt}
                 : source_metadata[index]->make_record(molecule));
         owned_molecules.push_back(std::move(molecule));
     }
-    auto resolved_fixed_ions = adapters::detail::resolve_fixed_ions(inputs, fixed_ions);
+    auto resolved_fixed_ions = io::detail::resolve_fixed_ions(inputs, fixed_ions);
     auto request = calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::move(owned_molecules),
                                               std::move(molecule_collection_name)},
@@ -432,27 +418,17 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         .parameter_set_id = std::move(parameter_set_id),
         .method_scope = calculation::method_scope_from_string(method_scope),
         .method_options = std::move(native_method_options),
-        .classification_options = {.permissive_types = permissive_types},
-        .execution_selection =
+        .parameter_matching = parameters::parameter_matching_from_string(parameter_matching),
+        .execution =
             calculation::ExecutionSelection{
-                calculation::execution_selection_kind_from_string(execution), radius},
-        .resource_policy = {.cutoff_atom_threshold = cutoff_threshold,
-                            .cover_atom_threshold = cover_threshold},
+                calculation::execution_selection_mode_from_string(execution), radius},
+        .resource_policy = {.cutoff_threshold = cutoff_threshold,
+                            .cover_threshold = cover_threshold},
         .fixed_ions = resolved_fixed_ions.sources.empty()
                           ? std::nullopt
                           : std::optional{std::move(resolved_fixed_ions)},
     };
-    auto requested = adapters::RequestedCalculationProvenance{
-        .method_id = request.method_id,
-        .parameter_set_id = request.parameter_set_id,
-        .method_scope = request.method_scope,
-        .permissive_types = request.classification_options.permissive_types,
-        .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
-        .cover_atom_threshold = request.resource_policy.cover_atom_threshold,
-        .max_threads = max_threads,
-        .execution_kind = request.execution_selection.kind(),
-        .execution_radius = request.execution_selection.radius(),
-        .method_options = std::move(requested_options)};
+    auto requested = io::make_requested_provenance(request, max_threads, std::move(fixed_ions));
     return NativeAssessment{calculation::assess(std::move(request)), std::move(inputs),
                             std::move(requested), max_threads};
 }
@@ -470,8 +446,8 @@ auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::obj
                                       native_observer);
     });
     auto requested = state_->requested_;
-    requested.max_threads = max_threads.value_or(state_->max_threads_);
-    return NativeExecutionResult{adapters::make_charge_calculation_result(
+    requested.threads = max_threads.value_or(state_->max_threads_);
+    return NativeExecutionResult{io::make_charge_calculation_result(
         state_->inputs_, std::move(requested), std::move(result))};
 }
 
@@ -482,14 +458,12 @@ auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
 }
 
 void bind_calculation(nb::module_& module) {
-    module.attr("_default_cutoff_atom_threshold") =
-        nb::int_(calculation::default_cutoff_atom_threshold);
-    module.attr("_default_cover_atom_threshold") =
-        nb::int_(calculation::default_cover_atom_threshold);
+    module.attr("_default_cutoff_atom_threshold") = nb::int_(calculation::default_cutoff_threshold);
+    module.attr("_default_cover_atom_threshold") = nb::int_(calculation::default_cover_threshold);
 
     module.def("_fixed_ion_names", [](const bool common_only) {
         nb::list names;
-        for (const auto& name : adapters::detail::fixed_ion_names(common_only)) {
+        for (const auto& name : io::detail::fixed_ion_names(common_only)) {
             names.append(nb::cast(name));
         }
         return nb::tuple{names};
@@ -514,7 +488,7 @@ void bind_calculation(nb::module_& module) {
                nb::arg("input_metadata"), nb::arg("identities"), nb::arg("caller_atom_ids"),
                nb::arg("molecule_collection_name"), nb::arg("catalog"), nb::arg("method_id"),
                nb::arg("parameter_set_id"), nb::arg("method_scope"), nb::arg("method_options"),
-               nb::arg("permissive_types"), nb::arg("execution"), nb::arg("radius"),
+               nb::arg("parameter_matching"), nb::arg("execution"), nb::arg("radius"),
                nb::arg("cutoff_threshold"), nb::arg("cover_threshold"), nb::arg("max_threads"),
                nb::arg("fixed_ions") = std::vector<std::string>{});
 }

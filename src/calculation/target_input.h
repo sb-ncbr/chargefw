@@ -1,13 +1,14 @@
 #pragma once
 
 #include "calculation/fixed_charge_partition.h"
+#include "methods/method_applicability.h"
+#include "parameters/classification/classification_checks.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/features/conformer_features.h>
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/methods/calculation_input.h>
 #include <chargefw/methods/method.h>
-#include <chargefw/methods/method_applicability.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 #include <chargefw/parameters/models/parameter_view.h>
 

@@ -4,15 +4,35 @@
 
 ### Input
 
+- Breaking change: the options for reading structures have the same names everywhere, those of
+  `chargefw.io.read()`: `selection`, `bonds`, and `conformers`. On the command line,
+  `--structural-selection` and `--structural-bonds` are now `--selection` and `--bonds`. In result
+  JSON, `import.policy` has `selection`, `bonds`, `conformers`, and `alternate_locations` instead of
+  `record_selection`, `bond_strategy`, `conformer_selection`, and `alternate_location_selection`. In
+  Python, these four are in `SourceMapping.policy`, a new `chargefw.SourcePolicy`; in C++, in
+  `MoleculeImportMetadata::policy`, an `io::ImportPolicy`, and the reader options'
+  `bond_strategy` is `bonds` (`io::StructureOptions`, formerly `adapters::gemmi::InputOptions`).
+- Breaking change: parameter-set files are read strictly. An unknown section, key member, or entry
+  member is an error, and so is a parameter name the method does not use, reported as the new
+  prerequisite issue kind `unknown_parameters`. A set made for another version could otherwise give
+  charges without values it contains. `metadata` may still hold other members, and its new optional
+  `format_version` must be `1`.
 - Errors reading MOL, SDF, and MOL2 input name the line and record, and the source file when supplied.
 - MOL, SDF, MOL2, PDB, and mmCIF input must be ASCII text. A character outside ASCII on any line,
   including comments and SDF data items, is an error that names the line.
 - MOL and SDF records are read for their atoms, bonds, and charges only; everything else is ignored.
   V3000 `SGROUP`, `3D`, and other blocks and V2000 lines such as atom aliases, which were errors, are
   now ignored. Breaking change: the `v2000_property_ignored` warning was removed.
+- Breaking change: molecule JSON input rejects members its format does not define, at every level,
+  so a misspelled member such as `bond` no longer gives a molecule without bonds. The molecule input
+  schema sets `additionalProperties: false` to match.
 
 ### Installation
 
+- A patch release, such as 3.0.1, contains fixes only; a minor release, such as 3.1.0, may also
+  change documented interfaces, with every breaking change marked here. Pin `chargefw~=3.0.0` to stay
+  within one minor version. `chargefw.parameterization` is experimental and may change in any release.
+  [Versions and changes](https://chargefw.readthedocs.io/en/latest/about/versions.html) has the details.
 - On x86-64, the wheels, the Docker image, and source builds target x86-64-v3 (AVX2 and FMA: Intel
   Haswell, AMD Excavator, or newer). Full calculations on large structures run about twice as fast
   with the wheels. On an older CPU, `import chargefw` raises an `ImportError`; build from source with
@@ -20,13 +40,71 @@
 
 ### Python
 
+- Breaking change: `FixedAtomCharge` and `FixedIons` take their attributes as keyword arguments
+  only, as the other value classes, for example
+  `FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG")`.
+- Breaking change: `Method.publication` is `""` for a method without a publication, not `None`,
+  as for parameter sets. `PeriodicTable` can no longer be constructed; use
+  `chargefw.periodic_table`.
+- Breaking change: `Molecule.import_issues` is now `import_warnings`, as `input_warnings`,
+  `charge_warnings`, and `plan.warnings` name the other cautions.
+- Breaking change: both `attach_charges()` functions, in `chargefw.io.gemmi` and
+  `chargefw.io.rdkit`, take `if_exists="error"` (default) or `"replace"` instead of
+  `overwrite=False` or `True`. The values are `chargefw.io.IfExists`.
+- `chargefw.methods`, `chargefw.parameter_sets`, `Method.options`, and `Method.parameter_sets` are
+  typed as `Mapping[str, …]`, as documented, instead of private catalog classes.
+- Breaking change: `cutoff_threshold` and `cover_threshold` take `"unlimited"` for no limit, as
+  on the command line and in result JSON, instead of `None`, which is now rejected.
+  `RequestedCalculation` holds `"unlimited"` too.
+- Breaking change: `SourceComponentInstance.atom_indices` is a read-only NumPy `int64` array, as
+  the `atom_indices` of the issues, not a tuple, so it indexes charges directly. Components
+  compare by identity.
+- Breaking change: slicing a `MoleculeCollection` returns a `MoleculeCollection` with the same
+  `name`, not a tuple. Its `name` argument is keyword-only, defaults to `""`, and no longer
+  accepts `None`.
+- Breaking change: `CalculationResult.assignment()` takes `molecule_index` and `conformer_index`
+  instead of `molecule` and `conformer`, and `chargefw.io.rdkit.attach_charges()` takes
+  `conformer_index` instead of `conformer`, as the attributes of `ChargeAssignment` are named.
+- Breaking change: `Molecule()` takes only `atomic_numbers` by position; the other arguments are
+  keyword-only. The record it came from is given only by `source_name`, `record_index`, and
+  `record_id`; the `source` argument is removed. `name` and `source_name` default to `""` and
+  no longer accept `None`. `SourceIdentity` has only `source_name`, as the argument of
+  `Molecule()` and `chargefw.io.parse()`; its `source` field is removed.
+- Breaking change: `chargefw.ChargeFWError` is the base class of every ChargeFW error and no longer
+  a `RuntimeError`. A failed calculation raises a `chargefw.CalculationError`, which holds `result`
+  and is the base class of `NoExecutablePlanError`, `NumericalFailureError`, and
+  `CalculationCancelledError`. Molecules or a parameter set that `io.read()`, `io.parse()`, or
+  `read_parameter_set()` cannot read raise the new `chargefw.ParseError`, also a `ValueError`,
+  instead of `RuntimeError`, `ValueError`, or `IndexError`. `read_parameter_set()` raises
+  `OSError` for a file it cannot open. `parameterization.EvaluationError` derives from
+  `ChargeFWError` instead of `RuntimeError`.
+- Breaking change: the modules `chargefw.core`, `chargefw.charges`, and `chargefw.calculation` are
+  private; import their classes and functions from `chargefw`, as the documentation does. Every class
+  and function of `chargefw` now reports `chargefw` as its module. `chargefw.io` and
+  `chargefw.parameterization` stay public.
 - Breaking change: RDKit `attach_charges()` delegates explicit conformer selection to
   `CalculationResult.assignment()`. Negative or missing conformers now raise `IndexError` instead of
   `ValueError`; explicit selection no longer falls back to geometry-independent charges and raises
   `ValueError` instead. Omitting `conformer` still selects a single assignment automatically,
   including a conformer-specific assignment.
-- Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
-  `Molecule.source_name` is unchanged.
+- Breaking change: the value classes take their attributes as keyword arguments only, for example
+  `SourceIdentity(source_name="input.sdf", record_index=0)` and
+  `AtomParameterKey(element="C", classifier="bonded", type="COO")`. This covers the issue classes,
+  `SourceIdentity` and the other `Source*` classes, `ChargeAssignment`, `ExecutedPlan`, `Execution`,
+  `ResourceEstimate`, `CalculationProgress`, `CalculationTimings`, `Rejection`, `Method`,
+  `MethodOption`, `ParameterSet`, `AtomParameterKey`, `BondParameterKey`, and `Element`. Their
+  attributes no longer match positional patterns in `match` statements. `Plan.estimate()` takes
+  `threads` as a keyword argument only.
+- Breaking change: an attribute named `method` is always a `Method`, and one named `parameter_set`
+  always a `ParameterSet`. `ParameterSet.method`, `RequestedCalculation.method`, and
+  `RequestedCalculation.parameter_set` were IDs, and `CalculationProgress.method_id` is now
+  `CalculationProgress.method`; use `.id` for the ID. `read_parameter_set()` rejects a file for a
+  method ChargeFW does not have; such a set could be read before but never calculated.
+- Breaking change: `ParameterSet`, `CalculationSettings`, `Plan`, `Assessment`, and
+  `CalculationResult` cannot be constructed; calling the class raises `TypeError`. Get them from
+  `chargefw.parameter_sets`, `read_parameter_set()`, `assess()`, and `calculate()`. `ParameterSet` is
+  no longer a dataclass, so `dataclasses.replace()` no longer makes a copy that names a parameter set
+  that does not exist. Two `CalculationSettings` with the same choices are now equal.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with
   `plan.calculate(threads=None, observer=None)`; it calculates the molecules the plan was assessed with.
 - `chargefw.parameterization` starts support for fitting parameter values: `make_parameter_template()`
@@ -48,6 +126,75 @@
 
 ### C++
 
+- Breaking change: the readers, writers, records, and results are in `chargefw::io`, as Python's
+  `chargefw.io`, instead of `chargefw::adapters` and its per-format namespaces: `io::SdfReader`
+  instead of `adapters::native::sdf_input::SdfReader`, `io::MmcifWriter` instead of
+  `adapters::gemmi::mmcif_output::MmcifWriter`, and so on. Their headers are in `chargefw/io/`
+  without the `native/` and `gemmi/` subdirectories, for example `<chargefw/io/sdf_input.h>`, and one
+  `<chargefw/io/all.h>` replaces the two umbrella headers. `adapters::gemmi::InputOptions` is
+  `io::StructureOptions`, in `<chargefw/io/structure_options.h>` with `RecordSelection`,
+  `BondStrategy`, and their conversion functions. Public names no longer hide the `::gemmi`
+  namespace.
+- `io::make_requested_provenance()` creates the `RequestedCalculationProvenance` of a request, with
+  the thread limit and the residue names of the fixed ions, instead of copying its fields by hand.
+- Breaking change: `ImportedMoleculeRecord::issues` is now `import_warnings`, as in Python.
+- Breaking change: `ExecutionMetrics::peak_resident_memory_mb` is now `peak_resident_memory_bytes`,
+  a `std::uint64_t`.
+- Breaking change: `MoleculeRecordIdentity::source` is now `source_name`, as in Python and result
+  JSON.
+- The MOL, SDF, and MOL2 readers throw `std::runtime_error` for an unknown element symbol, as
+  documented for input they cannot parse, instead of `std::out_of_range`.
+- Breaking change: the request and its provenance use the names of the Python arguments.
+  `AssessmentRequest::classification_options` is `parameter_matching`, a new
+  `parameters::ParameterMatching` (`strict` or `permissive`), which also replaces
+  `ClassificationOptions::permissive_types`. `AssessmentRequest::execution_selection` is
+  `execution`, `ExecutionSelection::kind()` is `mode()`, and `ExecutionSelectionKind` is
+  `ExecutionSelectionMode`. `ResourcePolicy` has `cutoff_threshold` and `cover_threshold`, and the
+  defaults are `default_cutoff_threshold` and `default_cover_threshold`. In
+  `RequestedCalculationProvenance`, `permissive_types`, `max_threads`, `execution_kind`, and
+  `execution_radius` are `parameter_matching`, `threads`, `execution`, and `radius`.
+  `ResultStatus::invalid_request` is `invalid_input_or_request`, as result JSON writes it.
+- `find_package(chargefw 3.0)` accepts only 3.0.x, because a minor release may change interfaces.
+- Breaking change: the CMake target is `chargefw::chargefw` instead of `chargefw::core`, and the
+  library file is `libchargefw.so` instead of `libchargefw_core.so`; `chargefw::core` named both the
+  whole library and the namespace of atoms and molecules, which keeps its name. Link
+  `chargefw::chargefw` after `find_package(chargefw)`.
+- The installed C++ library no longer requires nlohmann/json or Gemmi development packages in downstream
+  projects. JSON and mmCIF reader state is private to the library; parsing behavior is unchanged.
+  Breaking change: the library target no longer supplies these dependencies' headers or CMake targets.
+  Applications that use either dependency directly must find and link it explicitly. Rebuild C++
+  consumers because the reader layouts changed. Fetched native installations retain the Gemmi and
+  oneTBB runtime libraries but no longer install third-party development packages.
+- The shared library carries its full release version in its name, for example
+  `libchargefw.so.3.0.0rc3`. A program needs the library of the release it was built against
+  and fails to start without it, instead of loading another release. Programs linked against earlier
+  releases ask for the unversioned name and get no such protection; rebuild them, and rebuild C++
+  programs against every release.
+- Breaking change: `<chargefw/config.h>` is replaced by `<chargefw/version.h>`, which defines
+  `CHARGEFW_VERSION_STRING` as before and the numbers `CHARGEFW_VERSION_MAJOR`,
+  `CHARGEFW_VERSION_MINOR`, and `CHARGEFW_VERSION_PATCH`. The parameter-directory macros are no
+  longer installed.
+- Breaking change: removed `<chargefw/methods/method_applicability.h>` with
+  `methods::ApplicableMethod`, `methods::RejectedCandidate`, and `methods::ApplicabilityResult`. No
+  public function produced them. Read the plans and rejections of an assessment instead.
+- Breaking change: removed `features::TopologyFeatures::adjacency()`. Use
+  `neighbor_indices(atom_index)` for each atom.
+- Breaking change: removed `methods::validate_method_option_schema()` and
+  `parameters::validate_parameter_classification()`. `make_default_options()` and
+  `validate_method_options()` still reject an invalid option schema, and `CalculationInput` still
+  rejects a classification that does not fit its molecule and parameter set.
+  `<chargefw/parameters/classification/parameter_classification.h>` no longer includes the molecule
+  and parameter-set headers.
+- Breaking change: three names now match what they name.
+  `calculation::EffectiveCalculation::execution_issues` is `warnings`, as in
+  `ExecutionPlan::warnings()`; `<chargefw/charges/charge_collection.h>` is
+  `<chargefw/charges/charge_set.h>`, after the `ChargeSet` it declares; and
+  `methods::complexity_notation(term)` is `methods::to_string(term)`.
+- Enumerations and `std::variant` types, such as `calculation::RejectionIssue`, may gain values and
+  alternatives in later releases; give a `switch` a `default` and `std::visit` a fallback overload.
+- `methods::Method` is the interface of the built-in methods, and only ChargeFW implements it:
+  requests select methods by ID from `methods::method_registry()`, so a class derived elsewhere is
+  never selected. Later releases may add pure virtual functions to it.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`
@@ -63,8 +210,7 @@
   `calculation::ExecutionIssue` and `calculation::ExecutionIssueKind`, declared in
   `<chargefw/calculation/execution_issues.h>`. Removed `methods::ExecutionAvailability`,
   `methods::ExecutionAssessment`, and `methods::ApplicableMethod::execution_assessments`; read the
-  plans and rejections of an assessment instead. `<chargefw/methods/method_applicability.h>` no
-  longer includes a calculation header. Rebuild downstream C++ code.
+  plans and rejections of an assessment instead. Rebuild downstream C++ code.
 - Breaking change: an `ExecutionPlan` keeps the molecules and parameter sets of its assessment, so
   the functions that took an assessment and one of its plans take only the plan:
   `calculation::calculate(plan, ...)`, `calculate(plan, candidate, ...)`, `estimate(plan, ...)`,
@@ -76,7 +222,7 @@
   copied nor moved, and `features::PreparedMoleculeCollection` can be moved but not copied. Build
   them where they are used, and pass references. Rebuild downstream C++ code.
 - Breaking change: removed `PdbReader::options()` and `MmcifReader::options()`. Keep the
-  `InputOptions` supplied to the constructor if you need to inspect them later.
+  `StructureOptions` supplied to the constructor if you need to inspect them later.
 - Breaking change: `parameters::ClassificationResult` is no longer default-constructible. Obtain a
   result from `try_classify_parameters()`, or construct it explicitly from a classification or issues.
 - Breaking change: `methods::PrerequisiteResult` now exposes a public `issues` vector. Replace
@@ -93,10 +239,11 @@
   `has_parameters()`, and `parameters_if_available()`. Use `geometry()` and `parameters()` to access
   supplied values; these return references and throw `std::logic_error` when the value is missing.
   Rebuild downstream C++ code.
-- Breaking source and ABI change: `adapters::RequestedCalculationProvenance::method_scope` and
-  `execution_kind` now use `calculation::MethodScope` and `calculation::ExecutionSelectionKind`
-  instead of strings. Replace string assignments and comparisons with enum values, using
-  `ExecutionSelectionKind::automatic` for `"auto"`, and rebuild downstream C++ code. The defaults
+- Breaking source and ABI change: `RequestedCalculationProvenance::method_scope` and `execution`
+  (formerly `execution_kind`) use `calculation::MethodScope` and
+  `calculation::ExecutionSelectionMode` instead of strings. Replace string assignments and
+  comparisons with enum values, using `ExecutionSelectionMode::automatic` for `"auto"`, and rebuild
+  downstream C++ code. The defaults
   remain recommended methods and automatic execution; result JSON and Python strings are unchanged.
 - Breaking change: the enumerators of `parameters::ClassificationIssueKind`,
   `parameters::AtomParameterClassificationKind`, and `parameters::BondParameterClassificationKind`
@@ -129,7 +276,7 @@
 - `parameters::compatible()` tells whether two parameter sets differ only in their values and
   descriptive metadata, and parameter keys can be compared with `==`.
 - `calculation::to_string()` names a `CalculationPhase`.
-- `adapters::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
+- `io::to_string()` names a `MolecularSourceFormat` and a `SourceConnectivity`, and
   `molecular_source_format_from_string()` reads a format name.
 - `calculation::calculate(assessment, plan, candidate)` runs a plan with other values for its parameter
   set, without checking the molecules again.
@@ -142,11 +289,58 @@
 
 ### Calculation
 
+- Breaking change: method options belong to the method you name, and are called method options
+  everywhere. In Python, `method_options={"iters": 8}` with `method=` replaces `options` and
+  `options_by_method`, and `Plan`, `ExecutedPlan`, and `CalculationSettings` have `method_options`
+  instead of `options`. On the command line, `--method-option iters=8` needs `--method` instead of
+  naming the method as in `peoe.iters=8`. In C++, `AssessmentRequest::method_options` and
+  `RequestedCalculationProvenance::method_options` are one `MethodOptions`. In result JSON,
+  `requested.method_options` and `effective.method_options` map option IDs to values instead of
+  method IDs to options. Options for automatic selection are no longer accepted: they applied only
+  if that method happened to be chosen.
+- Breaking change: automatic selection of an EEM parameter set follows ChargeFW2 again. It tries the
+  NEEMP sets first, then Cheminf, Bult, Ouy, Svob, and Baek, and the Ionescu sets last; earlier 3.0
+  pre-releases tried Ionescu first. `--method eem` without a parameter set therefore now uses
+  `EEM_NEEMP_ccd2016_npa` for molecules it covers. Name the parameter set, such as
+  `EEM_Ionescu2013_mpa_gas`, to keep the charges of earlier pre-releases.
 - SQE, SQE+q0, and SQE+qp calculations fail with `numerical_failure` when the split-charge system
   cannot be factorized as positive definite, as when the energy has no unique minimum at the
   molecule's geometry. Earlier versions returned the solution without warning, with charges that could
   be far too large. In cutoff and cover execution, each fragment is checked. Solving the system takes
   about half the time.
+
+### Command line
+
+- Breaking change: `--fixed-ions` takes one residue name per occurrence, as `--method-option`
+  takes one option: write `--fixed-ions MG --fixed-ions CA`, not `--fixed-ions MG CA`.
+- Breaking change: options are named as the arguments of `chargefw.calculate()` in Python.
+  `--permissive-types` is now `--parameter-matching permissive` (default `strict`), and
+  `--cutoff-atom-threshold` and `--cover-atom-threshold` are now `--cutoff-threshold` and
+  `--cover-threshold`.
+- Breaking change: a result JSON or output directory that cannot be written exits with status 6, as
+  MOL2, mmCIF, and PQR do, instead of 2. Status 2 now means only invalid input or options.
+
+### Output
+
+- Breaking change: result JSON reports `execution_metrics.peak_resident_memory_bytes`, an integer,
+  instead of `peak_resident_memory_mb`, which was in MiB.
+- Breaking change: a record's `input.source` in result JSON is now `input.source_name`, as in
+  Python.
+- Breaking change: result JSON has no `calculation_provenance.effective.warnings`. It repeated
+  the messages of the plan's warnings, which are diagnostics with their codes.
+- Breaking change: `calculation_provenance.requested` in result JSON is flat and uses the names of
+  the arguments of `chargefw.calculate()`: `parameter_matching` (`"strict"` or `"permissive"`)
+  replaces `classification.permissive_types`; `execution` is a string and `radius` a number or
+  `null` beside it, instead of `execution.kind` and `execution.radius_angstrom`; `cutoff_threshold`,
+  `cover_threshold`, and `threads` replace the `resource_policy` object; and the new `fixed_ions`
+  lists the residue names requested as fixed ions. `effective.execution.radius_angstrom` is
+  `radius`.
+- The result JSON Schema accepts every 1.x document: `schema_version` is any `1.x`, objects may have
+  members it does not list, and status, severity, input format, selections, execution kind and mode,
+  and method scope may have values it does not list; assignment scope and source connectivity stay
+  fixed. Later 1.x versions add members and values but never remove or rename them;
+  [File formats](https://chargefw.readthedocs.io/en/latest/reference/formats.html#chargefw-result-json-10)
+  says how to read them. Documents written by this version are unchanged.
 
 ## 3.0.0rc3
 

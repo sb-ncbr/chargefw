@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chargefw/calculation/charge_issues.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/molecule_collection.h>
 
 #include "calculation/fixed_charge_partition.h"

@@ -14,7 +14,13 @@ from ._arrays import as_integer
 from ._chargefw import calculation as _native_calculation
 from ._methods import Method
 from ._parameters import ParameterSet
-from ._types import MethodOptionValue, MethodScope, ParameterMatching, RequestedExecution
+from ._types import (
+    MethodOptionValue,
+    MethodScope,
+    ParameterMatching,
+    RequestedExecution,
+    ResourceThreshold,
+)
 
 _EXECUTIONS = frozenset(("auto", "full", "cutoff", "cover"))
 
@@ -28,6 +34,17 @@ def _normalized_nonnegative_integer(value: SupportsIndex, name: str) -> int:
     return result
 
 
+def _normalized_threshold(value: ResourceThreshold, name: str) -> ResourceThreshold:
+    # "unlimited" as on the command line and in result JSON; None means "not given" elsewhere.
+    if isinstance(value, str):
+        if value != "unlimited":
+            raise ValueError(f"{name} must be a non-negative integer or 'unlimited'")
+        return value
+    if value is None:
+        raise TypeError(f"{name} must be a non-negative integer or 'unlimited'")
+    return _normalized_nonnegative_integer(value, name)
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class FixedAtomCharge:
     """A fixed charge on one atom; component_id is the residue name it was selected by."""
@@ -39,6 +56,7 @@ class FixedAtomCharge:
 
     def __init__(
         self,
+        *,
         molecule_index: SupportsIndex,
         atom_index: SupportsIndex,
         charge: float,
@@ -95,83 +113,58 @@ def _normalized_option_values(
     return result
 
 
-def _normalized_options_by_method(
-    values: Mapping[str, Mapping[str, MethodOptionValue]] | None,
-) -> dict[str, dict[str, MethodOptionValue]]:
-    if values is None:
-        return {}
-    if not isinstance(values, Mapping):
-        raise TypeError("options_by_method must be a mapping")
-    result: dict[str, dict[str, MethodOptionValue]] = {}
-    for method_id, options in values.items():
-        if not isinstance(method_id, str):
-            raise TypeError("options_by_method keys must be method ID strings")
-        result[method_id] = _normalized_option_values(options, method_id)
-    return result
-
-
-def _frozen_options_by_method(
-    values: Mapping[str, Mapping[str, MethodOptionValue]],
-) -> Mapping[str, Mapping[str, MethodOptionValue]]:
-    return MappingProxyType(
-        {method_id: MappingProxyType(dict(options)) for method_id, options in values.items()}
-    )
-
-
 @dataclass(frozen=True, slots=True, init=False)
 class RequestedCalculation:
     """Normalized policy requested for an assessment or calculation."""
 
-    method: str | None
-    parameter_set: str | None
+    method: Method | None
+    parameter_set: ParameterSet | None
     method_scope: MethodScope
-    options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
+    method_options: Mapping[str, MethodOptionValue]
     parameter_matching: ParameterMatching
     execution: RequestedExecution
     radius: float | None
-    cutoff_threshold: int | None
-    cover_threshold: int | None
+    cutoff_threshold: ResourceThreshold
+    cover_threshold: ResourceThreshold
     threads: int
     fixed_ions: tuple[str, ...]
 
     def __init__(
         self,
         *,
-        method: str | Method | None = None,
-        parameter_set: str | ParameterSet | None = None,
+        method: Method | None = None,
+        parameter_set: ParameterSet | None = None,
         method_scope: MethodScope = "recommended",
-        options: Mapping[str, MethodOptionValue] | None = None,
-        options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
+        method_options: Mapping[str, MethodOptionValue] | None = None,
         parameter_matching: ParameterMatching = "strict",
         execution: RequestedExecution = "auto",
         radius: float | None = None,
-        cutoff_threshold: int | None = _native_calculation._default_cutoff_atom_threshold,
-        cover_threshold: int | None = _native_calculation._default_cover_atom_threshold,
+        cutoff_threshold: ResourceThreshold = _native_calculation._default_cutoff_atom_threshold,
+        cover_threshold: ResourceThreshold = _native_calculation._default_cover_atom_threshold,
         threads: int = 0,
         fixed_ions: Sequence[str] | None = None,
     ) -> None:
-        if method is not None and not isinstance(method, (str, Method)):
-            raise TypeError("method must be a method ID, Method, or None")
-        if parameter_set is not None and not isinstance(parameter_set, (str, ParameterSet)):
-            raise TypeError("parameter_set must be a parameter-set ID, ParameterSet, or None")
-        method_id = method.id if isinstance(method, Method) else method
-        parameter_set_id = (
-            parameter_set.id if isinstance(parameter_set, ParameterSet) else parameter_set
-        )
+        if method is not None and not isinstance(method, Method):
+            raise TypeError("method must be a Method or None")
+        if parameter_set is not None and not isinstance(parameter_set, ParameterSet):
+            raise TypeError("parameter_set must be a ParameterSet or None")
+        method_id = None if method is None else method.id
         if not isinstance(method_scope, str):
             raise TypeError("method_scope must be a string")
         if method_scope not in ("recommended", "all"):
             raise ValueError("method_scope must be 'recommended' or 'all'")
         if method_scope == "all" and method_id is not None:
             raise ValueError("method_scope applies only without an explicit method")
-        if options is not None and options_by_method is not None:
-            raise ValueError("options and options_by_method cannot be used together")
-        if options is not None:
-            if method_id is None:
-                raise ValueError("options requires an explicit method")
-            normalized_options = {method_id: _normalized_option_values(options, method_id)}
-        else:
-            normalized_options = _normalized_options_by_method(options_by_method)
+        # Options belong to the named method: with automatic selection, an option such as
+        # iters would apply to whichever method happened to be chosen.
+        normalized_options: dict[str, MethodOptionValue] = {}
+        if method_options is not None:
+            if not isinstance(method_options, Mapping):
+                raise TypeError("method_options must be a mapping")
+            if method_options:
+                if method_id is None:
+                    raise ValueError("method_options requires an explicit method")
+                normalized_options = _normalized_option_values(method_options, method_id)
 
         if not isinstance(parameter_matching, str):
             raise TypeError("parameter_matching must be a string")
@@ -186,16 +179,8 @@ class RequestedCalculation:
                 raise TypeError("radius must be a real number or None")
             radius = float(radius)
 
-        normalized_cutoff = (
-            None
-            if cutoff_threshold is None
-            else _normalized_nonnegative_integer(cutoff_threshold, "cutoff_threshold")
-        )
-        normalized_cover = (
-            None
-            if cover_threshold is None
-            else _normalized_nonnegative_integer(cover_threshold, "cover_threshold")
-        )
+        normalized_cutoff = _normalized_threshold(cutoff_threshold, "cutoff_threshold")
+        normalized_cover = _normalized_threshold(cover_threshold, "cover_threshold")
         normalized_threads = _normalized_nonnegative_integer(threads, "threads")
         normalized_fixed_ions: tuple[str, ...]
         if fixed_ions is None:
@@ -210,14 +195,10 @@ class RequestedCalculation:
             if any(not isinstance(ion, str) for ion in normalized_fixed_ions):
                 raise TypeError("fixed_ions must contain only strings")
 
-        object.__setattr__(self, "method", method_id)
-        object.__setattr__(self, "parameter_set", parameter_set_id)
+        object.__setattr__(self, "method", method)
+        object.__setattr__(self, "parameter_set", parameter_set)
         object.__setattr__(self, "method_scope", method_scope)
-        object.__setattr__(
-            self,
-            "options_by_method",
-            _frozen_options_by_method(normalized_options),
-        )
+        object.__setattr__(self, "method_options", MappingProxyType(normalized_options))
         object.__setattr__(self, "parameter_matching", parameter_matching)
         object.__setattr__(self, "execution", execution)
         object.__setattr__(self, "radius", radius)
@@ -225,7 +206,3 @@ class RequestedCalculation:
         object.__setattr__(self, "cover_threshold", normalized_cover)
         object.__setattr__(self, "threads", normalized_threads)
         object.__setattr__(self, "fixed_ions", normalized_fixed_ions)
-
-    @property
-    def _permissive_types(self) -> bool:
-        return self.parameter_matching == "permissive"

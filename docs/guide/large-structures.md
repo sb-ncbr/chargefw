@@ -62,10 +62,10 @@ result = chargefw.calculate(molecules, method="eem", execution="cover", radius=1
 With automatic execution, a radius sets the radius ChargeFW uses if it switches to cutoff or cover.
 
 Explicit full execution also runs above the size limits; the result then carries a warning. The limits
-themselves can be changed with `--cutoff-atom-threshold` and `--cover-atom-threshold` on the command line,
-or `cutoff_threshold` and `cover_threshold` in Python. `unlimited` on the command line, or `None` in
-Python, removes a limit. The cover limit must not be lower than the cutoff limit, and removing the
-cutoff limit requires removing the cover limit too.
+themselves can be changed with `cutoff_threshold` and `cover_threshold` in Python, or
+`--cutoff-threshold` and `--cover-threshold` on the command line. `unlimited` removes a limit. The
+cover limit must not be lower than the cutoff limit, and removing the cutoff limit requires removing
+the cover limit too.
 
 Before a long calculation, `chargefw applicability` estimates the memory and the number of
 operations of every plan: each combination of method, parameter set, and execution mode that

@@ -5,7 +5,8 @@
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
-#include <chargefw/methods/method_applicability.h>
+#include <chargefw/methods/method_options.h>
+#include <chargefw/methods/method_prerequisites.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/classification/classification_result.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
@@ -18,9 +19,13 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <variant>
 #include <vector>
+
+namespace chargefw::methods {
+class Method;
+struct ApplicableMethod;
+} // namespace chargefw::methods
 
 namespace chargefw::calculation {
 
@@ -114,7 +119,7 @@ struct FixedAtomCharge {
 };
 
 struct FixedIons {
-    // Explicit prescribed charges; native callers are not restricted to the adapter ion catalog.
+    // Explicit prescribed charges; native callers are not restricted to the ion catalog of io.
     std::vector<FixedAtomCharge> sources;
 };
 
@@ -127,8 +132,8 @@ enum class MethodScope : std::uint8_t {
 [[nodiscard]] auto method_scope_from_string(std::string_view value) -> MethodScope;
 [[nodiscard]] auto to_string(MethodScope value) -> std::string_view;
 
-// Owns application assessment inputs so adapters and bindings do not need to manage native method
-// pointers, parameter spans, or prepared-feature lifetimes.
+// Owns application assessment inputs so readers, writers, and bindings do not need to manage native
+// method pointers, parameter spans, or prepared-feature lifetimes.
 struct AssessmentRequest {
     core::MoleculeCollection molecules;
     // IDs must be unique across this request, including parameter sets for different methods.
@@ -139,9 +144,11 @@ struct AssessmentRequest {
     std::optional<std::string> parameter_set_id;
     // Applies only without method_id; a named method is always assessed.
     MethodScope method_scope = MethodScope::recommended;
-    std::unordered_map<std::string, methods::MethodOptions> method_options;
-    parameters::ClassificationOptions classification_options{};
-    ExecutionSelection execution_selection{};
+    // Options of the method named by method_id; the method's defaults for the others. Options
+    // require method_id.
+    methods::MethodOptions method_options;
+    parameters::ParameterMatching parameter_matching = parameters::ParameterMatching::strict;
+    ExecutionSelection execution{};
     ResourcePolicy resource_policy{};
     std::optional<FixedIons> fixed_ions{};
 };
@@ -182,7 +189,7 @@ class AssessmentResult {
                     std::span<const methods::Method* const> selected_methods,
                     const parameters::ClassificationOptions& classification_options,
                     const ResourcePolicy& resource_policy,
-                    const std::unordered_map<std::string, methods::MethodOptions>& method_options,
+                    const methods::MethodOptions& method_options,
                     const ExecutionSelection& execution_selection) -> std::vector<ExecutionPlan>;
 
     friend auto assess(const AssessmentRequest& request) -> AssessmentResult;

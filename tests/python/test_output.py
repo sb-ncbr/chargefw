@@ -13,6 +13,7 @@ import pytest
 
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 AROMATIC_MOL2 = Path(__file__).parents[1] / "fixtures" / "synthetic" / "mol2" / "aromatic.mol2"
+FIXED_IONS_MMCIF = Path(__file__).parents[1] / "fixtures" / "synthetic" / "cif" / "fixed_ions.cif"
 CHARGES_DICTIONARY = (
     Path(__file__).parents[1] / "fixtures" / "dictionaries" / "mmcif_charges_v11.dic"
 )
@@ -72,7 +73,7 @@ def test_formats_use_native_writers() -> None:
 
     encoded = result_json(result)
     assert encoded["status"] == "success"
-    assert encoded["results"][0]["input"]["source"] == "water-input"
+    assert encoded["results"][0]["input"]["source_name"] == "water-input"
     assert encoded["results"][0]["input"]["record_id"] == "water-1"
     assert encoded["calculation_provenance"]["effective"]["method"]["id"] == "formal"
     assert result.molecules[0] is molecule
@@ -82,7 +83,13 @@ def test_json_records_requested_scope_and_execution() -> None:
     result = chargefw.calculate(water(), method_scope="all", execution="full")
     requested = result_json(result)["calculation_provenance"]["requested"]
     assert requested["method_scope"] == "all"
-    assert requested["execution"] == {"kind": "full", "radius_angstrom": None}
+    assert (requested["execution"], requested["radius"]) == ("full", None)
+    assert (requested["parameter_matching"], requested["fixed_ions"]) == ("strict", [])
+
+    configured = chargefw.calculate(water(), method="peoe", method_options={"iters": 2})
+    provenance = result_json(configured)["calculation_provenance"]
+    assert provenance["requested"]["method_options"] == {"iters": 2}
+    assert provenance["effective"]["method_options"] == {"initial_charges": "zero", "iters": 2}
 
     named = chargefw.calculate(
         water(), method="eem", parameter_set="EEM_Baek1991", execution="full"
@@ -90,6 +97,14 @@ def test_json_records_requested_scope_and_execution() -> None:
     requested = result_json(named)["calculation_provenance"]["requested"]
     assert requested["method"] == {"id": "eem"}
     assert requested["parameter_set"] == {"id": "EEM_Baek1991"}
+
+
+def test_json_records_requested_fixed_ions() -> None:
+    molecules = chargefw.io.read(FIXED_IONS_MMCIF, format="mmcif")
+    result = chargefw.calculate(molecules, fixed_ions=["MG", "CA", "NA"])
+    requested = result_json(result)["calculation_provenance"]["requested"]
+    # NA is not in the structure, but it was requested.
+    assert requested["fixed_ions"] == ["MG", "CA", "NA"]
 
 
 def test_pqr_requires_structural_input() -> None:
@@ -196,6 +211,27 @@ def test_mmcif_applies_geometry_independent_charges_to_selected_conformers(
     ]
 
 
+def test_result_schema_accepts_later_minor_versions() -> None:
+    molecules = chargefw.io.parse(TOPOLOGY_JSON, format="molecule-json")
+    document = result_json(chargefw.calculate(molecules, method="formal"))
+
+    # A later 1.x version may add members and values to the lists the schema leaves open.
+    document["schema_version"] = "1.2"
+    document["added_member"] = {"value": 1}
+    document["status"] = "added_status"
+    imported = document["results"][0]["input"]["import"]
+    imported["format"] = "added_format"
+    imported["policy"]["conformers"] = "added_selection"
+    provenance = document["calculation_provenance"]
+    provenance["requested"]["execution"] = "added_kind"
+    provenance["effective"]["execution"]["mode"] = "added_mode"
+    validate(document, "result-1.0.schema.json")
+
+    document["schema_version"] = "2.0"
+    with pytest.raises(jsonschema.ValidationError):
+        validate(document, "result-1.0.schema.json")
+
+
 def test_failed_result_json_preserves_input_identity() -> None:
     validate(json.loads(TOPOLOGY_JSON), "molecule-input-1.0.schema.json")
     imported = chargefw.io.parse(TOPOLOGY_JSON, format="molecule-json", source_name="topology.json")
@@ -228,19 +264,19 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
 
     manual = chargefw.Molecule([1], source_name="manual")
     # Reader warnings are visible before calculation; molecules built in Python have none.
-    assert [value.kind for value in imported_molecule.import_issues] == [
+    assert [value.kind for value in imported_molecule.import_warnings] == [
         "partial_charges_ignored",
         "aromatic_bonds_converted",
     ]
-    assert manual.import_issues == ()
+    assert manual.import_warnings == ()
     # The warning lists the aromatic bond, here the first, as Python and result JSON give it.
-    aromatic = imported_molecule.import_issues[1]
+    aromatic = imported_molecule.import_warnings[1]
     assert aromatic.bond_indices.tolist() == [0]
     assert not aromatic.bond_indices.flags.writeable
     result = chargefw.calculate([manual, imported_molecule], method="formal")
     manual_record, imported_record = result_json(result)["results"]
 
-    assert manual_record["input"] == {"source": "manual", "record_index": 0}
+    assert manual_record["input"] == {"source_name": "manual", "record_index": 0}
     assert manual_record["diagnostics"] == []
     assert imported_record["input"]["import"]["format"] == "mol2"
     assert "atom_ids" not in imported_record["input"]

@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError
 from gc import collect
+from pathlib import Path
 from typing import Any, cast
 
 import chargefw
@@ -32,8 +33,8 @@ NO_CHARGES
     assert mapping.format == "mol2"
     assert mapping.source_connectivity == "explicitly-empty"
     assert mapping.atoms == (
-        chargefw.SourceAtomReference(0, "001"),
-        chargefw.SourceAtomReference(1, "10"),
+        chargefw.SourceAtomReference(position=0, id="001"),
+        chargefw.SourceAtomReference(position=1, id="10"),
     )
     assert mapping.conformers[0].sites == mapping.atoms
     assert mapping.components == ()
@@ -79,7 +80,9 @@ def test_molecule_owns_normalized_input() -> None:
     np.testing.assert_array_equal(molecule.bonds, [[0, 1, 1], [0, 2, 1], [0, 3, 2]])
     assert molecule.coordinates.shape == (2, 4, 3)
     assert molecule.coordinates[0, 0].tolist() == [2.0, 1.0, 0.0]
-    assert molecule.source == chargefw.SourceIdentity("fixture.sdf", 3, "record-4")
+    assert molecule.source == chargefw.SourceIdentity(
+        source_name="fixture.sdf", record_index=3, record_id="record-4"
+    )
     assert molecule.atom_ids == ("O", 17, 23, "H")
     assert len(molecule) == 4
 
@@ -107,7 +110,10 @@ def test_collection_exposes_sequence_operations_and_preserves_identity() -> None
 
     assert len(collection) == 1
     assert collection[0] is molecule
-    assert collection[:] == (molecule,)
+    sliced = collection[:1]
+    assert isinstance(sliced, chargefw.MoleculeCollection)
+    assert sliced.molecules == (molecule,)
+    assert sliced.name == "fixture"
     assert tuple(collection) == (molecule,)
     assert collection.molecules == (molecule,)
     assert collection.name == "fixture"
@@ -179,6 +185,9 @@ def test_invalid_inputs_are_rejected() -> None:
         (TypeError, lambda: chargefw.Molecule([1], atom_ids=cast(Any, [True]))),
         (ValueError, lambda: chargefw.Molecule([1], atom_ids=[2**100])),
         (TypeError, lambda: chargefw.Molecule([1], atom_names="H")),
+        (TypeError, lambda: cast(Any, chargefw.Molecule)([1], [0])),
+        (TypeError, lambda: chargefw.Molecule([1], name=cast(Any, None))),
+        (TypeError, lambda: chargefw.Molecule([1], source_name=cast(Any, None))),
         (ValueError, lambda: chargefw.SourceIdentity(record_index=-1)),
         (TypeError, lambda: chargefw.SourceIdentity(record_index=cast(Any, 1.5))),
         (TypeError, lambda: chargefw.SourceIdentity(record_index=True)),
@@ -191,3 +200,34 @@ def test_invalid_inputs_are_rejected() -> None:
     for error_type, operation in invalid_cases:
         with pytest.raises(error_type):
             operation()
+
+
+def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
+    unknown_element = "x\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n" + (
+        "    0.0000    0.0000    0.0000 Xx  0  0\nM  END\n$$$$\n"
+    )
+    for contents, format_name in (
+        ("garbage\n", "sdf"),
+        (unknown_element, "sdf"),
+        ('{"x": 1}', "molecule-json"),
+    ):
+        with pytest.raises(chargefw.ParseError):
+            chargefw.io.parse(contents, format=cast(Any, format_name))
+
+    latin1 = tmp_path / "latin1.sdf"
+    latin1.write_bytes(b"\xe9\n")
+    with pytest.raises(chargefw.ParseError):
+        chargefw.io.read(latin1, format="sdf")
+    with pytest.raises(FileNotFoundError):
+        chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
+
+
+def test_invalid_reader_options_are_not_parse_errors() -> None:
+    for format_name, option in (
+        ("pdb", {"selection": "invalid"}),
+        ("mmcif", {"bonds": "invalid"}),
+        ("molecule-json", {"conformers": "invalid"}),
+    ):
+        with pytest.raises(ValueError) as raised:
+            chargefw.io.parse("", format=cast(Any, format_name), **cast(Any, option))
+        assert not isinstance(raised.value, chargefw.ParseError)

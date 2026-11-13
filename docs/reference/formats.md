@@ -144,12 +144,13 @@ looks like this:
 Every atom needs an integer `atomic_number` and `formal_charge`. `bonds` is optional; it gives atom
 indices, counted from zero, and bond orders 1, 2, or 3. `conformers` is optional; each conformer has
 one row of three finite coordinates per atom, and its `id` becomes the conformer's name. A
-molecule's `id` and `name` are optional strings. Other members are ignored; atom names cannot be
-given in version 1.0.
+molecule's `id` and `name` are optional strings. Atom names cannot be given in version 1.0.
 
 Molecules, atoms, bonds, and conformers keep the order of their arrays. You can read all conformers
-of each molecule or only the first. Invalid JSON, another schema version, wrong types, indices out
-of range, and conformers whose number of rows differs from the number of atoms are errors.
+of each molecule or only the first. Invalid JSON, another schema version, wrong types, members not
+listed here, indices out of range, and conformers whose number of rows differs from the number of
+atoms are errors. A misspelled member, such as `bond` for `bonds`, therefore stops the reading
+instead of giving a molecule without bonds.
 
 ## PDB and mmCIF input
 
@@ -180,7 +181,7 @@ after alternate locations are chosen, are an error.
 
 ### Structural selection
 
-`--structural-selection` (`selection` in Python) chooses which residues are read. Bonds and further
+`selection` (`--selection` on the command line) chooses which residues are read. Bonds and further
 models are then read for these atoms only.
 
 - `all` keeps polymer, ligand, and water residues;
@@ -195,7 +196,7 @@ alternate-location code is kept and written to the output.
 
 ### Connectivity
 
-`--structural-bonds` (`bonds` in Python) chooses where bonds come from:
+`bonds` (`--bonds` on the command line) chooses where bonds come from:
 
 - `none`: no bonds;
 - `explicit`: the bonds in the file. From PDB, `CONECT` records and covalent and disulfide
@@ -417,6 +418,12 @@ has:
   came from, its `status` and `diagnostics`, and the `assignments` of a successful calculation; and
 - `calculation_provenance`: what was requested, what was used, and the run time and memory.
 
+Later versions 1.x add members and values but do not remove or rename any, so a program that reads
+1.0 can read every 1.x document. Check only that `schema_version` starts with `1.`, ignore members
+you do not know, and accept values you do not know, such as a new status or input format. Two lists
+stay fixed in every 1.x version: an assignment's `scope` and a record's `source_connectivity`. A
+version 2.0 would be incompatible.
+
 Each assignment has its `scope`, `molecule` or `conformer`, the `charge_unit` `e`, and a `target`
 with the molecule index and, for methods that use coordinates, the conformer index, both counted
 from zero. `charges` follows the atom order of the molecule, at full precision, and `total_charge`
@@ -436,16 +443,17 @@ too. Molecules built in code have no `input.import`, and their atom IDs are list
 `input.atom_ids`. Record and atom IDs are strings or signed 64-bit integers, written as JSON strings
 or numbers.
 
-`calculation_provenance.requested` records the method and parameter set you asked for,
-`method_scope`, the parameter matching (`classification`), the method options, the execution, the
-size limits, and the thread limit. `effective` records the method, parameter set, all option values,
-and execution that were used, and the warnings. Each warning also appears as a diagnostic with
-severity `warning` and its code, such as `resource_threshold_exceeded`: in the record of the
-molecule it concerns, or in the document's diagnostics. `execution_metrics` gives the start and end
-time in UTC, the time of each step, and the peak memory, rounded to three decimal places.
+`calculation_provenance.requested` records what you asked for, with the names of the arguments of
+`chargefw.calculate()` in Python: `method`, `parameter_set`, `method_scope`, `method_options` (the
+options given for the named method), `parameter_matching`, `execution`, `radius` in Å,
+`cutoff_threshold` and `cover_threshold` in atoms or `"unlimited"`, `threads`, and the residue names
+in `fixed_ions`. `effective` records the method, parameter set, all option values, and execution
+that were used. Warnings about the plan, such as `resource_threshold_exceeded`, are diagnostics with
+severity `warning`: in the record of the molecule they concern, or in the document's diagnostics.
+`execution_metrics` gives the start and end time in UTC, the time of each step in seconds, rounded to
+three decimal places, and the peak memory of the process in bytes.
 
 With fixed ions, `effective` also has `fixed_ions`: one entry per residue name and charge, with
 `component_id`, the residue name (mmCIF label name first), the `charge`, and `instances`, each with
 the `molecule_index` and `atom_index` of one ion. An ion given in C++ without a residue name has
-`component_id: null`. `fixed_ions` was added to schema 1.0 after its first release, so validate such
-documents against the current schema.
+`component_id: null`.

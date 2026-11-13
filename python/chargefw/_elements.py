@@ -12,7 +12,7 @@ from ._payloads import ElementPayload
 from ._public import set_public_module
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Element:
     """Identity of one element in the bundled periodic table."""
 
@@ -32,12 +32,18 @@ class PeriodicTable:
     _by_number: dict[int, Element]
     _by_symbol: dict[str, Element]
 
-    def __init__(self, elements: tuple[Element, ...]) -> None:
-        object.__setattr__(self, "_elements", elements)
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        raise TypeError("the periodic table is chargefw.periodic_table")
+
+    @classmethod
+    def _create(cls, elements: tuple[Element, ...]) -> PeriodicTable:
+        table = object.__new__(cls)
+        object.__setattr__(table, "_elements", elements)
         object.__setattr__(
-            self, "_by_number", {element.atomic_number: element for element in elements}
+            table, "_by_number", {element.atomic_number: element for element in elements}
         )
-        object.__setattr__(self, "_by_symbol", {element.symbol: element for element in elements})
+        object.__setattr__(table, "_by_symbol", {element.symbol: element for element in elements})
+        return table
 
     def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError(f"{type(self).__name__} is immutable")
@@ -83,6 +89,6 @@ def _element(value: ElementPayload) -> Element:
     )
 
 
-periodic_table = PeriodicTable(tuple(_element(value) for value in _native_core._elements()))
+periodic_table = PeriodicTable._create(tuple(_element(value) for value in _native_core._elements()))
 
 set_public_module("chargefw", Element, PeriodicTable)

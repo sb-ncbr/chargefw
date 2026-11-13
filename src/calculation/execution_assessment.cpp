@@ -85,9 +85,8 @@ auto assess_execution(const methods::Method& method,
 
     if (mode == ExecutionMode::full) {
         return available(has_expensive_full_complexity(resources)
-                             ? threshold_issues(method, molecules,
-                                                resource_policy.cutoff_atom_threshold, "full",
-                                                "cutoff")
+                             ? threshold_issues(method, molecules, resource_policy.cutoff_threshold,
+                                                "full", "cutoff")
                              : std::vector<ExecutionIssue>{});
     }
 
@@ -96,10 +95,10 @@ auto assess_execution(const methods::Method& method,
         (cutoff ? resources.supports_cutoff : resources.supports_cover) &&
         resources.reduced_charge_policy != methods::ReducedChargePolicy::unsupported;
     if (supported && requirements.coordinates) {
-        return available(cutoff ? threshold_issues(method, molecules,
-                                                   resource_policy.cover_atom_threshold, "cutoff",
-                                                   "cover")
-                                : std::vector<ExecutionIssue>{});
+        return available(cutoff
+                             ? threshold_issues(method, molecules, resource_policy.cover_threshold,
+                                                "cutoff", "cover")
+                             : std::vector<ExecutionIssue>{});
     }
 
     const auto mode_name = std::string{to_string(mode)};

@@ -38,19 +38,19 @@ auto validate_policy(const ExecutionMode mode, const std::optional<double> radiu
     throw std::invalid_argument{"unknown execution mode"};
 }
 
-auto validate_selection(const ExecutionSelectionKind kind, const std::optional<double> radius)
+auto validate_selection(const ExecutionSelectionMode kind, const std::optional<double> radius)
     -> void {
     switch (kind) {
-    case ExecutionSelectionKind::automatic:
+    case ExecutionSelectionMode::automatic:
         if (radius.has_value()) {
             validate_reduced_radius(radius);
         }
         return;
-    case ExecutionSelectionKind::full:
+    case ExecutionSelectionMode::full:
         validate_policy(ExecutionMode::full, radius);
         return;
-    case ExecutionSelectionKind::cutoff:
-    case ExecutionSelectionKind::cover:
+    case ExecutionSelectionMode::cutoff:
+    case ExecutionSelectionMode::cover:
         validate_reduced_radius(radius);
         return;
     }
@@ -60,31 +60,31 @@ auto validate_selection(const ExecutionSelectionKind kind, const std::optional<d
 
 } // namespace
 
-auto execution_selection_kind_from_string(const std::string_view value) -> ExecutionSelectionKind {
+auto execution_selection_mode_from_string(const std::string_view value) -> ExecutionSelectionMode {
     if (value == "auto") {
-        return ExecutionSelectionKind::automatic;
+        return ExecutionSelectionMode::automatic;
     }
     if (value == "full") {
-        return ExecutionSelectionKind::full;
+        return ExecutionSelectionMode::full;
     }
     if (value == "cutoff") {
-        return ExecutionSelectionKind::cutoff;
+        return ExecutionSelectionMode::cutoff;
     }
     if (value == "cover") {
-        return ExecutionSelectionKind::cover;
+        return ExecutionSelectionMode::cover;
     }
     throw std::invalid_argument{"unknown execution selection: " + std::string{value}};
 }
 
-auto to_string(const ExecutionSelectionKind value) -> std::string_view {
+auto to_string(const ExecutionSelectionMode value) -> std::string_view {
     switch (value) {
-    case ExecutionSelectionKind::automatic:
+    case ExecutionSelectionMode::automatic:
         return "auto";
-    case ExecutionSelectionKind::full:
+    case ExecutionSelectionMode::full:
         return "full";
-    case ExecutionSelectionKind::cutoff:
+    case ExecutionSelectionMode::cutoff:
         return "cutoff";
-    case ExecutionSelectionKind::cover:
+    case ExecutionSelectionMode::cover:
         return "cover";
     }
     throw std::invalid_argument{"unknown execution selection"};
@@ -115,14 +115,14 @@ auto ExecutionPolicy::radius() const noexcept -> std::optional<double> {
     return radius_;
 }
 
-ExecutionSelection::ExecutionSelection(const ExecutionSelectionKind kind,
+ExecutionSelection::ExecutionSelection(const ExecutionSelectionMode mode,
                                        const std::optional<double> radius)
-    : kind_{kind}, radius_{radius} {
-    validate_selection(kind_, radius_);
+    : mode_{mode}, radius_{radius} {
+    validate_selection(mode_, radius_);
 }
 
-auto ExecutionSelection::kind() const noexcept -> ExecutionSelectionKind {
-    return kind_;
+auto ExecutionSelection::mode() const noexcept -> ExecutionSelectionMode {
+    return mode_;
 }
 
 auto ExecutionSelection::radius() const noexcept -> std::optional<double> {

@@ -1,6 +1,6 @@
 #include "cli_support.h"
 
-#include "adapters/fixed_ions.h"
+#include "io/fixed_ions.h"
 
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
@@ -22,7 +22,7 @@ namespace {
 template <typename Reader>
 auto read_collection(Reader& reader, const std::string& input_path) -> ImportedCollection {
     std::vector<core::Molecule> molecules;
-    std::vector<adapters::ImportedMoleculeRecord> records;
+    std::vector<io::ImportedMoleculeRecord> records;
 
     while (auto record = reader.next()) {
         auto imported = std::move(*record);
@@ -54,23 +54,18 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
     return threshold;
 }
 
-[[nodiscard]] auto parse_method_option(const std::string& text)
-    -> std::pair<std::string, std::pair<std::string, methods::MethodOptionValue>> {
+// Reads OPTION=VALUE for the method named by --method, converting VALUE to the option's type.
+[[nodiscard]] auto parse_method_option(const std::string& method_id, const std::string& text)
+    -> std::pair<std::string, methods::MethodOptionValue> {
     const auto equals = text.find('=');
-    const auto dot = text.find('.');
-    if (dot == std::string::npos || equals == std::string::npos || dot == 0 || dot + 1 >= equals ||
-        equals + 1 >= text.size()) {
-        throw std::runtime_error{"Method option must have the form METHOD.OPTION=VALUE: " + text};
+    if (equals == std::string::npos || equals == 0 || equals + 1 >= text.size()) {
+        throw std::runtime_error{"Method option must have the form OPTION=VALUE: " + text};
     }
 
-    const auto method_id = text.substr(0, dot);
-    const auto option_id = text.substr(dot + 1, equals - dot - 1);
+    const auto option_id = text.substr(0, equals);
     const auto value = text.substr(equals + 1);
-    const auto* method = methods::method_registry().find(method_id);
-    if (method == nullptr) {
-        throw std::runtime_error{"Unknown method in method option: " + method_id};
-    }
-    const auto schema = method->option_schema();
+    const auto& method = methods::method_registry().require(method_id);
+    const auto schema = method.option_schema();
     const auto spec =
         std::ranges::find_if(schema, [&option_id](const methods::MethodOptionSpec& item) {
             return item.id == option_id;
@@ -83,10 +78,10 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
     switch (spec->type) {
     case methods::MethodOptionType::boolean:
         if (value == "true" || value == "1") {
-            return {method_id, {option_id, true}};
+            return {option_id, true};
         }
         if (value == "false" || value == "0") {
-            return {method_id, {option_id, false}};
+            return {option_id, false};
         }
         break;
     case methods::MethodOptionType::integer: {
@@ -94,7 +89,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
         const auto [end, error] =
             std::from_chars(value.data(), value.data() + value.size(), parsed);
         if (error == std::errc{} && end == value.data() + value.size()) {
-            return {method_id, {option_id, parsed}};
+            return {option_id, parsed};
         }
         break;
     }
@@ -103,7 +98,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
             std::size_t end = 0;
             const auto parsed = std::stod(value, &end);
             if (end == value.size()) {
-                return {method_id, {option_id, parsed}};
+                return {option_id, parsed};
             }
         } catch (const std::exception&) {
             break;
@@ -111,14 +106,13 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
         break;
     }
     case methods::MethodOptionType::string:
-        return {method_id, {option_id, value}};
+        return {option_id, value};
     }
     throw std::runtime_error{"Invalid value for method option '" + method_id + "." + option_id +
                              "': " + value};
 }
 
-auto read_collection(const std::string& input_path,
-                     const adapters::gemmi::InputOptions structural_options,
+auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     std::ifstream input{input_path};
     if (!input) {
@@ -135,28 +129,27 @@ auto read_collection(const std::string& input_path,
             "Structural input options are only supported for PDB and mmCIF input"};
     }
     if (extension == ".sdf") {
-        adapters::native::sdf_input::SdfReader reader{input, input_path};
+        io::SdfReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol") {
-        adapters::native::mol_input::MolReader reader{input, input_path};
+        io::MolReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol2") {
-        adapters::native::mol2_input::Mol2Reader reader{input, input_path};
+        io::Mol2Reader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".json") {
-        adapters::native::json_input::JsonReader reader{input, input_path,
-                                                        structural_options.conformers};
+        io::JsonReader reader{input, input_path, structural_options.conformers};
         return read_collection(reader, input_path);
     }
     if (extension == ".pdb") {
-        adapters::gemmi::pdb_input::PdbReader reader{input, input_path, structural_options};
+        io::PdbReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
     if (extension == ".cif" || extension == ".mmcif") {
-        adapters::gemmi::mmcif_input::MmcifReader reader{input, input_path, structural_options};
+        io::MmcifReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
 
@@ -169,10 +162,10 @@ auto read_collection(const std::string& input_path,
 void add_input_options(CLI::App& command, InputArguments& arguments) {
     command.add_option("input", arguments.path, "Input molecular file")->required();
     arguments.structural_selection_option =
-        command.add_option("--structural-selection", arguments.structural_selection,
+        command.add_option("--selection", arguments.structural_selection,
                            "PDB/mmCIF record selection: all, polymers-and-ligands, or polymers");
     arguments.structural_bonds_option =
-        command.add_option("--structural-bonds", arguments.structural_bonds,
+        command.add_option("--bonds", arguments.structural_bonds,
                            "PDB/mmCIF connectivity: none, explicit, templates, or hybrid");
     command.add_option("--conformers", arguments.conformer_selection,
                        "Conformers to read: first or all");
@@ -187,30 +180,33 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
         .add_option("--method-scope", arguments.method_scope,
                     "Methods automatic selection may use: recommended or all")
         ->excludes(arguments.method_option);
-    command.add_option("--fixed-ions", arguments.fixed_ion_ids,
-                       "Fixed-ion component ID (repeatable)");
-    command.add_flag("--permissive-types", arguments.permissive_types,
-                     "Allow permissive parameter type classification");
+    // One value per occurrence, as --method-option: a value after it would be read as an ion.
+    command
+        .add_option("--fixed-ions", arguments.fixed_ion_ids, "Fixed-ion component ID (repeatable)")
+        ->allow_extra_args(false);
+    command.add_option("--parameter-matching", arguments.parameter_matching,
+                       "Parameter matching: strict or permissive");
     command
         .add_option("--method-option", arguments.method_options,
-                    "Method option METHOD.OPTION=VALUE (repeatable)")
-        ->allow_extra_args(false);
+                    "Option of the method given by --method, OPTION=VALUE (repeatable)")
+        ->allow_extra_args(false)
+        ->needs(arguments.method_option);
     command.add_option("--execution", arguments.execution,
                        "Execution: auto, full, cutoff, or cover");
     command.add_option("--radius", arguments.radius, "Cutoff or cover radius in angstrom");
     arguments.cutoff_atom_threshold_option =
-        command.add_option("--cutoff-atom-threshold", arguments.cutoff_atom_threshold,
+        command.add_option("--cutoff-threshold", arguments.cutoff_threshold,
                            "Automatic full-to-cutoff atom threshold, or unlimited");
     arguments.cover_atom_threshold_option =
-        command.add_option("--cover-atom-threshold", arguments.cover_atom_threshold,
+        command.add_option("--cover-threshold", arguments.cover_threshold,
                            "Automatic cutoff-to-cover atom threshold, or unlimited");
 }
 
 auto import_input(const InputArguments& arguments) -> ImportedCollection {
-    const auto options = adapters::gemmi::InputOptions{
-        .selection = adapters::gemmi::record_selection_from_string(arguments.structural_selection),
-        .bond_strategy = adapters::gemmi::bond_strategy_from_string(arguments.structural_bonds),
-        .conformers = adapters::conformer_selection_from_string(arguments.conformer_selection)};
+    const auto options = io::StructureOptions{
+        .selection = io::record_selection_from_string(arguments.structural_selection),
+        .bonds = io::bond_strategy_from_string(arguments.structural_bonds),
+        .conformers = io::conformer_selection_from_string(arguments.conformer_selection)};
     auto imported = read_collection(arguments.path, options,
                                     arguments.structural_selection_option->count() > 0 ||
                                         arguments.structural_bonds_option->count() > 0);
@@ -218,12 +214,12 @@ auto import_input(const InputArguments& arguments) -> ImportedCollection {
 }
 
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
-                  const std::span<const adapters::ImportedMoleculeRecord> records)
+                  const std::span<const io::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest {
-    auto method_options = std::unordered_map<std::string, methods::MethodOptions>{};
+    auto method_options = methods::MethodOptions{};
     for (const auto& text : arguments.method_options) {
-        const auto [method_id, option] = parse_method_option(text);
-        method_options[method_id].set(option.first, option.second);
+        auto [option_id, value] = parse_method_option(arguments.method_id, text);
+        method_options.set(std::move(option_id), std::move(value));
     }
     auto request = calculation::AssessmentRequest{
         .molecules = std::move(molecules),
@@ -235,24 +231,23 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
                                 : std::optional{arguments.parameter_set_id},
         .method_scope = calculation::method_scope_from_string(arguments.method_scope),
         .method_options = std::move(method_options),
-        .classification_options = {.permissive_types = arguments.permissive_types},
-        .execution_selection =
+        .parameter_matching =
+            parameters::parameter_matching_from_string(arguments.parameter_matching),
+        .execution =
             calculation::ExecutionSelection{
-                calculation::execution_selection_kind_from_string(arguments.execution),
+                calculation::execution_selection_mode_from_string(arguments.execution),
                 arguments.radius},
         .resource_policy = {
-            .cutoff_atom_threshold =
+            .cutoff_threshold =
                 arguments.cutoff_atom_threshold_option->count() == 0
-                    ? std::optional<std::size_t>{calculation::default_cutoff_atom_threshold}
-                    : parse_atom_threshold(arguments.cutoff_atom_threshold,
-                                           "Cutoff atom threshold"),
-            .cover_atom_threshold =
+                    ? std::optional<std::size_t>{calculation::default_cutoff_threshold}
+                    : parse_atom_threshold(arguments.cutoff_threshold, "Cutoff threshold"),
+            .cover_threshold =
                 arguments.cover_atom_threshold_option->count() == 0
-                    ? std::optional<std::size_t>{calculation::default_cover_atom_threshold}
-                    : parse_atom_threshold(arguments.cover_atom_threshold,
-                                           "Cover atom threshold")}};
+                    ? std::optional<std::size_t>{calculation::default_cover_threshold}
+                    : parse_atom_threshold(arguments.cover_threshold, "Cover threshold")}};
     if (!arguments.fixed_ion_ids.empty()) {
-        auto resolved = adapters::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
+        auto resolved = io::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
         if (!resolved.sources.empty()) {
             request.fixed_ions = std::move(resolved);
         }

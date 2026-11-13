@@ -351,8 +351,11 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     mapping = text_molecule.source_mapping
     assert mapping is not None
     assert mapping.format == "pdb"
-    assert mapping.components == (chargefw.SourceComponentInstance("HOH", (0, 1)),)
-    assert mapping.alternate_location_selection == "first-source-order"
+    assert [
+        (component.component_id, component.atom_indices.tolist())
+        for component in mapping.components
+    ] == [("HOH", [0, 1])]
+    assert mapping.policy.alternate_locations == "first-source-order"
     assert [value.id for value in mapping.conformers] == ["1", "2"]
     labels = mapping.atoms[1].structural_labels
     assert labels is not None
@@ -470,9 +473,12 @@ HETATM 001 C LABEL . LIG LC 7 ? 0 0 0 1 20 0 17 AUTH AC AUTHOR E1 1
     assert labels.label.atom == "LABEL"
     assert labels.label.residue == "LIG"
     assert labels.label.chain == "LC"
-    assert mapping.components == (chargefw.SourceComponentInstance("LIG", (0,)),)
     assert isinstance(mapping.components, tuple)
-    assert isinstance(mapping.components[0].atom_indices, tuple)
+    (component,) = mapping.components
+    assert component.component_id == "LIG"
+    assert component.atom_indices.dtype == np.int64
+    assert component.atom_indices.tolist() == [0]
+    assert not component.atom_indices.flags.writeable
     with pytest.raises(FrozenInstanceError):
         setattr(mapping.components[0], "component_id", "AUTHOR")
 
@@ -538,11 +544,11 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         for row in document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])
     ]
     assert first_ids == ["1", "2", "3", "4"]
-    before_rejected_overwrite = document.as_string()
+    before_rejected_replacement = document.as_string()
     with pytest.raises(ValueError):
         chargefw.io.gemmi.attach_charges(document, result)
-    assert document.as_string() == before_rejected_overwrite
-    chargefw.io.gemmi.attach_charges(document, result, overwrite=True)
+    assert document.as_string() == before_rejected_replacement
+    chargefw.io.gemmi.attach_charges(document, result, if_exists="replace")
 
     conformer_document = gemmi.cif.read_string(MMCIF_TEXT)
     conformer_result = calculate(chargefw.io.gemmi.from_document(conformer_document), method="qeq")
@@ -617,7 +623,9 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
             chargefw.io.gemmi.attach_charges(modified, modified_result)
         assert modified.as_string() == before_mismatch
     with pytest.raises(TypeError):
-        chargefw.io.gemmi.attach_charges(document, result, overwrite=cast(Any, 1))
+        chargefw.io.gemmi.attach_charges(document, result, if_exists=cast(Any, 1))
+    with pytest.raises(ValueError):
+        chargefw.io.gemmi.attach_charges(document, result, if_exists=cast(Any, "append"))
 
 
 def test_attach_charges_replaces_other_charges_dictionary_declarations() -> None:
@@ -657,7 +665,7 @@ def test_attach_charges_ignores_atom_site_categories_without_ids() -> None:
 
 
 def test_selection_conformers_and_types_are_explicit() -> None:
-    with pytest.raises(RuntimeError):
+    with pytest.raises(chargefw.ParseError):
         chargefw_io.parse(MMCIF_TEXT, format="mmcif", selection="polymers", conformers="first")
 
     polymers = chargefw_io.parse(
@@ -670,9 +678,9 @@ def test_selection_conformers_and_types_are_explicit() -> None:
     result = calculate(polymers, method="formal")
     encoded = json.loads(chargefw_io.dumps(result, format="result-json"))
     policy = encoded["results"][0]["input"]["import"]["policy"]
-    assert policy["conformer_selection"] == "first"
-    assert policy["record_selection"] == "polymers"
-    assert policy["bond_strategy"] == "hybrid"
+    assert policy["conformers"] == "first"
+    assert policy["selection"] == "polymers"
+    assert policy["bonds"] == "hybrid"
 
     with pytest.raises(TypeError):
         chargefw.io.gemmi.from_structure(cast(Any, object()))

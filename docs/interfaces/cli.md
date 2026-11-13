@@ -89,8 +89,8 @@ may not have been written yet.
 | Option | Meaning |
 | --- | --- |
 | `--conformers first\|all` | Read only the first conformer or model, or all of them (default `all`) |
-| `--structural-selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
-| `--structural-bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
+| `--selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
+| `--bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
 options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.
@@ -103,9 +103,9 @@ A malformed record in the input stops the command before any calculation.
 | `--method ID` | Use this method |
 | `--parameter-set ID` | Use this parameter set; requires `--method` |
 | `--method-scope SCOPE` | Methods automatic selection may use: `recommended` (default) or `all`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; not with `--method` |
-| `--method-option METHOD.OPTION=VALUE` | Set an option of a method, such as `peoe.iters=8`; repeatable |
-| `--permissive-types` | Let a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
-| `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; repeatable; see [Fixed ions](../guide/fixed-ions.md) |
+| `--method-option OPTION=VALUE` | Set an option of the method given by `--method`, such as `iters=8`; give it once per option |
+| `--parameter-matching strict\|permissive` | `permissive` lets a parameter set match atoms whose bond order has no exact entry, as described in [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) (default `strict`) |
+| `--fixed-ions ID` | Keep the ions of residue `ID` as fixed point charges, such as `MG`; give it once per residue name; see [Fixed ions](../guide/fixed-ions.md) |
 
 ### Execution
 
@@ -113,8 +113,8 @@ A malformed record in the input stops the command before any calculation.
 | --- | --- |
 | `--execution auto\|full\|cutoff\|cover` | Calculate the whole molecule or fragments (default `auto`); see [Large structures](../guide/large-structures.md) |
 | `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
-| `--cutoff-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
-| `--cover-atom-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
+| `--cutoff-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
+| `--cover-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
 | `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
 
 ### Output and progress
@@ -181,11 +181,11 @@ publications.
 | --- | --- |
 | `0` | Success |
 | `1` | Not enough memory, or an unexpected internal error; no result JSON is written |
-| `2` | Invalid input or options, or the result JSON could not be written |
+| `2` | Invalid input or options |
 | `3` | No executable plan for the molecules and the requested settings |
 | `4` | The calculation failed, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
-| `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |
+| `6` | An output file could not be written: the result JSON, MOL2, mmCIF, or PQR |
 
 Statuses 3 to 6 come only from `chargefw calculate`. `chargefw applicability` exits with 0 once it has
 assessed the input, also when it finds no plan that can run.
