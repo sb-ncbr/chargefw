@@ -71,7 +71,7 @@ ATOM      5  H3  ALA A   7       0.000  -1.000   0.000  1.00 20.00           H
 CONECT    1    3
 END
 )pdb"};
-        auto reader = pdb::PdbReader{input, {}, {.bond_strategy = strategy}};
+        auto reader = pdb::PdbReader{input, {}, {.bonds = strategy}};
         const auto record = reader.next();
         REQUIRE(record.has_value());
         CHECK(record->molecule.atom_count() == 5);
@@ -97,7 +97,7 @@ ATOM      8  O   GLY A   2       6.000   1.700   0.000  1.00 20.00           O
 ATOM      9  H1  GLY A   2       5.900   3.800   0.000  1.00 20.00           H
 END
 )pdb",
-        {.bond_strategy = Strategy::templates});
+        {.bonds = Strategy::templates});
     for (const auto& bond : record.molecule.bonds()) {
         CHECK(bond.first_atom_index() != 8);
         CHECK(bond.second_atom_index() != 8);
@@ -113,7 +113,7 @@ ATOM      4  CA  GLY A   2       3.900   2.800   0.000  1.00 20.00           C
 ATOM      5  H1  GLY A   2       2.900   0.600   0.000  1.00 20.00           H
 END
 )pdb",
-        {.bond_strategy = Strategy::templates});
+        {.bonds = Strategy::templates});
     CHECK(std::ranges::any_of(unlinked.molecule.bonds(), [](const auto& bond) {
         return bond.first_atom_index() == 2 && bond.second_atom_index() == 4;
     }));
@@ -153,8 +153,7 @@ TEST_CASE("PDB templates follow the protonation state of histidine and arginine"
 
     for (const auto& [residue, atoms, charges, double_bonds] : cases) {
         const auto text = pdb_residue(residue, atoms, charges);
-        const auto record =
-            read_first(text, {.bond_strategy = gemmi_adapter::BondStrategy::templates});
+        const auto record = read_first(text, {.bonds = gemmi_adapter::BondStrategy::templates});
         const auto& molecule = record.molecule;
         auto read_double_bonds = std::set<std::string>{};
         for (const auto& bond : molecule.bonds()) {
@@ -180,7 +179,7 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
     const auto record =
         read_first(pdb_residue("DA", "P OP1 OP2 O5' C5' C4' O4' C3' O3' C2' C1' N9 C8 N7 C5 C6 N6 "
                                      "N1 C2 N3 C4"),
-                   {.bond_strategy = gemmi_adapter::BondStrategy::templates});
+                   {.bonds = gemmi_adapter::BondStrategy::templates});
     CHECK(record.molecule.atom_count() == 21);
     CHECK(record.molecule.bond_count() == 23);
     CHECK(record.issues.empty());
@@ -249,7 +248,7 @@ END
     const auto& mapping = *first->import_metadata;
     CHECK(mapping.format == chargefw::adapters::MolecularSourceFormat::pdb);
     CHECK(mapping.source_connectivity == chargefw::adapters::SourceConnectivity::present);
-    CHECK(mapping.alternate_location_selection == "first-source-order");
+    CHECK(mapping.policy.alternate_locations == "first-source-order");
     REQUIRE(mapping.conformers.size() == 2);
     REQUIRE(mapping.components.size() == 1);
     CHECK(mapping.components[0] == chargefw::adapters::SourceComponentInstance{"HOH", {0, 1}});
@@ -337,7 +336,7 @@ CONECT   11   12
 END
 )pdb";
         const auto read_strategy = [&](const gemmi_adapter::BondStrategy strategy) {
-            return read_first(strategy_input, {.bond_strategy = strategy});
+            return read_first(strategy_input, {.bonds = strategy});
         };
 
         CHECK(read_strategy(gemmi_adapter::BondStrategy::none).molecule.bond_count() == 0);
@@ -373,8 +372,7 @@ END
         for (const auto strategy :
              {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
               gemmi_adapter::BondStrategy::hybrid}) {
-            CHECK(read_first(duplicate_input, {.bond_strategy = strategy}).molecule.bond_count() ==
-                  1);
+            CHECK(read_first(duplicate_input, {.bonds = strategy}).molecule.bond_count() == 1);
         }
     }
 
@@ -387,7 +385,7 @@ CONECT    1    2
 END
 )pdb";
         const auto record =
-            read_first(carbonyl_input, {.bond_strategy = gemmi_adapter::BondStrategy::hybrid});
+            read_first(carbonyl_input, {.bonds = gemmi_adapter::BondStrategy::hybrid});
         REQUIRE(record.molecule.bond_count() == 1);
         CHECK(record.molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
     }
@@ -433,7 +431,7 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
         auto codes = std::vector<std::string>{};
         for (const auto& issue :
-             read_first(atoms + connectivity + "END\n", {.bond_strategy = strategy}).issues) {
+             read_first(atoms + connectivity + "END\n", {.bonds = strategy}).issues) {
             codes.emplace_back(chargefw::adapters::to_string(issue.kind));
         }
         return codes;
@@ -441,7 +439,7 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
 
     CHECK(read_codes("", Strategy::hybrid) == std::vector<std::string>{"unbonded_residue_atoms"});
     // The warning lists the ligand's atoms, not the ion.
-    const auto unbonded = read_first(atoms + "END\n", {.bond_strategy = Strategy::hybrid});
+    const auto unbonded = read_first(atoms + "END\n", {.bonds = Strategy::hybrid});
     REQUIRE(unbonded.issues.size() == 1);
     CHECK(unbonded.issues[0].location.atom_index == 0);
     CHECK(unbonded.issues[0].location.atom_indices == std::vector<std::size_t>{0, 1});
@@ -456,7 +454,7 @@ ATOM      1  C  AALA A   1       0.000   0.000   0.000  1.00 20.00           C
 HETATM    2  C1 ALIG A   5       1.000   0.000   0.000  1.00 20.00           C
 END
 )pdb",
-                                 {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds});
+                                 {.bonds = gemmi_adapter::BondStrategy::explicit_bonds});
         CHECK(record.molecule.atom_count() == 2);
         return record;
     };
@@ -581,7 +579,7 @@ END
 
 TEST_CASE("PDB template links respect chains and insertion codes", "[adapters][pdb]") {
     const auto read_bond_count = [](const std::string& text) {
-        return read_first(text, {.bond_strategy = gemmi_adapter::BondStrategy::templates})
+        return read_first(text, {.bonds = gemmi_adapter::BondStrategy::templates})
             .molecule.bond_count();
     };
 

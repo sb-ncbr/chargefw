@@ -202,8 +202,8 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             selected_models[index].normalize_component_names(source_models[index].conformer.sites);
         }
         auto explicit_bonds = bonds::ExplicitBonds{};
-        if (options_.bond_strategy == BondStrategy::explicit_bonds ||
-            options_.bond_strategy == BondStrategy::hybrid) {
+        if (options_.bonds == BondStrategy::explicit_bonds ||
+            options_.bonds == BondStrategy::hybrid) {
             explicit_bonds = bonds::explicit_mmcif(structure, block, selected_models.front());
         }
         const auto current_record_index = record_index_++;
@@ -211,7 +211,7 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             structure, selected_models,
             MoleculeRecordIdentity{
                 .source = source_, .record_index = current_record_index, .record_id = block.name},
-            options_.selection, options_.bond_strategy, options_.conformers,
+            options_.selection, options_.bonds, options_.conformers,
             std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
         if (!explicit_bonds.aromatic_bonds.empty()) {

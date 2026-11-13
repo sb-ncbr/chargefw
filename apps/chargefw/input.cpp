@@ -169,10 +169,10 @@ auto read_collection(const std::string& input_path,
 void add_input_options(CLI::App& command, InputArguments& arguments) {
     command.add_option("input", arguments.path, "Input molecular file")->required();
     arguments.structural_selection_option =
-        command.add_option("--structural-selection", arguments.structural_selection,
+        command.add_option("--selection", arguments.structural_selection,
                            "PDB/mmCIF record selection: all, polymers-and-ligands, or polymers");
     arguments.structural_bonds_option =
-        command.add_option("--structural-bonds", arguments.structural_bonds,
+        command.add_option("--bonds", arguments.structural_bonds,
                            "PDB/mmCIF connectivity: none, explicit, templates, or hybrid");
     command.add_option("--conformers", arguments.conformer_selection,
                        "Conformers to read: first or all");
@@ -209,7 +209,7 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
 auto import_input(const InputArguments& arguments) -> ImportedCollection {
     const auto options = adapters::gemmi::InputOptions{
         .selection = adapters::gemmi::record_selection_from_string(arguments.structural_selection),
-        .bond_strategy = adapters::gemmi::bond_strategy_from_string(arguments.structural_bonds),
+        .bonds = adapters::gemmi::bond_strategy_from_string(arguments.structural_bonds),
         .conformers = adapters::conformer_selection_from_string(arguments.conformer_selection)};
     auto imported = read_collection(arguments.path, options,
                                     arguments.structural_selection_option->count() > 0 ||

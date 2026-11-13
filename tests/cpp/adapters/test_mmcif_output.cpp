@@ -81,10 +81,10 @@ auto structural_result() -> adapters::ChargeCalculationResult {
         .atoms = first_sites,
         .conformers = {{.position = 0, .id = "source-model-1", .sites = std::move(first_sites)},
                        {.position = 1, .id = "source-model-2", .sites = std::move(second_sites)}},
-        .record_selection = "all",
-        .alternate_location_selection = "first-source-order",
-        .conformer_selection = "all",
-        .bond_strategy = "none"};
+        .policy = {.selection = "all",
+                   .alternate_locations = "first-source-order",
+                   .conformers = "all",
+                   .bonds = "none"}};
     return calculation_result(
         {std::move(record)},
         charges::ChargeSet{
@@ -207,7 +207,7 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
 
     auto round_trip_stream = std::istringstream{output.str()};
     auto round_trip_reader = mmcif_input::MmcifReader{
-        round_trip_stream, {}, {.bond_strategy = adapters::gemmi::BondStrategy::explicit_bonds}};
+        round_trip_stream, {}, {.bonds = adapters::gemmi::BondStrategy::explicit_bonds}};
     const auto round_trip = round_trip_reader.next();
     REQUIRE(round_trip.has_value());
     CHECK(round_trip->molecule.atom_count() == 2);
@@ -234,10 +234,9 @@ TEST_CASE("mmCIF bonds between PDB residues read back unchanged", "[adapters][mm
         "CONECT    6   12\n"
         "CONECT   12    6\n"
         "END\n"};
-    auto record = pdb_input::PdbReader{pdb,
-                                       "input.pdb",
-                                       {.bond_strategy = adapters::gemmi::BondStrategy::hybrid}}
-                      .next();
+    auto record =
+        pdb_input::PdbReader{pdb, "input.pdb", {.bonds = adapters::gemmi::BondStrategy::hybrid}}
+            .next();
     REQUIRE(record.has_value());
     const auto expected = bond_set(record->molecule);
     const auto atom_count = record->molecule.atom_count();
@@ -256,7 +255,7 @@ TEST_CASE("mmCIF bonds between PDB residues read back unchanged", "[adapters][mm
     auto input = std::istringstream{output.str()};
     const auto round_trip =
         mmcif_input::MmcifReader{
-            input, {}, {.bond_strategy = adapters::gemmi::BondStrategy::explicit_bonds}}
+            input, {}, {.bonds = adapters::gemmi::BondStrategy::explicit_bonds}}
             .next();
     REQUIRE(round_trip.has_value());
     CHECK(bond_set(round_trip->molecule) == expected);
@@ -306,8 +305,7 @@ TEST_CASE("mmCIF bonds of mixed protonation states read back and write again unc
     const auto read_mmcif = [](const std::string& text) {
         auto input = std::istringstream{text};
         auto record =
-            mmcif_input::MmcifReader{
-                input, {}, {.bond_strategy = adapters::gemmi::BondStrategy::hybrid}}
+            mmcif_input::MmcifReader{input, {}, {.bonds = adapters::gemmi::BondStrategy::hybrid}}
                 .next();
         REQUIRE(record.has_value());
         return std::move(*record);
@@ -315,8 +313,7 @@ TEST_CASE("mmCIF bonds of mixed protonation states read back and write again unc
 
     auto pdb_input = std::istringstream{pdb};
     const auto original =
-        pdb_input::PdbReader{
-            pdb_input, {}, {.bond_strategy = adapters::gemmi::BondStrategy::hybrid}}
+        pdb_input::PdbReader{pdb_input, {}, {.bonds = adapters::gemmi::BondStrategy::hybrid}}
             .next();
     REQUIRE(original.has_value());
     const auto written = write(*original);

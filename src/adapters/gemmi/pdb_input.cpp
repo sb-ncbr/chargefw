@@ -247,16 +247,14 @@ PdbReader::PdbReader(std::istream& input, std::string source,
         selected_models[index].normalize_component_names(mappings[index].conformer.sites);
     }
     auto explicit_bonds = bonds::ExplicitBonds{};
-    if (options.bond_strategy == BondStrategy::explicit_bonds ||
-        options.bond_strategy == BondStrategy::hybrid) {
+    if (options.bonds == BondStrategy::explicit_bonds || options.bonds == BondStrategy::hybrid) {
         explicit_bonds = bonds::explicit_pdb(structure, selected_models.front());
     }
     record_ = structure_import::make_record(
         structure, selected_models,
         MoleculeRecordIdentity{.source = std::move(source), .record_index = 0, .record_id = name},
-        options.selection, options.bond_strategy, options.conformers,
-        std::move(explicit_bonds.bonds), name, MolecularSourceFormat::pdb, std::move(mappings),
-        parsed_source.connectivity);
+        options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
+        MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity);
     if (explicit_bonds.skipped_symmetry_connections > 0) {
         record_->issues.push_back(
             bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));

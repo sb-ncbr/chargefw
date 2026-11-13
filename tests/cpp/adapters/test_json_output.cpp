@@ -147,7 +147,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                                                .atoms = sites,
                                                .conformers = {{.position = 0,
                                                                .sites = std::move(sites)}},
-                                               .conformer_selection = "all",
+                                               .policy = {.conformers = "all"},
                                                .source_connectivity =
                                                    adapters::SourceConnectivity::present}}},
         {.method_id = std::nullopt,
@@ -230,7 +230,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(calculated.at("input").at("record_id") == 42);
     const auto& imported = calculated.at("input").at("import");
     CHECK(imported.at("format") == "sdf");
-    CHECK(imported.at("policy").at("conformer_selection") == "all");
+    CHECK(imported.at("policy").at("conformers") == "all");
     CHECK(imported.at("source_connectivity") == "present");
     const auto& assignment = calculated.at("assignments").at(0);
     CHECK(assignment.at("scope") == "conformer");

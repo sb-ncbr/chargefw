@@ -101,6 +101,16 @@ class SourceComponentInstance:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class SourcePolicy:
+    """Choices a reader applied, as the arguments of ``chargefw.io.read()`` name them."""
+
+    selection: str | None = None
+    alternate_locations: str | None = None
+    conformers: str | None = None
+    bonds: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceMapping:
     """Read-only source correspondence retained for an imported molecule."""
 
@@ -108,10 +118,7 @@ class SourceMapping:
     atoms: tuple[SourceAtomReference, ...]
     conformers: tuple[SourceConformerReference, ...]
     source_connectivity: SourceConnectivity
-    record_selection: str | None = None
-    alternate_location_selection: str | None = None
-    conformer_selection: str | None = None
-    bond_strategy: str | None = None
+    policy: SourcePolicy = field(default_factory=SourcePolicy)
     components: tuple[SourceComponentInstance, ...] = ()
 
 
@@ -427,6 +434,7 @@ set_public_module(
     SourceConformerReference,
     SourceComponentInstance,
     SourceMapping,
+    SourcePolicy,
     ImportIssue,
     Molecule,
     MoleculeCollection,

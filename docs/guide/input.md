@@ -90,9 +90,9 @@ them. When an atom of a residue with two or more atoms gets no bond at all, Char
 `unbonded_residue_atoms` and names the first such residues; add the missing bonds to the file before
 you use a method or parameter set that depends on bonds.
 
-Three options control how a PDB or mmCIF file is read: `--structural-bonds` (`bonds` in Python) sets
-where bonds come from, `--structural-selection` (`selection`) leaves out water or ligands, and
-`--conformers` (`conformers`) reads all models or only the first. The
+Three options, named the same in Python and on the command line, control how a PDB or mmCIF file
+is read: `bonds` sets where bonds come from, `selection` leaves out water or ligands, and
+`conformers` reads all models or only the first. The
 [format reference](../reference/formats.md#pdb-and-mmcif-input) describes them.
 
 ## Check the molecule before calculating

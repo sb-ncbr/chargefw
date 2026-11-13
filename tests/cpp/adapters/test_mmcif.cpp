@@ -151,8 +151,7 @@ TEST_CASE("mmCIF templates use canonical labels and reject ambiguous selected na
 
     std::istringstream input{make_input("ATOM 1 N N . ALA A 1 ? 0 0 0 1 20 0 9 AUTHOR A N1 1\n"
                                         "ATOM 2 C CA . ALA A 1 ? 1 0 0 1 20 0 9 AUTHOR A CA1 1")};
-    auto reader =
-        mmcif::MmcifReader{input, {}, {.bond_strategy = gemmi_adapter::BondStrategy::templates}};
+    auto reader = mmcif::MmcifReader{input, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     CHECK(record->molecule.atom(0).name() == "N1");
@@ -172,7 +171,7 @@ TEST_CASE("mmCIF templates use canonical labels and reject ambiguous selected na
                    "ATOM 5 C CD . PRO A 1 ? 4 0 0 1 20 0 9 AUTHOR A DELTA 1\n"
                    "ATOM 6 H H1 . PRO A 1 ? 5 0 0 1 20 0 9 AUTHOR A FIRST 1")};
     auto terminal_reader =
-        mmcif::MmcifReader{terminal, {}, {.bond_strategy = gemmi_adapter::BondStrategy::templates}};
+        mmcif::MmcifReader{terminal, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
     const auto terminal_record = terminal_reader.next();
     REQUIRE(terminal_record.has_value());
     CHECK(terminal_record->molecule.atom_count() == 6);
@@ -198,7 +197,7 @@ ALA N CA SING
 )cif";
     std::istringstream explicit_stream{explicit_input};
     auto explicit_reader = mmcif::MmcifReader{
-        explicit_stream, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}};
+        explicit_stream, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}};
     const auto explicit_record = explicit_reader.next();
     REQUIRE(explicit_record.has_value());
     REQUIRE(explicit_record->molecule.bond_count() == 1);
@@ -207,7 +206,7 @@ ALA N CA SING
     std::istringstream fallback{make_input("ATOM 1 N . . . A 1 ? 0 0 0 1 20 0 9 ALA A N 1\n"
                                            "ATOM 2 C . . . A 1 ? 1 0 0 1 20 0 9 ALA A CA 1")};
     auto fallback_reader =
-        mmcif::MmcifReader{fallback, {}, {.bond_strategy = gemmi_adapter::BondStrategy::templates}};
+        mmcif::MmcifReader{fallback, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
     const auto fallback_record = fallback_reader.next();
     REQUIRE(fallback_record.has_value());
     CHECK(fallback_record->molecule.bond_count() == 1);
@@ -326,7 +325,7 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
 #
 )cif";
     const auto read_strategy = [&](const gemmi_adapter::BondStrategy strategy) {
-        return read_first(strategy_input, {.bond_strategy = strategy});
+        return read_first(strategy_input, {.bonds = strategy});
     };
 
     CHECK(read_strategy(gemmi_adapter::BondStrategy::none).bond_count() == 0);
@@ -345,7 +344,7 @@ link2 covale A LIG 1 C1 B LIG 1 O2 ?
     std::istringstream aromatic_connection{aromatic_connection_input};
     const auto aromatic_record =
         mmcif::MmcifReader{
-            aromatic_connection, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
+            aromatic_connection, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}}
             .next();
     REQUIRE(aromatic_record.has_value());
     CHECK(aromatic_record->molecule.bond(2).order() == chargefw::core::BondOrder::SINGLE);
@@ -374,11 +373,10 @@ _struct_conn.ptnr2_label_atom_id
 _struct_conn.ptnr2_symmetry
 disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
                                             std::string{second_symmetry} + "\n#\n"};
-        auto record =
-            mmcif::MmcifReader{connection_input,
-                               {},
-                               {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}}
-                .next();
+        auto record = mmcif::MmcifReader{connection_input,
+                                         {},
+                                         {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}}
+                          .next();
         REQUIRE(record.has_value());
         return std::move(*record);
     };
@@ -406,8 +404,7 @@ _chem_comp_bond.value_order
     };
     const auto read_duplicate_bond = [&](const gemmi_adapter::BondStrategy strategy,
                                          const std::string_view component_bond) {
-        const auto molecule =
-            read_first(duplicate_input(component_bond), {.bond_strategy = strategy});
+        const auto molecule = read_first(duplicate_input(component_bond), {.bonds = strategy});
         REQUIRE(molecule.bond_count() == 1);
         return molecule.bond(0);
     };
@@ -426,7 +423,7 @@ _chem_comp_bond.value_order
 
     const auto explicit_bond_count = [&](const std::string_view value_order) {
         return read_first(duplicate_input("ALA N CA " + std::string{value_order}),
-                          {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds})
+                          {.bonds = gemmi_adapter::BondStrategy::explicit_bonds})
             .bond_count();
     };
     CHECK(
@@ -443,7 +440,7 @@ _chem_comp_bond.value_order
           gemmi_adapter::BondStrategy::hybrid}) {
         CAPTURE(gemmi_adapter::to_string(strategy));
         std::istringstream aromatic{duplicate_input("ALA N CA arom")};
-        const auto record = mmcif::MmcifReader{aromatic, {}, {.bond_strategy = strategy}}.next();
+        const auto record = mmcif::MmcifReader{aromatic, {}, {.bonds = strategy}}.next();
         REQUIRE(record.has_value());
         const auto warning = std::ranges::find_if(record->issues, [](const auto& issue) {
             return issue.kind == chargefw::adapters::ImportIssueKind::aromatic_bonds_converted;
@@ -478,8 +475,8 @@ _chem_comp_bond.value_order
 LIG C1 N1 SING
 #
 )cif"};
-    auto reader = mmcif::MmcifReader{
-        input, {}, {.bond_strategy = gemmi_adapter::BondStrategy::explicit_bonds}};
+    auto reader =
+        mmcif::MmcifReader{input, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->molecule.atom_count() == 3);

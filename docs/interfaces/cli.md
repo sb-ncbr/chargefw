@@ -89,8 +89,8 @@ may not have been written yet.
 | Option | Meaning |
 | --- | --- |
 | `--conformers first\|all` | Read only the first conformer or model, or all of them (default `all`) |
-| `--structural-selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
-| `--structural-bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
+| `--selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
+| `--bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
 options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.

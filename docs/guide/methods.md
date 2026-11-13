@@ -54,7 +54,7 @@ use the entry for the next lower bond order, and an atom without bonds the entry
 `--permissive-types` on the command line, or `parameter_matching="permissive"` in Python. The values
 were not fitted for those atoms, so their charges, and with methods that couple every atom such as EEM
 the charges near them, are less reliable. To leave out the water instead, read the structure with
-`--structural-selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
+`--selection polymers-and-ligands`, or `selection="polymers-and-ligands"` in Python.
 
 `chargefw parameters --method METHOD` lists the parameter sets of a method, and
 `chargefw parameters ID --keys` the atom and bond types a set has values for.

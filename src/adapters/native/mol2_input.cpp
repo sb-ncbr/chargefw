@@ -326,10 +326,10 @@ struct FormalCharge {
             .atoms = std::move(atom_references),
             .conformers = {SourceConformerReference{
                 .position = 0, .id = std::nullopt, .sites = std::move(sites)}},
-            .record_selection = std::nullopt,
-            .alternate_location_selection = std::nullopt,
-            .conformer_selection = "all",
-            .bond_strategy = std::nullopt,
+            .policy = {.selection = std::nullopt,
+                       .alternate_locations = std::nullopt,
+                       .conformers = "all",
+                       .bonds = std::nullopt},
             .source_connectivity = bond_count == 0 ? SourceConnectivity::explicitly_empty
                                                    : SourceConnectivity::present,
             .components = {},

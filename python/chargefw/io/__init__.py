@@ -20,6 +20,7 @@ from .._core import (
     SourceConformerReference,
     SourceHierarchyLabels,
     SourceMapping,
+    SourcePolicy,
     SourceStructuralLabels,
 )
 from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
@@ -90,10 +91,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
                 for position, source_id, sites in import_metadata["conformers"]
             ),
             source_connectivity=import_metadata["source_connectivity"],
-            record_selection=import_metadata["record_selection"],
-            alternate_location_selection=import_metadata["alternate_location_selection"],
-            conformer_selection=import_metadata["conformer_selection"],
-            bond_strategy=import_metadata["bond_strategy"],
+            policy=SourcePolicy(**import_metadata["policy"]),
             components=tuple(
                 SourceComponentInstance(component_id=component_id, atom_indices=tuple(atom_indices))
                 for component_id, atom_indices in import_metadata["components"]

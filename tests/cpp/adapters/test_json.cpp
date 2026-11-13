@@ -170,6 +170,6 @@ TEST_CASE("JSON input owns coordinate-free source mapping", "[adapters][json]") 
     CHECK_FALSE(metadata.atoms[0].id.has_value());
     CHECK(metadata.atoms[1].position == 1);
     CHECK(metadata.conformers.empty());
-    CHECK(metadata.conformer_selection == "all");
+    CHECK(metadata.policy.conformers == "all");
     CHECK(metadata.source_connectivity == chargefw::adapters::SourceConnectivity::absent);
 }

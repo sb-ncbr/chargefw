@@ -158,18 +158,25 @@ struct SourceComponentInstance {
     [[nodiscard]] auto operator==(const SourceComponentInstance&) const -> bool = default;
 };
 
+// The choices a reader applied, as the result JSON reports them in import.policy, such as
+// "first": provenance text, not settings a later reader applies again. Empty where the format has
+// no such choice.
+struct ImportPolicy {
+    std::optional<std::string> selection;
+    std::optional<std::string> alternate_locations;
+    std::optional<std::string> conformers;
+    std::optional<std::string> bonds;
+
+    [[nodiscard]] auto operator==(const ImportPolicy&) const -> bool = default;
+};
+
 // Small adapter-owned metadata retained with the normalized molecule. Structural labels are added
 // by the structural-reader boundary rather than by core::Molecule.
 struct MoleculeImportMetadata {
     MolecularSourceFormat format = MolecularSourceFormat::molecule_json;
     std::vector<SourceAtomReference> atoms;
     std::vector<SourceConformerReference> conformers;
-    // The selections and the bond strategy are provenance: the text the result JSON reports, such
-    // as "first", not settings a later reader applies again.
-    std::optional<std::string> record_selection;
-    std::optional<std::string> alternate_location_selection;
-    std::optional<std::string> conformer_selection;
-    std::optional<std::string> bond_strategy;
+    ImportPolicy policy;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
     std::vector<SourceComponentInstance> components;
 

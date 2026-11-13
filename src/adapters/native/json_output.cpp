@@ -79,10 +79,10 @@ constexpr auto metric_scale = 1000.0;
             policy[name] = *value;
         }
     };
-    add_policy("record_selection", metadata.record_selection);
-    add_policy("alternate_location_selection", metadata.alternate_location_selection);
-    add_policy("conformer_selection", metadata.conformer_selection);
-    add_policy("bond_strategy", metadata.bond_strategy);
+    add_policy("selection", metadata.policy.selection);
+    add_policy("alternate_locations", metadata.policy.alternate_locations);
+    add_policy("conformers", metadata.policy.conformers);
+    add_policy("bonds", metadata.policy.bonds);
 
     return Json{{"format", to_string(metadata.format)},
                 {"policy", std::move(policy)},

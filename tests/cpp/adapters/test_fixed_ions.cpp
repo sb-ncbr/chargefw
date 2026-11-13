@@ -69,7 +69,7 @@ HETATM 8 Mg MG . MG I . ? 0.25 0 3 1 20 0 9 MG I MG 2 2
 #
 )cif"};
     auto options = gemmi_adapter::InputOptions{};
-    options.bond_strategy = gemmi_adapter::BondStrategy::templates;
+    options.bonds = gemmi_adapter::BondStrategy::templates;
     auto reader = mmcif::MmcifReader{input, "fixed-ion-test.cif", options};
     auto record = reader.next();
     REQUIRE(record.has_value());

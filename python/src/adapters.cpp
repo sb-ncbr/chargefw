@@ -104,10 +104,12 @@ struct MoleculePayload {
     result["format"] = std::string{adapters::to_string(metadata.format)};
     result["atoms"] = atom_references(metadata.atoms);
     result["conformers"] = std::move(conformers);
-    result["record_selection"] = metadata.record_selection;
-    result["alternate_location_selection"] = metadata.alternate_location_selection;
-    result["conformer_selection"] = metadata.conformer_selection;
-    result["bond_strategy"] = metadata.bond_strategy;
+    auto policy = nb::dict{};
+    policy["selection"] = metadata.policy.selection;
+    policy["alternate_locations"] = metadata.policy.alternate_locations;
+    policy["conformers"] = metadata.policy.conformers;
+    policy["bonds"] = metadata.policy.bonds;
+    result["policy"] = std::move(policy);
     result["source_connectivity"] = std::string{adapters::to_string(metadata.source_connectivity)};
     result["components"] = std::move(components);
     return result;
@@ -214,7 +216,7 @@ auto parse(std::string contents, std::string source, const std::string& format,
         const auto structural_options = [&] {
             return adapters::gemmi::InputOptions{
                 .selection = adapters::gemmi::record_selection_from_string(selection),
-                .bond_strategy = adapters::gemmi::bond_strategy_from_string(bonds),
+                .bonds = adapters::gemmi::bond_strategy_from_string(bonds),
                 .conformers = adapters::conformer_selection_from_string(conformers)};
         };
         switch (adapters::molecular_source_format_from_string(format)) {

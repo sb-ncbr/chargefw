@@ -23,14 +23,17 @@ type AtomReferencePayload = tuple[int, str | None, StructuralLabelsPayload | Non
 type ConformerReferencePayload = tuple[int, str | None, list[AtomReferencePayload]]
 type ComponentInstancePayload = tuple[str, list[int]]
 
+class ImportPolicyPayload(TypedDict):
+    selection: str | None
+    alternate_locations: str | None
+    conformers: str | None
+    bonds: str | None
+
 class ImportMetadataPayload(TypedDict):
     format: Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]
     atoms: list[AtomReferencePayload]
     conformers: list[ConformerReferencePayload]
-    record_selection: str | None
-    alternate_location_selection: str | None
-    conformer_selection: str | None
-    bond_strategy: str | None
+    policy: ImportPolicyPayload
     source_connectivity: Literal["absent", "explicitly-empty", "present"]
     components: list[ComponentInstancePayload]
 

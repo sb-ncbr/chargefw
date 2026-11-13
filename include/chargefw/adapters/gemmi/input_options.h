@@ -28,7 +28,7 @@ enum class BondStrategy : std::uint8_t {
 
 struct InputOptions {
     RecordSelection selection = RecordSelection::all;
-    BondStrategy bond_strategy = BondStrategy::none;
+    BondStrategy bonds = BondStrategy::none;
     ConformerSelection conformers = ConformerSelection::all;
 };
 

@@ -46,6 +46,7 @@ from ._core import (
     SourceHierarchyLabels,
     SourceIdentity,
     SourceMapping,
+    SourcePolicy,
     SourceStructuralLabels,
 )
 from ._elements import Element, PeriodicTable, periodic_table
@@ -71,6 +72,7 @@ __all__ = [
     "SourceHierarchyLabels",
     "SourceStructuralLabels",
     "SourceMapping",
+    "SourcePolicy",
     "ImportIssue",
     "ChargeAssignment",
     "FixedAtomCharge",

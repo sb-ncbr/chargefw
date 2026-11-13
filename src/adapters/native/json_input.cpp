@@ -257,10 +257,10 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
         .format = MolecularSourceFormat::molecule_json,
         .atoms = std::move(atom_references),
         .conformers = std::move(conformer_references),
-        .record_selection = std::nullopt,
-        .alternate_location_selection = std::nullopt,
-        .conformer_selection = std::string{to_string(conformer_selection)},
-        .bond_strategy = std::nullopt,
+        .policy = {.selection = std::nullopt,
+                   .alternate_locations = std::nullopt,
+                   .conformers = std::string{to_string(conformer_selection)},
+                   .bonds = std::nullopt},
         .source_connectivity = bonds_value == nullptr
                                    ? SourceConnectivity::absent
                                    : (bonds_value->empty() ? SourceConnectivity::explicitly_empty

@@ -99,8 +99,13 @@ How the atoms and conformers of a molecule correspond to its file. See
 | `conformers` | Tuple of `SourceConformerReference`, one per conformer |
 | `components` | Tuple of `SourceComponentInstance`, one per residue; empty for formats without residues |
 | `source_connectivity` | `"present"` when the file listed bonds, `"explicitly-empty"` when its bond section was empty, `"absent"` when it had no bond records, such as a PDB file without `CONECT`, `LINK`, or `SSBOND` records |
-| `record_selection`, `conformer_selection`, `bond_strategy` | The `selection`, `conformers`, and `bonds` values used for reading, such as `"all"` and `"hybrid"`; `None` where the reader has no such option |
-| `alternate_location_selection` | `"first-source-order"` for PDB and mmCIF, where the first [alternate location](formats.md#structural-selection) of each atom is read; otherwise `None` |
+| `policy` | `SourcePolicy`: how the file was read |
+
+`SourcePolicy` has the `selection`, `bonds`, and `conformers` values used for reading, as the
+arguments of `chargefw.io.read()` name them, such as `"all"` and `"hybrid"`, and
+`alternate_locations`, `"first-source-order"` for PDB and mmCIF, where the first
+[alternate location](formats.md#structural-selection) of each atom is read. Each is `None` where the
+reader has no such choice.
 
 ### SourceAtomReference
 

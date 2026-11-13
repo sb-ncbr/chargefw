@@ -107,7 +107,7 @@
           "type": "object",
           "description": "Record-specific import choices applied to this structural or molecular input.",
           "properties": {
-            "record_selection": {
+            "selection": {
               "anyOf": [
                 { "const": "all", "title": "All records", "description": "Retain polymers, ligands, and water residues." },
                 { "const": "polymers-and-ligands", "title": "Polymers and ligands", "description": "Retain polymer and ligand residues while excluding recognized water residues." },
@@ -115,20 +115,20 @@
                 { "type": "string", "description": "A value added by a later 1.x version." }
               ]
             },
-            "alternate_location_selection": {
+            "alternate_locations": {
               "anyOf": [
                 { "const": "first-source-order", "title": "First alternate location in source order", "description": "For each atom name within each residue, select its first source-order alternate location." },
                 { "type": "string", "description": "A value added by a later 1.x version." }
               ]
             },
-            "conformer_selection": {
+            "conformers": {
               "anyOf": [
                 { "const": "first", "title": "First conformer", "description": "Retain only the first input conformer or structural model." },
                 { "const": "all", "title": "All conformers", "description": "Retain all input conformers or structural models in source order." },
                 { "type": "string", "description": "A value added by a later 1.x version." }
               ]
             },
-            "bond_strategy": {
+            "bonds": {
               "anyOf": [
                 { "const": "none", "title": "No bonds", "description": "Import atoms and coordinates without molecular bonds." },
                 { "const": "explicit", "title": "Explicit bonds", "description": "Use explicit bonds and connections represented by the source format." },

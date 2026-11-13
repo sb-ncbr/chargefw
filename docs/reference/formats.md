@@ -181,7 +181,7 @@ after alternate locations are chosen, are an error.
 
 ### Structural selection
 
-`--structural-selection` (`selection` in Python) chooses which residues are read. Bonds and further
+`selection` (`--selection` on the command line) chooses which residues are read. Bonds and further
 models are then read for these atoms only.
 
 - `all` keeps polymer, ligand, and water residues;
@@ -196,7 +196,7 @@ alternate-location code is kept and written to the output.
 
 ### Connectivity
 
-`--structural-bonds` (`bonds` in Python) chooses where bonds come from:
+`bonds` (`--bonds` on the command line) chooses where bonds come from:
 
 - `none`: no bonds;
 - `explicit`: the bonds in the file. From PDB, `CONECT` records and covalent and disulfide

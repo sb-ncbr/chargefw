@@ -206,7 +206,7 @@ def test_result_schema_accepts_later_minor_versions() -> None:
     document["status"] = "added_status"
     imported = document["results"][0]["input"]["import"]
     imported["format"] = "added_format"
-    imported["policy"]["conformer_selection"] = "added_selection"
+    imported["policy"]["conformers"] = "added_selection"
     provenance = document["calculation_provenance"]
     provenance["requested"]["execution"]["kind"] = "added_kind"
     provenance["effective"]["execution"]["mode"] = "added_mode"

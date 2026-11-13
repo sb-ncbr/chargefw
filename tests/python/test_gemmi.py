@@ -354,7 +354,7 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     assert mapping.components == (
         chargefw.SourceComponentInstance(component_id="HOH", atom_indices=(0, 1)),
     )
-    assert mapping.alternate_location_selection == "first-source-order"
+    assert mapping.policy.alternate_locations == "first-source-order"
     assert [value.id for value in mapping.conformers] == ["1", "2"]
     labels = mapping.atoms[1].structural_labels
     assert labels is not None
@@ -674,9 +674,9 @@ def test_selection_conformers_and_types_are_explicit() -> None:
     result = calculate(polymers, method="formal")
     encoded = json.loads(chargefw_io.dumps(result, format="result-json"))
     policy = encoded["results"][0]["input"]["import"]["policy"]
-    assert policy["conformer_selection"] == "first"
-    assert policy["record_selection"] == "polymers"
-    assert policy["bond_strategy"] == "hybrid"
+    assert policy["conformers"] == "first"
+    assert policy["selection"] == "polymers"
+    assert policy["bonds"] == "hybrid"
 
     with pytest.raises(TypeError):
         chargefw.io.gemmi.from_structure(cast(Any, object()))

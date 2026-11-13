@@ -4,6 +4,14 @@
 
 ### Input
 
+- Breaking change: the options for reading structures have the same names everywhere, those of
+  `chargefw.io.read()`: `selection`, `bonds`, and `conformers`. On the command line,
+  `--structural-selection` and `--structural-bonds` are now `--selection` and `--bonds`. In result
+  JSON, `import.policy` has `selection`, `bonds`, `conformers`, and `alternate_locations` instead of
+  `record_selection`, `bond_strategy`, `conformer_selection`, and `alternate_location_selection`. In
+  Python, these four are in `SourceMapping.policy`, a new `chargefw.SourcePolicy`; in C++, in
+  `MoleculeImportMetadata::policy`, an `adapters::ImportPolicy`, and
+  `gemmi::InputOptions::bond_strategy` is `bonds`.
 - Breaking change: parameter-set files are read strictly. An unknown section, key member, or entry
   member is an error, and so is a parameter name the method does not use, reported as the new
   prerequisite issue kind `unknown_parameters`. A set made for another version could otherwise give
