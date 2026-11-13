@@ -9,6 +9,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <new>
 #include <print>
 #include <random>
 #include <set>
@@ -181,16 +182,13 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
                                const adapters::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
+    // Every output that cannot be written, the result JSON too, exits with 6. Running out of memory
+    // before the result JSON is written exits with 1.
+    const auto write_failed = [](const std::exception& error) -> int {
+        std::println(std::cerr, "Write error: {}", error.what());
+        return 6;
+    };
     const auto directory = std::filesystem::path{output_directory};
-    std::error_code directory_error;
-    std::filesystem::create_directories(directory, directory_error);
-    if (directory_error) {
-        throw std::runtime_error{"Unable to create output directory: " + directory.string() + ": " +
-                                 directory_error.message()};
-    }
-    if (!std::filesystem::is_directory(directory)) {
-        throw std::runtime_error{"Output path is not a directory: " + directory.string()};
-    }
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
     run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
@@ -198,7 +196,22 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     run.metrics.runtime_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();
     const auto json_path = std::filesystem::path{prefix.string() + ".json"};
-    write_json(json_path, owned_result, run.metrics);
+    try {
+        std::error_code directory_error;
+        std::filesystem::create_directories(directory, directory_error);
+        if (directory_error) {
+            throw std::runtime_error{"Unable to create output directory: " + directory.string() +
+                                     ": " + directory_error.message()};
+        }
+        if (!std::filesystem::is_directory(directory)) {
+            throw std::runtime_error{"Output path is not a directory: " + directory.string()};
+        }
+        write_json(json_path, owned_result, run.metrics);
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception& error) {
+        return write_failed(error);
+    }
     report_diagnostics(owned_result, run.reported);
 
     if (owned_result.charges() == nullptr) {
@@ -235,8 +248,8 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
             std::println("Wrote {}", pqr_path.string());
         }
     } catch (const std::exception& error) {
-        std::println(std::cerr, "Export error: {}", error.what());
-        return 6;
+        // Also for running out of memory: the result JSON is written, which status 1 rules out.
+        return write_failed(error);
     }
     return 0;
 }

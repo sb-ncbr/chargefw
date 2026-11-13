@@ -181,11 +181,11 @@ publications.
 | --- | --- |
 | `0` | Success |
 | `1` | Not enough memory, or an unexpected internal error; no result JSON is written |
-| `2` | Invalid input or options, or the result JSON could not be written |
+| `2` | Invalid input or options |
 | `3` | No executable plan for the molecules and the requested settings |
 | `4` | The calculation failed, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
-| `6` | Writing MOL2, mmCIF, or PQR failed after the result JSON was written |
+| `6` | An output file could not be written: the result JSON, MOL2, mmCIF, or PQR |
 
 Statuses 3 to 6 come only from `chargefw calculate`. `chargefw applicability` exits with 0 once it has
 assessed the input, also when it finds no plan that can run.

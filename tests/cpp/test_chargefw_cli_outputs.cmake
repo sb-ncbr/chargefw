@@ -2,9 +2,14 @@ include("${CMAKE_CURRENT_LIST_DIR}/support/test_cli.cmake")
 
 fresh_output_directory(json_failure_directory json_failure)
 file(MAKE_DIRECTORY "${json_failure_directory}/water_3d.chargefw.json")
-run_cli(json_output_failure 2 calculate --method eem "${CHARGEFW_INPUT}"
+run_cli(json_output_failure 6 calculate --method eem "${CHARGEFW_INPUT}"
         "${json_failure_directory}")
 file(REMOVE_RECURSE "${json_failure_directory}")
+
+fresh_output_directory(file_as_directory file_as_directory)
+file(WRITE "${file_as_directory}" "")
+run_cli(output_directory_failure 6 calculate --method eem "${CHARGEFW_INPUT}" "${file_as_directory}")
+file(REMOVE "${file_as_directory}")
 
 fresh_output_directory(export_failure_directory export_failure)
 set(export_failure_prefix "${export_failure_directory}/water_3d.chargefw")

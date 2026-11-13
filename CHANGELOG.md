@@ -270,6 +270,8 @@
   `--permissive-types` is now `--parameter-matching permissive` (default `strict`), and
   `--cutoff-atom-threshold` and `--cover-atom-threshold` are now `--cutoff-threshold` and
   `--cover-threshold`.
+- Breaking change: a result JSON or output directory that cannot be written exits with status 6, as
+  MOL2, mmCIF, and PQR do, instead of 2. Status 2 now means only invalid input or options.
 
 ### Output
 
