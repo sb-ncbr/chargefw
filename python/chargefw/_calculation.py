@@ -9,20 +9,16 @@ from threading import Lock
 
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._calculation_values import (
-    CalculationCancelledError,
     CalculationObserver,
     CalculationProgress,
     CalculationResult,
     CalculationSettings,
     CalculationTimings,
-    ChargeFWError,
     ChargeIssue,
     ExecutedPlan,
     Execution,
     FixedIons,
     InputIssue,
-    NoExecutablePlanError,
-    NumericalFailureError,
     Plan,
     Rejection,
     ResourceEstimate,
@@ -34,6 +30,7 @@ from ._calculation_values import (
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
 from ._core import Molecule, MoleculeCollection
+from ._errors import ParseError
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._public import set_public_module
@@ -48,19 +45,15 @@ __all__ = [
     "Assessment",
     "CalculationObserver",
     "CalculationProgress",
-    "CalculationCancelledError",
     "CalculationResult",
     "CalculationSettings",
     "CalculationTimings",
-    "ChargeFWError",
     "ExecutedPlan",
     "FixedAtomCharge",
     "FixedIons",
     "Execution",
     "InputIssue",
     "ChargeIssue",
-    "NoExecutablePlanError",
-    "NumericalFailureError",
     "Plan",
     "Rejection",
     "RequestedCalculation",
@@ -83,10 +76,6 @@ set_public_module(
     ExecutedPlan,
     CalculationSettings,
     CalculationTimings,
-    ChargeFWError,
-    NoExecutablePlanError,
-    NumericalFailureError,
-    CalculationCancelledError,
     CalculationResult,
     InputIssue,
     ChargeIssue,
@@ -141,7 +130,7 @@ def _parameter_set_from_catalog(
     result = ParameterSet._create(descriptor, native)
     if result._method_id not in methods:
         where = f" in {source!r}" if source else ""
-        raise ValueError(
+        raise ParseError(
             f"parameter set {result.id!r}{where} is for method {result._method_id!r}, "
             "which ChargeFW does not have"
         )
@@ -180,9 +169,18 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
     must differ from the IDs of the bundled parameter sets.
     """
 
-    native = _native_parameters._load_parameter_set_catalog(os.fspath(path))
-    result = _parameter_set_from_catalog(native, os.fspath(path))
-    _check_custom_parameter_id(result.id, os.fspath(path))
+    source = os.fspath(path)
+    with open(source, encoding="utf-8") as file:
+        try:
+            text = file.read()
+        except UnicodeDecodeError as error:
+            raise ParseError(f"{source}: {error}") from None
+    try:
+        native = _native_parameters._parse_parameter_set_catalog(text)
+    except ValueError as error:
+        raise ParseError(f"{source}: {error}") from None
+    result = _parameter_set_from_catalog(native, source)
+    _check_custom_parameter_id(result.id, source)
     return result
 
 

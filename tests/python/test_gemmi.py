@@ -661,7 +661,7 @@ def test_attach_charges_ignores_atom_site_categories_without_ids() -> None:
 
 
 def test_selection_conformers_and_types_are_explicit() -> None:
-    with pytest.raises(RuntimeError):
+    with pytest.raises(chargefw.ParseError):
         chargefw_io.parse(MMCIF_TEXT, format="mmcif", selection="polymers", conformers="first")
 
     polymers = chargefw_io.parse(

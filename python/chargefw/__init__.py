@@ -6,21 +6,17 @@ from . import _cpu as _cpu  # Checks the CPU before the extension is loaded.
 from . import io as io
 from ._calculation import (
     Assessment,
-    CalculationCancelledError,
     CalculationObserver,
     CalculationProgress,
     CalculationResult,
     CalculationSettings,
     CalculationTimings,
-    ChargeFWError,
     ChargeIssue,
     ExecutedPlan,
     Execution,
     FixedAtomCharge,
     FixedIons,
     InputIssue,
-    NoExecutablePlanError,
-    NumericalFailureError,
     Plan,
     Rejection,
     RequestedCalculation,
@@ -50,6 +46,14 @@ from ._core import (
     SourceStructuralLabels,
 )
 from ._elements import Element, PeriodicTable, periodic_table
+from ._errors import (
+    CalculationCancelledError,
+    CalculationError,
+    ChargeFWError,
+    NoExecutablePlanError,
+    NumericalFailureError,
+    ParseError,
+)
 from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
 from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from ._warnings import ChargeFWWarning, ChargeWarning, InputWarning
@@ -89,6 +93,8 @@ __all__ = [
     "write_parameter_set",
     "RequestedCalculation",
     "ChargeFWError",
+    "ParseError",
+    "CalculationError",
     "NoExecutablePlanError",
     "NumericalFailureError",
     "CalculationCancelledError",

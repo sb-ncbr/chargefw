@@ -40,6 +40,14 @@
 
 ### Python
 
+- Breaking change: `chargefw.ChargeFWError` is the base class of every ChargeFW error and no longer
+  a `RuntimeError`. A failed calculation raises a `chargefw.CalculationError`, which holds `result`
+  and is the base class of `NoExecutablePlanError`, `NumericalFailureError`, and
+  `CalculationCancelledError`. Molecules or a parameter set that `io.read()`, `io.parse()`, or
+  `read_parameter_set()` cannot read raise the new `chargefw.ParseError`, also a `ValueError`,
+  instead of `RuntimeError`, `ValueError`, or `IndexError`. `read_parameter_set()` raises
+  `OSError` for a file it cannot open. `parameterization.EvaluationError` derives from
+  `ChargeFWError` instead of `RuntimeError`.
 - Breaking change: the modules `chargefw.core`, `chargefw.charges`, and `chargefw.calculation` are
   private; import their classes and functions from `chargefw`, as the documentation does. Every class
   and function of `chargefw` now reports `chargefw` as its module. `chargefw.io` and

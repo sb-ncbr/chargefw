@@ -135,7 +135,7 @@ the parameter set gives the molecule no single energy minimum at its geometry, a
 through rounding when it comes close to that. With cutoff and cover execution, each fragment's
 equations are checked, not those of the whole molecule. Check the geometry, or use another parameter
 set. The command line still writes the result JSON, with the reasons, and exits with a
-[status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.ChargeFWError`;
+[status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.CalculationError`;
 its `result` attribute holds the same information. Here the parameter set has no values for chlorine
 in chlorobenzene:
 
@@ -147,7 +147,7 @@ molecule = chargefw.io.rdkit.from_mol(chlorobenzene)
 
 try:
     result = chargefw.calculate(molecule, method="eem", parameter_set="EEM_Baek1991")
-except chargefw.ChargeFWError as error:
+except chargefw.CalculationError as error:
     for rejection in error.result.rejections:
         for issue in rejection.issues:
             print(rejection.method.id, issue.message)

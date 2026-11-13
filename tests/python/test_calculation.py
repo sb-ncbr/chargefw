@@ -1019,13 +1019,16 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     malformed = tmp_path / "malformed.json"
     malformed.write_text('{"metadata": {"id": "broken"}}')
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.ParseError):
         chargefw.read_parameter_set(malformed)
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
-    with pytest.raises(ValueError, match="no-such-method"):
+    with pytest.raises(chargefw.ParseError, match="no-such-method"):
         chargefw.read_parameter_set(unknown_method)
+
+    with pytest.raises(FileNotFoundError):
+        chargefw.read_parameter_set(tmp_path / "missing.json")
 
 
 def test_evaluator_with_loaded_parameters_preserves_conformer_assignment_order(

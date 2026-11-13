@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 from .._arrays import index_array
 from .._calculation_values import CalculationResult
@@ -23,6 +23,7 @@ from .._core import (
     SourcePolicy,
     SourceStructuralLabels,
 )
+from .._errors import ParseError
 from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 
 if TYPE_CHECKING:
@@ -38,6 +39,11 @@ INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json",
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "pqr", "result-json")
 _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
 _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
+_OPTION_VALUES: dict[str, tuple[str, ...]] = {
+    "selection": get_args(RecordSelection.__value__),
+    "bonds": get_args(BondStrategy.__value__),
+    "conformers": get_args(ConformerSelection.__value__),
+}
 
 
 class _ImportedMolecule(Molecule):
@@ -154,6 +160,15 @@ def _validate_options(
         raise TypeError("format must be a string")
     if format not in INPUT_FORMATS:
         raise ValueError(f"unsupported molecular input format: {format}")
+    # Checked here, so that the native reader rejects only the input, as a ParseError.
+    for name, value in (("selection", selection), ("bonds", bonds), ("conformers", conformers)):
+        if name == "bonds" and value is None:
+            continue
+        if not isinstance(value, str):
+            raise TypeError(f"{name} must be a string")
+        if value not in _OPTION_VALUES[name]:
+            allowed = ", ".join(repr(choice) for choice in _OPTION_VALUES[name])
+            raise ValueError(f"{name} must be one of {allowed}")
     if format not in _STRUCTURAL_FORMATS:
         if selection != "all":
             raise ValueError("selection is only supported for PDB and mmCIF input")
@@ -194,9 +209,13 @@ def _parse(
     if not isinstance(source_name, str):
         raise TypeError("source_name must be a string")
     _validate_options(format, selection, bonds, conformers)
-    payloads = _native_adapters._parse(
-        contents, source_name, format, selection, "hybrid" if bonds is None else bonds, conformers
-    )
+    bond_strategy = "hybrid" if bonds is None else bonds
+    try:
+        payloads = _native_adapters._parse(
+            contents, source_name, format, selection, bond_strategy, conformers
+        )
+    except (RuntimeError, ValueError, IndexError) as error:
+        raise ParseError(str(error)) from None
     return _collection(payloads, source_name)
 
 
@@ -236,8 +255,12 @@ def read(
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
+    try:
+        contents = source_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise ParseError(f"{source_path}: {error}") from None
     collection = _parse(
-        source_path.read_text(encoding="utf-8"),
+        contents,
         format,
         str(source_path),
         selection,

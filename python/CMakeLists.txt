@@ -82,6 +82,7 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _arrays.py
     _catalog.py
     _elements.py
+    _errors.py
     _calculation_options.py
     _calculation_values.py
     _methods.py

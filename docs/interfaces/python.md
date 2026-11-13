@@ -273,9 +273,14 @@ warnings.simplefilter("error", chargefw.ChargeWarning)
 
 ### Errors
 
-Invalid arguments raise `TypeError` or `ValueError`, and a calculation that runs out of memory raises
-`MemoryError`. A calculation that fails raises a
-`chargefw.ChargeFWError`:
+Invalid arguments raise `TypeError` or `ValueError`, a file that cannot be opened raises `OSError`,
+and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own errors derive from
+`chargefw.ChargeFWError`.
+
+Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
+`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a `ValueError`.
+
+A calculation that fails raises a `chargefw.CalculationError`:
 
 - `NoExecutablePlanError`: no method and parameter set apply with the requested settings;
 - `NumericalFailureError`: the calculation failed, for example did not converge;
@@ -295,7 +300,7 @@ result JSON:
 ```python
 try:
     result = chargefw.calculate(molecules, method="qeq", parameter_set="QEq_original")
-except chargefw.ChargeFWError as error:
+except chargefw.CalculationError as error:
     chargefw.io.write("failed-result.json", error.result, format="result-json")
     raise
 ```
@@ -385,8 +390,8 @@ result = chargefw.calculate(molecules, method=my_set.method, parameter_set=my_se
 ```
 
 The set's ID must differ from the IDs in `chargefw.parameter_sets`; reading a file that reuses one
-raises `ValueError`, as does a file that does not follow the format. Such a set is not added to
-`chargefw.parameter_sets`; results report it in `plan.parameter_set`.
+raises `ValueError`, and a file that does not follow the format raises `chargefw.ParseError`. Such a
+set is not added to `chargefw.parameter_sets`; results report it in `plan.parameter_set`.
 
 `chargefw.write_parameter_set(path, parameter_set)` writes any parameter set, bundled or your own, to a
 JSON file in the same format. Pass a `ParameterSet` object, not its ID; for a bundled set, use

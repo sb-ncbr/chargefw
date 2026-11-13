@@ -15,6 +15,12 @@ from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
 from ._charges import ChargeAssignment
 from ._core import Molecule, MoleculeCollection
+from ._errors import (
+    CalculationCancelledError,
+    CalculationError,
+    NoExecutablePlanError,
+    NumericalFailureError,
+)
 from ._methods import (
     ExecutionIssue,
     Method,
@@ -591,26 +597,6 @@ def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
     return "\n".join(lines)
 
 
-class ChargeFWError(RuntimeError):
-    """Base class for a failed ChargeFW calculation result."""
-
-    def __init__(self, message: str, result: CalculationResult) -> None:
-        super().__init__(message)
-        self.result = result
-
-
-class NoExecutablePlanError(ChargeFWError):
-    pass
-
-
-class NumericalFailureError(ChargeFWError):
-    pass
-
-
-class CalculationCancelledError(ChargeFWError):
-    pass
-
-
 class CalculationResult:
     """Owned calculation status, assignments, diagnostics, and provenance."""
 
@@ -773,7 +759,7 @@ class CalculationResult:
     def timings(self) -> CalculationTimings:
         return self._timings
 
-    def _status_error(self) -> ChargeFWError | None:
+    def _status_error(self) -> CalculationError | None:
         exception_types = {
             "no_executable_plan": NoExecutablePlanError,
             "numerical_failure": NumericalFailureError,
@@ -789,7 +775,7 @@ class CalculationResult:
 
 def _outcome(
     result: CalculationResult,
-) -> tuple[ChargeFWError | None, list[tuple[str, type[ChargeFWWarning]]]]:
+) -> tuple[CalculationError | None, list[tuple[str, type[ChargeFWWarning]]]]:
     """The error of a failed calculation, or the warnings about issues that can make charges wrong.
 
     A failure has no warnings: its error carries the issues in its result, also when warnings are

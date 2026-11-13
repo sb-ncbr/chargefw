@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError
 from gc import collect
+from pathlib import Path
 from typing import Any, cast
 
 import chargefw
@@ -193,3 +194,34 @@ def test_invalid_inputs_are_rejected() -> None:
     for error_type, operation in invalid_cases:
         with pytest.raises(error_type):
             operation()
+
+
+def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
+    unknown_element = "x\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n" + (
+        "    0.0000    0.0000    0.0000 Xx  0  0\nM  END\n$$$$\n"
+    )
+    for contents, format_name in (
+        ("garbage\n", "sdf"),
+        (unknown_element, "sdf"),
+        ('{"x": 1}', "molecule-json"),
+    ):
+        with pytest.raises(chargefw.ParseError):
+            chargefw.io.parse(contents, format=cast(Any, format_name))
+
+    latin1 = tmp_path / "latin1.sdf"
+    latin1.write_bytes(b"\xe9\n")
+    with pytest.raises(chargefw.ParseError):
+        chargefw.io.read(latin1, format="sdf")
+    with pytest.raises(FileNotFoundError):
+        chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
+
+
+def test_invalid_reader_options_are_not_parse_errors() -> None:
+    for format_name, option in (
+        ("pdb", {"selection": "invalid"}),
+        ("mmcif", {"bonds": "invalid"}),
+        ("molecule-json", {"conformers": "invalid"}),
+    ):
+        with pytest.raises(ValueError) as raised:
+            chargefw.io.parse("", format=cast(Any, format_name), **cast(Any, option))
+        assert not isinstance(raised.value, chargefw.ParseError)
