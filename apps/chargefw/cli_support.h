@@ -61,7 +61,6 @@ struct CalculationRun {
 };
 
 [[nodiscard]] auto utc_timestamp() -> std::string;
-[[nodiscard]] auto peak_resident_memory_mb() -> double;
 
 void add_input_options(CLI::App& command, InputArguments& arguments);
 void add_selection_options(CLI::App& command, SelectionArguments& arguments);

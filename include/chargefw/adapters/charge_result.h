@@ -73,7 +73,7 @@ struct ExecutionMetrics {
     double parsing_seconds = 0.0;
     double applicability_seconds = 0.0;
     double computation_seconds = 0.0;
-    double peak_resident_memory_mb = 0.0;
+    std::uint64_t peak_resident_memory_bytes = 0;
 };
 
 // Application-facing result boundary. It owns the exact normalized records supplied to the

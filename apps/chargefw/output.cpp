@@ -156,10 +156,6 @@ auto utc_timestamp() -> std::string {
                                         std::chrono::system_clock::now()));
 }
 
-auto peak_resident_memory_mb() -> double {
-    return static_cast<double>(platform::peak_resident_memory_bytes()) / (1024.0 * 1024.0);
-}
-
 auto make_requested_provenance(const calculation::AssessmentRequest& request,
                                const SelectionArguments& arguments)
     -> adapters::RequestedCalculationProvenance {
@@ -191,7 +187,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
     const auto directory = std::filesystem::path{output_directory};
     const auto prefix =
         directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
-    run.metrics.peak_resident_memory_mb = peak_resident_memory_mb();
+    run.metrics.peak_resident_memory_bytes = platform::peak_resident_memory_bytes();
     run.metrics.ended_at = utc_timestamp();
     run.metrics.runtime_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - run.started}.count();

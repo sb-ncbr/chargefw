@@ -106,6 +106,8 @@
 
 ### C++
 
+- Breaking change: `adapters::ExecutionMetrics::peak_resident_memory_mb` is now
+  `peak_resident_memory_bytes`, a `std::uint64_t`.
 - Breaking change: `adapters::MoleculeRecordIdentity::source` is now `source_name`, as in Python
   and result JSON.
 - The MOL, SDF, and MOL2 readers throw `std::runtime_error` for an unknown element symbol, as
@@ -285,6 +287,8 @@
 
 ### Output
 
+- Breaking change: result JSON reports `execution_metrics.peak_resident_memory_bytes`, an integer,
+  instead of `peak_resident_memory_mb`, which was in MiB.
 - Breaking change: a record's `input.source` in result JSON is now `input.source_name`, as in
   Python.
 - Breaking change: result JSON has no `calculation_provenance.effective.warnings`. It repeated

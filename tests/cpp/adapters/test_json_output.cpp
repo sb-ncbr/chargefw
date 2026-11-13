@@ -180,7 +180,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                                    .parsing_seconds = 0.1004,
                                    .applicability_seconds = 0.20,
                                    .computation_seconds = 0.80,
-                                   .peak_resident_memory_mb = 123.4567};
+                                   .peak_resident_memory_bytes = 123456789};
 
     auto output = std::ostringstream{};
     json_output::JsonWriter{output}.write(owned, execution_metrics);
@@ -216,7 +216,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(encoded_metrics.at("phases").at("parsing_seconds") == 0.1);
     CHECK(encoded_metrics.at("phases").at("applicability_seconds") == 0.20);
     CHECK(encoded_metrics.at("phases").at("computation_seconds") == 0.80);
-    CHECK(encoded_metrics.at("peak_resident_memory_mb") == 123.457);
+    CHECK(encoded_metrics.at("peak_resident_memory_bytes") == 123456789);
     CHECK(effective.at("execution").at("mode") == "cutoff");
     CHECK(effective.at("method").at("id") == "formal");
     CHECK(effective.at("parameter_set").at("id") == "test-formal");

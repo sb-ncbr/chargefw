@@ -362,7 +362,7 @@
     },
     "executionMetrics": {
       "type": "object",
-      "required": ["started_at", "ended_at", "runtime_seconds", "phases", "peak_resident_memory_mb"],
+      "required": ["started_at", "ended_at", "runtime_seconds", "phases", "peak_resident_memory_bytes"],
       "properties": {
         "started_at": { "type": "string", "description": "UTC timestamp marking calculation start." },
         "ended_at": { "type": "string", "description": "UTC timestamp marking result finalization." },
@@ -376,7 +376,7 @@
             "computation_seconds": { "type": "number", "minimum": 0 }
           }
         },
-        "peak_resident_memory_mb": { "type": "number", "minimum": 0 }
+        "peak_resident_memory_bytes": { "type": "integer", "minimum": 0, "description": "Peak resident memory of the process, in bytes." }
       }
     }
   }
