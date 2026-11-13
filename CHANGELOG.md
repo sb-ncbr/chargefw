@@ -207,6 +207,11 @@
 
 ### Calculation
 
+- Breaking change: automatic selection of an EEM parameter set follows ChargeFW2 again. It tries the
+  NEEMP sets first, then Cheminf, Bult, Ouy, Svob, and Baek, and the Ionescu sets last; earlier 3.0
+  pre-releases tried Ionescu first. `--method eem` without a parameter set therefore now uses
+  `EEM_NEEMP_ccd2016_npa` for molecules it covers. Name the parameter set, such as
+  `EEM_Ionescu2013_mpa_gas`, to keep the charges of earlier pre-releases.
 - SQE, SQE+q0, and SQE+qp calculations fail with `numerical_failure` when the split-charge system
   cannot be factorized as positive definite, as when the energy has no unique minimum at the
   molecule's geometry. Earlier versions returned the solution without warning, with charges that could

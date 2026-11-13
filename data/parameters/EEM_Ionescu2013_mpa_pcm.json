@@ -5,7 +5,7 @@
     "method": "eem",
     "publication": "10.1021/ci400448n",
     "notes": "Parameterized to reproduce HF/6-31G**/MPA/polarizable-continuum-model charges",
-    "priority": 65
+    "priority": 35
   },
   "common": {
     "names": ["kappa"],

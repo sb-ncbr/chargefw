@@ -6,13 +6,13 @@ compares the charges with those of the first set. For
 
 ```console
 $ python compare_parameter_sets.py paracetamol.sdf --format sdf --method eem
-Reference: EEM_Ionescu2013_mpa_gas
+Reference: EEM_NEEMP_ccd2016_npa
 Parameter set                              total charge    RMS difference    max difference
-EEM_Ionescu2013_mpa_gas                        0.000000          0.000000          0.000000
-EEM_Ionescu2013_mpa_pcm                        0.000000          0.030521          0.069620
-EEM_Ionescu2013_npa_gas                       -0.000000          0.056624          0.129664
-EEM_Ionescu2013_npa_pcm                       -0.000000          0.064932          0.158402
-EEM_Baek1991                                   0.000000          0.237594          0.495312
+EEM_NEEMP_ccd2016_npa                         -0.000000          0.000000          0.000000
+EEM_NEEMP_ccd2016_npa2                         0.000000          0.044750          0.133496
+EEM_NEEMP_ccd2016_mpa                          0.000000          0.081309          0.190372
+EEM_NEEMP_ccd2016_mpa2                        -0.000000          0.067589          0.220710
+EEM_Cheminf_b3lyp_aim                         -0.000000          0.228376          0.503868
 ...
 ```
 
