@@ -14,6 +14,7 @@
 #include <gemmi/polyheur.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <istream>
 #include <iterator>
 #include <limits>
@@ -133,8 +134,32 @@ make_source_mappings(::gemmi::cif::Block& block,
 
 } // namespace
 
+struct MmcifReader::Impl {
+    Impl(std::istream& input, std::string source,
+         ::chargefw::adapters::gemmi::InputOptions options);
+    auto next() -> std::optional<ImportedMoleculeRecord>;
+
+    ::gemmi::cif::Document document_;
+    std::string source_;
+    ::chargefw::adapters::gemmi::InputOptions options_;
+    std::size_t block_index_ = 0;
+    std::size_t record_index_ = 0;
+};
+
 MmcifReader::MmcifReader(std::istream& input, std::string source,
                          const ::chargefw::adapters::gemmi::InputOptions options)
+    : impl_{std::make_unique<Impl>(input, std::move(source), options)} {}
+
+MmcifReader::MmcifReader(MmcifReader&&) noexcept = default;
+auto MmcifReader::operator=(MmcifReader&&) noexcept -> MmcifReader& = default;
+MmcifReader::~MmcifReader() = default;
+
+auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
+    return impl_ ? impl_->next() : std::nullopt;
+}
+
+MmcifReader::Impl::Impl(std::istream& input, std::string source,
+                        const ::chargefw::adapters::gemmi::InputOptions options)
     : source_{std::move(source)}, options_{options} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
     const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
@@ -155,7 +180,7 @@ MmcifReader::MmcifReader(std::istream& input, std::string source,
     }
 }
 
-auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
+auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
     while (block_index_ < document_.blocks.size()) {
         auto& block = document_.blocks[block_index_++];
         if (!block.has_tag("_atom_site.id")) {

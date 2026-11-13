@@ -3,10 +3,8 @@
 #include <chargefw/adapters/conformer_selection.h>
 #include <chargefw/adapters/molecule_record.h>
 
-#include <nlohmann/json.hpp>
-
-#include <cstddef>
 #include <istream>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -23,17 +21,15 @@ class JsonReader {
 
     JsonReader(const JsonReader&) = delete;
     auto operator=(const JsonReader&) -> JsonReader& = delete;
-    JsonReader(JsonReader&&) = default;
-    auto operator=(JsonReader&&) -> JsonReader& = default;
-    ~JsonReader() = default;
+    JsonReader(JsonReader&&) noexcept;
+    auto operator=(JsonReader&&) noexcept -> JsonReader&;
+    ~JsonReader();
 
     [[nodiscard]] auto next() -> std::optional<ImportedMoleculeRecord>;
 
   private:
-    nlohmann::json molecule_records_;
-    std::string source_;
-    ConformerSelection conformers_;
-    std::size_t record_index_ = 0;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace chargefw::adapters::native::json_input

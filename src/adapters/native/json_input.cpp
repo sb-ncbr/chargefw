@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <istream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -251,7 +252,28 @@ auto require_array(const Json& value, const std::string& context) -> void {
 
 } // namespace
 
+struct JsonReader::Impl {
+    Impl(std::istream& input, std::string source, ConformerSelection conformers);
+    auto next() -> std::optional<ImportedMoleculeRecord>;
+
+    nlohmann::json molecule_records_;
+    std::string source_;
+    ConformerSelection conformers_;
+    std::size_t record_index_ = 0;
+};
+
 JsonReader::JsonReader(std::istream& input, std::string source, const ConformerSelection conformers)
+    : impl_{std::make_unique<Impl>(input, std::move(source), conformers)} {}
+
+JsonReader::JsonReader(JsonReader&&) noexcept = default;
+auto JsonReader::operator=(JsonReader&&) noexcept -> JsonReader& = default;
+JsonReader::~JsonReader() = default;
+
+auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
+    return impl_ ? impl_->next() : std::nullopt;
+}
+
+JsonReader::Impl::Impl(std::istream& input, std::string source, const ConformerSelection conformers)
     : source_{std::move(source)}, conformers_{conformers} {
     auto document = Json::parse(input, nullptr, false);
     if (document.is_discarded()) {
@@ -269,7 +291,7 @@ JsonReader::JsonReader(std::istream& input, std::string source, const ConformerS
     molecule_records_ = std::move(document["molecules"]);
 }
 
-auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
+auto JsonReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
     if (record_index_ == molecule_records_.size()) {
         return std::nullopt;
     }

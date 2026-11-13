@@ -3,10 +3,8 @@
 #include <chargefw/adapters/gemmi/input_options.h>
 #include <chargefw/adapters/molecule_record.h>
 
-#include <gemmi/cifdoc.hpp>
-
-#include <cstddef>
 #include <istream>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -23,18 +21,15 @@ class MmcifReader {
 
     MmcifReader(const MmcifReader&) = delete;
     auto operator=(const MmcifReader&) -> MmcifReader& = delete;
-    MmcifReader(MmcifReader&&) = default;
-    auto operator=(MmcifReader&&) -> MmcifReader& = default;
-    ~MmcifReader() = default;
+    MmcifReader(MmcifReader&&) noexcept;
+    auto operator=(MmcifReader&&) noexcept -> MmcifReader&;
+    ~MmcifReader();
 
     [[nodiscard]] auto next() -> std::optional<ImportedMoleculeRecord>;
 
   private:
-    ::gemmi::cif::Document document_;
-    std::string source_;
-    ::chargefw::adapters::gemmi::InputOptions options_;
-    std::size_t block_index_ = 0;
-    std::size_t record_index_ = 0;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace chargefw::adapters::gemmi::mmcif_input

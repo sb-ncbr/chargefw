@@ -48,6 +48,12 @@
 
 ### C++
 
+- The installed C++ library no longer requires nlohmann/json or Gemmi development packages in downstream
+  projects. JSON and mmCIF reader state is private to the library; parsing behavior is unchanged.
+  Breaking change: `chargefw::core` no longer supplies these dependencies' headers or CMake targets.
+  Applications that use either dependency directly must find and link it explicitly. Rebuild C++
+  consumers because the reader layouts changed. Fetched native installations retain the Gemmi and
+  oneTBB runtime libraries but no longer install third-party development packages.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`

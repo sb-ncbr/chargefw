@@ -92,10 +92,9 @@ target_include_directories(chargefw_core_objects
 )
 
 target_link_libraries(chargefw_core_objects
-  PUBLIC
+  PRIVATE
     nlohmann_json::nlohmann_json
     gemmi::gemmi_cpp
-  PRIVATE
     $<BUILD_LOCAL_INTERFACE:Eigen3::Eigen>
     $<BUILD_LOCAL_INTERFACE:nanoflann::nanoflann>
     TBB::tbb
@@ -142,9 +141,6 @@ if(CHARGEFW_BUILD_LIBRARY)
   )
 
   target_link_libraries(chargefw_core
-    PUBLIC
-      nlohmann_json::nlohmann_json
-      gemmi::gemmi_cpp
     PRIVATE
       $<BUILD_LOCAL_INTERFACE:chargefw_core_objects>
   )

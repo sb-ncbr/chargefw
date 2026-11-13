@@ -31,8 +31,8 @@ ChargeFW has three build paths, each with its own dependency rules:
 
 - **Native builds** (the library, command line, containers, and CI) use installed packages found with
   `find_package` and download nothing unless `CHARGEFW_FETCH_DEPENDENCIES=ON`. Without downloads, the
-  installation contains only ChargeFW's own files; with them, it also contains the nlohmann/json and
-  Gemmi development packages and the oneTBB runtime.
+  installation contains only ChargeFW's own files; with them, it also contains the Gemmi and oneTBB
+  runtime libraries, but not third-party development packages.
 - **Python source builds** (`pip install` from the sdist or a checkout) always download the pinned,
   checksum-verified sources, as set in `pyproject.toml`. They link Gemmi statically into the extension
   and the packaged command line, because its library name carries no version and could meet another
@@ -44,11 +44,12 @@ ChargeFW has three build paths, each with its own dependency rules:
 - **Release wheels** are built from the sdist by `cibuildwheel` and repaired as described in
   [RELEASING.md](RELEASING.md).
 
-ChargeFW's public headers expose nlohmann/json and Gemmi types, so the installed CMake package requires
-the exact json and Gemmi versions the build used; `cmake/chargefwConfig.cmake.in` generates those
-requirements. oneTBB, Eigen, nanoflann, and CLI11 are private: consumers need only the oneTBB runtime
-library. Native binaries, the CLI image, and the wheels all contain code of these dependencies, so their
-license notices in [`licenses/`](licenses/) ship with each of them.
+Third-party dependencies are private to ChargeFW. The JSON and mmCIF readers keep their parser state
+behind private implementation pointers, so installed headers and CMake targets need no third-party
+development packages. Internal targets that use a dependency directly link it explicitly. Consumers
+still need any shared dependency libraries linked by ChargeFW at runtime. Native binaries, the CLI
+image, and the wheels contain dependency code, so the license notices in [`licenses/`](licenses/)
+ship with each of them.
 
 ## Build and test
 

@@ -42,11 +42,11 @@ Point CMake at the installation when you configure that project:
 cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install"
 ```
 
-The installed package requires the exact nlohmann/json and Gemmi versions ChargeFW was built against,
-because their types appear in the public headers. With installed dependency packages, your project needs
-those packages discoverable and the oneTBB runtime library available. With
-`CHARGEFW_FETCH_DEPENDENCIES=ON`, the installation also contains the nlohmann/json and Gemmi development
-packages and the oneTBB runtime.
+To build your application against installed ChargeFW, you do not need its dependencies' development
+packages. The shared libraries ChargeFW was linked against, including oneTBB and Gemmi when linked
+dynamically, must remain available at runtime. With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the native
+installation includes the oneTBB and Gemmi runtime libraries, but not their development packages.
+If your application also uses a dependency directly, find and link that package separately.
 
 The installation can be moved as a whole: `parameters::load_default_parameter_sets()` finds the bundled
 parameter files relative to the loaded library.

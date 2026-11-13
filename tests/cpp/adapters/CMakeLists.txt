@@ -13,6 +13,7 @@ chargefw_add_snitch_test(test_charge_result
 chargefw_add_snitch_test(test_json_output
         test_json_output.cpp
 )
+target_link_libraries(test_json_output PRIVATE nlohmann_json::nlohmann_json)
 
 chargefw_add_snitch_test(test_mol2_output
         test_mol2_output.cpp
@@ -33,6 +34,7 @@ chargefw_add_snitch_test(test_mmcif
 chargefw_add_snitch_test(test_mmcif_output
         test_mmcif_output.cpp
 )
+target_link_libraries(test_mmcif_output PRIVATE gemmi::gemmi_cpp)
 
 chargefw_add_snitch_test(test_fixed_ions
         test_fixed_ions.cpp
