@@ -1,6 +1,6 @@
 #include "cli_support.h"
 
-#include "adapters/fixed_ions.h"
+#include "io/fixed_ions.h"
 
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
@@ -22,7 +22,7 @@ namespace {
 template <typename Reader>
 auto read_collection(Reader& reader, const std::string& input_path) -> ImportedCollection {
     std::vector<core::Molecule> molecules;
-    std::vector<adapters::ImportedMoleculeRecord> records;
+    std::vector<io::ImportedMoleculeRecord> records;
 
     while (auto record = reader.next()) {
         auto imported = std::move(*record);
@@ -112,8 +112,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
                              "': " + value};
 }
 
-auto read_collection(const std::string& input_path,
-                     const adapters::StructureOptions structural_options,
+auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     std::ifstream input{input_path};
     if (!input) {
@@ -130,27 +129,27 @@ auto read_collection(const std::string& input_path,
             "Structural input options are only supported for PDB and mmCIF input"};
     }
     if (extension == ".sdf") {
-        adapters::SdfReader reader{input, input_path};
+        io::SdfReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol") {
-        adapters::MolReader reader{input, input_path};
+        io::MolReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol2") {
-        adapters::Mol2Reader reader{input, input_path};
+        io::Mol2Reader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".json") {
-        adapters::JsonReader reader{input, input_path, structural_options.conformers};
+        io::JsonReader reader{input, input_path, structural_options.conformers};
         return read_collection(reader, input_path);
     }
     if (extension == ".pdb") {
-        adapters::PdbReader reader{input, input_path, structural_options};
+        io::PdbReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
     if (extension == ".cif" || extension == ".mmcif") {
-        adapters::MmcifReader reader{input, input_path, structural_options};
+        io::MmcifReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
 
@@ -204,10 +203,10 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
 }
 
 auto import_input(const InputArguments& arguments) -> ImportedCollection {
-    const auto options = adapters::StructureOptions{
-        .selection = adapters::record_selection_from_string(arguments.structural_selection),
-        .bonds = adapters::bond_strategy_from_string(arguments.structural_bonds),
-        .conformers = adapters::conformer_selection_from_string(arguments.conformer_selection)};
+    const auto options = io::StructureOptions{
+        .selection = io::record_selection_from_string(arguments.structural_selection),
+        .bonds = io::bond_strategy_from_string(arguments.structural_bonds),
+        .conformers = io::conformer_selection_from_string(arguments.conformer_selection)};
     auto imported = read_collection(arguments.path, options,
                                     arguments.structural_selection_option->count() > 0 ||
                                         arguments.structural_bonds_option->count() > 0);
@@ -215,7 +214,7 @@ auto import_input(const InputArguments& arguments) -> ImportedCollection {
 }
 
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
-                  const std::span<const adapters::ImportedMoleculeRecord> records)
+                  const std::span<const io::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest {
     auto method_options = methods::MethodOptions{};
     for (const auto& text : arguments.method_options) {
@@ -248,7 +247,7 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
                     ? std::optional<std::size_t>{calculation::default_cover_threshold}
                     : parse_atom_threshold(arguments.cover_threshold, "Cover threshold")}};
     if (!arguments.fixed_ion_ids.empty()) {
-        auto resolved = adapters::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
+        auto resolved = io::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
         if (!resolved.sources.empty()) {
             request.fixed_ions = std::move(resolved);
         }

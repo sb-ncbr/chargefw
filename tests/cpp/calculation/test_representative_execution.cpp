@@ -1,9 +1,9 @@
 #include "support/test_calculation.h"
 
-#include <chargefw/adapters/native/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/io/sdf_input.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_key.h>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace adapters = chargefw::adapters;
+namespace io = chargefw::io;
 namespace calculation = chargefw::calculation;
 namespace core = chargefw::core;
 namespace parameters = chargefw::parameters;
@@ -58,7 +58,7 @@ TEST_CASE("representative molecules preserve full execution under whole-radius r
           "[calculation][reduced-execution]") {
     std::ifstream input{representative_fixture()};
     REQUIRE(input);
-    auto reader = adapters::SdfReader{input, "representative.sdf"};
+    auto reader = io::SdfReader{input, "representative.sdf"};
     const auto parameter_sets = std::vector{representative_eem_parameters()};
     auto record_count = std::size_t{0};
 

@@ -119,7 +119,7 @@ struct FixedAtomCharge {
 };
 
 struct FixedIons {
-    // Explicit prescribed charges; native callers are not restricted to the adapter ion catalog.
+    // Explicit prescribed charges; native callers are not restricted to the ion catalog of io.
     std::vector<FixedAtomCharge> sources;
 };
 
@@ -132,8 +132,8 @@ enum class MethodScope : std::uint8_t {
 [[nodiscard]] auto method_scope_from_string(std::string_view value) -> MethodScope;
 [[nodiscard]] auto to_string(MethodScope value) -> std::string_view;
 
-// Owns application assessment inputs so adapters and bindings do not need to manage native method
-// pointers, parameter spans, or prepared-feature lifetimes.
+// Owns application assessment inputs so readers, writers, and bindings do not need to manage native
+// method pointers, parameter spans, or prepared-feature lifetimes.
 struct AssessmentRequest {
     core::MoleculeCollection molecules;
     // IDs must be unique across this request, including parameter sets for different methods.

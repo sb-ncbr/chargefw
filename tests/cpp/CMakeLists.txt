@@ -182,7 +182,7 @@ add_test(
 add_subdirectory(core)
 add_subdirectory(charges)
 add_subdirectory(calculation)
-add_subdirectory(adapters)
+add_subdirectory(io)
 add_subdirectory(features)
 add_subdirectory(methods)
 add_subdirectory(parameters)

@@ -22,36 +22,35 @@
 namespace chargefw::cli {
 namespace {
 
-void report_diagnostics(const adapters::ChargeCalculationResult& result,
+void report_diagnostics(const io::ChargeCalculationResult& result,
                         std::set<std::pair<std::string, std::string>>& reported) {
-    const auto print = [](const adapters::ResultDiagnostic& diagnostic,
-                          const std::string_view message) {
-        const auto label = diagnostic.severity == adapters::DiagnosticSeverity::warning ? "Warning"
-                           : diagnostic.severity == adapters::DiagnosticSeverity::info  ? "Info"
-                                                                                        : "Error";
+    const auto print = [](const io::ResultDiagnostic& diagnostic, const std::string_view message) {
+        const auto label = diagnostic.severity == io::DiagnosticSeverity::warning ? "Warning"
+                           : diagnostic.severity == io::DiagnosticSeverity::info  ? "Info"
+                                                                                  : "Error";
         std::println(std::cerr, "{}: {}", label, message);
     };
-    const auto report = [&](const adapters::ResultDiagnostic& diagnostic) {
+    const auto report = [&](const io::ResultDiagnostic& diagnostic) {
         if (reported.emplace(diagnostic.code, diagnostic.message).second) {
             print(diagnostic, diagnostic.message);
         }
     };
-    for (const auto& diagnostic : adapters::charge_result_diagnostics(result)) {
+    for (const auto& diagnostic : io::charge_result_diagnostics(result)) {
         report(diagnostic);
     }
 
     // Warnings about molecules name the molecule and are grouped by code, so that a file of many
     // records gives one line per kind: the first molecule, or the count with the first example.
     struct WarningGroup {
-        adapters::ResultDiagnostic first;
+        io::ResultDiagnostic first;
         std::set<std::size_t> molecules;
     };
     auto groups = std::vector<WarningGroup>{};
-    auto errors = std::vector<adapters::ResultDiagnostic>{};
+    auto errors = std::vector<io::ResultDiagnostic>{};
     const auto records = result.inputs();
     for (std::size_t index = 0; index < records.size(); ++index) {
-        for (auto& diagnostic : adapters::charge_record_diagnostics(result, index)) {
-            if (diagnostic.severity != adapters::DiagnosticSeverity::warning ||
+        for (auto& diagnostic : io::charge_record_diagnostics(result, index)) {
+            if (diagnostic.severity != io::DiagnosticSeverity::warning ||
                 !diagnostic.molecule_index.has_value()) {
                 errors.push_back(std::move(diagnostic));
                 continue;
@@ -121,25 +120,22 @@ template <typename Writer> void write_output(const std::filesystem::path& path, 
     }
 }
 
-void write_json(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result,
-                const adapters::ExecutionMetrics& metrics) {
-    write_output(path, [&result, &metrics](auto& output) {
-        adapters::JsonWriter{output}.write(result, metrics);
-    });
+void write_json(const std::filesystem::path& path, const io::ChargeCalculationResult& result,
+                const io::ExecutionMetrics& metrics) {
+    write_output(
+        path, [&result, &metrics](auto& output) { io::JsonWriter{output}.write(result, metrics); });
 }
 
-void write_mmcif(const std::filesystem::path& path,
-                 const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) { adapters::MmcifWriter{output}.write(result); });
+void write_mmcif(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::MmcifWriter{output}.write(result); });
 }
 
-void write_mol2(const std::filesystem::path& path,
-                const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) { adapters::Mol2Writer{output}.write(result); });
+void write_mol2(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::Mol2Writer{output}.write(result); });
 }
 
-void write_pqr(const std::filesystem::path& path, const adapters::ChargeCalculationResult& result) {
-    write_output(path, [&result](auto& output) { adapters::PqrWriter{output}.write(result); });
+void write_pqr(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
+    write_output(path, [&result](auto& output) { io::PqrWriter{output}.write(result); });
 }
 
 } // namespace
@@ -151,7 +147,7 @@ auto utc_timestamp() -> std::string {
 }
 
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
-                               const adapters::ChargeCalculationResult& owned_result,
+                               const io::ChargeCalculationResult& owned_result,
                                const OutputArguments& output_arguments, CalculationRun& run)
     -> int {
     // Every output that cannot be written, the result JSON too, exits with 6. Running out of memory
@@ -188,15 +184,15 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
 
     if (owned_result.charges() == nullptr) {
         switch (owned_result.status()) {
-        case adapters::ResultStatus::invalid_input_or_request:
+        case io::ResultStatus::invalid_input_or_request:
             return 2;
-        case adapters::ResultStatus::no_executable_plan:
+        case io::ResultStatus::no_executable_plan:
             return 3;
-        case adapters::ResultStatus::numerical_failure:
+        case io::ResultStatus::numerical_failure:
             return 4;
-        case adapters::ResultStatus::cancelled:
+        case io::ResultStatus::cancelled:
             return 5;
-        case adapters::ResultStatus::success:
+        case io::ResultStatus::success:
             throw std::logic_error{"successful result has no charges"};
         }
     }

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/charges/charge_set.h>
+#include <chargefw/io/charge_result.h>
 
 #include <optional>
 #include <string>
@@ -24,13 +24,13 @@ namespace chargefw::test {
 }
 
 /// Wraps a charge set as a full-execution result owned by the given records.
-[[nodiscard]] inline auto calculation_result(std::vector<adapters::ImportedMoleculeRecord> records,
+[[nodiscard]] inline auto calculation_result(std::vector<io::ImportedMoleculeRecord> records,
                                              charges::ChargeSet charge_set)
-    -> adapters::ChargeCalculationResult {
+    -> io::ChargeCalculationResult {
     auto method_id = std::string{charge_set.method_id()};
     auto parameter_set_id = charge_set.parameter_set_id().transform(
         [](const std::string_view value) { return std::string{value}; });
-    return adapters::make_charge_calculation_result(
+    return io::make_charge_calculation_result(
         std::move(records), {},
         {.charges = std::move(charge_set),
          .effective = full_effective(std::move(method_id), std::move(parameter_set_id))});

@@ -7,7 +7,7 @@ from importlib import import_module
 from typing import Any, Literal, cast
 
 from .._calculation import CalculationResult
-from .._chargefw import adapters as _native_adapters
+from .._chargefw import io as _native_io
 from .._core import MoleculeCollection
 from . import (
     BondStrategy,
@@ -136,7 +136,7 @@ def attach_charges(
     results = _native_results(result)
     replace = _replace_existing(if_exists)
     attached = gemmi.cif.read_string(
-        _native_adapters._attach_mmcif(document.as_string(), results, replace)
+        _native_io._attach_mmcif(document.as_string(), results, replace)
     )
     document.clear()
     for block in attached:

@@ -125,6 +125,10 @@
 
 ### C++
 
+- Breaking change: the namespace `chargefw::adapters` is `chargefw::io`, as Python's `chargefw.io`,
+  and its headers are in `chargefw/io/` without the `native/` and `gemmi/` subdirectories, for example
+  `<chargefw/io/sdf_input.h>`. One `<chargefw/io/all.h>` replaces the two umbrella headers, and
+  `gemmi/input_options.h` is `io/structure_options.h`.
 - Breaking change: the file readers and writers are in `chargefw::adapters`, without the
   per-format namespaces: `adapters::SdfReader` instead of `adapters::native::sdf_input::SdfReader`,
   `adapters::MmcifWriter` instead of `adapters::gemmi::mmcif_output::MmcifWriter`, and so on.

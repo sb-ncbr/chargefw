@@ -124,15 +124,15 @@ request.
 
 ## Reading files and writing results
 
-The readers return `adapters::ImportedMoleculeRecord` values, which keep each molecule together with
+The readers return `io::ImportedMoleculeRecord` values, which keep each molecule together with
 where it came from. The writers take the records and the calculation together, as an
-`adapters::ChargeCalculationResult`:
+`io::ChargeCalculationResult`:
 
 ```cpp
-#include <chargefw/adapters/charge_result.h>
-#include <chargefw/adapters/native/json_output.h>
-#include <chargefw/adapters/native/mol2_output.h>
-#include <chargefw/adapters/native/sdf_input.h>
+#include <chargefw/io/charge_result.h>
+#include <chargefw/io/json_output.h>
+#include <chargefw/io/mol2_output.h>
+#include <chargefw/io/sdf_input.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
@@ -145,8 +145,8 @@ int main() {
     using namespace chargefw;
 
     auto input = std::ifstream{"paracetamol.sdf"};
-    auto reader = adapters::SdfReader{input, "paracetamol.sdf"};
-    auto records = std::vector<adapters::ImportedMoleculeRecord>{};
+    auto reader = io::SdfReader{input, "paracetamol.sdf"};
+    auto records = std::vector<io::ImportedMoleculeRecord>{};
     auto molecules = std::vector<core::Molecule>{};
     while (auto record = reader.next()) {
         molecules.push_back(record->molecule);
@@ -160,7 +160,7 @@ int main() {
         .parameter_set_id = "EEM_Cheminf_b3lyp_npa",
     };
     // Before assess() takes the request.
-    const auto requested = adapters::make_requested_provenance(request, 0);
+    const auto requested = io::make_requested_provenance(request, 0);
     auto assessment = calculation::assess(std::move(request));
     auto execution = calculation::calculate(assessment);
     if (!execution.calculated()) {
@@ -169,37 +169,37 @@ int main() {
     }
 
     const auto result =
-        adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
+        io::make_charge_calculation_result(std::move(records), requested, std::move(execution));
 
     auto mol2 = std::ofstream{"paracetamol.mol2"};
-    adapters::Mol2Writer{mol2}.write(result);
+    io::Mol2Writer{mol2}.write(result);
     auto json = std::ofstream{"paracetamol.json"};
-    adapters::JsonWriter{json}.write(result);
+    io::JsonWriter{json}.write(result);
 }
 ```
 
 | Header | Class |
 | --- | --- |
-| `chargefw/adapters/native/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
-| `chargefw/adapters/native/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
-| `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
-| `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
-| `chargefw/adapters/native/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
-| `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
-| `chargefw/adapters/native/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
+| `chargefw/io/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
+| `chargefw/io/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
+| `chargefw/io/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
+| `chargefw/io/mol2_output.h` | `Mol2Writer` |
+| `chargefw/io/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
+| `chargefw/io/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
+| `chargefw/io/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
 
 `MmcifWriter` also writes several charge sets for the same records into one file. Pass pointers to
 results calculated from equal records, for example from copies of `records` above:
 
 ```cpp
 auto cif = std::ofstream{"paracetamol.cif"};
-adapters::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
+io::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
 ```
 
 The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
-`chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of their directory, for
-applications. All readers and writers are in `chargefw::adapters`.
+`chargefw/io/all.h` includes all readers and writers, for applications. They are all in
+`chargefw::io`.
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
 records stay valid after the reader is destroyed.
 
@@ -238,7 +238,7 @@ pass to `calculate()`, and the residue names you selected fixed ions by.
 | `chargefw::calculation` | Assessment, plans, execution policy, progress, and calculation |
 | `chargefw::parameterization` | Fitting parameter values: templates, value vectors, and normal equations |
 | `chargefw::charges` | Charge assignments and charge sets |
-| `chargefw::adapters` | File readers and writers |
+| `chargefw::io` | File readers and writers |
 
 ## Molecules
 
@@ -315,7 +315,7 @@ Issues give where they are in a `core::IssueLocation`: an optional conformer ind
 index the message names, the other atom of a pair it names, such as two atoms too close, and
 `atom_indices` and `bond_indices` with every atom and bond the issue concerns.
 `methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`,
-`adapters::ImportIssue`, and `adapters::ResultDiagnostic` hold one in `location`.
+`io::ImportIssue`, and `io::ResultDiagnostic` hold one in `location`.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),
 with its kind, a message, the molecule index, and its location.

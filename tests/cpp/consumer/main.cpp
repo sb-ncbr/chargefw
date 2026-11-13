@@ -1,6 +1,5 @@
-// Both umbrella headers together, so that their names in chargefw::adapters cannot collide.
-#include <chargefw/adapters/gemmi/all.h>
-#include <chargefw/adapters/native/all.h>
+// The umbrella header, so that the names of all readers and writers are checked together.
+#include <chargefw/io/all.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 #include <chargefw/version.h>
 
@@ -29,9 +28,9 @@ static_assert(CHARGEFW_VERSION_MAJOR == EXPECTED_VERSION_MAJOR &&
 static_assert(std::string_view{CHARGEFW_VERSION_STRING}.starts_with(EXPECTED_VERSION));
 
 auto main(int argc, char* argv[]) -> int {
-    static_assert(std::is_class_v<chargefw::adapters::MmcifWriter>);
-    static_assert(std::is_class_v<chargefw::adapters::Mol2Writer>);
-    static_assert(std::is_class_v<chargefw::adapters::PqrWriter>);
+    static_assert(std::is_class_v<chargefw::io::MmcifWriter>);
+    static_assert(std::is_class_v<chargefw::io::Mol2Writer>);
+    static_assert(std::is_class_v<chargefw::io::PqrWriter>);
 
     if (argc != 2) {
         return 1;
@@ -39,8 +38,8 @@ auto main(int argc, char* argv[]) -> int {
     auto json_input = std::istringstream{R"({"schema_version":"1.0","molecules":[
         {"atoms":[{"atomic_number":1,"formal_charge":0}]}]})"};
     auto mmcif_input = std::ifstream{argv[1]};
-    if (!check_reader_moves(chargefw::adapters::JsonReader{json_input, "consumer"}) ||
-        !check_reader_moves(chargefw::adapters::MmcifReader{mmcif_input, "consumer"})) {
+    if (!check_reader_moves(chargefw::io::JsonReader{json_input, "consumer"}) ||
+        !check_reader_moves(chargefw::io::MmcifReader{mmcif_input, "consumer"})) {
         return 1;
     }
 

@@ -212,7 +212,7 @@ auto run(std::span<char*> arguments) -> int {
     auto records = std::move(imported.records);
     auto request =
         chargefw::cli::make_request(std::move(imported.molecules), calculate_selection, records);
-    const auto requested_provenance = chargefw::adapters::make_requested_provenance(
+    const auto requested_provenance = chargefw::io::make_requested_provenance(
         request, calculate_selection.max_threads, calculate_selection.fixed_ion_ids);
     const auto max_threads = calculate_selection.max_threads;
     const auto progress_observer = TerminalProgressObserver{};
@@ -250,12 +250,12 @@ auto run(std::span<char*> arguments) -> int {
     }();
     auto result = [&] {
         if (!execution.has_value()) {
-            return chargefw::adapters::make_failed_request_result(
+            return chargefw::io::make_failed_request_result(
                 std::move(records), requested_provenance, std::move(failure_message));
         }
         run.metrics.applicability_seconds = execution->metrics.applicability_seconds;
         run.metrics.computation_seconds = execution->metrics.computation_seconds;
-        return chargefw::adapters::make_charge_calculation_result(
+        return chargefw::io::make_charge_calculation_result(
             std::move(records), requested_provenance, std::move(*execution));
     }();
     return chargefw::cli::write_calculation_outputs(output_directory, calculate_input.path, result,

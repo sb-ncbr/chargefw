@@ -3,7 +3,7 @@ from typing import Final
 
 from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
 from .._types import MethodScope, ParameterMatching, PortableId, RequestedExecution
-from .adapters import _NativeInputMetadata
+from .io import _NativeInputMetadata
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog
 

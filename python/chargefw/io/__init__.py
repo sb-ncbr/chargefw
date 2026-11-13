@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Literal, get_args
 
 from .._arrays import index_array
 from .._calculation_values import CalculationResult
-from .._chargefw import adapters as _native_adapters
+from .._chargefw import io as _native_io
 from .._core import (
     ImportIssue,
     Molecule,
@@ -63,7 +63,7 @@ class _ImportedMolecule(Molecule):
     __slots__ = ("_import_warnings", "_native_input_metadata")
 
     _import_warnings: tuple[ImportIssue, ...]
-    _native_input_metadata: _native_adapters._NativeInputMetadata
+    _native_input_metadata: _native_io._NativeInputMetadata
 
     @property
     def import_warnings(self) -> tuple[ImportIssue, ...]:
@@ -72,12 +72,12 @@ class _ImportedMolecule(Molecule):
         return self._import_warnings
 
 
-def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
+def _molecule(payload: _native_io.MoleculePayload) -> Molecule:
     coordinates = payload["coordinates"] or None
     import_metadata = payload["import_metadata"]
 
     def atom_reference(
-        value: _native_adapters.AtomReferencePayload,
+        value: _native_io.AtomReferencePayload,
     ) -> SourceAtomReference:
         position, source_id, labels = value
         return SourceAtomReference(
@@ -159,7 +159,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
 
 
 def _collection(
-    payloads: list[_native_adapters.MoleculePayload], source_name: str
+    payloads: list[_native_io.MoleculePayload], source_name: str
 ) -> MoleculeCollection:
     molecules = tuple(_molecule(payload) for payload in payloads)
     return MoleculeCollection(molecules, name=source_name)
@@ -226,7 +226,7 @@ def _parse(
     _validate_options(format, selection, bonds, conformers)
     bond_strategy = "hybrid" if bonds is None else bonds
     try:
-        payloads = _native_adapters._parse(
+        payloads = _native_io._parse(
             contents, source_name, format, selection, bond_strategy, conformers
         )
     except (RuntimeError, ValueError, IndexError) as error:
@@ -314,7 +314,7 @@ def dumps(
         raise TypeError("format must be a string")
     if format not in OUTPUT_FORMATS:
         raise ValueError(f"unsupported calculation output format: {format}")
-    return _native_adapters._dumps(results, format)
+    return _native_io._dumps(results, format)
 
 
 def write(

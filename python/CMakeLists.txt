@@ -38,7 +38,6 @@ find_package(nanobind CONFIG REQUIRED)
 
 set(CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY "${PROJECT_BINARY_DIR}/python/chargefw")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}")
-file(REMOVE_RECURSE "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/adapters")
 set(CHARGEFW_PYTHON_IO_DIRECTORY
     "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/io")
 file(MAKE_DIRECTORY "${CHARGEFW_PYTHON_IO_DIRECTORY}")
@@ -65,7 +64,7 @@ endforeach()
 
 set(CHARGEFW_PYTHON_STUB_SOURCES
     __init__.pyi
-    adapters.pyi
+    io.pyi
     calculation.pyi
     core.pyi
     methods.pyi
@@ -134,7 +133,7 @@ configure_file(chargefw/_cpu.py "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/_cpu
 configure_file(chargefw/py.typed "${CHARGEFW_PYTHON_BUILD_PACKAGE_DIRECTORY}/py.typed" COPYONLY)
 
 nanobind_add_module(chargefw_python NB_STATIC STABLE_ABI NB_SUPPRESS_WARNINGS
-    src/adapters.cpp
+    src/io.cpp
     src/bindings.h
     src/calculation.cpp
     src/calculation.h

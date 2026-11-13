@@ -1,10 +1,9 @@
 #pragma once
 
 #include <CLI/CLI.hpp>
-#include <chargefw/adapters/gemmi/all.h>
-#include <chargefw/adapters/native/all.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/io/all.h>
 
 #include <chrono>
 #include <optional>
@@ -17,7 +16,7 @@ namespace chargefw::cli {
 
 struct ImportedCollection {
     core::MoleculeCollection molecules;
-    std::vector<adapters::ImportedMoleculeRecord> records;
+    std::vector<io::ImportedMoleculeRecord> records;
 };
 
 struct InputArguments {
@@ -54,7 +53,7 @@ struct OutputArguments {
 };
 
 struct CalculationRun {
-    adapters::ExecutionMetrics metrics;
+    io::ExecutionMetrics metrics;
     std::chrono::steady_clock::time_point started;
     // Diagnostics already printed, by code and message, so that they are not printed again.
     std::set<std::pair<std::string, std::string>> reported;
@@ -67,7 +66,7 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments);
 [[nodiscard]] auto import_input(const InputArguments& arguments) -> ImportedCollection;
 [[nodiscard]] auto make_request(core::MoleculeCollection molecules,
                                 const SelectionArguments& arguments,
-                                std::span<const adapters::ImportedMoleculeRecord> records)
+                                std::span<const io::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest;
 
 void print_inspection(const ImportedCollection& imported);
@@ -78,7 +77,7 @@ void print_parameter_sets(const std::string& parameter_set_id, const std::string
 
 [[nodiscard]] auto write_calculation_outputs(const std::string& output_directory,
                                              const std::string& input_path,
-                                             const adapters::ChargeCalculationResult& owned_result,
+                                             const io::ChargeCalculationResult& owned_result,
                                              const OutputArguments& output_arguments,
                                              CalculationRun& run) -> int;
 

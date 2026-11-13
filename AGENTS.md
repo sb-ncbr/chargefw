@@ -70,7 +70,7 @@ python/src/         Nanobind extension implementation
 data/parameters/    Bundled parameter sets
 tests/cpp/          Native tests and downstream CMake consumer
 tests/cpp/support/  Shared native test fixtures and CLI test script helpers
-tests/python/       Python package and adapter tests
+tests/python/       Python package and toolkit integration tests
 tests/fixtures/     Molecular and parameter test data
 cmake/              Dependencies, diagnostics, and installation rules
 docs/               Implemented user documentation
@@ -81,8 +81,8 @@ Dockerfile           User-facing CLI container image
 docker/              Developer compatibility containers
 ```
 
-`include/chargefw/adapters/{native,gemmi}/all.h` are application convenience headers. Library code
-should include only the individual adapter headers it uses.
+`include/chargefw/io/all.h` is an application convenience header. Library code should include only the
+individual reader and writer headers it uses.
 
 ## Architectural rules
 
@@ -102,8 +102,8 @@ should include only the individual adapter headers it uses.
   execution; explicit full execution may override them with a reported warning.
 - Full calculations must remain faithful to their cited methods. Approximate execution must be
   capability-checked, explicit in provenance, and validated per method.
-- Bindings, adapters, and applications translate representations into the native facade; they must not
-  duplicate applicability, selection, or scientific policy.
+- Bindings, readers and writers, and applications translate representations into the native facade;
+  they must not duplicate applicability, selection, or scientific policy.
 - Name one thing the same in Python, C++, the command line, and result JSON. The Python name comes
   first; the others follow it in their own spelling, such as `cutoff_threshold` and
   `--cutoff-threshold`. Within Python, an argument has the name of the attribute it sets.
@@ -192,7 +192,7 @@ update pinned distribution releases intentionally.
 ## C++ conventions
 
 - Use C++23. Public names remain under
-  `chargefw::{core,features,parameters,methods,charges,calculation,parameterization,adapters}`.
+  `chargefw::{core,features,parameters,methods,charges,calculation,parameterization,io}`.
 - Follow `.clang-format`: LLVM-derived, four spaces, 100-column limit, left-attached pointers and
   references.
 - Prefer value ownership, `std::span` for read-only views, and explicit non-owning references/pointers
