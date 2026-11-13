@@ -73,7 +73,7 @@ def test_formats_use_native_writers() -> None:
 
     encoded = result_json(result)
     assert encoded["status"] == "success"
-    assert encoded["results"][0]["input"]["source"] == "water-input"
+    assert encoded["results"][0]["input"]["source_name"] == "water-input"
     assert encoded["results"][0]["input"]["record_id"] == "water-1"
     assert encoded["calculation_provenance"]["effective"]["method"]["id"] == "formal"
     assert result.molecules[0] is molecule
@@ -276,7 +276,7 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     result = chargefw.calculate([manual, imported_molecule], method="formal")
     manual_record, imported_record = result_json(result)["results"]
 
-    assert manual_record["input"] == {"source": "manual", "record_index": 0}
+    assert manual_record["input"] == {"source_name": "manual", "record_index": 0}
     assert manual_record["diagnostics"] == []
     assert imported_record["input"]["import"]["format"] == "mol2"
     assert "atom_ids" not in imported_record["input"]

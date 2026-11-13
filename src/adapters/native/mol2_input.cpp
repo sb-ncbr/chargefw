@@ -343,12 +343,12 @@ struct FormalCharge {
 
 } // namespace
 
-Mol2Reader::Mol2Reader(std::istream& input, std::string source)
-    : input_{std::addressof(input)}, source_{std::move(source)} {}
+Mol2Reader::Mol2Reader(std::istream& input, std::string source_name)
+    : input_{std::addressof(input)}, source_{std::move(source_name)} {}
 
 auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
-    auto identity =
-        MoleculeRecordIdentity{.source = source_, .record_index = record_index_, .record_id = {}};
+    auto identity = MoleculeRecordIdentity{
+        .source_name = source_, .record_index = record_index_, .record_id = {}};
     auto found = std::exchange(next_record_started_, false);
     try {
         while (!found) {

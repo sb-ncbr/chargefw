@@ -16,7 +16,7 @@ namespace chargefw::adapters::gemmi::mmcif_input {
 // pdb_input::PdbReader.
 class MmcifReader {
   public:
-    explicit MmcifReader(std::istream& input, std::string source = {},
+    explicit MmcifReader(std::istream& input, std::string source_name = {},
                          ::chargefw::adapters::gemmi::InputOptions options = {});
 
     MmcifReader(const MmcifReader&) = delete;

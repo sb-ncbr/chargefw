@@ -386,7 +386,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
             throw std::invalid_argument{"input record identity must contain three values"};
         }
         source_identities.push_back(
-            adapters::MoleculeRecordIdentity{.source = nb::cast<std::string>(identity[0]),
+            adapters::MoleculeRecordIdentity{.source_name = nb::cast<std::string>(identity[0]),
                                              .record_index = nb::cast<std::size_t>(identity[1]),
                                              .record_id = portable_id(identity[2])});
         source_caller_atom_ids.push_back(portable_ids(caller_atom_ids[index]));

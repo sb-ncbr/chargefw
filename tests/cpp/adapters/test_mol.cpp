@@ -271,7 +271,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
     {
         std::ifstream input{fixture("synthetic/mol/v3000/charged_atoms.mol")};
         const auto result = mol::parse_mol(
-            input, {.source = "charged_v3000.mol", .record_index = 0, .record_id = {}});
+            input, {.source_name = "charged_v3000.mol", .record_index = 0, .record_id = {}});
         CHECK(result.molecule.atom_count() == 2);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
         CHECK(result.molecule.atom(1).formal_charge() == -1);
@@ -644,7 +644,7 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
               1}}) {
         CAPTURE(description);
         auto input = std::istringstream{text};
-        const auto record = mol::parse_mol(input, {.source = "input.mol"});
+        const auto record = mol::parse_mol(input, {.source_name = "input.mol"});
         CHECK(record.molecule.conformer_count() == conformers);
         CHECK(std::ranges::count(
                   record.issues, chargefw::adapters::ImportIssueKind::coordinates_2d_ignored,

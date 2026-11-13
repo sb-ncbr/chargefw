@@ -304,7 +304,7 @@ TEST_CASE("result assembly validates assignment dimensions targets and scope",
                                    std::vector{core::Conformer{{core::Position{0.0, 0.0, 0.0},
                                                                 core::Position{1.0, 0.0, 0.0}}}},
                                    "hydrogen"},
-        .identity = {.source = "hydrogen.json", .record_id = "hydrogen"}}};
+        .identity = {.source_name = "hydrogen.json", .record_id = "hydrogen"}}};
     const auto pair_charges = charges::AtomicCharges{{0.0, 0.0}};
     const auto formal = [](std::vector<charges::ChargeAssignment> assignments) {
         return charges::ChargeSet{"formal", std::move(assignments)};

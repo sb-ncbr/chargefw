@@ -184,9 +184,9 @@ struct MoleculeImportMetadata {
 };
 
 // Identifies one source record without imposing a file-format or toolkit dependency. The source
-// and a text record ID must be UTF-8; result JSON cannot hold other text.
+// name and a text record ID must be UTF-8; result JSON cannot hold other text.
 struct MoleculeRecordIdentity {
-    std::string source;
+    std::string source_name;
     std::size_t record_index = 0;
     PortableId record_id;
 

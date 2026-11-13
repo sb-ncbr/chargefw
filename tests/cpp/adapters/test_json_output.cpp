@@ -107,7 +107,7 @@ auto make_component_record(const std::string_view id,
                                        {},
                                        std::move(conformers),
                                        std::string{id}},
-            .identity = {.source = "component-fixture.cif", .record_index = 0},
+            .identity = {.source_name = "component-fixture.cif", .record_index = 0},
             .import_metadata = std::move(metadata)};
 }
 
@@ -141,7 +141,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                   {chargefw::core::Conformer{{chargefw::core::Position{0.0, 0.0, 0.0},
                                               chargefw::core::Position{1.0, 0.0, 0.0},
                                               chargefw::core::Position{0.0, 1.0, 0.0}}}}},
-          .identity = {.source = "water.sdf", .record_index = 2, .record_id = 42},
+          .identity = {.source_name = "water.sdf", .record_index = 2, .record_id = 42},
           .import_metadata =
               adapters::MoleculeImportMetadata{.format = adapters::MolecularSourceFormat::sdf,
                                                .atoms = sites,
@@ -252,13 +252,13 @@ TEST_CASE("JSON output projects fixed ion provenance", "[adapters][json]") {
                   {chargefw::core::Conformer{{{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}}, "first"},
                    chargefw::core::Conformer{{{0.0, 0.0, 1.0}, {1.0, 0.0, 1.0}}, "second"}},
                   "water"},
-          .identity = {.source = "water.json", .record_index = 0}},
+          .identity = {.source_name = "water.json", .record_index = 0}},
          {.molecule =
               chargefw::core::Molecule{std::vector{chargefw::core::Atom{6}},
                                        {},
                                        {chargefw::core::Conformer{{{4.0, 0.0, 0.0}}, "only"}},
                                        "unaffected"},
-          .identity = {.source = "other.json", .record_index = 0}}},
+          .identity = {.source_name = "other.json", .record_index = 0}}},
         {},
         {.status = calculation::ExecutionStatus::success,
          .charges = charges::ChargeSet{"eem",
@@ -415,7 +415,7 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[a
         }
         const auto result = adapters::make_charge_calculation_result(
             {{.molecule = core::Molecule{std::vector{core::Atom{8}, core::Atom{1}}},
-              .identity = {.source = "water.sdf", .record_index = 0}}},
+              .identity = {.source_name = "water.sdf", .record_index = 0}}},
             {}, std::move(execution));
 
         auto output = std::ostringstream{};
@@ -452,7 +452,7 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[adapters
     const auto result = adapters::make_charge_calculation_result(
         {{.molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}},
                                      std::vector{core::Bond{0, 1}, core::Bond{1, 2}}},
-          .identity = {.source = "propane.sdf", .record_index = 0}}},
+          .identity = {.source_name = "propane.sdf", .record_index = 0}}},
         {}, std::move(execution));
 
     auto output = std::ostringstream{};
@@ -475,7 +475,7 @@ TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[adapte
                                                {},
                                                {},
                                                "hydrogen"},
-          .identity = {.source = "manual", .record_index = 1},
+          .identity = {.source_name = "manual", .record_index = 1},
           .caller_atom_ids = std::vector<adapters::PortableId>{"H", std::int64_t{9}}}},
         {},
         {.charges = charges::ChargeSet{"formal",

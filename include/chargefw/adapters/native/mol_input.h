@@ -18,7 +18,7 @@ namespace chargefw::adapters::native::mol_input {
 // calls return clean end-of-file.
 class MolReader {
   public:
-    explicit MolReader(std::istream& input, std::string source = {});
+    explicit MolReader(std::istream& input, std::string source_name = {});
 
     MolReader(const MolReader&) = delete;
     auto operator=(const MolReader&) -> MolReader& = delete;

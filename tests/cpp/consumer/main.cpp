@@ -18,8 +18,9 @@ template <typename Reader> auto check_reader_moves(Reader reader) -> bool {
     auto moved = std::move(reader);
     const auto record = moved.next();
     reader = std::move(moved);
-    return record && record->molecule.atom_count() > 0 && record->identity.source == "consumer" &&
-           record->identity.record_index == 0 && !reader.next();
+    return record && record->molecule.atom_count() > 0 &&
+           record->identity.source_name == "consumer" && record->identity.record_index == 0 &&
+           !reader.next();
 }
 
 } // namespace

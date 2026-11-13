@@ -170,7 +170,7 @@ auto as_python(const MoleculePayload& payload) -> nb::dict {
     result["name"] = payload.name;
     result["atom_names"] = nb::cast(payload.atom_names);
     result["conformer_names"] = nb::cast(payload.conformer_names);
-    result["source"] = payload.identity.source;
+    result["source_name"] = payload.identity.source_name;
     result["record_index"] = payload.identity.record_index;
     result["record_id"] = portable_id(payload.identity.record_id);
     nb::list import_issues;
@@ -206,7 +206,7 @@ template <typename Reader> auto read_all(Reader& reader) -> std::vector<Molecule
     return payloads;
 }
 
-auto parse(std::string contents, std::string source, const std::string& format,
+auto parse(std::string contents, std::string source_name, const std::string& format,
            const std::string& selection, const std::string& bonds, const std::string& conformers)
     -> nb::list {
     auto payloads = std::vector<MoleculePayload>{};
@@ -221,34 +221,35 @@ auto parse(std::string contents, std::string source, const std::string& format,
         };
         switch (adapters::molecular_source_format_from_string(format)) {
         case adapters::MolecularSourceFormat::mol: {
-            auto reader = adapters::native::mol_input::MolReader{input, std::move(source)};
+            auto reader = adapters::native::mol_input::MolReader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::sdf: {
-            auto reader = adapters::native::sdf_input::SdfReader{input, std::move(source)};
+            auto reader = adapters::native::sdf_input::SdfReader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::mol2: {
-            auto reader = adapters::native::mol2_input::Mol2Reader{input, std::move(source)};
+            auto reader = adapters::native::mol2_input::Mol2Reader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::molecule_json: {
             auto reader = adapters::native::json_input::JsonReader{
-                input, std::move(source), adapters::conformer_selection_from_string(conformers)};
+                input, std::move(source_name),
+                adapters::conformer_selection_from_string(conformers)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::pdb: {
-            auto reader = adapters::gemmi::pdb_input::PdbReader{input, std::move(source),
+            auto reader = adapters::gemmi::pdb_input::PdbReader{input, std::move(source_name),
                                                                 structural_options()};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::mmcif: {
-            auto reader = adapters::gemmi::mmcif_input::MmcifReader{input, std::move(source),
+            auto reader = adapters::gemmi::mmcif_input::MmcifReader{input, std::move(source_name),
                                                                     structural_options()};
             payloads = read_all(reader);
             break;
@@ -307,7 +308,7 @@ auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*
 void bind_adapters(nb::module_& module) {
     [[maybe_unused]] const auto native_input_metadata =
         nb::class_<NativeInputMetadata>(module, "_NativeInputMetadata");
-    module.def("_parse", &parse, nb::arg("contents"), nb::arg("source"), nb::arg("format"),
+    module.def("_parse", &parse, nb::arg("contents"), nb::arg("source_name"), nb::arg("format"),
                nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"));
     module.def("_dumps", &dumps, nb::arg("results"), nb::arg("format"),
                nb::call_guard<nb::gil_scoped_release>());

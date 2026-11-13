@@ -135,7 +135,7 @@ make_source_mappings(::gemmi::cif::Block& block,
 } // namespace
 
 struct MmcifReader::Impl {
-    Impl(std::istream& input, std::string source,
+    Impl(std::istream& input, std::string source_name,
          ::chargefw::adapters::gemmi::InputOptions options);
     auto next() -> std::optional<ImportedMoleculeRecord>;
 
@@ -146,9 +146,9 @@ struct MmcifReader::Impl {
     std::size_t record_index_ = 0;
 };
 
-MmcifReader::MmcifReader(std::istream& input, std::string source,
+MmcifReader::MmcifReader(std::istream& input, std::string source_name,
                          const ::chargefw::adapters::gemmi::InputOptions options)
-    : impl_{std::make_unique<Impl>(input, std::move(source), options)} {}
+    : impl_{std::make_unique<Impl>(input, std::move(source_name), options)} {}
 
 MmcifReader::MmcifReader(MmcifReader&&) noexcept = default;
 auto MmcifReader::operator=(MmcifReader&&) noexcept -> MmcifReader& = default;
@@ -158,9 +158,9 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
     return impl_ ? impl_->next() : std::nullopt;
 }
 
-MmcifReader::Impl::Impl(std::istream& input, std::string source,
+MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
                         const ::chargefw::adapters::gemmi::InputOptions options)
-    : source_{std::move(source)}, options_{options} {
+    : source_{std::move(source_name)}, options_{options} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
     const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
@@ -209,8 +209,9 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
         const auto current_record_index = record_index_++;
         auto record = structure_import::make_record(
             structure, selected_models,
-            MoleculeRecordIdentity{
-                .source = source_, .record_index = current_record_index, .record_id = block.name},
+            MoleculeRecordIdentity{.source_name = source_,
+                                   .record_index = current_record_index,
+                                   .record_id = block.name},
             options_.selection, options_.bonds, options_.conformers,
             std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));

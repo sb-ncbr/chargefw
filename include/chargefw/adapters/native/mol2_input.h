@@ -14,7 +14,7 @@ namespace chargefw::adapters::native::mol2_input {
 // from UNITY_ATOM_ATTR; it skips other sections. Aromatic bond types are imported as single bonds.
 class Mol2Reader {
   public:
-    explicit Mol2Reader(std::istream& input, std::string source = {});
+    explicit Mol2Reader(std::istream& input, std::string source_name = {});
 
     Mol2Reader(const Mol2Reader&) = delete;
     auto operator=(const Mol2Reader&) -> Mol2Reader& = delete;

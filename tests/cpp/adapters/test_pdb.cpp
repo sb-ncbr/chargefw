@@ -230,7 +230,7 @@ END
     auto reader = pdb::PdbReader{input, "water.pdb"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
-    CHECK(first->identity.source == "water.pdb");
+    CHECK(first->identity.source_name == "water.pdb");
     CHECK(first->identity.record_index == 0);
     CHECK_FALSE(first->identity.record_id.empty());
     CHECK(first->molecule.atom_count() == 2);

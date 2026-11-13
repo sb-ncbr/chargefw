@@ -45,7 +45,7 @@ class MoleculePayload(TypedDict):
     name: str
     atom_names: list[str]
     conformer_names: list[str]
-    source: str
+    source_name: str
     record_index: int
     record_id: str | int | None
     import_metadata: ImportMetadataPayload | None
@@ -54,7 +54,7 @@ class MoleculePayload(TypedDict):
 
 def _parse(
     contents: str,
-    source: str,
+    source_name: str,
     format: Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"],
     selection: Literal["all", "polymers-and-ligands", "polymers"],
     bonds: Literal["none", "explicit", "templates", "hybrid"],

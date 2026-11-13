@@ -74,9 +74,9 @@
     },
     "inputIdentity": {
       "type": "object",
-      "required": ["source", "record_index"],
+      "required": ["source_name", "record_index"],
       "properties": {
-        "source": { "type": "string", "description": "Input source name or path." },
+        "source_name": { "type": "string", "description": "Input source name or path." },
         "record_index": { "type": "integer", "minimum": 0, "description": "Zero-based record position within the source." },
         "record_id": { "$ref": "#/$defs/portableId" },
         "atom_ids": {

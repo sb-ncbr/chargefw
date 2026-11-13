@@ -220,7 +220,7 @@ struct StructuralLabelsLess {
 
 } // namespace
 
-PdbReader::PdbReader(std::istream& input, std::string source,
+PdbReader::PdbReader(std::istream& input, std::string source_name,
                      const ::chargefw::adapters::gemmi::InputOptions options) {
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
@@ -231,12 +231,12 @@ PdbReader::PdbReader(std::istream& input, std::string source,
                                  " contains a non-ASCII character; PDB files must be ASCII text"};
     }
 
-    auto structure = ::gemmi::read_pdb_string(contents, source);
+    auto structure = ::gemmi::read_pdb_string(contents, source_name);
     if (structure.models.empty()) {
         throw std::runtime_error{"structural input contains no models"};
     }
     ::gemmi::add_entity_types(structure, false);
-    const auto name = structure.name.empty() ? source : structure.name;
+    const auto name = structure.name.empty() ? source_name : structure.name;
     auto selected_models =
         selection::select_models(structure, options.selection, options.conformers);
     const auto retained_models =
@@ -252,7 +252,8 @@ PdbReader::PdbReader(std::istream& input, std::string source,
     }
     record_ = structure_import::make_record(
         structure, selected_models,
-        MoleculeRecordIdentity{.source = std::move(source), .record_index = 0, .record_id = name},
+        MoleculeRecordIdentity{
+            .source_name = std::move(source_name), .record_index = 0, .record_id = name},
         options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
         MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity);
     if (explicit_bonds.skipped_symmetry_connections > 0) {

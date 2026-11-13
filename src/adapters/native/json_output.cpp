@@ -166,7 +166,8 @@ constexpr auto metric_scale = 1000.0;
                                const ChargeCalculationResult& calculation_result,
                                const std::span<const charges::ChargeAssignment> record_charges,
                                const std::vector<ResultDiagnostic>& diagnostics) -> Json {
-    Json input{{"source", record.identity.source}, {"record_index", record.identity.record_index}};
+    Json input{{"source_name", record.identity.source_name},
+               {"record_index", record.identity.record_index}};
     if (!record.identity.record_id.empty()) {
         input["record_id"] = portable_id_json(record.identity.record_id);
     }

@@ -15,7 +15,7 @@ namespace chargefw::adapters::gemmi::pdb_input {
 // input contract in docs/reference/formats.md.
 class PdbReader {
   public:
-    explicit PdbReader(std::istream& input, std::string source = {},
+    explicit PdbReader(std::istream& input, std::string source_name = {},
                        ::chargefw::adapters::gemmi::InputOptions options = {});
 
     PdbReader(const PdbReader&) = delete;

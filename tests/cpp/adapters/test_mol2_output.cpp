@@ -38,7 +38,7 @@ auto generated_record() -> adapters::ImportedMoleculeRecord {
                                 core::Conformer{{core::Position{0.1, 0.0, 0.0},
                                                  core::Position{1.33456789012345, 0.0, 0.0}}}},
                                "carbonyl"},
-            .identity = {.source = "input", .record_id = "record"}};
+            .identity = {.source_name = "input", .record_id = "record"}};
 }
 
 [[nodiscard]] auto occurrences(const std::string_view text, const std::string_view value)
@@ -59,7 +59,7 @@ auto generated_record() -> adapters::ImportedMoleculeRecord {
         .molecule = core::Molecule{std::move(atoms),
                                    std::move(bonds),
                                    {core::Conformer{std::vector<core::Position>(atom_count)}}},
-        .identity = {.source = "input"}};
+        .identity = {.source_name = "input"}};
     const auto result = calculation_result(
         {std::move(record)},
         charges::ChargeSet{"formal",

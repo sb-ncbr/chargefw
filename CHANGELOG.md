@@ -106,6 +106,8 @@
 
 ### C++
 
+- Breaking change: `adapters::MoleculeRecordIdentity::source` is now `source_name`, as in Python
+  and result JSON.
 - The MOL, SDF, and MOL2 readers throw `std::runtime_error` for an unknown element symbol, as
   documented for input they cannot parse, instead of `std::out_of_range`.
 - Breaking change: the request and its provenance use the names of the Python arguments.
@@ -283,6 +285,8 @@
 
 ### Output
 
+- Breaking change: a record's `input.source` in result JSON is now `input.source_name`, as in
+  Python.
 - Breaking change: result JSON has no `calculation_provenance.effective.warnings`. It repeated
   the messages of the plan's warnings, which are diagnostics with their codes.
 - Breaking change: `calculation_provenance.requested` in result JSON is flat and uses the names of

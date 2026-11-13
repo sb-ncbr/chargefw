@@ -466,8 +466,8 @@ auto parse_mol(std::istream& input, MoleculeRecordIdentity identity, std::size_t
     }
 }
 
-MolReader::MolReader(std::istream& input, std::string source)
-    : input_{std::addressof(input)}, source_{std::move(source)} {}
+MolReader::MolReader(std::istream& input, std::string source_name)
+    : input_{std::addressof(input)}, source_{std::move(source_name)} {}
 
 auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
     if (consumed_ || input_->peek() == std::char_traits<char>::eof()) {
@@ -476,7 +476,8 @@ auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
 
     consumed_ = true;
     auto line = std::size_t{};
-    auto result = parse_mol(*input_, {.source = source_, .record_index = 0, .record_id = {}}, line);
+    auto result =
+        parse_mol(*input_, {.source_name = source_, .record_index = 0, .record_id = {}}, line);
     // Content after M  END is not read as a molecule but must still be ASCII text.
     try {
         while (common::try_read_line(*input_, line).has_value()) {

@@ -274,7 +274,7 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
 } // namespace
 
 struct JsonReader::Impl {
-    Impl(std::istream& input, std::string source, ConformerSelection conformers);
+    Impl(std::istream& input, std::string source_name, ConformerSelection conformers);
     auto next() -> std::optional<ImportedMoleculeRecord>;
 
     nlohmann::json molecule_records_;
@@ -283,8 +283,9 @@ struct JsonReader::Impl {
     std::size_t record_index_ = 0;
 };
 
-JsonReader::JsonReader(std::istream& input, std::string source, const ConformerSelection conformers)
-    : impl_{std::make_unique<Impl>(input, std::move(source), conformers)} {}
+JsonReader::JsonReader(std::istream& input, std::string source_name,
+                       const ConformerSelection conformers)
+    : impl_{std::make_unique<Impl>(input, std::move(source_name), conformers)} {}
 
 JsonReader::JsonReader(JsonReader&&) noexcept = default;
 auto JsonReader::operator=(JsonReader&&) noexcept -> JsonReader& = default;
@@ -294,8 +295,9 @@ auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
     return impl_ ? impl_->next() : std::nullopt;
 }
 
-JsonReader::Impl::Impl(std::istream& input, std::string source, const ConformerSelection conformers)
-    : source_{std::move(source)}, conformers_{conformers} {
+JsonReader::Impl::Impl(std::istream& input, std::string source_name,
+                       const ConformerSelection conformers)
+    : source_{std::move(source_name)}, conformers_{conformers} {
     auto document = Json::parse(input, nullptr, false);
     if (document.is_discarded()) {
         throw std::runtime_error{"invalid JSON document"};
@@ -320,7 +322,7 @@ auto JsonReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
 
     const auto current_record_index = record_index_++;
     auto record = parse_molecule(molecule_records_[current_record_index],
-                                 MoleculeRecordIdentity{.source = source_,
+                                 MoleculeRecordIdentity{.source_name = source_,
                                                         .record_index = current_record_index,
                                                         .record_id = {}},
                                  conformers_);

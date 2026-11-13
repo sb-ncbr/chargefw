@@ -13,7 +13,7 @@ namespace chargefw::adapters::native::sdf_input {
 // end-of-file; invalid input throws and terminates import.
 class SdfReader {
   public:
-    explicit SdfReader(std::istream& input, std::string source = {});
+    explicit SdfReader(std::istream& input, std::string source_name = {});
 
     SdfReader(const SdfReader&) = delete;
     auto operator=(const SdfReader&) -> SdfReader& = delete;

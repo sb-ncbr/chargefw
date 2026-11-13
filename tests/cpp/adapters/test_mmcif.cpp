@@ -251,7 +251,7 @@ _sb_ncbr_partial_atomic_charges.charge
     auto reader = mmcif::MmcifReader{input, "structure.cif"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
-    CHECK(first->identity.source == "structure.cif");
+    CHECK(first->identity.source_name == "structure.cif");
     CHECK(first->identity.record_index == 0);
     CHECK(first->identity.record_id == "first");
     CHECK(first->molecule.atom_count() == 3);

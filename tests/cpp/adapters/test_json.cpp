@@ -50,7 +50,7 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[adapt
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& record = *result;
-        CHECK(record.identity.source == "water.json");
+        CHECK(record.identity.source_name == "water.json");
         CHECK(record.identity.record_index == 0);
         CHECK(record.identity.record_id == "water-1");
         CHECK(record.molecule.name() == "water");

@@ -13,8 +13,8 @@ namespace chargefw::adapters::native::common_input {
 
 auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::size_t line) -> void {
     const auto context =
-        (identity.source.empty() ? "line " : identity.source + ":") + std::to_string(line) +
-        ": record " + std::to_string(identity.record_index + 1) +
+        (identity.source_name.empty() ? "line " : identity.source_name + ":") +
+        std::to_string(line) + ": record " + std::to_string(identity.record_index + 1) +
         (identity.record_id.empty() ? "" : " ('" + identity.record_id.display_string() + "')") +
         ": ";
     try {

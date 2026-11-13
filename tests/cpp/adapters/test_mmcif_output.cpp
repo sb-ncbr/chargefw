@@ -48,7 +48,7 @@ auto generated_record(std::string id = "molecule") -> adapters::ImportedMolecule
                 {core::Bond{0, 1, core::BondOrder::DOUBLE}},
                 {core::Conformer{{core::Position{0.0, 0.0, 0.0}, core::Position{1.2, 0.0, 0.0}}},
                  core::Conformer{{core::Position{0.1, 0.0, 0.0}, core::Position{1.3, 0.0, 0.0}}}}},
-        .identity = {.source = "input", .record_id = std::move(id)}};
+        .identity = {.source_name = "input", .record_id = std::move(id)}};
 }
 
 auto structural_result() -> adapters::ChargeCalculationResult {
@@ -129,7 +129,7 @@ auto labelled_record(const std::vector<LabelledAtom>& atoms, std::vector<core::B
         .molecule = core::Molecule{std::vector<core::Atom>(atoms.size(), core::Atom{6}),
                                    std::move(bonds),
                                    {core::Conformer{std::move(positions)}}},
-        .identity = {.source = "input", .record_id = "labelled"}};
+        .identity = {.source_name = "input", .record_id = "labelled"}};
     record.import_metadata =
         adapters::MoleculeImportMetadata{.format = adapters::MolecularSourceFormat::mmcif,
                                          .atoms = sites,

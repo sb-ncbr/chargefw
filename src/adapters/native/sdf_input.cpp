@@ -39,16 +39,16 @@ auto consume_to_sdf_delimiter(std::istream& input, std::size_t& line_number) -> 
 
 } // namespace
 
-SdfReader::SdfReader(std::istream& input, std::string source)
-    : input_{std::addressof(input)}, source_{std::move(source)} {}
+SdfReader::SdfReader(std::istream& input, std::string source_name)
+    : input_{std::addressof(input)}, source_{std::move(source_name)} {}
 
 auto SdfReader::next() -> std::optional<ImportedMoleculeRecord> {
     if (at_end_of_records(*input_)) {
         return std::nullopt;
     }
 
-    const auto identity =
-        MoleculeRecordIdentity{.source = source_, .record_index = record_index_++, .record_id = {}};
+    const auto identity = MoleculeRecordIdentity{
+        .source_name = source_, .record_index = record_index_++, .record_id = {}};
     auto result = mol_input::parse_mol(*input_, identity, line_);
     result.import_metadata->format = MolecularSourceFormat::sdf;
     try {

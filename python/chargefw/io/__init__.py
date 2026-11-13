@@ -112,7 +112,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
         name=payload["name"],
         atom_names=payload["atom_names"],
         conformer_names=payload["conformer_names"],
-        source_name=payload["source"],
+        source_name=payload["source_name"],
         record_index=payload["record_index"],
         record_id=payload["record_id"],
         atom_ids=(

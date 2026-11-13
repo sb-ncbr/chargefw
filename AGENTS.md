@@ -104,6 +104,9 @@ should include only the individual adapter headers it uses.
   capability-checked, explicit in provenance, and validated per method.
 - Bindings, adapters, and applications translate representations into the native facade; they must not
   duplicate applicability, selection, or scientific policy.
+- Name one thing the same in Python, C++, the command line, and result JSON. The Python name comes
+  first; the others follow it in their own spelling, such as `cutoff_threshold` and
+  `--cutoff-threshold`. Within Python, an argument has the name of the attribute it sets.
 - Fitting algorithms and fitting-specific capabilities belong in parameterization. Calculation, methods,
   and parameters must not depend on parameterization; shared scientific calculation primitives remain in
   their owning lower domains.

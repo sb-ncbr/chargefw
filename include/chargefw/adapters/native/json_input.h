@@ -16,7 +16,7 @@ namespace chargefw::adapters::native::json_input {
 // names are intentionally unsupported.
 class JsonReader {
   public:
-    explicit JsonReader(std::istream& input, std::string source = {},
+    explicit JsonReader(std::istream& input, std::string source_name = {},
                         ConformerSelection conformers = ConformerSelection::all);
 
     JsonReader(const JsonReader&) = delete;

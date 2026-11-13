@@ -130,7 +130,7 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[a
             .molecule = core::Molecule{{core::Atom{8}},
                                        {},
                                        {core::Conformer{{core::Position{0.0, 0.0, 0.0}}}}},
-            .identity = {.source = "input.sdf"}};
+            .identity = {.source_name = "input.sdf"}};
         const auto not_structural = calculation_result({std::move(record)}, formal(1));
         auto output = std::ostringstream{};
         CHECK_THROWS_AS(pqr_output::PqrWriter{output}.write(not_structural), std::invalid_argument);
