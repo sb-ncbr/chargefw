@@ -61,9 +61,9 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
     ) -> SourceAtomReference:
         position, source_id, labels = value
         return SourceAtomReference(
-            position,
-            source_id,
-            None
+            position=position,
+            id=source_id,
+            structural_labels=None
             if labels is None
             else SourceStructuralLabels(
                 author=SourceHierarchyLabels(**labels["author"]),
@@ -83,9 +83,9 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
             atoms=tuple(atom_reference(value) for value in import_metadata["atoms"]),
             conformers=tuple(
                 SourceConformerReference(
-                    position,
-                    source_id,
-                    tuple(atom_reference(value) for value in sites),
+                    position=position,
+                    id=source_id,
+                    sites=tuple(atom_reference(value) for value in sites),
                 )
                 for position, source_id, sites in import_metadata["conformers"]
             ),
@@ -95,7 +95,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
             conformer_selection=import_metadata["conformer_selection"],
             bond_strategy=import_metadata["bond_strategy"],
             components=tuple(
-                SourceComponentInstance(component_id, tuple(atom_indices))
+                SourceComponentInstance(component_id=component_id, atom_indices=tuple(atom_indices))
                 for component_id, atom_indices in import_metadata["components"]
             ),
         )
@@ -125,7 +125,13 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
         result,
         "_import_issues",
         tuple(
-            ImportIssue(kind, message, line, index_array(atoms), index_array(bonds))
+            ImportIssue(
+                kind=kind,
+                message=message,
+                line=line,
+                atom_indices=index_array(atoms),
+                bond_indices=index_array(bonds),
+            )
             for kind, message, line, atoms, bonds in payload["import_issues"]
         ),
     )

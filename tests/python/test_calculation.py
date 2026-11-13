@@ -587,7 +587,7 @@ def test_assignment_cardinality_and_mapping() -> None:
 
 
 def test_public_charge_assignment_is_validated_and_comparable() -> None:
-    source = chargefw.SourceIdentity("fixture", 1, "record")
+    source = chargefw.SourceIdentity(source="fixture", record_index=1, record_id="record")
     assignment = chargefw.ChargeAssignment(
         values=np.array([0.25, -0.25]),
         molecule_index=cast(Any, np.int64(2)),
@@ -929,7 +929,9 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert {key.classifier for key in qeq.atom_keys} == {"plain"}
     assert qeq.bond_keys == ()
     peptide = chargefw.parameter_sets["SQEqp_Schindler2021_PUB_pept"]
-    assert chargefw.AtomParameterKey("C", "bonded", "COO") in peptide.atom_keys
+    assert (
+        chargefw.AtomParameterKey(element="C", classifier="bonded", type="COO") in peptide.atom_keys
+    )
     bond = peptide.bond_keys[0]
     assert bond.classifier == "bo"
     assert all(atom.classifier == "bonded" for atom in bond.atoms)

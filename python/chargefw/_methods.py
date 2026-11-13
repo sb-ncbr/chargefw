@@ -20,7 +20,7 @@ from ._types import (
 )
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class PrerequisiteIssue:
     kind: PrerequisiteIssueKind
     message: str
@@ -34,14 +34,14 @@ class PrerequisiteIssue:
     bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ExecutionIssue:
     kind: ExecutionIssueKind
     message: str
     molecule_index: int | None = None
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class MethodOption:
     id: str
     description: str
@@ -66,7 +66,7 @@ class MethodOptionCatalog(_Catalog[MethodOption]):
         super().__init__(values, "method option")
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class Method:
     id: str
     name: str

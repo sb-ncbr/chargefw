@@ -577,7 +577,10 @@ def _unordered(
         first, second = sorted(
             key.atoms, key=lambda atom: (atom.element, atom.classifier, atom.type)
         )
-        return (BondParameterKey((first, second), key.classifier, key.type), name)
+        return (
+            BondParameterKey(atoms=(first, second), classifier=key.classifier, type=key.type),
+            name,
+        )
     return (key, name)
 
 

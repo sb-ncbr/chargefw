@@ -15,7 +15,7 @@ from ._public import set_public_module
 from ._types import AtomClassifier, BondClassifier
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AtomParameterKey:
     """Atom key of one parameter-set entry."""
 
@@ -24,7 +24,7 @@ class AtomParameterKey:
     type: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BondParameterKey:
     """Bond key of one parameter-set entry; endpoint order is not significant."""
 
@@ -33,7 +33,7 @@ class BondParameterKey:
     type: str
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+@dataclass(frozen=True, slots=True, repr=False, kw_only=True)
 class ParameterSet:
     """Metadata for an immutable parameter set, bundled or read from a file."""
 

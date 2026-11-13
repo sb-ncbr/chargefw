@@ -38,7 +38,7 @@ def _nonnegative_index(value: SupportsIndex, name: str) -> int:
     return result
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class ChargeAssignment:
     """Source-mapped, owned charges for one molecule or conformer."""
 

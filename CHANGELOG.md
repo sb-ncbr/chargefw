@@ -25,6 +25,14 @@
   `ValueError`; explicit selection no longer falls back to geometry-independent charges and raises
   `ValueError` instead. Omitting `conformer` still selects a single assignment automatically,
   including a conformer-specific assignment.
+- Breaking change: the value classes take their attributes as keyword arguments only, for example
+  `SourceIdentity(source="input.sdf", record_index=0)` and
+  `AtomParameterKey(element="C", classifier="bonded", type="COO")`. This covers the issue classes,
+  `SourceIdentity` and the other `Source*` classes, `ChargeAssignment`, `ExecutedPlan`, `Execution`,
+  `ResourceEstimate`, `CalculationProgress`, `CalculationTimings`, `Rejection`, `Method`,
+  `MethodOption`, `ParameterSet`, `AtomParameterKey`, `BondParameterKey`, and `Element`. Their
+  attributes no longer match positional patterns in `match` statements. `Plan.estimate()` takes
+  `threads` as a keyword argument only.
 - Breaking change: removed `SourceIdentity.source_name`; use `SourceIdentity.source` instead.
   `Molecule.source_name` is unchanged.
 - Breaking change: `chargefw.calculate()` no longer takes a plan. Calculate a plan from `assess()` with

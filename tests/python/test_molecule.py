@@ -32,8 +32,8 @@ NO_CHARGES
     assert mapping.format == "mol2"
     assert mapping.source_connectivity == "explicitly-empty"
     assert mapping.atoms == (
-        chargefw.SourceAtomReference(0, "001"),
-        chargefw.SourceAtomReference(1, "10"),
+        chargefw.SourceAtomReference(position=0, id="001"),
+        chargefw.SourceAtomReference(position=1, id="10"),
     )
     assert mapping.conformers[0].sites == mapping.atoms
     assert mapping.components == ()
@@ -79,7 +79,9 @@ def test_molecule_owns_normalized_input() -> None:
     np.testing.assert_array_equal(molecule.bonds, [[0, 1, 1], [0, 2, 1], [0, 3, 2]])
     assert molecule.coordinates.shape == (2, 4, 3)
     assert molecule.coordinates[0, 0].tolist() == [2.0, 1.0, 0.0]
-    assert molecule.source == chargefw.SourceIdentity("fixture.sdf", 3, "record-4")
+    assert molecule.source == chargefw.SourceIdentity(
+        source="fixture.sdf", record_index=3, record_id="record-4"
+    )
     assert molecule.atom_ids == ("O", 17, 23, "H")
     assert len(molecule) == 4
 

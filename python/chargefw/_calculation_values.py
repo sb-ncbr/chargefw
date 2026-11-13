@@ -52,7 +52,7 @@ from .charges import ChargeAssignment
 from .core import Molecule, MoleculeCollection
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class InputIssue:
     """A caution about an input molecule, such as hydrogens that were probably not added."""
 
@@ -79,7 +79,7 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
     )
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class ChargeIssue:
     """A caution about calculated charges: they exist, but are probably wrong."""
 
@@ -106,13 +106,13 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
     )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Execution:
     mode: ExecutionMode
     radius: float | None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ResourceEstimate:
     """Approximate peak working memory and operation count of executing a plan."""
 
@@ -120,7 +120,7 @@ class ResourceEstimate:
     operations: float
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CalculationProgress:
     """Owned snapshot of one native calculation progress event."""
 
@@ -306,7 +306,7 @@ class Plan:
 
         return self._settings
 
-    def estimate(self, threads: int | None = None) -> ResourceEstimate:
+    def estimate(self, *, threads: int | None = None) -> ResourceEstimate:
         """Estimate execution with a thread limit; None uses the assessment's threads."""
 
         memory_bytes, operations = self._native.estimate(_normalized_threads(threads))
@@ -354,7 +354,7 @@ class Plan:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Rejection:
     method: Method
     parameter_set: ParameterSet | None
@@ -376,7 +376,7 @@ class FixedIons:
         object.__setattr__(self, "sources", normalized_sources)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ExecutedPlan:
     method: Method
     parameter_set: ParameterSet | None
@@ -391,7 +391,7 @@ class ExecutedPlan:
         object.__setattr__(self, "options", MappingProxyType(dict(self.options)))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CalculationTimings:
     applicability_seconds: float
     computation_seconds: float

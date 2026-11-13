@@ -26,7 +26,7 @@ from ._types import PortableId as _PortableId
 type PortableId = _PortableId
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceIdentity:
     """Identity of the source record represented by a molecule."""
 
@@ -51,7 +51,7 @@ type SourceFormat = Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif
 type SourceConnectivity = Literal["absent", "explicitly-empty", "present"]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceHierarchyLabels:
     """Atom, residue, chain, and sequence labels in one structural namespace."""
 
@@ -61,7 +61,7 @@ class SourceHierarchyLabels:
     sequence: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceStructuralLabels:
     """Author and label identities retained for a structural atom site."""
 
@@ -73,7 +73,7 @@ class SourceStructuralLabels:
     segment: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceAtomReference:
     """Location of one calculation atom in its source record."""
 
@@ -82,7 +82,7 @@ class SourceAtomReference:
     structural_labels: SourceStructuralLabels | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceConformerReference:
     """Location and selected atom sites for one retained conformer."""
 
@@ -91,7 +91,7 @@ class SourceConformerReference:
     sites: tuple[SourceAtomReference, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceComponentInstance:
     """Selected structural residue membership in calculation-atom order."""
 
@@ -99,7 +99,7 @@ class SourceComponentInstance:
     atom_indices: tuple[int, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceMapping:
     """Read-only source correspondence retained for an imported molecule."""
 
@@ -114,7 +114,7 @@ class SourceMapping:
     components: tuple[SourceComponentInstance, ...] = ()
 
 
-@dataclass(frozen=True, slots=True, eq=False)
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
 class ImportIssue:
     """A caution that a file reader attached to an imported molecule."""
 
@@ -219,7 +219,9 @@ class Molecule:
         else:
             if source_name is not None and not isinstance(source_name, str):
                 raise TypeError("source_name must be a string or None")
-            source_identity = SourceIdentity(source_name or "", record_index, record_id)
+            source_identity = SourceIdentity(
+                source=source_name or "", record_index=record_index, record_id=record_id
+            )
 
         atom_id_values = as_ids(atom_ids, atom_count, "atom_ids")
 

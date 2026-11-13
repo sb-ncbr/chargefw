@@ -4,6 +4,11 @@ This page lists every public function, class, and attribute of the `chargefw` pa
 [Python](../interfaces/python.md) shows how to use them together. All values are read-only, and all
 indices of molecules, atoms, bonds, and conformers count from zero.
 
+You create `Molecule`, `MoleculeCollection`, and `SourceIdentity` objects and subclasses of
+`CalculationObserver`; ChargeFW creates all other objects. If you construct one of the others
+yourself, for example an `AtomParameterKey` to compare with the keys of a parameter set, pass its
+attributes as keyword arguments.
+
 ## Functions
 
 | Function | Returns |
@@ -242,7 +247,7 @@ The arguments of a call as ChargeFW read them: `method` and `parameter_set` as I
 | Attribute | Content |
 | --- | --- |
 | `method`, `parameter_set`, `options`, `execution`, `warnings`, `settings` | As in `ExecutedPlan` |
-| `estimate(threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
+| `estimate(*, threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
 | `calculate(*, threads=None, observer=None)` | `CalculationResult` for the molecules the plan was assessed with; raises and warns as `chargefw.calculate()` does |
 
 ### Rejection

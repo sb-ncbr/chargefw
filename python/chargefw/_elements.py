@@ -12,7 +12,7 @@ from ._payloads import ElementPayload
 from ._public import set_public_module
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Element:
     """Identity of one element in the bundled periodic table."""
 

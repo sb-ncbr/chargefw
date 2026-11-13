@@ -351,7 +351,9 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     mapping = text_molecule.source_mapping
     assert mapping is not None
     assert mapping.format == "pdb"
-    assert mapping.components == (chargefw.SourceComponentInstance("HOH", (0, 1)),)
+    assert mapping.components == (
+        chargefw.SourceComponentInstance(component_id="HOH", atom_indices=(0, 1)),
+    )
     assert mapping.alternate_location_selection == "first-source-order"
     assert [value.id for value in mapping.conformers] == ["1", "2"]
     labels = mapping.atoms[1].structural_labels
@@ -470,7 +472,9 @@ HETATM 001 C LABEL . LIG LC 7 ? 0 0 0 1 20 0 17 AUTH AC AUTHOR E1 1
     assert labels.label.atom == "LABEL"
     assert labels.label.residue == "LIG"
     assert labels.label.chain == "LC"
-    assert mapping.components == (chargefw.SourceComponentInstance("LIG", (0,)),)
+    assert mapping.components == (
+        chargefw.SourceComponentInstance(component_id="LIG", atom_indices=(0,)),
+    )
     assert isinstance(mapping.components, tuple)
     assert isinstance(mapping.components[0].atom_indices, tuple)
     with pytest.raises(FrozenInstanceError):
