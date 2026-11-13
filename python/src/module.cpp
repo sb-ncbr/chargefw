@@ -1,6 +1,6 @@
 #include "bindings.h"
 
-#include <chargefw/config.h>
+#include <chargefw/version.h>
 
 #include <nanobind/nanobind.h>
 

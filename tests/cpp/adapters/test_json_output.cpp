@@ -3,7 +3,6 @@
 #include <chargefw/adapters/native/json_output.h>
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
-#include <chargefw/config.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -14,6 +13,7 @@
 #include <chargefw/parameters/models/common_parameters.h>
 #include <chargefw/parameters/models/parameter_set.h>
 #include <chargefw/parameters/models/parameter_set_metadata.h>
+#include <chargefw/version.h>
 #include <snitch/snitch.hpp>
 
 #include "support/test_charge_results.h"

@@ -5,11 +5,11 @@
 #include <chargefw/adapters/native/mol2_output.h>
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_collection.h>
-#include <chargefw/config.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
+#include <chargefw/version.h>
 #include <snitch/snitch.hpp>
 
 #include <limits>

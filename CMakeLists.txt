@@ -104,13 +104,15 @@ target_link_libraries(chargefw_core_objects
 target_compile_definitions(chargefw_core_objects
   PRIVATE
     EIGEN_DONT_PARALLELIZE
+    CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY="${CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY}"
+    CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE="${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}"
 )
 
 chargefw_enable_optimizations(chargefw_core_objects)
 
 configure_file(
-  ${PROJECT_SOURCE_DIR}/include/chargefw/config.h.in
-  ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
+  ${PROJECT_SOURCE_DIR}/include/chargefw/version.h.in
+  ${PROJECT_BINARY_DIR}/generated/chargefw/version.h
   @ONLY
 )
 

@@ -7,8 +7,8 @@
 #include "adapters/output_helpers.h"
 #include "adapters/record_assignments.h"
 
-#include <chargefw/config.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/version.h>
 
 #include <gemmi/cif.hpp>
 #include <gemmi/elem.hpp>

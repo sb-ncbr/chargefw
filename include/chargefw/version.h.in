@@ -1,0 +1,8 @@
+#pragma once
+
+// The ChargeFW release these headers belong to.
+#define CHARGEFW_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define CHARGEFW_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define CHARGEFW_VERSION_PATCH @PROJECT_VERSION_PATCH@
+// The full release, with a pre-release suffix such as "rc3" when there is one.
+#define CHARGEFW_VERSION_STRING "@CHARGEFW_VERSION@"

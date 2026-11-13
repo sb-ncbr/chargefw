@@ -4,9 +4,11 @@
 #include <chargefw/adapters/native/mol2_output.h>
 #include <chargefw/adapters/native/pqr_output.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
+#include <chargefw/version.h>
 
 #include <fstream>
 #include <sstream>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -21,6 +23,11 @@ template <typename Reader> auto check_reader_moves(Reader reader) -> bool {
 }
 
 } // namespace
+
+static_assert(CHARGEFW_VERSION_MAJOR == EXPECTED_VERSION_MAJOR &&
+              CHARGEFW_VERSION_MINOR == EXPECTED_VERSION_MINOR &&
+              CHARGEFW_VERSION_PATCH == EXPECTED_VERSION_PATCH);
+static_assert(std::string_view{CHARGEFW_VERSION_STRING}.starts_with(EXPECTED_VERSION));
 
 auto main(int argc, char* argv[]) -> int {
     static_assert(std::is_class_v<chargefw::adapters::gemmi::mmcif_output::MmcifWriter>);

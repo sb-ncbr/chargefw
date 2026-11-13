@@ -88,7 +88,7 @@ install(
 
 install(
         FILES
-        ${PROJECT_BINARY_DIR}/generated/chargefw/config.h
+        ${PROJECT_BINARY_DIR}/generated/chargefw/version.h
         DESTINATION
         ${CMAKE_INSTALL_INCLUDEDIR}/chargefw
 )

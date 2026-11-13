@@ -59,6 +59,10 @@
   and fails to start without it, instead of loading another release. Programs linked against earlier
   releases ask for the unversioned name and get no such protection; rebuild them, and rebuild C++
   programs against every release.
+- Breaking change: `<chargefw/config.h>` is replaced by `<chargefw/version.h>`, which defines
+  `CHARGEFW_VERSION_STRING` as before and the numbers `CHARGEFW_VERSION_MAJOR`,
+  `CHARGEFW_VERSION_MINOR`, and `CHARGEFW_VERSION_PATCH`. The parameter-directory macros are no
+  longer installed.
 - Breaking change: removed `<chargefw/methods/method_applicability.h>` with
   `methods::ApplicableMethod`, `methods::RejectedCandidate`, and `methods::ApplicabilityResult`. No
   public function produced them. Read the plans and rejections of an assessment instead.

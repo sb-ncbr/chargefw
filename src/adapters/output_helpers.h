@@ -2,7 +2,7 @@
 
 #include <chargefw/adapters/molecule_record.h>
 #include <chargefw/charges/charge_collection.h>
-#include <chargefw/config.h>
+#include <chargefw/version.h>
 
 #include <algorithm>
 #include <cstddef>

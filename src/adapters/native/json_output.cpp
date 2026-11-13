@@ -3,7 +3,7 @@
 #include "adapters/component.h"
 #include "adapters/record_assignments.h"
 
-#include <chargefw/config.h>
+#include <chargefw/version.h>
 
 #include <nlohmann/json.hpp>
 
