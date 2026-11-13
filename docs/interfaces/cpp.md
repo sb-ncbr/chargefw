@@ -332,12 +332,16 @@ geometry give one assignment per conformer, the others one per molecule. Each `C
 molecule index, an optional conformer index, and the charges in atom order.
 [Results](../guide/results.md) explains assignments and atom order.
 
-Invalid arguments throw `std::invalid_argument`, also from `assess()`. A valid assessment reports
-methods that do not apply as rejections, and `default_plan()` is null when none applies; it has no
-status. `calculate()` reports failures and cancellation through the `ExecutionStatus`. A
-`std::logic_error` or `std::runtime_error` from a method, such as an invalid parameter value
-or a solver that does not converge, becomes `numerical_failure`. Other exceptions, such as
-`std::bad_alloc` when memory runs out, are not caught and reach the caller.
+Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors that check their
+index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
+`operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
+throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
+molecule cannot hold, such as atomic number 0. A valid assessment reports methods that do not apply
+as rejections, and `default_plan()` is null when none applies; it has no status. `calculate()`
+reports failures and cancellation through the `ExecutionStatus`. A `std::logic_error` or
+`std::runtime_error` from a method, such as an invalid parameter value or a solver that does not
+converge, becomes `numerical_failure`. Other exceptions, such as `std::bad_alloc` when memory runs
+out, are not caught and reach the caller.
 
 ## Fixed ions
 

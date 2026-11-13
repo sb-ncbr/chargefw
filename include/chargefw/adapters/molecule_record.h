@@ -164,6 +164,8 @@ struct MoleculeImportMetadata {
     MolecularSourceFormat format = MolecularSourceFormat::molecule_json;
     std::vector<SourceAtomReference> atoms;
     std::vector<SourceConformerReference> conformers;
+    // The selections and the bond strategy are provenance: the text the result JSON reports, such
+    // as "first", not settings a later reader applies again.
     std::optional<std::string> record_selection;
     std::optional<std::string> alternate_location_selection;
     std::optional<std::string> conformer_selection;
