@@ -40,6 +40,8 @@
 
 ### Python
 
+- `chargefw.methods`, `chargefw.parameter_sets`, `Method.options`, and `Method.parameter_sets` are
+  typed as `Mapping[str, …]`, as documented, instead of private catalog classes.
 - Breaking change: `cutoff_threshold` and `cover_threshold` take `"unlimited"` for no limit, as
   on the command line and in result JSON, instead of `None`, which is now rejected.
   `RequestedCalculation` holds `"unlimited"` too.

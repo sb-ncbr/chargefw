@@ -114,8 +114,9 @@ def _default_parameter_descriptors() -> ParameterSetCatalog:
     return _bundled_parameter_descriptors
 
 
-parameter_sets = _default_parameter_descriptors()
-methods = _method_catalog(parameter_sets)
+_parameter_set_catalog = _default_parameter_descriptors()
+parameter_sets: Mapping[str, ParameterSet] = _parameter_set_catalog
+methods: Mapping[str, Method] = _method_catalog(_parameter_set_catalog)
 
 
 def _check_custom_parameter_id(id: str, source: str | None = None) -> None:
@@ -203,7 +204,7 @@ def write_parameter_set(path: str | os.PathLike[str], parameter_set: ParameterSe
 
 def _parameter_catalogs(
     parameter_set: ParameterSet | None,
-) -> tuple[_native_parameters._NativeParameterCatalog, ParameterSetCatalog]:
+) -> tuple[_native_parameters._NativeParameterCatalog, Mapping[str, ParameterSet]]:
     """The native catalog for an assessment and the catalog that resolves its results.
 
     A set that is not bundled is assessed alone, and its results resolve it next to the bundled
@@ -238,7 +239,7 @@ class Assessment:
 
     _native: _native_calculation._NativeAssessment
     _requested: RequestedCalculation
-    _parameter_sets: ParameterSetCatalog
+    _parameter_sets: Mapping[str, ParameterSet]
     _plans: tuple[Plan, ...]
     _rejections: tuple[Rejection, ...]
     _input_warnings: tuple[InputIssue, ...]
@@ -253,7 +254,7 @@ class Assessment:
         native: _native_calculation._NativeAssessment,
         molecules: MoleculeCollection,
         requested: RequestedCalculation,
-        parameter_sets: ParameterSetCatalog,
+        parameter_sets: Mapping[str, ParameterSet],
     ) -> Assessment:
         assessment = object.__new__(cls)
         payload = native.report()

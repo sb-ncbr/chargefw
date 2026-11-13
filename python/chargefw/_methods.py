@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -10,7 +11,7 @@ from numpy.typing import NDArray
 from ._arrays import index_array
 from ._catalog import _Catalog
 from ._chargefw import methods as _native_methods
-from ._parameters import ParameterSetCatalog
+from ._parameters import ParameterSet, ParameterSetCatalog
 from ._payloads import MethodDescriptorPayload
 from ._public import set_public_module
 from ._types import (
@@ -81,8 +82,9 @@ class Method:
     supports_cutoff: bool
     supports_cover: bool
     supports_fixed_ions: bool
-    options: MethodOptionCatalog
-    parameter_sets: ParameterSetCatalog
+    # Mappings by ID, in order; the catalog classes behind them are private.
+    options: Mapping[str, MethodOption]
+    parameter_sets: Mapping[str, ParameterSet]
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(id={self.id!r}, name={self.name!r})"

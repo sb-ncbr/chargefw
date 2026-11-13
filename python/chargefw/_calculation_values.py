@@ -24,10 +24,9 @@ from ._errors import (
 from ._methods import (
     ExecutionIssue,
     Method,
-    MethodCatalog,
     PrerequisiteIssue,
 )
-from ._parameters import ParameterSet, ParameterSetCatalog
+from ._parameters import ParameterSet
 from ._payloads import (
     CalculationProgressPayload,
     ChargeIssuePayload,
@@ -157,7 +156,7 @@ class CalculationObserver:
 class _NativeObserverAdapter:
     __slots__ = ("_observer", "_methods")
 
-    def __init__(self, observer: CalculationObserver, methods: MethodCatalog) -> None:
+    def __init__(self, observer: CalculationObserver, methods: Mapping[str, Method]) -> None:
         self._observer = observer
         self._methods = methods
 
@@ -182,7 +181,7 @@ class _NativeObserverAdapter:
 
 
 def _observer_adapter(
-    observer: CalculationObserver | None, methods: MethodCatalog
+    observer: CalculationObserver | None, methods: Mapping[str, Method]
 ) -> _NativeObserverAdapter | None:
     if observer is None:
         return None
@@ -314,8 +313,8 @@ class Plan:
     _native: _native_calculation._NativePlan
     _molecules: MoleculeCollection
     _requested: RequestedCalculation
-    _methods: MethodCatalog
-    _parameter_sets: ParameterSetCatalog
+    _methods: Mapping[str, Method]
+    _parameter_sets: Mapping[str, ParameterSet]
     _settings: CalculationSettings
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -326,8 +325,8 @@ class Plan:
         cls,
         native: _native_calculation._NativePlan,
         molecules: MoleculeCollection,
-        methods: MethodCatalog,
-        parameter_sets: ParameterSetCatalog,
+        methods: Mapping[str, Method],
+        parameter_sets: Mapping[str, ParameterSet],
         requested: RequestedCalculation,
     ) -> Plan:
         plan = object.__new__(cls)
@@ -487,15 +486,15 @@ def _execution_issue(value: ExecutionIssuePayload) -> ExecutionIssue:
 
 
 def _resolved_parameter_set(
-    parameter_set_id: str | None, parameter_sets: ParameterSetCatalog
+    parameter_set_id: str | None, parameter_sets: Mapping[str, ParameterSet]
 ) -> ParameterSet | None:
     return None if parameter_set_id is None else parameter_sets[parameter_set_id]
 
 
 def _rejections(
     values: list[RejectionPayload],
-    methods: MethodCatalog,
-    parameter_sets: ParameterSetCatalog,
+    methods: Mapping[str, Method],
+    parameter_sets: Mapping[str, ParameterSet],
 ) -> tuple[Rejection, ...]:
     return tuple(
         Rejection(
@@ -551,8 +550,8 @@ def _fixed_ions_provenance(
 
 def _executed_plan(
     value: EffectiveCalculationPayload | None,
-    methods: MethodCatalog,
-    parameter_sets: ParameterSetCatalog,
+    methods: Mapping[str, Method],
+    parameter_sets: Mapping[str, ParameterSet],
     molecules: MoleculeCollection,
     requested: RequestedCalculation,
 ) -> ExecutedPlan | None:
@@ -639,8 +638,8 @@ class CalculationResult:
         native: _native_calculation._NativeExecutionResult,
         molecules: MoleculeCollection,
         requested: RequestedCalculation,
-        methods: MethodCatalog,
-        parameter_sets: ParameterSetCatalog,
+        methods: Mapping[str, Method],
+        parameter_sets: Mapping[str, ParameterSet],
         rejections: tuple[Rejection, ...] = (),
     ) -> CalculationResult:
         result = object.__new__(cls)
