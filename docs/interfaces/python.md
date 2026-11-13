@@ -232,8 +232,9 @@ A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` ar
 `numpy.asarray(assignment)` also returns the charges. [Results](../guide/results.md) explains
 assignments, conformers, and atom order.
 
-`result.assignment(molecule=0, conformer=1)` returns one assignment. For methods that use geometry,
-`conformer` is required, also for molecules with one conformer; for the other methods, omit it.
+`result.assignment(molecule_index=0, conformer_index=1)` returns one assignment. For methods that
+use geometry, `conformer_index` is required, also for molecules with one conformer; for the other
+methods, omit it.
 
 With fixed ions, `result.requested.fixed_ions` holds the names you passed and
 `result.plan.fixed_ions.sources` the ions that were fixed, each with its residue name in
@@ -519,9 +520,9 @@ molecule whose atom count, elements, or formal charges no longer match. It does 
 coordinates, so reordered atoms of the same element, changed bonds, or new coordinates go unnoticed:
 the charges then sit on the wrong atoms or belong to another structure.
 
-`molecule_index` selects the input molecule (default `0`). If you omit `conformer` and that molecule
-has one set of charges, it is used. Otherwise, pass `conformer`: the conformer's position in the
-ChargeFW molecule, counted from 0, not the RDKit conformer ID. Selection follows `result.assignment()`,
+`molecule_index` selects the input molecule (default `0`). If you omit `conformer_index` and that
+molecule has one set of charges, it is used. Otherwise, pass `conformer_index`: the conformer's
+position in the ChargeFW molecule, counted from 0, not the RDKit conformer ID. Selection follows `result.assignment()`,
 with the same errors; see {ref}`selecting-an-assignment`.
 When selection fails, the RDKit molecule is left unchanged. The property belongs to the molecule,
 not to a conformer, so keep separate copies or property names to store several sets of charges.
@@ -577,7 +578,7 @@ structure.remove_waters()  # or any other change you make with Gemmi
 
 molecules = chargefw.io.gemmi.from_structure(structure)
 result = chargefw.calculate(molecules, method="sqeqp")
-assignment = result.assignment(molecule=0, conformer=0)
+assignment = result.assignment(molecule_index=0, conformer_index=0)
 sites = molecules[0].source_mapping.conformers[assignment.conformer_index].sites
 
 # The Gemmi residue and atom of every site, in the order of site.position

@@ -43,7 +43,8 @@ peoe 0 None [-0.042  0.041 -0.395]
 
 EEM depends on geometry, so the charges differ between conformers. PEOE does not, and its single
 assignment has no conformer index. To get one assignment directly, use
-`result.assignment(molecule=0, conformer=1)`; omit `conformer` for methods that do not use coordinates.
+`result.assignment(molecule_index=0, conformer_index=1)`; omit `conformer_index` for methods that do
+not use coordinates.
 
 The result JSON written by the command line lists the same assignments under `results[i].assignments`,
 each with a `target` naming its molecule and conformer.

@@ -557,29 +557,35 @@ def test_assignment_cardinality_and_mapping() -> None:
     assert geometry_independent.status == "success"
     assert len(geometry_independent.assignments) == 1
     assert geometry_independent.assignments[0].conformer_index is None
-    assert geometry_independent.assignment(molecule=0) is geometry_independent.assignments[0]
+    assert geometry_independent.assignment(molecule_index=0) is geometry_independent.assignments[0]
     with pytest.raises(ValueError):
-        geometry_independent.assignment(molecule=0, conformer=0)
+        geometry_independent.assignment(molecule_index=0, conformer_index=0)
 
     collection = chargefw.MoleculeCollection([water(2)])
     multi_result = chargefw.calculate(collection, method="qeq", execution="full")
     assert multi_result.status == "success"
     assert [item.conformer_index for item in multi_result.assignments] == [0, 1]
     assert multi_result.assignments_by_molecule == (multi_result.assignments,)
-    assert multi_result.assignment(molecule=0, conformer=0) is multi_result.assignments[0]
-    assert multi_result.assignment(molecule=0, conformer=1) is multi_result.assignments[1]
+    assert (
+        multi_result.assignment(molecule_index=0, conformer_index=0) is multi_result.assignments[0]
+    )
+    assert (
+        multi_result.assignment(molecule_index=0, conformer_index=1) is multi_result.assignments[1]
+    )
     invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
     for value in invalid_indices:
         with pytest.raises(TypeError):
-            multi_result.assignment(molecule=value, conformer=0)
+            multi_result.assignment(molecule_index=value, conformer_index=0)
         with pytest.raises(TypeError):
-            multi_result.assignment(molecule=0, conformer=value)
+            multi_result.assignment(molecule_index=0, conformer_index=value)
     assert (
-        multi_result.assignment(molecule=cast(Any, np.int64(0)), conformer=cast(Any, np.int64(1)))
+        multi_result.assignment(
+            molecule_index=cast(Any, np.int64(0)), conformer_index=cast(Any, np.int64(1))
+        )
         is multi_result.assignments[1]
     )
     with pytest.raises(ValueError):
-        multi_result.assignment(molecule=0)
+        multi_result.assignment(molecule_index=0)
 
     mapped_collection = chargefw.MoleculeCollection(
         [

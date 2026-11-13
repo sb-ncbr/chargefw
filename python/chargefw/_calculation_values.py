@@ -701,25 +701,29 @@ class CalculationResult:
 
         return self._assignments_by_molecule
 
-    def assignment(self, *, molecule: int, conformer: int | None = None) -> ChargeAssignment:
+    def assignment(
+        self, *, molecule_index: int, conformer_index: int | None = None
+    ) -> ChargeAssignment:
         """Return charges for one source molecule and, when applicable, one conformer."""
 
-        molecule_index = as_integer(molecule, "molecule")
+        molecule_index = as_integer(molecule_index, "molecule_index")
         if molecule_index < 0 or molecule_index >= len(self._assignments_by_molecule):
-            raise IndexError("molecule index is outside the calculation input collection")
+            raise IndexError("molecule_index is outside the calculation input collection")
 
         assignments = self._assignments_by_molecule[molecule_index]
-        if conformer is None:
+        if conformer_index is None:
             matches = tuple(item for item in assignments if item.conformer_index is None)
             if len(matches) == 1:
                 return matches[0]
             if assignments:
-                raise ValueError("conformer is required for conformer-specific assignments")
+                raise ValueError("conformer_index is required for conformer-specific assignments")
             raise IndexError("molecule has no charge assignment")
 
-        conformer_index = as_integer(conformer, "conformer", expected="an integer or None")
+        conformer_index = as_integer(
+            conformer_index, "conformer_index", expected="an integer or None"
+        )
         if conformer_index < 0:
-            raise IndexError("conformer index must be non-negative")
+            raise IndexError("conformer_index must be non-negative")
         matches = tuple(item for item in assignments if item.conformer_index == conformer_index)
         if len(matches) == 1:
             return matches[0]

@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: `CalculationResult.assignment()` takes `molecule_index` and `conformer_index`
+  instead of `molecule` and `conformer`, and `chargefw.io.rdkit.attach_charges()` takes
+  `conformer_index` instead of `conformer`, as the attributes of `ChargeAssignment` are named.
 - Breaking change: `Molecule()` takes only `atomic_numbers` by position; the other arguments are
   keyword-only. The record it came from is given only by `source_name`, `record_index`, and
   `record_id`; the `source` argument is removed. `name` and `source_name` default to `""` and

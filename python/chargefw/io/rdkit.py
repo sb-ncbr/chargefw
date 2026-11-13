@@ -136,12 +136,12 @@ def from_mol(
 
 
 def _assignment(
-    result: CalculationResult, molecule_index: int, conformer: int | None
+    result: CalculationResult, molecule_index: int, conformer_index: int | None
 ) -> ChargeAssignment:
     assignments = result.assignments_by_molecule[molecule_index]
-    if conformer is None and len(assignments) == 1:
+    if conformer_index is None and len(assignments) == 1:
         return assignments[0]
-    return result.assignment(molecule=molecule_index, conformer=conformer)
+    return result.assignment(molecule_index=molecule_index, conformer_index=conformer_index)
 
 
 def attach_charges(
@@ -149,7 +149,7 @@ def attach_charges(
     result: CalculationResult,
     *,
     molecule_index: int = 0,
-    conformer: int | None = None,
+    conformer_index: int | None = None,
     property_name: str = "ChargeFWPartialCharge",
     overwrite: bool = False,
 ) -> None:
@@ -163,8 +163,10 @@ def attach_charges(
     molecule_index = as_integer(molecule_index, "molecule_index")
     if molecule_index < 0 or molecule_index >= len(result.molecules):
         raise IndexError("molecule_index is outside the calculation input collection")
-    if conformer is not None:
-        conformer = as_integer(conformer, "conformer", expected="an integer or None")
+    if conformer_index is not None:
+        conformer_index = as_integer(
+            conformer_index, "conformer_index", expected="an integer or None"
+        )
     if not isinstance(property_name, str):
         raise TypeError("property_name must be a string")
     if not property_name:
@@ -172,7 +174,7 @@ def attach_charges(
     if not isinstance(overwrite, bool):
         raise TypeError("overwrite must be a bool")
 
-    assignment = _assignment(result, molecule_index, conformer)
+    assignment = _assignment(result, molecule_index, conformer_index)
     source = result.molecules[molecule_index]
     if molecule.GetNumAtoms() != source.atom_count:
         raise ValueError("RDKit target atom count does not match the calculation input")
