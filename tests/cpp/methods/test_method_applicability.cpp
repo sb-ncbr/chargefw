@@ -247,11 +247,12 @@ TEST_CASE("applicability honors permissive parameter classification",
     CHECK(strict_result.rejected[0].issues[0].kind ==
           methods::PrerequisiteIssueKind::parameter_classification_failed);
 
-    const auto permissive_result =
-        methods::find_applicable_methods({.molecules = double_bonded_prepared,
-                                          .methods = permissive_methods,
-                                          .parameter_sets = permissive_only_parameters,
-                                          .classification_options = {.permissive_types = true}});
+    const auto permissive_result = methods::find_applicable_methods(
+        {.molecules = double_bonded_prepared,
+         .methods = permissive_methods,
+         .parameter_sets = permissive_only_parameters,
+         .classification_options = {.parameter_matching =
+                                        parameters::ParameterMatching::permissive}});
     REQUIRE(permissive_result.applicable.size() == 1);
     REQUIRE(permissive_result.applicable[0].classifications.size() == 1);
     REQUIRE(permissive_result.applicable[0].classifications[0].atom().size() == 2);
@@ -259,11 +260,12 @@ TEST_CASE("applicability honors permissive parameter classification",
     CHECK(permissive_result.applicable[0].classifications[0].atom()[1] == 0);
 
     const std::vector exact_and_permissive_parameters{make_permissive_parameters(true)};
-    const auto exact_result =
-        methods::find_applicable_methods({.molecules = double_bonded_prepared,
-                                          .methods = permissive_methods,
-                                          .parameter_sets = exact_and_permissive_parameters,
-                                          .classification_options = {.permissive_types = true}});
+    const auto exact_result = methods::find_applicable_methods(
+        {.molecules = double_bonded_prepared,
+         .methods = permissive_methods,
+         .parameter_sets = exact_and_permissive_parameters,
+         .classification_options = {.parameter_matching =
+                                        parameters::ParameterMatching::permissive}});
     REQUIRE(exact_result.applicable.size() == 1);
     REQUIRE(exact_result.applicable[0].classifications.size() == 1);
     REQUIRE(exact_result.applicable[0].classifications[0].atom().size() == 2);

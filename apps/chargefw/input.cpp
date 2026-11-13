@@ -39,14 +39,6 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
                               .records = std::move(records)};
 }
 
-[[nodiscard]] auto permissive_types(const std::string& parameter_matching) -> bool {
-    if (parameter_matching != "strict" && parameter_matching != "permissive") {
-        throw std::invalid_argument{"Parameter matching must be 'strict' or 'permissive': " +
-                                    parameter_matching};
-    }
-    return parameter_matching == "permissive";
-}
-
 [[nodiscard]] auto parse_atom_threshold(const std::string& value, const std::string_view name)
     -> std::optional<std::size_t> {
     if (value == "unlimited") {
@@ -207,10 +199,10 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
                        "Execution: auto, full, cutoff, or cover");
     command.add_option("--radius", arguments.radius, "Cutoff or cover radius in angstrom");
     arguments.cutoff_atom_threshold_option =
-        command.add_option("--cutoff-threshold", arguments.cutoff_atom_threshold,
+        command.add_option("--cutoff-threshold", arguments.cutoff_threshold,
                            "Automatic full-to-cutoff atom threshold, or unlimited");
     arguments.cover_atom_threshold_option =
-        command.add_option("--cover-threshold", arguments.cover_atom_threshold,
+        command.add_option("--cover-threshold", arguments.cover_threshold,
                            "Automatic cutoff-to-cover atom threshold, or unlimited");
 }
 
@@ -243,21 +235,21 @@ auto make_request(core::MoleculeCollection molecules, const SelectionArguments& 
                                 : std::optional{arguments.parameter_set_id},
         .method_scope = calculation::method_scope_from_string(arguments.method_scope),
         .method_options = std::move(method_options),
-        .classification_options = {.permissive_types =
-                                       permissive_types(arguments.parameter_matching)},
-        .execution_selection =
+        .parameter_matching =
+            parameters::parameter_matching_from_string(arguments.parameter_matching),
+        .execution =
             calculation::ExecutionSelection{
-                calculation::execution_selection_kind_from_string(arguments.execution),
+                calculation::execution_selection_mode_from_string(arguments.execution),
                 arguments.radius},
         .resource_policy = {
-            .cutoff_atom_threshold =
+            .cutoff_threshold =
                 arguments.cutoff_atom_threshold_option->count() == 0
-                    ? std::optional<std::size_t>{calculation::default_cutoff_atom_threshold}
-                    : parse_atom_threshold(arguments.cutoff_atom_threshold, "Cutoff threshold"),
-            .cover_atom_threshold =
+                    ? std::optional<std::size_t>{calculation::default_cutoff_threshold}
+                    : parse_atom_threshold(arguments.cutoff_threshold, "Cutoff threshold"),
+            .cover_threshold =
                 arguments.cover_atom_threshold_option->count() == 0
-                    ? std::optional<std::size_t>{calculation::default_cover_atom_threshold}
-                    : parse_atom_threshold(arguments.cover_atom_threshold, "Cover threshold")}};
+                    ? std::optional<std::size_t>{calculation::default_cover_threshold}
+                    : parse_atom_threshold(arguments.cover_threshold, "Cover threshold")}};
     if (!arguments.fixed_ion_ids.empty()) {
         auto resolved = adapters::detail::resolve_fixed_ions(records, arguments.fixed_ion_ids);
         if (!resolved.sources.empty()) {

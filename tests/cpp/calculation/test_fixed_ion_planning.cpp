@@ -252,9 +252,8 @@ TEST_CASE("native fixed ions execute, reassemble, and retain provenance",
         .molecules = core::MoleculeCollection{std::vector{make_two_conformer_interleaved_pair()}},
         .parameter_sets = {chargefw::test::make_eem_ho_parameters(2.5)},
         .method_id = "eem",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full},
-        .resource_policy = {.cutoff_atom_threshold = 1},
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full},
+        .resource_policy = {.cutoff_threshold = 1},
         .fixed_ions = calculation::FixedIons{
             .sources = {{.molecule_index = 0, .atom_index = 1, .charge = 0.4}}}});
     REQUIRE(warning_assessment.default_plan() != nullptr);
@@ -435,12 +434,12 @@ TEST_CASE("fixed-charge planning selects execution from active size and resource
     };
 
     // The three-atom molecule has two active atoms, which do not exceed this threshold.
-    const auto active_size_assessment = assess_automatic({.cutoff_atom_threshold = 2});
+    const auto active_size_assessment = assess_automatic({.cutoff_threshold = 2});
     REQUIRE(active_size_assessment.default_plan() != nullptr);
     CHECK(active_size_assessment.default_plan()->policy().mode() ==
           calculation::ExecutionMode::full);
 
-    const auto automatic_cutoff_assessment = assess_automatic({.cutoff_atom_threshold = 0});
+    const auto automatic_cutoff_assessment = assess_automatic({.cutoff_threshold = 0});
     REQUIRE(automatic_cutoff_assessment.default_plan() != nullptr);
     CHECK(automatic_cutoff_assessment.default_plan()->policy().mode() ==
           calculation::ExecutionMode::cutoff);
@@ -463,13 +462,13 @@ TEST_CASE("fixed sources reach cutoff and cover over active fragments",
             core::MoleculeCollection{std::vector{make_remote_active_pair(active_hydrogen_charge),
                                                  make_remote_active_pair(active_hydrogen_charge)}};
         const auto make_assessment = [&](const bool has_fixed_sources,
-                                         const calculation::ExecutionSelectionKind selection) {
+                                         const calculation::ExecutionSelectionMode selection) {
             auto request = calculation::AssessmentRequest{
                 .molecules = has_fixed_sources ? source_molecules : active_molecules,
                 .parameter_sets = {parameter_set},
                 .method_id = std::string{method_id},
-                .execution_selection = calculation::ExecutionSelection{
-                    selection, selection == calculation::ExecutionSelectionKind::full
+                .execution = calculation::ExecutionSelection{
+                    selection, selection == calculation::ExecutionSelectionMode::full
                                    ? std::optional<double>{}
                                    : std::optional{8.0}}};
             if (has_fixed_sources) {
@@ -479,19 +478,19 @@ TEST_CASE("fixed sources reach cutoff and cover over active fragments",
             return calculation::assess(std::move(request));
         };
 
-        auto full_assessment = make_assessment(true, calculation::ExecutionSelectionKind::full);
+        auto full_assessment = make_assessment(true, calculation::ExecutionSelectionMode::full);
         REQUIRE(full_assessment.plans().size() == 1);
         const auto full = calculation::calculate(full_assessment);
         REQUIRE(full.calculated());
         auto no_source_assessment =
-            make_assessment(false, calculation::ExecutionSelectionKind::full);
+            make_assessment(false, calculation::ExecutionSelectionMode::full);
         REQUIRE(no_source_assessment.plans().size() == 1);
         const auto no_source = calculation::calculate(no_source_assessment);
         REQUIRE(no_source.calculated());
 
-        for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionKind::cutoff,
+        for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionMode::cutoff,
                                                         calculation::ExecutionMode::cutoff},
-                                              std::pair{calculation::ExecutionSelectionKind::cover,
+                                              std::pair{calculation::ExecutionSelectionMode::cover,
                                                         calculation::ExecutionMode::cover}}) {
             auto assessment = make_assessment(true, selection);
             REQUIRE(assessment.plans().size() == 1);
@@ -555,15 +554,15 @@ TEST_CASE("reduced SQE+qp keeps disconnected components at their formal charges"
     const auto molecule = make_disconnected_qp_source_molecule();
     const auto source_atom_index = molecule.atom_count() - 1;
     const auto parameter_set = make_sqeqp_fixed_ions_parameters();
-    const auto make_assessment = [&](const calculation::ExecutionSelectionKind selection,
+    const auto make_assessment = [&](const calculation::ExecutionSelectionMode selection,
                                      const double radius) {
         return calculation::assess(calculation::AssessmentRequest{
             .molecules = core::MoleculeCollection{std::vector{molecule}},
             .parameter_sets = {parameter_set},
             .method_id = "sqeqp",
-            .execution_selection =
+            .execution =
                 calculation::ExecutionSelection{
-                    selection, selection == calculation::ExecutionSelectionKind::full
+                    selection, selection == calculation::ExecutionSelectionMode::full
                                    ? std::optional<double>{}
                                    : std::optional{radius}},
             .fixed_ions = calculation::FixedIons{
@@ -571,7 +570,7 @@ TEST_CASE("reduced SQE+qp keeps disconnected components at their formal charges"
                     {.molecule_index = 0, .atom_index = source_atom_index, .charge = 0.4}}}});
     };
 
-    const auto full_assessment = make_assessment(calculation::ExecutionSelectionKind::full, 0.0);
+    const auto full_assessment = make_assessment(calculation::ExecutionSelectionMode::full, 0.0);
     REQUIRE(full_assessment.plans().size() == 1);
     const auto full = calculation::calculate(full_assessment);
     REQUIRE(full.calculated());
@@ -587,9 +586,9 @@ TEST_CASE("reduced SQE+qp keeps disconnected components at their formal charges"
     CHECK(std::abs(full_chain_total) < 1.0e-11);
     CHECK(std::abs(full_isolated_total - 1.0) < 1.0e-11);
 
-    for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionKind::cutoff,
+    for (const auto& [selection, mode] : {std::pair{calculation::ExecutionSelectionMode::cutoff,
                                                     calculation::ExecutionMode::cutoff},
-                                          std::pair{calculation::ExecutionSelectionKind::cover,
+                                          std::pair{calculation::ExecutionSelectionMode::cover,
                                                     calculation::ExecutionMode::cover}}) {
         auto reduced_assessment = make_assessment(selection, 8.0);
         REQUIRE(reduced_assessment.plans().size() == 1);

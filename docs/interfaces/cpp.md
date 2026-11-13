@@ -103,8 +103,7 @@ int main() {
             std::vector<core::Molecule>{std::move(molecule)}},
         .parameter_sets = parameters::load_default_parameter_sets(),
         .method_id = "eem",
-        .execution_selection = calculation::ExecutionSelection{
-            calculation::ExecutionSelectionKind::full},
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full},
     };
 
     auto assessment = calculation::assess(std::move(request));
@@ -221,13 +220,13 @@ the records you calculated, so pass the same records whose molecules you calcula
 When the request itself fails, `assess()` or `calculate()` throws `std::invalid_argument` and there is
 no `ExecutionResult`. To still write result JSON for the records, as the command line does, create the
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
-`ResultStatus::invalid_request`, written as `invalid_input_or_request`, and `execution()` is null.
+`ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
-`RequestedCalculationProvenance` records what was requested, for the result JSON. Its `method_scope`
-is a `calculation::MethodScope`, defaulting to `recommended`; its `execution_kind` is a
-`calculation::ExecutionSelectionKind`, defaulting to `automatic` (written as `"auto"` in JSON).
-Copy these values from your request's `method_scope` and `execution_selection.kind()`, and copy
-`execution_selection.radius()` into `execution_radius`.
+`RequestedCalculationProvenance` records what was requested, for the result JSON. Copy its
+`method_scope` and `parameter_matching` from your request, its `execution` from
+`request.execution.mode()` (`automatic` is written as `"auto"` in JSON), its `radius` from
+`request.execution.radius()`, and its `cutoff_threshold` and `cover_threshold` from
+`request.resource_policy`.
 
 ## Namespaces
 
@@ -266,8 +265,8 @@ geometry then reject the molecule.
 - a `MethodScope` for automatic selection without a method ID: `recommended` (default) considers only
   the [recommended methods](../guide/methods.md#available-methods), `all` every method;
 - options per method, as `methods::MethodOptions`;
-- strict or permissive parameter matching;
-- an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
+- `parameter_matching`: `ParameterMatching::strict` (default) or `permissive`;
+- `execution`, an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
 - a `ResourcePolicy` with the automatic size limits, where `std::nullopt` removes a limit; and
 - optional `FixedIons`, described [below](#fixed-ions).
 

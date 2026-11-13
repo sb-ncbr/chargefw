@@ -29,13 +29,13 @@ enum class DiagnosticSeverity : std::uint8_t {
 // includes a request that failed with an exception, so that no execution result exists.
 enum class ResultStatus : std::uint8_t {
     success,
-    invalid_request,
+    invalid_input_or_request,
     no_executable_plan,
     numerical_failure,
     cancelled,
 };
 
-// The result JSON value; invalid_request is "invalid_input_or_request".
+// The value result JSON reports, such as "invalid_input_or_request".
 [[nodiscard]] auto to_string(ResultStatus value) -> std::string_view;
 
 struct ResultDiagnostic {
@@ -54,13 +54,12 @@ struct RequestedCalculationProvenance {
     std::optional<std::string> method_id;
     std::optional<std::string> parameter_set_id;
     calculation::MethodScope method_scope = calculation::MethodScope::recommended;
-    bool permissive_types = false;
-    std::optional<std::size_t> cutoff_atom_threshold;
-    std::optional<std::size_t> cover_atom_threshold;
-    std::size_t max_threads = 0;
-    calculation::ExecutionSelectionKind execution_kind =
-        calculation::ExecutionSelectionKind::automatic;
-    std::optional<double> execution_radius;
+    parameters::ParameterMatching parameter_matching = parameters::ParameterMatching::strict;
+    std::optional<std::size_t> cutoff_threshold;
+    std::optional<std::size_t> cover_threshold;
+    std::size_t threads = 0;
+    calculation::ExecutionSelectionMode execution = calculation::ExecutionSelectionMode::automatic;
+    std::optional<double> radius;
     std::map<std::string, methods::MethodOptions> method_options;
 };
 
@@ -80,7 +79,7 @@ class ChargeCalculationResult {
   public:
     [[nodiscard]] auto inputs() const noexcept -> std::span<const ImportedMoleculeRecord>;
     [[nodiscard]] auto requested() const noexcept -> const RequestedCalculationProvenance&;
-    // The calculation's status, or invalid_request when the request failed.
+    // The calculation's status, or invalid_input_or_request when the request failed.
     [[nodiscard]] auto status() const noexcept -> ResultStatus;
     // Null when the request failed with an exception, so that no execution result exists.
     [[nodiscard]] auto execution() const noexcept -> const calculation::ExecutionResult*;

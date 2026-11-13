@@ -115,12 +115,12 @@ auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void
 }
 
 auto validate_resource_policy(const ResourcePolicy& resource_policy) -> void {
-    if (resource_policy.cover_atom_threshold.has_value() &&
-        !resource_policy.cutoff_atom_threshold.has_value()) {
+    if (resource_policy.cover_threshold.has_value() &&
+        !resource_policy.cutoff_threshold.has_value()) {
         throw std::invalid_argument{"cover atom threshold requires a finite cutoff atom threshold"};
     }
-    if (resource_policy.cover_atom_threshold.has_value() &&
-        *resource_policy.cover_atom_threshold < *resource_policy.cutoff_atom_threshold) {
+    if (resource_policy.cover_threshold.has_value() &&
+        *resource_policy.cover_threshold < *resource_policy.cutoff_threshold) {
         throw std::invalid_argument{
             "cover atom threshold must not be smaller than cutoff atom threshold"};
     }
@@ -373,19 +373,19 @@ auto AssessmentResult::assess_prepared(
     };
 
     for (const auto* candidate : candidates) {
-        switch (execution_selection.kind()) {
-        case ExecutionSelectionKind::automatic:
+        switch (execution_selection.mode()) {
+        case ExecutionSelectionMode::automatic:
             consider_mode(*candidate, ExecutionMode::full, false);
             consider_mode(*candidate, ExecutionMode::cutoff, false);
             consider_mode(*candidate, ExecutionMode::cover, false);
             break;
-        case ExecutionSelectionKind::full:
+        case ExecutionSelectionMode::full:
             consider_mode(*candidate, ExecutionMode::full, true);
             break;
-        case ExecutionSelectionKind::cutoff:
+        case ExecutionSelectionMode::cutoff:
             consider_mode(*candidate, ExecutionMode::cutoff, true);
             break;
-        case ExecutionSelectionKind::cover:
+        case ExecutionSelectionMode::cover:
             consider_mode(*candidate, ExecutionMode::cover, true);
             break;
         }
@@ -428,8 +428,9 @@ auto AssessmentResult::assess_owned(AssessmentRequest request) -> AssessmentResu
     validate_unique_parameter_set_ids(request);
     validate_resource_policy(request.resource_policy);
     const auto selected_methods = assessment_methods(request);
-    const auto classification_options = request.classification_options;
-    const auto execution_selection = request.execution_selection;
+    const auto classification_options =
+        parameters::ClassificationOptions{.parameter_matching = request.parameter_matching};
+    const auto execution_selection = request.execution;
     const auto resource_policy = request.resource_policy;
     retain_requested_parameter_set(request);
     auto method_options = std::move(request.method_options);

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Final
 
 from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
-from .._types import MethodScope, PortableId, RequestedExecution
+from .._types import MethodScope, ParameterMatching, PortableId, RequestedExecution
 from .adapters import _NativeInputMetadata
 from .core import _NativeMolecule
 from .parameters import _NativeParameterCatalog
@@ -38,7 +38,7 @@ def _make_assessment(
     parameter_set_id: str | None,
     method_scope: MethodScope,
     method_options: dict[str, dict[str, bool | int | float | str]],
-    permissive_types: bool,
+    parameter_matching: ParameterMatching,
     execution: RequestedExecution,
     radius: float | None,
     cutoff_threshold: int | None,

@@ -166,12 +166,12 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
         .method_id = request.method_id,
         .parameter_set_id = request.parameter_set_id,
         .method_scope = request.method_scope,
-        .permissive_types = request.classification_options.permissive_types,
-        .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
-        .cover_atom_threshold = request.resource_policy.cover_atom_threshold,
-        .max_threads = max_threads,
-        .execution_kind = request.execution_selection.kind(),
-        .execution_radius = request.execution_selection.radius()};
+        .parameter_matching = request.parameter_matching,
+        .cutoff_threshold = request.resource_policy.cutoff_threshold,
+        .cover_threshold = request.resource_policy.cover_threshold,
+        .threads = max_threads,
+        .execution = request.execution.mode(),
+        .radius = request.execution.radius()};
     for (const auto& [method_id, options] : request.method_options) {
         requested.method_options.emplace(method_id, options);
     }
@@ -204,7 +204,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
 
     if (owned_result.charges() == nullptr) {
         switch (owned_result.status()) {
-        case adapters::ResultStatus::invalid_request:
+        case adapters::ResultStatus::invalid_input_or_request:
             return 2;
         case adapters::ResultStatus::no_executable_plan:
             return 3;

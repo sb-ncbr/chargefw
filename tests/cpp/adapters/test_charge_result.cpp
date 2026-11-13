@@ -73,7 +73,7 @@ TEST_CASE("results hold either an execution or a failed request", "[adapters][re
     CHECK(cancelled.charges() == nullptr);
 
     const auto failed = adapters::make_failed_request_result(records, {}, "bad threshold");
-    CHECK(failed.status() == adapters::ResultStatus::invalid_request);
+    CHECK(failed.status() == adapters::ResultStatus::invalid_input_or_request);
     CHECK(failed.execution() == nullptr);
     CHECK(failed.request_failure() == "bad threshold");
     CHECK(failed.charges() == nullptr);

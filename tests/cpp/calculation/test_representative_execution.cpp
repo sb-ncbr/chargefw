@@ -74,13 +74,13 @@ TEST_CASE("representative molecules preserve full execution under whole-radius r
         CHECK(std::abs(full_charges.total() - core::total_formal_charge(record->molecule)) <
               1.0e-10);
 
-        for (const auto selection : {calculation::ExecutionSelectionKind::cutoff,
-                                     calculation::ExecutionSelectionKind::cover}) {
+        for (const auto selection : {calculation::ExecutionSelectionMode::cutoff,
+                                     calculation::ExecutionSelectionMode::cover}) {
             const auto reduced = calculate_application(
                 {.molecules = molecules,
                  .parameter_sets = parameter_sets,
                  .method_id = "eem",
-                 .execution_selection = calculation::ExecutionSelection{selection, 20.0}});
+                 .execution = calculation::ExecutionSelection{selection, 20.0}});
             REQUIRE(reduced.calculated());
             REQUIRE(reduced.charges.has_value());
             chargefw::test::assert_same_charges(reduced.charges->assignment(0).charges,

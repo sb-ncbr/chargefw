@@ -360,7 +360,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                      std::string molecule_collection_name, const NativeParameterCatalog& catalog,
                      std::optional<std::string> method_id,
                      std::optional<std::string> parameter_set_id, const std::string& method_scope,
-                     const nb::dict& options, const bool permissive_types,
+                     const nb::dict& options, const std::string& parameter_matching,
                      const std::string& execution, const std::optional<double> radius,
                      const std::optional<std::size_t> cutoff_threshold,
                      const std::optional<std::size_t> cover_threshold,
@@ -431,12 +431,12 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         .parameter_set_id = std::move(parameter_set_id),
         .method_scope = calculation::method_scope_from_string(method_scope),
         .method_options = std::move(native_method_options),
-        .classification_options = {.permissive_types = permissive_types},
-        .execution_selection =
+        .parameter_matching = parameters::parameter_matching_from_string(parameter_matching),
+        .execution =
             calculation::ExecutionSelection{
-                calculation::execution_selection_kind_from_string(execution), radius},
-        .resource_policy = {.cutoff_atom_threshold = cutoff_threshold,
-                            .cover_atom_threshold = cover_threshold},
+                calculation::execution_selection_mode_from_string(execution), radius},
+        .resource_policy = {.cutoff_threshold = cutoff_threshold,
+                            .cover_threshold = cover_threshold},
         .fixed_ions = resolved_fixed_ions.sources.empty()
                           ? std::nullopt
                           : std::optional{std::move(resolved_fixed_ions)},
@@ -445,12 +445,12 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         .method_id = request.method_id,
         .parameter_set_id = request.parameter_set_id,
         .method_scope = request.method_scope,
-        .permissive_types = request.classification_options.permissive_types,
-        .cutoff_atom_threshold = request.resource_policy.cutoff_atom_threshold,
-        .cover_atom_threshold = request.resource_policy.cover_atom_threshold,
-        .max_threads = max_threads,
-        .execution_kind = request.execution_selection.kind(),
-        .execution_radius = request.execution_selection.radius(),
+        .parameter_matching = request.parameter_matching,
+        .cutoff_threshold = request.resource_policy.cutoff_threshold,
+        .cover_threshold = request.resource_policy.cover_threshold,
+        .threads = max_threads,
+        .execution = request.execution.mode(),
+        .radius = request.execution.radius(),
         .method_options = std::move(requested_options)};
     return NativeAssessment{calculation::assess(std::move(request)), std::move(inputs),
                             std::move(requested), max_threads};
@@ -469,7 +469,7 @@ auto NativePlan::calculate(const std::optional<std::size_t> max_threads, nb::obj
                                       native_observer);
     });
     auto requested = state_->requested_;
-    requested.max_threads = max_threads.value_or(state_->max_threads_);
+    requested.threads = max_threads.value_or(state_->max_threads_);
     return NativeExecutionResult{adapters::make_charge_calculation_result(
         state_->inputs_, std::move(requested), std::move(result))};
 }
@@ -481,10 +481,8 @@ auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
 }
 
 void bind_calculation(nb::module_& module) {
-    module.attr("_default_cutoff_atom_threshold") =
-        nb::int_(calculation::default_cutoff_atom_threshold);
-    module.attr("_default_cover_atom_threshold") =
-        nb::int_(calculation::default_cover_atom_threshold);
+    module.attr("_default_cutoff_atom_threshold") = nb::int_(calculation::default_cutoff_threshold);
+    module.attr("_default_cover_atom_threshold") = nb::int_(calculation::default_cover_threshold);
 
     module.def("_fixed_ion_names", [](const bool common_only) {
         nb::list names;
@@ -513,7 +511,7 @@ void bind_calculation(nb::module_& module) {
                nb::arg("input_metadata"), nb::arg("identities"), nb::arg("caller_atom_ids"),
                nb::arg("molecule_collection_name"), nb::arg("catalog"), nb::arg("method_id"),
                nb::arg("parameter_set_id"), nb::arg("method_scope"), nb::arg("method_options"),
-               nb::arg("permissive_types"), nb::arg("execution"), nb::arg("radius"),
+               nb::arg("parameter_matching"), nb::arg("execution"), nb::arg("radius"),
                nb::arg("cutoff_threshold"), nb::arg("cover_threshold"), nb::arg("max_threads"),
                nb::arg("fixed_ions") = std::vector<std::string>{});
 }

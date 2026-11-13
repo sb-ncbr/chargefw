@@ -271,12 +271,12 @@ constexpr std::array reduced_modes{calculation::ExecutionMode::cutoff,
     -> calculation::ExecutionSelection {
     switch (mode) {
     case calculation::ExecutionMode::full:
-        return calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full};
+        return calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full};
     case calculation::ExecutionMode::cutoff:
-        return calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff,
+        return calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff,
                                                calculation::minimum_reduced_radius};
     case calculation::ExecutionMode::cover:
-        return calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cover,
+        return calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cover,
                                                calculation::minimum_reduced_radius};
     }
     throw std::logic_error{"unknown execution mode"};
@@ -308,8 +308,7 @@ auto make_formal_water_request() -> calculation::AssessmentRequest {
     return calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal",
-        .execution_selection =
-            calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full}};
+        .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full}};
 }
 
 } // namespace
@@ -368,7 +367,7 @@ TEST_CASE("fixed-charge cancellation retains provenance and permits plan reuse",
             .molecules = core::MoleculeCollection{std::vector{molecule}},
             .parameter_sets = {chargefw::test::make_eem_ho_parameters(2.0)},
             .method_id = "eem",
-            .execution_selection = select_mode(mode),
+            .execution = select_mode(mode),
             .fixed_ions = calculation::FixedIons{
                 .sources = {{.molecule_index = 0, .atom_index = 1, .charge = 0.4}}}});
         REQUIRE(assessment.plans().size() == 1);
@@ -423,7 +422,7 @@ TEST_CASE("solver failures finish observation with a numerical result in every m
                 .parameter_sets = {make_invalid_qeq_parameters()},
                 .method_id = "qeq",
                 .parameter_set_id = "invalid-qeq",
-                .execution_selection = select_mode(mode)},
+                .execution = select_mode(mode)},
             observer);
 
         CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
@@ -446,7 +445,7 @@ TEST_CASE("serial cutoff execution emits aggregate fragment progress", "[calcula
     const auto result = calculate_application(
         calculation::AssessmentRequest{
             .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
-            .execution_selection = select_mode(calculation::ExecutionMode::cutoff)},
+            .execution = select_mode(calculation::ExecutionMode::cutoff)},
         observer);
 
     REQUIRE(result.calculated());
@@ -461,7 +460,7 @@ TEST_CASE("serial cover execution emits aggregate multi-pivot progress",
     const auto result = calculate_application(
         calculation::AssessmentRequest{
             .molecules = core::MoleculeCollection{std::vector{make_separated_waters()}},
-            .execution_selection = select_mode(calculation::ExecutionMode::cover)},
+            .execution = select_mode(calculation::ExecutionMode::cover)},
         observer);
 
     REQUIRE(result.calculated());
@@ -477,7 +476,7 @@ TEST_CASE("empty reduced targets do not emit fragment progress", "[calculation][
         const auto result = calculate_application(
             calculation::AssessmentRequest{
                 .molecules = core::MoleculeCollection{std::vector{empty_molecule}},
-                .execution_selection = select_mode(mode)},
+                .execution = select_mode(mode)},
             observer);
         REQUIRE(result.calculated());
         CHECK(fragment_progress_events(observer).empty());
@@ -492,7 +491,7 @@ TEST_CASE("parallel reduced targets each emit one terminal progress snapshot",
             calculation::AssessmentRequest{
                 .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water(),
                                                                   chargefw::test::make_water()}},
-                .execution_selection = select_mode(mode)},
+                .execution = select_mode(mode)},
             observer, 2);
         CHECK(result.calculated());
 
@@ -525,7 +524,7 @@ TEST_CASE("results and target events preserve source target identity in every ex
                     .molecules = core::MoleculeCollection{std::vector{
                         chargefw::test::make_two_conformer_water(), chargefw::test::make_water()}},
                     .method_id = "eqeq",
-                    .execution_selection = select_mode(mode)},
+                    .execution = select_mode(mode)},
                 observer, max_threads);
             REQUIRE(result.calculated());
             REQUIRE(result.charges->size() == expected_targets.size());
@@ -561,7 +560,7 @@ TEST_CASE("unsupported explicit execution is rejected before calculation observa
     const auto assessment = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
         .method_id = "formal",
-        .execution_selection = select_mode(calculation::ExecutionMode::cover)});
+        .execution = select_mode(calculation::ExecutionMode::cover)});
 
     CHECK(assessment.plans().empty());
     REQUIRE(assessment.rejections().size() == 1);
@@ -595,7 +594,7 @@ TEST_CASE("reduced execution observes cancellation after fragment progress",
             const auto result = calculate_application(
                 calculation::AssessmentRequest{.molecules = core::MoleculeCollection{std::vector{
                                                    make_many_separated_waters()}},
-                                               .execution_selection = select_mode(mode)},
+                                               .execution = select_mode(mode)},
                 observer, max_threads);
 
             CHECK(!result.calculated());

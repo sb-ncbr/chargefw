@@ -222,7 +222,3 @@ class RequestedCalculation:
         object.__setattr__(self, "cover_threshold", normalized_cover)
         object.__setattr__(self, "threads", normalized_threads)
         object.__setattr__(self, "fixed_ions", normalized_fixed_ions)
-
-    @property
-    def _permissive_types(self) -> bool:
-        return self.parameter_matching == "permissive"

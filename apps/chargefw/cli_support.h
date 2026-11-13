@@ -35,8 +35,8 @@ struct SelectionArguments {
     std::string method_scope = "recommended";
     std::string execution = "auto";
     std::optional<double> radius;
-    std::string cutoff_atom_threshold;
-    std::string cover_atom_threshold;
+    std::string cutoff_threshold;
+    std::string cover_threshold;
     std::size_t max_threads = 0;
     std::string parameter_matching = "strict";
     std::vector<std::string> method_options;

@@ -11,17 +11,17 @@
 namespace calculation = chargefw::calculation;
 
 TEST_CASE("execution selection parses from strings", "[calculation][execution-policy]") {
-    CHECK(calculation::execution_selection_kind_from_string("auto") ==
-          calculation::ExecutionSelectionKind::automatic);
-    CHECK(calculation::execution_selection_kind_from_string("full") ==
-          calculation::ExecutionSelectionKind::full);
-    CHECK(calculation::execution_selection_kind_from_string("cutoff") ==
-          calculation::ExecutionSelectionKind::cutoff);
-    CHECK(calculation::execution_selection_kind_from_string("cover") ==
-          calculation::ExecutionSelectionKind::cover);
+    CHECK(calculation::execution_selection_mode_from_string("auto") ==
+          calculation::ExecutionSelectionMode::automatic);
+    CHECK(calculation::execution_selection_mode_from_string("full") ==
+          calculation::ExecutionSelectionMode::full);
+    CHECK(calculation::execution_selection_mode_from_string("cutoff") ==
+          calculation::ExecutionSelectionMode::cutoff);
+    CHECK(calculation::execution_selection_mode_from_string("cover") ==
+          calculation::ExecutionSelectionMode::cover);
 
     const auto bad_selection = [] {
-        static_cast<void>(calculation::execution_selection_kind_from_string("unknown"));
+        static_cast<void>(calculation::execution_selection_mode_from_string("unknown"));
     };
     CHECK_THROWS_AS(bad_selection(), std::invalid_argument);
 }
@@ -53,17 +53,17 @@ TEST_CASE("execution policy validates mode and radius", "[calculation][execution
 }
 
 TEST_CASE("execution selection validates kind and radius", "[calculation][execution-policy]") {
-    using Kind = calculation::ExecutionSelectionKind;
+    using Kind = calculation::ExecutionSelectionMode;
     using Case = std::pair<Kind, std::optional<double>>;
 
     const calculation::ExecutionSelection default_selection;
-    CHECK(default_selection.kind() == Kind::automatic);
+    CHECK(default_selection.mode() == Kind::automatic);
     CHECK_FALSE(default_selection.radius().has_value());
 
     for (const auto& [kind, radius] :
          {Case{Kind::automatic, 8.0}, Case{Kind::full, std::nullopt}}) {
         const calculation::ExecutionSelection selection{kind, radius};
-        CHECK(selection.kind() == kind);
+        CHECK(selection.mode() == kind);
         CHECK(selection.radius() == radius);
     }
 

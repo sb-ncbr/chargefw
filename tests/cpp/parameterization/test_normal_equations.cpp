@@ -89,7 +89,7 @@ auto unusual_sqeqp_parameters() -> parameters::ParameterSet {
 auto assess(core::MoleculeCollection molecules, parameters::ParameterSet parameter_set,
             std::optional<calculation::FixedIons> fixed_ions = std::nullopt,
             const calculation::ExecutionSelection selection = calculation::ExecutionSelection{
-                calculation::ExecutionSelectionKind::full}) -> calculation::AssessmentResult {
+                calculation::ExecutionSelectionMode::full}) -> calculation::AssessmentResult {
     const auto method_id = std::string{parameter_set.method_id()};
     const auto parameter_set_id = std::string{parameter_set.id()};
     return calculation::assess(
@@ -97,7 +97,7 @@ auto assess(core::MoleculeCollection molecules, parameters::ParameterSet paramet
                                        .parameter_sets = {std::move(parameter_set)},
                                        .method_id = method_id,
                                        .parameter_set_id = parameter_set_id,
-                                       .execution_selection = selection,
+                                       .execution = selection,
                                        .fixed_ions = std::move(fixed_ions)});
 }
 
@@ -318,7 +318,7 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
     // Cutoff execution, and a method without exact derivatives.
     const auto cutoff =
         assess(sqe_molecules(), chargefw::test::make_eem_ho_parameters(0.5), std::nullopt,
-               calculation::ExecutionSelection{calculation::ExecutionSelectionKind::cutoff, 8.0});
+               calculation::ExecutionSelection{calculation::ExecutionSelectionMode::cutoff, 8.0});
     const auto& cutoff_plan = *cutoff.default_plan();
     CHECK_THROWS_AS(parameterization::normal_equations(
                         cutoff_plan,

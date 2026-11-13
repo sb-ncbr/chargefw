@@ -398,8 +398,7 @@ TEST_CASE("mmCIF named-ion resolution feeds SQE+qp full calculation",
          .parameter_sets = {parameter_set},
          .method_id = "sqeqp",
          .parameter_set_id = "SQEqp_Schindler2021_CCD_gen",
-         .execution_selection =
-             calculation::ExecutionSelection{calculation::ExecutionSelectionKind::full},
+         .execution = calculation::ExecutionSelection{calculation::ExecutionSelectionMode::full},
          .fixed_ions = resolved}));
     REQUIRE(fixed_source_result.calculated());
     REQUIRE(fixed_source_result.charges->size() == 2);

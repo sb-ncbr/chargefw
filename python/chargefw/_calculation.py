@@ -383,7 +383,7 @@ def assess(
             method_id: dict(overrides)
             for method_id, overrides in requested.options_by_method.items()
         },
-        requested._permissive_types,
+        requested.parameter_matching,
         requested.execution,
         requested.radius,
         requested.cutoff_threshold,

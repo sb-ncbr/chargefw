@@ -90,6 +90,16 @@
 
 ### C++
 
+- Breaking change: the request and its provenance use the names of the Python arguments.
+  `AssessmentRequest::classification_options` is `parameter_matching`, a new
+  `parameters::ParameterMatching` (`strict` or `permissive`), which also replaces
+  `ClassificationOptions::permissive_types`. `AssessmentRequest::execution_selection` is
+  `execution`, `ExecutionSelection::kind()` is `mode()`, and `ExecutionSelectionKind` is
+  `ExecutionSelectionMode`. `ResourcePolicy` has `cutoff_threshold` and `cover_threshold`, and the
+  defaults are `default_cutoff_threshold` and `default_cover_threshold`. In
+  `RequestedCalculationProvenance`, `permissive_types`, `max_threads`, `execution_kind`, and
+  `execution_radius` are `parameter_matching`, `threads`, `execution`, and `radius`.
+  `ResultStatus::invalid_request` is `invalid_input_or_request`, as result JSON writes it.
 - `find_package(chargefw 3.0)` accepts only 3.0.x, because a minor release may change interfaces.
 - Breaking change: the CMake target is `chargefw::chargefw` instead of `chargefw::core`, and the
   library file is `libchargefw.so` instead of `libchargefw_core.so`; `chargefw::core` named both the

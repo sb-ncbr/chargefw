@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace chargefw::parameters {
@@ -20,8 +21,18 @@ struct ClassificationIssue {
     std::string message;
 };
 
+// Strict matching uses only entries for an atom's or bond's own type; permissive matching then
+// tries the next lower bond order.
+enum class ParameterMatching : std::uint8_t {
+    strict,
+    permissive,
+};
+
+[[nodiscard]] auto parameter_matching_from_string(std::string_view value) -> ParameterMatching;
+[[nodiscard]] auto to_string(ParameterMatching value) -> std::string_view;
+
 struct ClassificationOptions {
-    bool permissive_types = false;
+    ParameterMatching parameter_matching = ParameterMatching::strict;
 };
 
 class ClassificationResult {

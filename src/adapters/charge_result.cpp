@@ -292,9 +292,9 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     switch (result.status()) {
     case ResultStatus::success:
         return std::nullopt;
-    case ResultStatus::invalid_request:
+    case ResultStatus::invalid_input_or_request:
         return make(DiagnosticSeverity::error,
-                    std::string{to_string(ResultStatus::invalid_request)},
+                    std::string{to_string(ResultStatus::invalid_input_or_request)},
                     std::string{*result.request_failure()});
     case ResultStatus::no_executable_plan:
         return make(DiagnosticSeverity::error, "no_executable_plan",
@@ -375,7 +375,7 @@ auto to_string(const ResultStatus value) -> std::string_view {
     switch (value) {
     case ResultStatus::success:
         return "success";
-    case ResultStatus::invalid_request:
+    case ResultStatus::invalid_input_or_request:
         return "invalid_input_or_request";
     case ResultStatus::no_executable_plan:
         return "no_executable_plan";
@@ -390,7 +390,7 @@ auto to_string(const ResultStatus value) -> std::string_view {
 auto ChargeCalculationResult::status() const noexcept -> ResultStatus {
     const auto* execution = this->execution();
     if (execution == nullptr) {
-        return ResultStatus::invalid_request;
+        return ResultStatus::invalid_input_or_request;
     }
     switch (execution->status) {
     case calculation::ExecutionStatus::success:

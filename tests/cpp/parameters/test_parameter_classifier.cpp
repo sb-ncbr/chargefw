@@ -149,7 +149,8 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::missing_bond_parameter);
 
     const auto permissive = parameters::try_classify_parameters(
-        features::TopologyFeatures{carbonyl}, parameter_set, {.permissive_types = true});
+        features::TopologyFeatures{carbonyl}, parameter_set,
+        {.parameter_matching = parameters::ParameterMatching::permissive});
     REQUIRE(permissive);
     const auto atom_indices = permissive.classification().atom().parameter_entry_indices();
     const auto bond_indices = permissive.classification().bond().parameter_entry_indices();
@@ -164,7 +165,8 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     const features::TopologyFeatures lone_oxygen_topology{lone_oxygen};
     CHECK_FALSE(parameters::try_classify_parameters(lone_oxygen_topology, parameter_set));
     const auto lone_permissive = parameters::try_classify_parameters(
-        lone_oxygen_topology, parameter_set, {.permissive_types = true});
+        lone_oxygen_topology, parameter_set,
+        {.parameter_matching = parameters::ParameterMatching::permissive});
     REQUIRE(lone_permissive);
     CHECK(lone_permissive.classification().atom()[0] == 1);
 
@@ -187,7 +189,8 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
               .parameters = {{.name = "value", .value = 3.0}}},
              {.key = double_bond_key, .parameters = {{.name = "value", .value = 3.0}}}}}};
     const auto preferred = parameters::classify_parameters(
-        features::TopologyFeatures{carbonyl}, with_strict_entries, {.permissive_types = true});
+        features::TopologyFeatures{carbonyl}, with_strict_entries,
+        {.parameter_matching = parameters::ParameterMatching::permissive});
     CHECK(preferred.atom()[0] == 2);
     CHECK(preferred.atom()[1] == 3);
     CHECK(preferred.bond()[0] == 1);

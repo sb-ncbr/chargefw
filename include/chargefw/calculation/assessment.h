@@ -146,8 +146,8 @@ struct AssessmentRequest {
     // Applies only without method_id; a named method is always assessed.
     MethodScope method_scope = MethodScope::recommended;
     std::unordered_map<std::string, methods::MethodOptions> method_options;
-    parameters::ClassificationOptions classification_options{};
-    ExecutionSelection execution_selection{};
+    parameters::ParameterMatching parameter_matching = parameters::ParameterMatching::strict;
+    ExecutionSelection execution{};
     ResourcePolicy resource_policy{};
     std::optional<FixedIons> fixed_ions{};
 };
