@@ -144,12 +144,13 @@ looks like this:
 Every atom needs an integer `atomic_number` and `formal_charge`. `bonds` is optional; it gives atom
 indices, counted from zero, and bond orders 1, 2, or 3. `conformers` is optional; each conformer has
 one row of three finite coordinates per atom, and its `id` becomes the conformer's name. A
-molecule's `id` and `name` are optional strings. Other members are ignored; atom names cannot be
-given in version 1.0.
+molecule's `id` and `name` are optional strings. Atom names cannot be given in version 1.0.
 
 Molecules, atoms, bonds, and conformers keep the order of their arrays. You can read all conformers
-of each molecule or only the first. Invalid JSON, another schema version, wrong types, indices out
-of range, and conformers whose number of rows differs from the number of atoms are errors.
+of each molecule or only the first. Invalid JSON, another schema version, wrong types, members not
+listed here, indices out of range, and conformers whose number of rows differs from the number of
+atoms are errors. A misspelled member, such as `bond` for `bonds`, therefore stops the reading
+instead of giving a molecule without bonds.
 
 ## PDB and mmCIF input
 

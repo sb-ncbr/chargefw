@@ -2,6 +2,7 @@
 #include <chargefw/core/bond.h>
 #include <snitch/snitch.hpp>
 
+#include <array>
 #include <exception>
 #include <sstream>
 #include <string>
@@ -109,6 +110,39 @@ TEST_CASE("JSON input rejects integers outside the native integer range", "[adap
     std::istringstream stream{input};
     auto reader = json::JsonReader{stream};
     CHECK_THROWS_AS(reader.next(), std::runtime_error);
+}
+
+TEST_CASE("JSON input rejects unknown members", "[adapters][json]") {
+    // One misspelled or unsupported member per object kind.
+    const std::array documents{
+        R"json({"schema_version": "1.0", "molecules": [], "molecule": []})json",
+        R"json({"schema_version": "1.0", "molecules": [
+            {"atoms": [{"atomic_number": 1, "formal_charge": 0}], "bond": []}]})json",
+        R"json({"schema_version": "1.0", "molecules": [
+            {"atoms": [{"atomic_number": 1, "formal_charge": 0, "charge": 0.5}]}]})json",
+        R"json({"schema_version": "1.0", "molecules": [
+            {"atoms": [{"atomic_number": 1, "formal_charge": 0},
+                       {"atomic_number": 1, "formal_charge": 0}],
+             "bonds": [{"atoms": [0, 1], "order": 1, "aromatic": false}]}]})json",
+        R"json({"schema_version": "1.0", "molecules": [
+            {"atoms": [{"atomic_number": 1, "formal_charge": 0}],
+             "conformers": [{"coordinates": [[0, 0, 0]], "units": "nm"}]}]})json",
+    };
+    for (const auto* document : documents) {
+        CAPTURE(document);
+        std::istringstream input{document};
+        CHECK_THROWS_AS(static_cast<void>(json::JsonReader{input}.next()), std::runtime_error);
+    }
+
+    // Also in a conformer that reading only the first one skips.
+    std::istringstream skipped{R"json({"schema_version": "1.0", "molecules": [
+        {"atoms": [{"atomic_number": 1, "formal_charge": 0}],
+         "conformers": [{"coordinates": [[0, 0, 0]]},
+                        {"coordinates": [[0, 0, 0]], "units": "nm"}]}]})json"};
+    CHECK_THROWS_AS(
+        static_cast<void>(
+            json::JsonReader{skipped, {}, chargefw::adapters::ConformerSelection::first}.next()),
+        std::runtime_error);
 }
 
 TEST_CASE("JSON input owns coordinate-free source mapping", "[adapters][json]") {

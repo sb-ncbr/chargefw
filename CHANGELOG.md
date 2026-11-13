@@ -10,6 +10,9 @@
 - MOL and SDF records are read for their atoms, bonds, and charges only; everything else is ignored.
   V3000 `SGROUP`, `3D`, and other blocks and V2000 lines such as atom aliases, which were errors, are
   now ignored. Breaking change: the `v2000_property_ignored` warning was removed.
+- Breaking change: molecule JSON input rejects members its format does not define, at every level,
+  so a misspelled member such as `bond` no longer gives a molecule without bonds. The molecule input
+  schema sets `additionalProperties: false` to match.
 
 ### Installation
 

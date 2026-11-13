@@ -16,12 +16,14 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <istream>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -45,6 +47,16 @@ auto require_object(const Json& value, const std::string& context) -> void {
 auto require_array(const Json& value, const std::string& context) -> void {
     if (!value.is_array()) {
         throw std::runtime_error{context + " must be an array, got " + type_name(value)};
+    }
+}
+
+// A misspelled member would otherwise read as an absent one, such as a molecule without bonds.
+auto require_known_members(const Json& object, const std::initializer_list<std::string_view> known,
+                           const std::string& context) -> void {
+    for (const auto& item : object.items()) {
+        if (std::ranges::find(known, item.key()) == known.end()) {
+            throw std::runtime_error{context + " has unknown member '" + item.key() + "'"};
+        }
     }
 }
 
@@ -126,6 +138,7 @@ auto require_array(const Json& value, const std::string& context) -> void {
     -> ImportedMoleculeRecord {
     const std::string context{"molecules[" + std::to_string(identity.record_index) + "]"};
     require_object(value, context);
+    require_known_members(value, {"id", "name", "atoms", "bonds", "conformers"}, context);
 
     const auto* id = optional_member(value, "id");
     if (id != nullptr) {
@@ -152,6 +165,7 @@ auto require_array(const Json& value, const std::string& context) -> void {
         const auto atom_context = index_context(context + ".atoms", index);
         const auto& atom_value = atoms_value[index];
         require_object(atom_value, atom_context);
+        require_known_members(atom_value, {"atomic_number", "formal_charge"}, atom_context);
         const auto atomic_number = require_integer(
             member(atom_value, "atomic_number", atom_context), atom_context + ".atomic_number");
         const auto formal_charge = require_integer(
@@ -170,6 +184,7 @@ auto require_array(const Json& value, const std::string& context) -> void {
             const auto bond_context = index_context(context + ".bonds", index);
             const auto& bond_value = (*bonds_value)[index];
             require_object(bond_value, bond_context);
+            require_known_members(bond_value, {"atoms", "order"}, bond_context);
             const auto& endpoints = member(bond_value, "atoms", bond_context);
             require_array(endpoints, bond_context + ".atoms");
             if (endpoints.size() != 2) {
@@ -188,6 +203,13 @@ auto require_array(const Json& value, const std::string& context) -> void {
     const auto* conformers_value = optional_member(value, "conformers");
     if (conformers_value != nullptr) {
         require_array(*conformers_value, context + ".conformers");
+        // Also the conformers that the selection skips must be valid objects of the format.
+        for (std::size_t index = 0; index < conformers_value->size(); ++index) {
+            const auto conformer_context = index_context(context + ".conformers", index);
+            require_object((*conformers_value)[index], conformer_context);
+            require_known_members((*conformers_value)[index], {"id", "coordinates"},
+                                  conformer_context);
+        }
         const auto conformer_count = conformer_selection == ConformerSelection::first
                                          ? std::min<std::size_t>(1, conformers_value->size())
                                          : conformers_value->size();
@@ -196,7 +218,6 @@ auto require_array(const Json& value, const std::string& context) -> void {
         for (std::size_t index = 0; index < conformer_count; ++index) {
             const auto conformer_context = index_context(context + ".conformers", index);
             const auto& conformer_value = (*conformers_value)[index];
-            require_object(conformer_value, conformer_context);
             auto conformer_name = std::string{};
             const auto* conformer_id = optional_member(conformer_value, "id");
             auto source_conformer_id = std::optional<std::string>{};
@@ -280,6 +301,7 @@ JsonReader::Impl::Impl(std::istream& input, std::string source, const ConformerS
         throw std::runtime_error{"invalid JSON document"};
     }
     require_object(document, "document");
+    require_known_members(document, {"schema_version", "molecules"}, "document");
 
     if (require_string(member(document, "schema_version", "document"), "document.schema_version") !=
         "1.0") {
