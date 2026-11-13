@@ -69,14 +69,18 @@
 
 ### C++
 
+- Breaking change: the CMake target is `chargefw::chargefw` instead of `chargefw::core`, and the
+  library file is `libchargefw.so` instead of `libchargefw_core.so`; `chargefw::core` named both the
+  whole library and the namespace of atoms and molecules, which keeps its name. Link
+  `chargefw::chargefw` after `find_package(chargefw)`.
 - The installed C++ library no longer requires nlohmann/json or Gemmi development packages in downstream
   projects. JSON and mmCIF reader state is private to the library; parsing behavior is unchanged.
-  Breaking change: `chargefw::core` no longer supplies these dependencies' headers or CMake targets.
+  Breaking change: the library target no longer supplies these dependencies' headers or CMake targets.
   Applications that use either dependency directly must find and link it explicitly. Rebuild C++
   consumers because the reader layouts changed. Fetched native installations retain the Gemmi and
   oneTBB runtime libraries but no longer install third-party development packages.
 - The shared library carries its full release version in its name, for example
-  `libchargefw_core.so.3.0.0rc3`. A program needs the library of the release it was built against
+  `libchargefw.so.3.0.0rc3`. A program needs the library of the release it was built against
   and fails to start without it, instead of loading another release. Programs linked against earlier
   releases ask for the unversioned name and get no such protection; rebuild them, and rebuild C++
   programs against every release.

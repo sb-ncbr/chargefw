@@ -1,6 +1,6 @@
 # C++ library
 
-ChargeFW is a C++23 shared library for Linux, used through the `chargefw::core` CMake target. An
+ChargeFW is a C++23 shared library for Linux, used through the `chargefw::chargefw` CMake target. An
 assessment keeps its own copies of the molecules and parameter sets, and so does a copy of one of
 its plans. Results hold their own charges.
 [Assessment and calculation](#assessment-and-calculation) describes how long each stays valid.
@@ -33,7 +33,7 @@ Use the installed package from another CMake project:
 
 ```cmake
 find_package(chargefw CONFIG REQUIRED)
-target_link_libraries(my_application PRIVATE chargefw::core)
+target_link_libraries(my_application PRIVATE chargefw::chargefw)
 ```
 
 Point CMake at the installation when you configure that project:
@@ -44,7 +44,7 @@ cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install
 
 Rebuild your application against every ChargeFW release you install, pre-releases included. Releases
 do not keep binary compatibility, so each one installs its library under its own name, such as
-`libchargefw_core.so.3.0.0` for 3.0.0, and your application needs the library of the release it was
+`libchargefw.so.3.0.0` for 3.0.0, and your application needs the library of the release it was
 built against. If that library is no longer installed, the application fails to start with an error
 that names it, instead of loading another release.
 

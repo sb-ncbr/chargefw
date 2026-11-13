@@ -9,7 +9,7 @@ add_library(chargefw_test_support
 
 target_link_libraries(chargefw_test_support
         PUBLIC
-        chargefw::core
+        chargefw::chargefw
 )
 
 target_include_directories(chargefw_test_support
@@ -30,7 +30,7 @@ function(chargefw_add_snitch_test name)
 
     target_link_libraries(${name}
             PRIVATE
-            chargefw::core
+            chargefw::chargefw
             chargefw_test_support
             snitch::snitch
     )

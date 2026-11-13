@@ -156,7 +156,7 @@ set_target_properties(chargefw_python PROPERTIES
 )
 # The extension contains the ChargeFW library itself, so a wheel needs no separate ChargeFW library and
 # Windows needs no exported symbols from one.
-target_link_libraries(chargefw_python PRIVATE chargefw_core_objects gemmi::gemmi_cpp)
+target_link_libraries(chargefw_python PRIVATE chargefw_objects gemmi::gemmi_cpp)
 target_include_directories(chargefw_python PRIVATE "${PROJECT_SOURCE_DIR}/src")
 chargefw_prefer_runtime_path(chargefw_python)
 
@@ -172,7 +172,7 @@ set_target_properties(chargefw_package_cli PROPERTIES
 target_link_libraries(chargefw_package_cli
     PRIVATE
     chargefw_cli_objects
-    chargefw_core_objects
+    chargefw_objects
 )
 chargefw_prefer_runtime_path(chargefw_package_cli)
 

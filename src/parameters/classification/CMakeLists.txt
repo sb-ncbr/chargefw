@@ -1,4 +1,4 @@
-target_sources(chargefw_core_objects
+target_sources(chargefw_objects
         PRIVATE
         classification_result.cpp
         parameter_classification.cpp

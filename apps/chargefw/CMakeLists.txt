@@ -21,7 +21,7 @@ endif()
 
 target_link_libraries(chargefw_cli_objects
         PRIVATE
-        $<COMPILE_ONLY:chargefw_core_objects>
+        $<COMPILE_ONLY:chargefw_objects>
         chargefw_platform
         CLI11::CLI11
 )
@@ -45,7 +45,7 @@ if(CHARGEFW_BUILD_CLI)
     target_link_libraries(chargefw_cli
             PRIVATE
             chargefw_cli_objects
-            chargefw::core
+            chargefw::chargefw
     )
 
     install(TARGETS chargefw_cli

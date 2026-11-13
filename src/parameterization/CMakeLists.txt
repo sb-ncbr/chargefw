@@ -1,4 +1,4 @@
-target_sources(chargefw_core_objects
+target_sources(chargefw_objects
         PRIVATE
         eem_derivatives.cpp
         method_derivatives.cpp
