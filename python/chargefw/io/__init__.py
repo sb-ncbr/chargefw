@@ -34,10 +34,23 @@ type OutputFormat = Literal["mol2", "mmcif", "pqr", "result-json"]
 type RecordSelection = Literal["all", "polymers-and-ligands", "polymers"]
 type BondStrategy = Literal["none", "explicit", "templates", "hybrid"]
 type ConformerSelection = Literal["first", "all"]
+type IfExists = Literal["error", "replace"]
 
 INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif")
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "pqr", "result-json")
 _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
+
+
+def _replace_existing(if_exists: IfExists) -> bool:
+    """Whether attach_charges() may replace charges that are already there."""
+
+    if not isinstance(if_exists, str):
+        raise TypeError("if_exists must be a string")
+    if if_exists not in ("error", "replace"):
+        raise ValueError("if_exists must be 'error' or 'replace'")
+    return if_exists == "replace"
+
+
 _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
 _OPTION_VALUES: dict[str, tuple[str, ...]] = {
     "selection": get_args(RecordSelection.__value__),
@@ -329,6 +342,7 @@ __all__ = [
     "RecordSelection",
     "BondStrategy",
     "ConformerSelection",
+    "IfExists",
     "parse",
     "read",
     "dumps",

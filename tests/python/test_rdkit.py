@@ -199,12 +199,14 @@ def test_conversion_and_charge_attachment() -> None:
     invalid_indices: tuple[Any, ...] = (True, np.bool_(False))
     for value in invalid_indices:
         with pytest.raises(TypeError):
-            chargefw_rdkit.attach_charges(target, result, molecule_index=value, overwrite=True)
+            chargefw_rdkit.attach_charges(target, result, molecule_index=value, if_exists="replace")
         with pytest.raises(TypeError):
-            chargefw_rdkit.attach_charges(target, result, conformer_index=value, overwrite=True)
+            chargefw_rdkit.attach_charges(
+                target, result, conformer_index=value, if_exists="replace"
+            )
     with pytest.raises(ValueError):
         chargefw_rdkit.attach_charges(target, result)
-    chargefw_rdkit.attach_charges(target, result, overwrite=True)
+    chargefw_rdkit.attach_charges(target, result, if_exists="replace")
 
     assert molecule.atom_ids == (0, 1)
     assert target.atoms[0].properties["ChargeFWPartialCharge"] == 0.0
@@ -237,7 +239,7 @@ def test_attachment_selects_source_conformer(conformer_count: int) -> None:
         )
 
     conformer = conformer_count - 1
-    chargefw_rdkit.attach_charges(target, result, conformer_index=conformer, overwrite=True)
+    chargefw_rdkit.attach_charges(target, result, conformer_index=conformer, if_exists="replace")
     np.testing.assert_array_equal(
         [atom.properties["ChargeFWPartialCharge"] for atom in target.atoms],
         result.assignment(molecule_index=0, conformer_index=conformer).values,

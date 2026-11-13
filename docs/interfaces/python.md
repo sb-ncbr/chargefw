@@ -512,7 +512,7 @@ such as ionic, hydrogen, or zero-order bonds, remain errors.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.
-Existing properties of that name are an error unless you pass `overwrite=True`.
+Existing properties of that name are an error unless you pass `if_exists="replace"`.
 
 Pass the molecule that was given to `from_mol()`, or a copy of it, and do not change it in between: the
 charges are matched to its atoms by index and describe the molecule as it was read. ChargeFW refuses a
@@ -630,5 +630,5 @@ each. Do not change the document between `from_document()` and `attach_charges()
 matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
 document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
 longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
-Existing charge data is an error unless you pass `overwrite=True`. The function replaces the document's
+Existing charge data is an error unless you pass `if_exists="replace"`. The function replaces the document's
 blocks, so get block objects such as `document.sole_block()` again afterwards.

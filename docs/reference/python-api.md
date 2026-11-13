@@ -22,11 +22,11 @@ attributes as keyword arguments.
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
 | `chargefw.io.dumps(result, *, format)` | The same output as a string |
 | `chargefw.io.rdkit.from_mol(molecule, *, source_name="", bond_conversion="none")` | `Molecule` converted from an RDKit molecule |
-| `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer_index=None, property_name="ChargeFWPartialCharge", overwrite=False)` | Stores charges as RDKit atom properties |
+| `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer_index=None, property_name="ChargeFWPartialCharge", if_exists="error")` | Stores charges as RDKit atom properties |
 | `chargefw.io.gemmi.from_document(document, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi mmCIF document |
 | `chargefw.io.gemmi.from_structure(structure, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi structure |
 | `chargefw.io.gemmi.to_document(result)` | A new Gemmi mmCIF document with the charges |
-| `chargefw.io.gemmi.attach_charges(document, result, *, overwrite=False)` | Adds the charges to an existing Gemmi document |
+| `chargefw.io.gemmi.attach_charges(document, result, *, if_exists="error")` | Adds the charges to an existing Gemmi document |
 
 `format` is one of `chargefw.io.INPUT_FORMATS` for reading: `"mol"`, `"sdf"`, `"mol2"`,
 `"molecule-json"`, `"pdb"`, or `"mmcif"`. For writing, it is one of `chargefw.io.OUTPUT_FORMATS`:

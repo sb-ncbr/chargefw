@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: both `attach_charges()` functions, in `chargefw.io.gemmi` and
+  `chargefw.io.rdkit`, take `if_exists="error"` (default) or `"replace"` instead of
+  `overwrite=False` or `True`. The values are `chargefw.io.IfExists`.
 - `chargefw.methods`, `chargefw.parameter_sets`, `Method.options`, and `Method.parameter_sets` are
   typed as `Mapping[str, …]`, as documented, instead of private catalog classes.
 - Breaking change: `cutoff_threshold` and `cover_threshold` take `"unlimited"` for no limit, as

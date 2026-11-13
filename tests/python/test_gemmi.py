@@ -544,11 +544,11 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         for row in document[0].find("_sb_ncbr_partial_atomic_charges.", ["atom_id"])
     ]
     assert first_ids == ["1", "2", "3", "4"]
-    before_rejected_overwrite = document.as_string()
+    before_rejected_replacement = document.as_string()
     with pytest.raises(ValueError):
         chargefw.io.gemmi.attach_charges(document, result)
-    assert document.as_string() == before_rejected_overwrite
-    chargefw.io.gemmi.attach_charges(document, result, overwrite=True)
+    assert document.as_string() == before_rejected_replacement
+    chargefw.io.gemmi.attach_charges(document, result, if_exists="replace")
 
     conformer_document = gemmi.cif.read_string(MMCIF_TEXT)
     conformer_result = calculate(chargefw.io.gemmi.from_document(conformer_document), method="qeq")
@@ -623,7 +623,9 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
             chargefw.io.gemmi.attach_charges(modified, modified_result)
         assert modified.as_string() == before_mismatch
     with pytest.raises(TypeError):
-        chargefw.io.gemmi.attach_charges(document, result, overwrite=cast(Any, 1))
+        chargefw.io.gemmi.attach_charges(document, result, if_exists=cast(Any, 1))
+    with pytest.raises(ValueError):
+        chargefw.io.gemmi.attach_charges(document, result, if_exists=cast(Any, "append"))
 
 
 def test_attach_charges_replaces_other_charges_dictionary_declarations() -> None:
