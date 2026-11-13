@@ -42,6 +42,12 @@ Point CMake at the installation when you configure that project:
 cmake -S my_application -B build -DCMAKE_PREFIX_PATH="/path/to/chargefw/_install"
 ```
 
+Rebuild your application against every ChargeFW release you install, pre-releases included. Releases
+do not keep binary compatibility, so each one installs its library under its own name, such as
+`libchargefw_core.so.3.0.0` for 3.0.0, and your application needs the library of the release it was
+built against. If that library is no longer installed, the application fails to start with an error
+that names it, instead of loading another release.
+
 To build your application against installed ChargeFW, you do not need its dependencies' development
 packages. The shared libraries ChargeFW was linked against, including oneTBB and Gemmi when linked
 dynamically, must remain available at runtime. With `CHARGEFW_FETCH_DEPENDENCIES=ON`, the native

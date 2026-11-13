@@ -126,7 +126,16 @@ set(CHARGEFW_SANITIZED_TARGETS chargefw_core_objects)
 if(CHARGEFW_BUILD_LIBRARY)
   add_library(chargefw_core SHARED)
   add_library(chargefw::core ALIAS chargefw_core)
-  set_target_properties(chargefw_core PROPERTIES EXPORT_NAME core)
+  # Releases keep no binary compatibility, so every release, pre-releases included, gets its own
+  # library name, and a program loads only the library of the release it was built against. Mach-O
+  # versions must be numeric.
+  set_target_properties(chargefw_core PROPERTIES
+    EXPORT_NAME core
+    VERSION ${CHARGEFW_VERSION}
+    SOVERSION ${CHARGEFW_VERSION}
+    MACHO_CURRENT_VERSION ${PROJECT_VERSION}
+    MACHO_COMPATIBILITY_VERSION ${PROJECT_VERSION}
+  )
 
   target_compile_features(chargefw_core
     PUBLIC

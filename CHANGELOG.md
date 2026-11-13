@@ -54,6 +54,11 @@
   Applications that use either dependency directly must find and link it explicitly. Rebuild C++
   consumers because the reader layouts changed. Fetched native installations retain the Gemmi and
   oneTBB runtime libraries but no longer install third-party development packages.
+- The shared library carries its full release version in its name, for example
+  `libchargefw_core.so.3.0.0rc3`. A program needs the library of the release it was built against
+  and fails to start without it, instead of loading another release. Programs linked against earlier
+  releases ask for the unversioned name and get no such protection; rebuild them, and rebuild C++
+  programs against every release.
 - Breaking change: removed `<chargefw/methods/method_applicability.h>` with
   `methods::ApplicableMethod`, `methods::RejectedCandidate`, and `methods::ApplicabilityResult`. No
   public function produced them. Read the plans and rejections of an assessment instead.
