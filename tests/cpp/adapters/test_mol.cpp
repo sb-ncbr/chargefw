@@ -811,6 +811,10 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
                  "    0.0000    0.0000    0.0000 C   0  8  0  0  0  0  0  0  0  0  0  0\n"
                  "M  END\n"},
              std::string_view{
+                 "unknown-element\nchargefw\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                 "    0.0000    0.0000    0.0000 Xx  0  0  0  0  0  0  0  0  0  0  0  0\n"
+                 "M  END\n"},
+             std::string_view{
                  "bad-v3000-bond\nchargefw\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
                  "M  V30 BEGIN CTAB\nM  V30 COUNTS 2 1 0 0 0\nM  V30 BEGIN ATOM\n"
                  "M  V30 1 C 0 0 0 0\nM  V30 2 O 1 0 0 0\nM  V30 END ATOM\n"
@@ -826,4 +830,9 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
         std::istringstream input{std::string{malformed}};
         CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
     }
+
+    std::istringstream unknown_mol2_element{
+        "@<TRIPOS>MOLECULE\nunknown\n1 0\nSMALL\nNO_CHARGES\n@<TRIPOS>ATOM\n1 X 0 0 0 Xx\n"};
+    mol2::Mol2Reader mol2_reader{unknown_mol2_element, "unknown.mol2"};
+    CHECK_THROWS_AS(mol2_reader.next(), std::runtime_error);
 }

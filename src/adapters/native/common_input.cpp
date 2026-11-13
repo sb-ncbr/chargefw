@@ -21,8 +21,6 @@ auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::siz
         throw;
     } catch (const std::invalid_argument& error) {
         throw std::invalid_argument{context + error.what()};
-    } catch (const std::out_of_range& error) {
-        throw std::out_of_range{context + error.what()};
     } catch (const std::runtime_error& error) {
         throw std::runtime_error{context + error.what()};
     }
@@ -65,6 +63,14 @@ auto trim(const std::string_view value) -> std::string_view {
     }
 
     return value.substr(first, value.find_last_not_of(" \t\r") - first + 1);
+}
+
+auto element(const std::string_view symbol) -> const core::Element& {
+    const auto& table = core::periodic_table();
+    if (!table.contains(symbol)) {
+        throw std::runtime_error{"unknown element symbol '" + std::string{symbol} + "'"};
+    }
+    return table.element(symbol);
 }
 
 auto parse_int(const std::string_view value, const std::string_view field) -> int {

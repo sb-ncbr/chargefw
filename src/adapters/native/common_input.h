@@ -2,6 +2,7 @@
 
 #include <chargefw/adapters/molecule_record.h>
 #include <chargefw/core/bond.h>
+#include <chargefw/core/periodic_table.h>
 
 #include "bond_format.h"
 
@@ -26,6 +27,9 @@ namespace chargefw::adapters::native::common_input {
 [[nodiscard]] auto trim(std::string_view value) -> std::string_view;
 
 [[nodiscard]] auto parse_int(std::string_view value, std::string_view field) -> int;
+
+// The element with this symbol; an unknown symbol is input that cannot be read, not a bad index.
+[[nodiscard]] auto element(std::string_view symbol) -> const core::Element&;
 
 [[nodiscard]] auto parse_trimmed_int(std::string_view value, std::string_view field) -> int;
 

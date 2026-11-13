@@ -9,7 +9,6 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
-#include <chargefw/core/periodic_table.h>
 #include <chargefw/core/position.h>
 
 #include <cstddef>
@@ -40,7 +39,7 @@ constexpr std::string_view v30_prefix{"M  V30 "};
     }
 
     // Molfiles have no atom names; the symbol is the element, not a name.
-    const auto& element = core::periodic_table().element(normalized);
+    const auto& element = common::element(normalized);
     return core::Atom{element.atomic_number, formal_charge};
 }
 

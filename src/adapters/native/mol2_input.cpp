@@ -8,7 +8,6 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
-#include <chargefw/core/periodic_table.h>
 #include <chargefw/core/position.h>
 
 #include <cstddef>
@@ -116,7 +115,7 @@ struct AtomSection {
             }
         }
 
-        const auto& element = core::periodic_table().element(element_symbol(atom_type));
+        const auto& element = common::element(element_symbol(atom_type));
         result.indices.emplace(source_id, result.atoms.size());
         result.atoms.emplace_back(element.atomic_number, 0, std::move(atom_name));
         result.references.push_back(SourceAtomReference{.position = static_cast<std::size_t>(index),

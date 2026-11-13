@@ -98,6 +98,8 @@
 
 ### C++
 
+- The MOL, SDF, and MOL2 readers throw `std::runtime_error` for an unknown element symbol, as
+  documented for input they cannot parse, instead of `std::out_of_range`.
 - Breaking change: the request and its provenance use the names of the Python arguments.
   `AssessmentRequest::classification_options` is `parameter_matching`, a new
   `parameters::ParameterMatching` (`strict` or `permissive`), which also replaces
