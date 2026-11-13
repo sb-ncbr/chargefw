@@ -13,6 +13,8 @@ from numpy.typing import NDArray
 from ._arrays import as_integer, index_array
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
+from ._charges import ChargeAssignment
+from ._core import Molecule, MoleculeCollection
 from ._methods import (
     ExecutionIssue,
     Method,
@@ -48,8 +50,6 @@ from ._warnings import (
     InputWarning,
     issue_warnings,
 )
-from .charges import ChargeAssignment
-from .core import Molecule, MoleculeCollection
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)

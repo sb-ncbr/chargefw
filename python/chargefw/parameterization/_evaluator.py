@@ -11,10 +11,10 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .._arrays import as_integer, immutable_array
+from .._calculation import Plan, _native_catalog_for
 from .._chargefw import parameterization as _native_parameterization
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
 from .._types import ParameterScope
-from ..calculation import Plan, _native_catalog_for
 
 
 class EvaluationError(RuntimeError):

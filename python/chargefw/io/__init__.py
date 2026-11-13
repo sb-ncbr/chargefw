@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING, Literal
 from .._arrays import index_array
 from .._calculation_values import CalculationResult
 from .._chargefw import adapters as _native_adapters
-from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
-from ..core import (
+from .._core import (
     ImportIssue,
     Molecule,
     MoleculeCollection,
@@ -23,6 +22,7 @@ from ..core import (
     SourceMapping,
     SourceStructuralLabels,
 )
+from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 
 if TYPE_CHECKING:
     from .._chargefw.calculation import _NativeExecutionResult

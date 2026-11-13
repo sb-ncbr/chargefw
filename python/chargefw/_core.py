@@ -20,6 +20,7 @@ from ._arrays import (
     index_array,
 )
 from ._chargefw import core as _native_core
+from ._public import set_public_module
 from ._types import ImportIssueKind
 from ._types import PortableId as _PortableId
 
@@ -415,3 +416,18 @@ class MoleculeCollection(Sequence[Molecule]):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(molecules={len(self)}, name={self.name!r})"
+
+
+set_public_module(
+    "chargefw",
+    SourceIdentity,
+    SourceHierarchyLabels,
+    SourceStructuralLabels,
+    SourceAtomReference,
+    SourceConformerReference,
+    SourceComponentInstance,
+    SourceMapping,
+    ImportIssue,
+    Molecule,
+    MoleculeCollection,
+)

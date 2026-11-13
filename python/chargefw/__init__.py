@@ -4,13 +4,7 @@ from typing import Final
 
 from . import _cpu as _cpu  # Checks the CPU before the extension is loaded.
 from . import io as io
-from ._chargefw import version as _native_version
-from ._chargefw.calculation import _fixed_ion_names
-from ._elements import Element, PeriodicTable, periodic_table
-from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
-from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet
-from ._warnings import ChargeFWWarning, ChargeWarning, InputWarning
-from .calculation import (
+from ._calculation import (
     Assessment,
     CalculationCancelledError,
     CalculationObserver,
@@ -38,8 +32,10 @@ from .calculation import (
     read_parameter_set,
     write_parameter_set,
 )
-from .charges import ChargeAssignment
-from .core import (
+from ._chargefw import version as _native_version
+from ._chargefw.calculation import _fixed_ion_names
+from ._charges import ChargeAssignment
+from ._core import (
     ImportIssue,
     Molecule,
     MoleculeCollection,
@@ -52,6 +48,10 @@ from .core import (
     SourceMapping,
     SourceStructuralLabels,
 )
+from ._elements import Element, PeriodicTable, periodic_table
+from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
+from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet
+from ._warnings import ChargeFWWarning, ChargeWarning, InputWarning
 
 __version__ = _native_version()
 COMMON_IONS: Final[tuple[str, ...]] = _fixed_ion_names(True)

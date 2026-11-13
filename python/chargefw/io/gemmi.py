@@ -6,9 +6,9 @@ from collections.abc import Sequence
 from importlib import import_module
 from typing import Any, Literal, cast
 
+from .._calculation import CalculationResult
 from .._chargefw import adapters as _native_adapters
-from ..calculation import CalculationResult
-from ..core import MoleculeCollection
+from .._core import MoleculeCollection
 from . import (
     BondStrategy,
     ConformerSelection,

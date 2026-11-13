@@ -9,8 +9,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ._arrays import as_ids, as_integer, immutable_array
+from ._core import SourceIdentity
+from ._public import set_public_module
 from ._types import PortableId
-from .core import SourceIdentity
 
 
 def _charge_values(values: Any) -> NDArray[np.float64]:
@@ -107,3 +108,6 @@ class ChargeAssignment:
         object.__setattr__(result, "source", source)
         object.__setattr__(result, "atom_ids", atom_ids)
         return result
+
+
+set_public_module("chargefw", ChargeAssignment)

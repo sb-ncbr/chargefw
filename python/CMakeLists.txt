@@ -91,9 +91,9 @@ set(CHARGEFW_PYTHON_PACKAGE_SOURCES
     _cli.py
     _types.py
     _warnings.py
-    calculation.py
-    charges.py
-    core.py
+    _calculation.py
+    _charges.py
+    _core.py
 )
 foreach(package_source IN LISTS CHARGEFW_PYTHON_PACKAGE_SOURCES)
     configure_file("chargefw/${package_source}"

@@ -33,6 +33,7 @@ from ._calculation_values import (
 )
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
+from ._core import Molecule, MoleculeCollection
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._public import set_public_module
@@ -42,7 +43,6 @@ from ._types import (
     ParameterMatching,
     RequestedExecution,
 )
-from .core import Molecule, MoleculeCollection
 
 __all__ = [
     "Assessment",
@@ -75,7 +75,7 @@ __all__ = [
 
 
 set_public_module(
-    __name__,
+    "chargefw",
     CalculationProgress,
     CalculationObserver,
     RequestedCalculation,
@@ -459,4 +459,6 @@ def calculate(
     return result
 
 
-set_public_module(__name__, Assessment)
+set_public_module("chargefw", Assessment)
+for _function in (assess, calculate, read_parameter_set, write_parameter_set):
+    _function.__module__ = "chargefw"

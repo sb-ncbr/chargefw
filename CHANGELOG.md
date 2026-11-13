@@ -27,6 +27,10 @@
 
 ### Python
 
+- Breaking change: the modules `chargefw.core`, `chargefw.charges`, and `chargefw.calculation` are
+  private; import their classes and functions from `chargefw`, as the documentation does. Every class
+  and function of `chargefw` now reports `chargefw` as its module. `chargefw.io` and
+  `chargefw.parameterization` stay public.
 - Breaking change: RDKit `attach_charges()` delegates explicit conformer selection to
   `CalculationResult.assignment()`. Negative or missing conformers now raise `IndexError` instead of
   `ValueError`; explicit selection no longer falls back to geometry-independent charges and raises

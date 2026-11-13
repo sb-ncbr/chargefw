@@ -9,9 +9,9 @@ from typing import Any, Literal
 import numpy as np
 
 from .._arrays import as_integer
-from ..calculation import CalculationResult
-from ..charges import ChargeAssignment
-from ..core import Molecule
+from .._calculation import CalculationResult
+from .._charges import ChargeAssignment
+from .._core import Molecule
 
 try:
     from rdkit import Chem as _rdkit  # type: ignore[import-not-found, unused-ignore]
