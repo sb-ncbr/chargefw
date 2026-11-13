@@ -1,4 +1,4 @@
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 
 #include <optional>
 #include <stdexcept>
@@ -9,7 +9,7 @@
 
 namespace charges = chargefw::charges;
 
-TEST_CASE("charge set stores method, parameter, and assignments", "[charges][charge-collection]") {
+TEST_CASE("charge set stores method, parameter, and assignments", "[charges][charge-set]") {
     const charges::ChargeTarget conformer_target{.molecule_index = 0, .conformer_index = 0};
     const charges::ChargeAssignment water_assignment{
         .target = conformer_target, .charges = charges::AtomicCharges{{-0.8, 0.4, 0.4}}};
@@ -30,7 +30,7 @@ TEST_CASE("charge set stores method, parameter, and assignments", "[charges][cha
     CHECK(charge_set.assignment(1).target.molecule_index == 1);
 }
 
-TEST_CASE("parameterless charge set has no parameter-set id", "[charges][charge-collection]") {
+TEST_CASE("parameterless charge set has no parameter-set id", "[charges][charge-set]") {
     const charges::ChargeSet parameterless_charge_set{"dummy", {}};
 
     CHECK_FALSE(parameterless_charge_set.parameter_set_id().has_value());
@@ -38,7 +38,7 @@ TEST_CASE("parameterless charge set has no parameter-set id", "[charges][charge-
 }
 
 TEST_CASE("charge set rejects empty method id and invalid assignment index",
-          "[charges][charge-collection]") {
+          "[charges][charge-set]") {
     const charges::ChargeTarget conformer_target{.molecule_index = 0, .conformer_index = 0};
     const charges::ChargeAssignment water_assignment{
         .target = conformer_target, .charges = charges::AtomicCharges{{-0.8, 0.4, 0.4}}};

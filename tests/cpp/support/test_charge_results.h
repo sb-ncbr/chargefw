@@ -2,7 +2,7 @@
 
 #include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 
 #include <optional>
 #include <string>

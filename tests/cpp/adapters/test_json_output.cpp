@@ -2,7 +2,7 @@
 #include <chargefw/adapters/gemmi/mmcif_input.h>
 #include <chargefw/adapters/native/json_output.h>
 #include <chargefw/charges/atomic_charges.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -171,7 +171,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
              .method_options = {},
              .execution_policy =
                  calculation::ExecutionPolicy{calculation::ExecutionMode::cutoff, 8.0},
-             .execution_issues = {
+             .warnings = {
                  {.kind = chargefw::calculation::ExecutionIssueKind::resource_threshold_exceeded,
                   .message = "full execution exceeds the shared threshold"}}}});
     const auto execution_metrics =

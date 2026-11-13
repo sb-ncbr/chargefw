@@ -21,7 +21,7 @@ enum class ComplexityTerm : std::uint8_t {
     atoms_squared_plus_bonds_squared, // N^2 + M^2
 };
 
-[[nodiscard]] auto complexity_notation(ComplexityTerm value) -> std::string_view;
+[[nodiscard]] auto to_string(ComplexityTerm value) -> std::string_view;
 
 enum class ReducedChargePolicy : std::uint8_t {
     unsupported,

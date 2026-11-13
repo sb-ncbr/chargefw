@@ -3,7 +3,7 @@
 #include <chargefw/calculation/assessment.h>
 #include <chargefw/calculation/charge_issues.h>
 #include <chargefw/calculation/observer.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
@@ -27,7 +27,7 @@ struct EffectiveCalculation {
     std::optional<std::string> parameter_set_id;
     methods::MethodOptions method_options;
     ExecutionPolicy execution_policy;
-    std::vector<ExecutionIssue> execution_issues;
+    std::vector<ExecutionIssue> warnings;
     std::optional<FixedIons> fixed_ions{};
 };
 

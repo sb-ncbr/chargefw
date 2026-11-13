@@ -31,9 +31,9 @@ auto method_descriptors() -> nb::list {
         descriptor["requires_coordinates"] = requirements.coordinates;
         descriptor["requires_bonds"] = requirements.bonds;
         descriptor["time_complexity"] =
-            std::string{methods::complexity_notation(requirements.resources.time)};
+            std::string{methods::to_string(requirements.resources.time)};
         descriptor["memory_complexity"] =
-            std::string{methods::complexity_notation(requirements.resources.memory)};
+            std::string{methods::to_string(requirements.resources.memory)};
         descriptor["supports_cutoff"] = requirements.resources.supports_cutoff;
         descriptor["supports_cover"] = requirements.resources.supports_cover;
         descriptor["supports_fixed_ions"] = requirements.supports_fixed_point_sources;

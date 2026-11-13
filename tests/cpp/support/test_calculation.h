@@ -4,7 +4,7 @@
 
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/calculation/observer.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/methods/method_options.h>
 #include <chargefw/parameters/models/parameter_set.h>

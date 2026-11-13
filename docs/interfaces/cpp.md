@@ -372,8 +372,8 @@ To look up a method by ID, use `methods::method_registry().find(id)`, which retu
 
 `methods::method_registry()` lists the built-in methods by descending priority, then ID, with their
 metadata, notes, requirements, and option schemas. `MethodMetadata::recommended` tells whether the
-method's charges are recommended for general use. `methods::complexity_notation()` formats the declared
-time and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
+method's charges are recommended for general use. `methods::to_string()` formats the declared time
+and memory complexity, and `Method::estimate()` returns the approximate memory and operations of
 one molecule of a given `TargetSize`. A method supports cutoff and cover when
 `ResourceRequirements::supports_cutoff` and `supports_cover` are set; its `reduced_charge_policy`
 says how the fragments' charges are kept, as described in

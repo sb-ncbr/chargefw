@@ -1,4 +1,4 @@
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>

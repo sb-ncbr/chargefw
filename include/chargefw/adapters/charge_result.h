@@ -2,7 +2,7 @@
 
 #include <chargefw/adapters/molecule_record.h>
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/issue_location.h>
 #include <chargefw/methods/method_options.h>
 

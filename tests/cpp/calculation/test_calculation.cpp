@@ -600,7 +600,7 @@ TEST_CASE("explicit full execution reports its plan and effective provenance",
     CHECK(result.effective->method_id == "formal");
     CHECK_FALSE(result.effective->parameter_set_id.has_value());
     CHECK(result.effective->execution_policy.mode() == calculation::ExecutionMode::full);
-    CHECK(result.effective->execution_issues.empty());
+    CHECK(result.effective->warnings.empty());
 }
 
 TEST_CASE("resource thresholds guide automatic execution and warn on explicit full execution",
@@ -615,7 +615,7 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
     CHECK(automatic_fallback_result.effective->method_id == "eqeq");
     CHECK(automatic_fallback_result.effective->execution_policy.mode() ==
           calculation::ExecutionMode::cutoff);
-    CHECK(automatic_fallback_result.effective->execution_issues.empty());
+    CHECK(automatic_fallback_result.effective->warnings.empty());
 
     const auto automatic_mgc_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
@@ -638,8 +638,8 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
     REQUIRE(explicit_full_result.effective.has_value());
     CHECK(explicit_full_result.effective->execution_policy.mode() ==
           calculation::ExecutionMode::full);
-    REQUIRE(explicit_full_result.effective->execution_issues.size() == 1);
-    CHECK(explicit_full_result.effective->execution_issues[0].kind ==
+    REQUIRE(explicit_full_result.effective->warnings.size() == 1);
+    CHECK(explicit_full_result.effective->warnings[0].kind ==
           calculation::ExecutionIssueKind::resource_threshold_exceeded);
 
     const auto unlimited_result = calculate_application(calculation::AssessmentRequest{
@@ -651,7 +651,7 @@ TEST_CASE("resource thresholds guide automatic execution and warn on explicit fu
     REQUIRE(unlimited_result.calculated());
     CHECK(unlimited_result.charges->method_id() == std::string_view{"mgc"});
     REQUIRE(unlimited_result.effective.has_value());
-    CHECK(unlimited_result.effective->execution_issues.empty());
+    CHECK(unlimited_result.effective->warnings.empty());
 
     const auto unsupported_cutoff_result = calculate_application(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},

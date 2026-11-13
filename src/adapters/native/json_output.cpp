@@ -258,7 +258,7 @@ constexpr auto metric_scale = 1000.0;
         const auto& value = *execution->effective;
         effective["method"] = optional_id(value.method_id);
         effective["parameter_set"] = optional_id(value.parameter_set_id);
-        for (const auto& issue : value.execution_issues) {
+        for (const auto& issue : value.warnings) {
             effective["warnings"].push_back(issue.message);
         }
         effective["execution"] = {

@@ -123,7 +123,7 @@ auto validate_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
     if (!execution.effective.has_value()) {
         return {};
     }
-    return execution.effective->execution_issues;
+    return execution.effective->warnings;
 }
 
 auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> records,

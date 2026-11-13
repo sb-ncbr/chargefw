@@ -5,7 +5,7 @@
 #include <chargefw/adapters/gemmi/mmcif_output.h>
 #include <chargefw/adapters/gemmi/pdb_input.h>
 #include <chargefw/charges/atomic_charges.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/version.h>
 
 #include <gemmi/cif.hpp>

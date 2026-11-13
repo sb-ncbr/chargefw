@@ -155,7 +155,7 @@ auto effective_calculation(const calculation::EffectiveCalculation& effective) -
     result["method_options"] = method_options(effective.method_options);
     result["execution_policy"] = execution_policy(effective.execution_policy);
     auto issues = nb::list{};
-    for (const auto& issue : effective.execution_issues) {
+    for (const auto& issue : effective.warnings) {
         issues.append(execution_issue(issue));
     }
     result["execution_issues"] = std::move(issues);

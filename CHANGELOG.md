@@ -95,6 +95,11 @@
   rejects a classification that does not fit its molecule and parameter set.
   `<chargefw/parameters/classification/parameter_classification.h>` no longer includes the molecule
   and parameter-set headers.
+- Breaking change: three names now match what they name.
+  `calculation::EffectiveCalculation::execution_issues` is `warnings`, as in
+  `ExecutionPlan::warnings()`; `<chargefw/charges/charge_collection.h>` is
+  `<chargefw/charges/charge_set.h>`, after the `ChargeSet` it declares; and
+  `methods::complexity_notation(term)` is `methods::to_string(term)`.
 - Enumerations and `std::variant` types, such as `calculation::RejectionIssue`, may gain values and
   alternatives in later releases; give a `switch` a `default` and `std::visit` a fallback overload.
 - `methods::Method` is the interface of the built-in methods, and only ChargeFW implements it:

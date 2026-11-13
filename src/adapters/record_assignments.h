@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chargefw/adapters/charge_result.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 
 #include <cstddef>
 #include <span>

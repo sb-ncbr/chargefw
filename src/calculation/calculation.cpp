@@ -184,7 +184,7 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
         .parameter_set_id = methods::detail::parameter_set_id_for(selected),
         .method_options = selected.method_options,
         .execution_policy = policy_,
-        .execution_issues = warnings_,
+        .warnings = warnings_,
         .fixed_ions = fixed_charge_partition == nullptr
                           ? std::nullopt
                           : std::optional{make_fixed_ions_provenance(*fixed_charge_partition)}};

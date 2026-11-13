@@ -234,9 +234,8 @@ void print_methods(const std::string& method_id) {
     std::println("recommended: {}", metadata.recommended ? "yes" : "no");
     std::println("requires coordinates: {}", requirements.coordinates ? "yes" : "no");
     std::println("requires bonds: {}", requirements.bonds ? "yes" : "no");
-    std::println("time complexity: {}", methods::complexity_notation(requirements.resources.time));
-    std::println("memory complexity: {}",
-                 methods::complexity_notation(requirements.resources.memory));
+    std::println("time complexity: {}", methods::to_string(requirements.resources.time));
+    std::println("memory complexity: {}", methods::to_string(requirements.resources.memory));
     std::println("supports cutoff: {}", requirements.resources.supports_cutoff ? "yes" : "no");
     std::println("supports cover: {}", requirements.resources.supports_cover ? "yes" : "no");
     std::println("supports fixed ions: {}",

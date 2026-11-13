@@ -5,7 +5,7 @@
 #include <chargefw/adapters/gemmi/pdb_input.h>
 #include <chargefw/adapters/native/pqr_output.h>
 #include <chargefw/charges/atomic_charges.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>

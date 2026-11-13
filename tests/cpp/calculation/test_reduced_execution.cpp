@@ -373,7 +373,7 @@ TEST_CASE("automatic execution selects reduced modes from resource thresholds",
     REQUIRE(explicit_cutoff_above_cover_threshold.effective.has_value());
     CHECK(explicit_cutoff_above_cover_threshold.effective->execution_policy.mode() ==
           calculation::ExecutionMode::cutoff);
-    CHECK(explicit_cutoff_above_cover_threshold.effective->execution_issues.size() == 1);
+    CHECK(explicit_cutoff_above_cover_threshold.effective->warnings.size() == 1);
 }
 
 TEST_CASE("whole-molecule reduced execution matches full execution for each charge policy",

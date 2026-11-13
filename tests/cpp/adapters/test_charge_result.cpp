@@ -3,7 +3,7 @@
 #include <chargefw/adapters/charge_result.h>
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/charges/atomic_charges.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -266,7 +266,7 @@ TEST_CASE("plan warnings go to their molecule's record or to the document", "[ad
     const auto make_result = [&records](
                                  std::vector<chargefw::calculation::ExecutionIssue> warnings) {
         auto effective = full_effective("eem");
-        effective.execution_issues = std::move(warnings);
+        effective.warnings = std::move(warnings);
         return adapters::make_charge_calculation_result(
             records, {},
             {.status = calculation::ExecutionStatus::cancelled, .effective = std::move(effective)});

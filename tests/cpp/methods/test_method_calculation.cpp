@@ -5,7 +5,7 @@
 #include "support/test_parameters.h"
 
 #include <chargefw/calculation/calculation.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/calculation_input.h>

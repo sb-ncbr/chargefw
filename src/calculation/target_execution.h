@@ -5,7 +5,7 @@
 #include "methods/applicable_method_execution.h"
 #include "methods/method_applicability.h"
 
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
 

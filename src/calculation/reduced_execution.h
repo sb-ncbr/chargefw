@@ -6,7 +6,7 @@
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/observer.h>
 #include <chargefw/charges/atomic_charges.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/features/prepared_molecule.h>
 #include <chargefw/features/prepared_molecule_collection.h>

@@ -4,7 +4,7 @@
 
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/observer.h>
-#include <chargefw/charges/charge_collection.h>
+#include <chargefw/charges/charge_set.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 
 #include <cstddef>
