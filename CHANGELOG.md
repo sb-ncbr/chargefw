@@ -95,6 +95,9 @@
   rejects a classification that does not fit its molecule and parameter set.
   `<chargefw/parameters/classification/parameter_classification.h>` no longer includes the molecule
   and parameter-set headers.
+- `methods::Method` is the interface of the built-in methods, and only ChargeFW implements it:
+  requests select methods by ID from `methods::method_registry()`, so a class derived elsewhere is
+  never selected. Later releases may add pure virtual functions to it.
 - `methods::MethodRegistry::require(id)` returns a `const Method&` or throws
   `std::invalid_argument` if the method is not registered. `find(id)` remains a nullable lookup.
 - Breaking change: `AtomParameterAccessor::operator[]` and `BondParameterAccessor::operator[]`

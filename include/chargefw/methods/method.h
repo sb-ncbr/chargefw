@@ -12,6 +12,9 @@
 
 namespace chargefw::methods {
 
+// The interface of the built-in methods. Only ChargeFW implements it: requests select methods by ID
+// from method_registry(), which holds the built-in methods only, so a class derived elsewhere is
+// never selected. Later releases may add pure virtual functions.
 class Method {
   public:
     Method(const Method&) = delete;
