@@ -72,7 +72,7 @@ of atoms.
 | `record_id` | ID of the record in the file, such as the SDF title line or the mmCIF block name; `None` when there is none |
 | `source` | `SourceIdentity` with `source_name`, `record_index`, and `record_id` together |
 | `source_mapping` | `SourceMapping` linking atoms and conformers to the file; `None` for molecules built from arrays; see [Where atoms came from](../interfaces/python.md#where-atoms-came-from) |
-| `import_issues` | Tuple of `ImportIssue`: what the reader left out of the record |
+| `import_warnings` | Tuple of `ImportIssue`: what the reader left out of the record |
 
 ### MoleculeCollection
 

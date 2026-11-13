@@ -278,7 +278,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
         CHECK(result.molecule.atom(0).name().empty());
         CHECK(result.molecule.bond(0).first_atom_index() == 0);
         CHECK(result.molecule.bond(0).second_atom_index() == 1);
-        CHECK(result.issues.empty());
+        CHECK(result.import_warnings.empty());
     }
 }
 
@@ -291,7 +291,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
         CHECK(result.molecule.bond_count() == 1);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
         CHECK(result.molecule.atom(1).formal_charge() == -1);
-        CHECK(result.issues.empty());
+        CHECK(result.import_warnings.empty());
     }
 
     {
@@ -305,13 +305,13 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
         CHECK(result.molecule.bond(1).first_atom_index() == 1);
         CHECK(result.molecule.bond(1).second_atom_index() == 3);
         CHECK(result.molecule.bond(1).order() == chargefw::core::BondOrder::DOUBLE);
-        REQUIRE(result.issues.size() == 2);
-        CHECK(result.issues[0].kind ==
+        REQUIRE(result.import_warnings.size() == 2);
+        CHECK(result.import_warnings[0].kind ==
               chargefw::adapters::ImportIssueKind::v3000_bond_order_ignored);
-        CHECK(result.issues[0].line == 15);
-        CHECK(result.issues[1].kind ==
+        CHECK(result.import_warnings[0].line == 15);
+        CHECK(result.import_warnings[1].kind ==
               chargefw::adapters::ImportIssueKind::v3000_bond_order_ignored);
-        CHECK(result.issues[1].line == 17);
+        CHECK(result.import_warnings[1].line == 17);
     }
 
     {
@@ -322,10 +322,10 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
         const auto& hem_record = *result;
         CHECK(hem_record.molecule.atom_count() == 75);
         CHECK(hem_record.molecule.bond_count() == 80);
-        REQUIRE(hem_record.issues.size() == 1);
-        CHECK(hem_record.issues[0].kind ==
+        REQUIRE(hem_record.import_warnings.size() == 1);
+        CHECK(hem_record.import_warnings[0].kind ==
               chargefw::adapters::ImportIssueKind::v3000_bond_order_ignored);
-        CHECK(hem_record.issues[0].line == 164);
+        CHECK(hem_record.import_warnings[0].line == 164);
         CHECK_FALSE(reader.next().has_value());
     }
 
@@ -336,8 +336,8 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
             "    1.4000    0.0000    0.0000 C   0  0\n  1  2  4\nM  END\n"};
         const auto result = mol::parse_mol(aromatic, {});
         CHECK(result.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
-        REQUIRE(result.issues.size() == 1);
-        CHECK(result.issues[0].kind ==
+        REQUIRE(result.import_warnings.size() == 1);
+        CHECK(result.import_warnings[0].kind ==
               chargefw::adapters::ImportIssueKind::aromatic_bonds_converted);
     }
 }
@@ -368,8 +368,8 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
         REQUIRE(sdf_reader.next().has_value());
         const auto second = sdf_reader.next();
         REQUIRE(second.has_value());
-        REQUIRE(second->issues.size() == 1);
-        CHECK(second->issues[0].line == 13);
+        REQUIRE(second->import_warnings.size() == 1);
+        CHECK(second->import_warnings[0].line == 13);
         CHECK_THROWS_MATCHES(sdf_reader.next(), std::runtime_error,
                              snitch::matchers::with_what_contains{"input.sdf:24: record 3"});
 
@@ -383,8 +383,8 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
         REQUIRE(mol2_reader.next().has_value());
         const auto second_mol2 = mol2_reader.next();
         REQUIRE(second_mol2.has_value());
-        REQUIRE(second_mol2->issues.size() == 1);
-        CHECK(second_mol2->issues[0].line == 12);
+        REQUIRE(second_mol2->import_warnings.size() == 1);
+        CHECK(second_mol2->import_warnings[0].line == 12);
         CHECK_THROWS_MATCHES(mol2_reader.next(), std::runtime_error,
                              snitch::matchers::with_what_contains{"input.mol2:20: record 3"});
     }
@@ -429,10 +429,10 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
         CHECK(mol2_record.molecule.atom(0).formal_charge() == 0);
         CHECK(mol2_record.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
         CHECK(mol2_record.molecule.bond(1).order() == chargefw::core::BondOrder::DOUBLE);
-        REQUIRE(mol2_record.issues.size() == 2);
-        CHECK(mol2_record.issues[0].kind ==
+        REQUIRE(mol2_record.import_warnings.size() == 2);
+        CHECK(mol2_record.import_warnings[0].kind ==
               chargefw::adapters::ImportIssueKind::partial_charges_ignored);
-        CHECK(mol2_record.issues[1].kind ==
+        CHECK(mol2_record.import_warnings[1].kind ==
               chargefw::adapters::ImportIssueKind::aromatic_bonds_converted);
         CHECK_FALSE(reader.next().has_value());
     }
@@ -450,11 +450,11 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
         REQUIRE(result.has_value());
         CHECK(result->molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
         CHECK(result->molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
-        REQUIRE(result->issues.size() == (aromatic ? 1U : 0U));
+        REQUIRE(result->import_warnings.size() == (aromatic ? 1U : 0U));
         if (aromatic) {
-            CHECK(result->issues[0].kind ==
+            CHECK(result->import_warnings[0].kind ==
                   chargefw::adapters::ImportIssueKind::aromatic_bonds_converted);
-            CHECK(result->issues[0].location.bond_indices == std::vector<std::size_t>{1});
+            CHECK(result->import_warnings[0].location.bond_indices == std::vector<std::size_t>{1});
         }
     }
 }
@@ -533,7 +533,7 @@ TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapt
     CHECK(formate->molecule.atom(1).formal_charge() == 0);
     CHECK(formate->molecule.atom(2).formal_charge() == -1);
     CHECK(formate->molecule.bond_count() == 2);
-    CHECK(formate->issues.empty());
+    CHECK(formate->import_warnings.empty());
 
     const auto ammonium = reader.next();
     REQUIRE(ammonium.has_value());
@@ -614,13 +614,13 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
     CHECK(drawing.molecule.conformer_count() == 0);
     REQUIRE(drawing.import_metadata.has_value());
     CHECK(drawing.import_metadata->conformers.empty());
-    REQUIRE(drawing.issues.size() == 1);
-    CHECK(drawing.issues.front().kind ==
+    REQUIRE(drawing.import_warnings.size() == 1);
+    CHECK(drawing.import_warnings.front().kind ==
           chargefw::adapters::ImportIssueKind::coordinates_2d_ignored);
 
     const auto geometry = read("water_3d.sdf");
     CHECK(geometry.molecule.conformer_count() == 1);
-    CHECK(geometry.issues.empty());
+    CHECK(geometry.import_warnings.empty());
 
     // Only the header declaration counts: V3000 records too, and flat records without it are kept.
     auto v3000_stream = std::ifstream{fixture("synthetic/mol/v3000/charged_atoms.mol")};
@@ -646,9 +646,10 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
         auto input = std::istringstream{text};
         const auto record = mol::parse_mol(input, {.source_name = "input.mol"});
         CHECK(record.molecule.conformer_count() == conformers);
-        CHECK(std::ranges::count(
-                  record.issues, chargefw::adapters::ImportIssueKind::coordinates_2d_ignored,
-                  &chargefw::adapters::ImportIssue::kind) == (conformers == 0 ? 1 : 0));
+        CHECK(std::ranges::count(record.import_warnings,
+                                 chargefw::adapters::ImportIssueKind::coordinates_2d_ignored,
+                                 &chargefw::adapters::ImportIssue::kind) ==
+              (conformers == 0 ? 1 : 0));
     }
 }
 
@@ -721,7 +722,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
     CHECK(v2000_record.molecule.bond_count() == 1);
     CHECK(v2000_record.molecule.atom(0).formal_charge() == 0);
     CHECK(v2000_record.molecule.atom(1).formal_charge() == -1);
-    CHECK(v2000_record.issues.empty());
+    CHECK(v2000_record.import_warnings.empty());
 
     const auto source = v3000_with_coordinates("0 0 0");
     const auto atoms_and_bonds = source.substr(0, source.find("M  V30 END CTAB\n"));
@@ -736,7 +737,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
         std::istringstream input{atoms_and_bonds + tail};
         const auto record = mol::parse_mol(input, {});
         CHECK(record.molecule.atom_count() == 1);
-        CHECK(record.issues.empty());
+        CHECK(record.import_warnings.empty());
     }
 
     // Ignoring stops at M  END; without it, the SDF record delimiter or the end of input is an

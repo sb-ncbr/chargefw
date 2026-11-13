@@ -60,16 +60,16 @@ _OPTION_VALUES: dict[str, tuple[str, ...]] = {
 
 
 class _ImportedMolecule(Molecule):
-    __slots__ = ("_import_issues", "_native_input_metadata")
+    __slots__ = ("_import_warnings", "_native_input_metadata")
 
-    _import_issues: tuple[ImportIssue, ...]
+    _import_warnings: tuple[ImportIssue, ...]
     _native_input_metadata: _native_adapters._NativeInputMetadata
 
     @property
-    def import_issues(self) -> tuple[ImportIssue, ...]:
+    def import_warnings(self) -> tuple[ImportIssue, ...]:
         """Cautions from reading this molecule's file."""
 
-        return self._import_issues
+        return self._import_warnings
 
 
 def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
@@ -142,7 +142,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
     object.__setattr__(result, "_source_mapping", source_mapping)
     object.__setattr__(
         result,
-        "_import_issues",
+        "_import_warnings",
         tuple(
             ImportIssue(
                 kind=kind,
@@ -151,7 +151,7 @@ def _molecule(payload: _native_adapters.MoleculePayload) -> Molecule:
                 atom_indices=index_array(atoms),
                 bond_indices=index_array(bonds),
             )
-            for kind, message, line, atoms, bonds in payload["import_issues"]
+            for kind, message, line, atoms, bonds in payload["import_warnings"]
         ),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
@@ -247,13 +247,13 @@ def _import_warnings(
         (
             (index, issue)
             for index, molecule in enumerate(collection)
-            for issue in molecule.import_issues
+            for issue in molecule.import_warnings
         ),
         kinds=IMPORT_WARNING_KINDS,
         category=InputWarning,
         molecule_count=len(collection),
         describe=describe,
-        attribute="molecule.import_issues",
+        attribute="molecule.import_warnings",
     )
 
 

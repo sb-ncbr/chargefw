@@ -94,7 +94,7 @@ result JSON lists each one.
 Result JSON records each warning with its code in the `diagnostics` of the molecule's record, or of
 the document when it concerns no single molecule. In Python, the warnings that can make the charges
 wrong are also [Python warnings](../interfaces/python.md#warnings), which Python prints when your
-script runs; every warning is recorded in `molecule.import_issues`, `result.input_warnings`,
+script runs; every warning is recorded in `molecule.import_warnings`, `result.input_warnings`,
 `result.charge_warnings`, or `result.plan.warnings`.
 
 | Code | Meaning | What to do | Python warning |

@@ -225,7 +225,7 @@ struct ImportedMoleculeRecord {
     // Explicit caller IDs are separate from source mappings, whose source positions and tokens
     // remain authoritative for imported records.
     std::optional<std::vector<PortableId>> caller_atom_ids;
-    std::vector<ImportIssue> issues;
+    std::vector<ImportIssue> import_warnings;
     std::optional<MoleculeImportMetadata> import_metadata;
 
     [[nodiscard]] auto operator==(const ImportedMoleculeRecord&) const -> bool = default;

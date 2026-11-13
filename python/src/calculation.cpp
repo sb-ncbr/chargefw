@@ -406,7 +406,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
                                                    .identity = std::move(source_identities[index]),
                                                    .caller_atom_ids =
                                                        std::move(source_caller_atom_ids[index]),
-                                                   .issues = {},
+                                                   .import_warnings = {},
                                                    .import_metadata = std::nullopt}
                 : source_metadata[index]->make_record(molecule));
         owned_molecules.push_back(std::move(molecule));

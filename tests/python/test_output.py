@@ -264,13 +264,13 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
 
     manual = chargefw.Molecule([1], source_name="manual")
     # Reader warnings are visible before calculation; molecules built in Python have none.
-    assert [value.kind for value in imported_molecule.import_issues] == [
+    assert [value.kind for value in imported_molecule.import_warnings] == [
         "partial_charges_ignored",
         "aromatic_bonds_converted",
     ]
-    assert manual.import_issues == ()
+    assert manual.import_warnings == ()
     # The warning lists the aromatic bond, here the first, as Python and result JSON give it.
-    aromatic = imported_molecule.import_issues[1]
+    aromatic = imported_molecule.import_warnings[1]
     assert aromatic.bond_indices.tolist() == [0]
     assert not aromatic.bond_indices.flags.writeable
     result = chargefw.calculate([manual, imported_molecule], method="formal")

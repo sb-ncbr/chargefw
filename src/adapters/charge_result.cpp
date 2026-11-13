@@ -521,7 +521,7 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         }
         return std::move(diagnostics);
     };
-    for (const auto& issue : records[molecule_index].issues) {
+    for (const auto& issue : records[molecule_index].import_warnings) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
         imported.code = to_string(issue.kind);

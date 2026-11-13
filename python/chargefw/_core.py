@@ -310,7 +310,7 @@ class Molecule:
         return self._source.source_name
 
     @property
-    def import_issues(self) -> tuple[ImportIssue, ...]:
+    def import_warnings(self) -> tuple[ImportIssue, ...]:
         """Cautions from reading this molecule's file; empty for molecules built in Python."""
 
         return ()

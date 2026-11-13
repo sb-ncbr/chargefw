@@ -182,7 +182,7 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
                    {.bonds = gemmi_adapter::BondStrategy::templates});
     CHECK(record.molecule.atom_count() == 21);
     CHECK(record.molecule.bond_count() == 23);
-    CHECK(record.issues.empty());
+    CHECK(record.import_warnings.empty());
 }
 
 TEST_CASE("input options and source descriptions share stable string conversion",
@@ -431,7 +431,7 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
         auto codes = std::vector<std::string>{};
         for (const auto& issue :
-             read_first(atoms + connectivity + "END\n", {.bonds = strategy}).issues) {
+             read_first(atoms + connectivity + "END\n", {.bonds = strategy}).import_warnings) {
             codes.emplace_back(chargefw::adapters::to_string(issue.kind));
         }
         return codes;
@@ -440,9 +440,9 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     CHECK(read_codes("", Strategy::hybrid) == std::vector<std::string>{"unbonded_residue_atoms"});
     // The warning lists the ligand's atoms, not the ion.
     const auto unbonded = read_first(atoms + "END\n", {.bonds = Strategy::hybrid});
-    REQUIRE(unbonded.issues.size() == 1);
-    CHECK(unbonded.issues[0].location.atom_index == 0);
-    CHECK(unbonded.issues[0].location.atom_indices == std::vector<std::size_t>{0, 1});
+    REQUIRE(unbonded.import_warnings.size() == 1);
+    CHECK(unbonded.import_warnings[0].location.atom_index == 0);
+    CHECK(unbonded.import_warnings[0].location.atom_indices == std::vector<std::size_t>{0, 1});
     CHECK(read_codes("CONECT    1    2\n", Strategy::hybrid).empty());
     CHECK(read_codes("", Strategy::none).empty());
 }
@@ -468,8 +468,8 @@ END
     const auto symmetry =
         read_link("LINK         C   ALA A   1                 C1  LIG A   5     1555   2555");
     CHECK(symmetry.molecule.bond_count() == 0);
-    REQUIRE(symmetry.issues.size() == 1);
-    CHECK(symmetry.issues.front().kind ==
+    REQUIRE(symmetry.import_warnings.size() == 1);
+    CHECK(symmetry.import_warnings.front().kind ==
           chargefw::adapters::ImportIssueKind::symmetry_connections_ignored);
 }
 

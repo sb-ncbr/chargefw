@@ -62,7 +62,7 @@ TEST_CASE("result assembly validates fixed ion provenance", "[adapters][result]"
 TEST_CASE("results hold either an execution or a failed request", "[adapters][result]") {
     const auto records = std::vector{adapters::ImportedMoleculeRecord{
         .molecule = core::Molecule{std::vector{core::Atom{1}}},
-        .issues = {
+        .import_warnings = {
             {.kind = adapters::ImportIssueKind::partial_charges_ignored, .message = "ignored"}}}};
 
     const auto cancelled = adapters::make_charge_calculation_result(

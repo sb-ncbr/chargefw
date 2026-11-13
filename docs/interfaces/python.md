@@ -48,13 +48,13 @@ for molecule in molecules:
     )
 ```
 
-A reader that ignores part of a record says so in `molecule.import_issues`, a tuple of
+A reader that ignores part of a record says so in `molecule.import_warnings`, a tuple of
 `chargefw.ImportIssue` with a `kind`, a `message`, and the file `line` when known. For example,
 partial charges in a MOL2 or mmCIF file give `partial_charges_ignored`, and bonds to symmetry-related
 copies in a crystal structure give `symmetry_connections_ignored`. Molecules created in Python have none.
 
 ```python
-for issue in molecules[0].import_issues:
+for issue in molecules[0].import_warnings:
     print(issue.kind, issue.message)
 ```
 
@@ -259,7 +259,7 @@ script.py:4: InputWarning: molecule 1 ('1CRN'): the molecule contains carbon but
 Both derive from `chargefw.ChargeFWWarning`. A call that finds the same problem in several molecules
 raises one warning that counts them. Other cautions, such as partial charges in the file that
 ChargeFW does not use, raise no warning. Every caution, with the atoms it concerns, is recorded in
-`molecule.import_issues`, `result.input_warnings`, `result.charge_warnings`, and
+`molecule.import_warnings`, `result.input_warnings`, `result.charge_warnings`, and
 `result.plan.warnings`. A calculation that fails raises its [error](#errors) instead of warnings;
 the cautions are in the error's `result`.
 

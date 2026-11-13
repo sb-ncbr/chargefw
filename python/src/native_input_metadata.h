@@ -21,7 +21,7 @@ class NativeInputMetadata {
         return adapters::ImportedMoleculeRecord{.molecule = std::move(molecule),
                                                 .identity = identity_,
                                                 .caller_atom_ids = std::nullopt,
-                                                .issues = issues_,
+                                                .import_warnings = issues_,
                                                 .import_metadata = import_metadata_};
     }
 

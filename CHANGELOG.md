@@ -40,6 +40,8 @@
 
 ### Python
 
+- Breaking change: `Molecule.import_issues` is now `import_warnings`, as `input_warnings`,
+  `charge_warnings`, and `plan.warnings` name the other cautions.
 - Breaking change: both `attach_charges()` functions, in `chargefw.io.gemmi` and
   `chargefw.io.rdkit`, take `if_exists="error"` (default) or `"replace"` instead of
   `overwrite=False` or `True`. The values are `chargefw.io.IfExists`.
@@ -120,6 +122,8 @@
 
 ### C++
 
+- Breaking change: `adapters::ImportedMoleculeRecord::issues` is now `import_warnings`, as in
+  Python.
 - Breaking change: `adapters::ExecutionMetrics::peak_resident_memory_mb` is now
   `peak_resident_memory_bytes`, a `std::uint64_t`.
 - Breaking change: `adapters::MoleculeRecordIdentity::source` is now `source_name`, as in Python

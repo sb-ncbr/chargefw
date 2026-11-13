@@ -753,7 +753,7 @@ def test_issues_that_can_make_charges_wrong_raise_python_warnings() -> None:
         lambda: chargefw.io.parse(FIXED_IONS_MMCIF, format="mmcif", bonds="explicit")
     )
     assert unbonded.category is chargefw.InputWarning
-    assert "(unbonded_residue_atoms; see molecule.import_issues)" in str(unbonded.message)
+    assert "(unbonded_residue_atoms; see molecule.import_warnings)" in str(unbonded.message)
     assert unbonded.filename == __file__
     assert chargefw_warnings(lambda: calculate_formal(water())) == []
     assert chargefw_warnings(lambda: chargefw.assess(chargefw.Molecule([6]))) == []

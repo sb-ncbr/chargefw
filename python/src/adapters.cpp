@@ -57,7 +57,7 @@ struct MoleculePayload {
     std::vector<std::string> conformer_names;
     adapters::MoleculeRecordIdentity identity;
     std::optional<adapters::MoleculeImportMetadata> import_metadata;
-    std::vector<adapters::ImportIssue> import_issues;
+    std::vector<adapters::ImportIssue> import_warnings;
     std::shared_ptr<NativeInputMetadata> native_input_metadata;
 };
 
@@ -153,9 +153,9 @@ auto make_payload(adapters::ImportedMoleculeRecord record) -> MoleculePayload {
     }
 
     result.name = molecule.name();
-    result.import_issues = record.issues;
+    result.import_warnings = record.import_warnings;
     result.native_input_metadata = std::make_shared<NativeInputMetadata>(
-        record.identity, record.issues, record.import_metadata);
+        record.identity, record.import_warnings, record.import_metadata);
     result.identity = std::move(record.identity);
     result.import_metadata = std::move(record.import_metadata);
     return result;
@@ -173,14 +173,14 @@ auto as_python(const MoleculePayload& payload) -> nb::dict {
     result["source_name"] = payload.identity.source_name;
     result["record_index"] = payload.identity.record_index;
     result["record_id"] = portable_id(payload.identity.record_id);
-    nb::list import_issues;
-    for (const auto& issue : payload.import_issues) {
-        import_issues.append(nb::make_tuple(
+    nb::list import_warnings;
+    for (const auto& issue : payload.import_warnings) {
+        import_warnings.append(nb::make_tuple(
             std::string{adapters::to_string(issue.kind)}, issue.message,
             issue.line.has_value() ? nb::cast(*issue.line) : nb::none(),
             nb::cast(issue.location.atom_indices), nb::cast(issue.location.bond_indices)));
     }
-    result["import_issues"] = import_issues;
+    result["import_warnings"] = import_warnings;
     result["native_input_metadata"] = payload.native_input_metadata;
     if (payload.import_metadata.has_value()) {
         result["import_metadata"] = import_metadata(*payload.import_metadata);

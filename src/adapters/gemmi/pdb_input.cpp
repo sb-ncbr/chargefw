@@ -257,7 +257,7 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
         options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
         MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity);
     if (explicit_bonds.skipped_symmetry_connections > 0) {
-        record_->issues.push_back(
+        record_->import_warnings.push_back(
             bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
     }
 }

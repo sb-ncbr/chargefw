@@ -97,7 +97,7 @@ auto make_record(std::vector<core::Atom> atoms, std::vector<core::Bond> bonds,
                                                      std::move(conformers), std::move(name)},
                                   .identity = std::move(identity),
                                   .caller_atom_ids = std::nullopt,
-                                  .issues = std::move(issues),
+                                  .import_warnings = std::move(issues),
                                   .import_metadata = std::move(import_metadata)};
 }
 

@@ -216,15 +216,15 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
         if (!explicit_bonds.aromatic_bonds.empty()) {
-            record.issues.push_back(
+            record.import_warnings.push_back(
                 adapters::aromatic_bonds_issue(std::move(explicit_bonds.aromatic_bonds)));
         }
         if (explicit_bonds.skipped_symmetry_connections > 0) {
-            record.issues.push_back(
+            record.import_warnings.push_back(
                 bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
         }
         if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.")) {
-            record.issues.push_back(ImportIssue{
+            record.import_warnings.push_back(ImportIssue{
                 .kind = ImportIssueKind::partial_charges_ignored,
                 .message = "mmCIF partial charges were ignored; they are not formal charges and "
                            "were not used for calculation.",
