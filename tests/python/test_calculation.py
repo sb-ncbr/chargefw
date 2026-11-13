@@ -355,6 +355,8 @@ def test_observer_callback_failure_does_not_change_calculation() -> None:
 def test_method_scope_controls_methods_that_are_not_recommended() -> None:
     assert not chargefw.methods["veem"].recommended
     assert chargefw.methods["eem"].recommended
+    # Absent text is "", as for parameter sets.
+    assert chargefw.methods["formal"].publication == ""
 
     # VEEM needs no parameters and applies to water, but it is not recommended.
     recommended = chargefw.assess(water())
@@ -530,6 +532,8 @@ def test_objects_that_chargefw_creates_cannot_be_constructed() -> None:
     # A copy with another ID would name a set that does not exist.
     with pytest.raises(TypeError):
         replace(cast(Any, bundled), id="mine")
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.PeriodicTable)(tuple(chargefw.periodic_table))
 
 
 def test_plan_estimates_resources_for_a_thread_limit() -> None:

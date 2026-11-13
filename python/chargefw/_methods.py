@@ -72,7 +72,7 @@ class Method:
     id: str
     name: str
     full_name: str
-    publication: str | None
+    publication: str
     notes: str
     recommended: bool
     requires_coordinates: bool
@@ -106,7 +106,8 @@ def _method_descriptor(
         id=value["id"],
         name=value["name"],
         full_name=value["full_name"],
-        publication=value["publication"],
+        # Absent text is "" in Python, as for parameter sets.
+        publication=value["publication"] or "",
         notes=value["notes"],
         recommended=value["recommended"],
         requires_coordinates=value["requires_coordinates"],

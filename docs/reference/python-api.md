@@ -1,6 +1,6 @@
 # Python API reference
 
-This page lists every public function, class, and attribute of the `chargefw` package.
+This page lists the public functions, classes, and attributes of the `chargefw` package.
 [Python](../interfaces/python.md) shows how to use them together. All values are read-only, and all
 indices of molecules, atoms, bonds, and conformers count from zero.
 
@@ -341,7 +341,7 @@ Python warnings for cautions that can make the charges wrong; see
 | Attribute | Content |
 | --- | --- |
 | `id`, `name`, `full_name` | Such as `"peoe"`, `"PEOE"`, and `"Partial Equalization of Orbital Electronegativity"` |
-| `publication` | DOI of the method's publication, or `None` |
+| `publication` | DOI of the method's publication, or `""` |
 | `notes` | Remarks on how ChargeFW implements the method |
 | `recommended` | `True` for methods whose charges are recommended for general use; automatic selection uses only these unless `method_scope="all"` |
 | `requires_coordinates` | `True` for methods that use 3D coordinates |

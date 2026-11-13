@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: `Method.publication` is `""` for a method without a publication, not `None`,
+  as for parameter sets. `PeriodicTable` can no longer be constructed; use
+  `chargefw.periodic_table`.
 - Breaking change: `Molecule.import_issues` is now `import_warnings`, as `input_warnings`,
   `charge_warnings`, and `plan.warnings` name the other cautions.
 - Breaking change: both `attach_charges()` functions, in `chargefw.io.gemmi` and
