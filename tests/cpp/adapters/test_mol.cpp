@@ -20,19 +20,16 @@
 #include <vector>
 
 namespace adapters = chargefw::adapters;
-namespace mol = chargefw::adapters::native::mol_input;
-namespace mol2 = chargefw::adapters::native::mol2_input;
-namespace sdf = chargefw::adapters::native::sdf_input;
 
-static_assert(!std::is_copy_constructible_v<mol::MolReader> &&
-              !std::is_copy_assignable_v<mol::MolReader>);
-static_assert(!std::is_copy_constructible_v<sdf::SdfReader> &&
-              !std::is_copy_assignable_v<sdf::SdfReader>);
-static_assert(!std::is_copy_constructible_v<mol2::Mol2Reader> &&
-              !std::is_copy_assignable_v<mol2::Mol2Reader>);
-static_assert(std::is_move_constructible_v<mol::MolReader> &&
-              std::is_move_constructible_v<sdf::SdfReader> &&
-              std::is_move_constructible_v<mol2::Mol2Reader>);
+static_assert(!std::is_copy_constructible_v<adapters::MolReader> &&
+              !std::is_copy_assignable_v<adapters::MolReader>);
+static_assert(!std::is_copy_constructible_v<adapters::SdfReader> &&
+              !std::is_copy_assignable_v<adapters::SdfReader>);
+static_assert(!std::is_copy_constructible_v<adapters::Mol2Reader> &&
+              !std::is_copy_assignable_v<adapters::Mol2Reader>);
+static_assert(std::is_move_constructible_v<adapters::MolReader> &&
+              std::is_move_constructible_v<adapters::SdfReader> &&
+              std::is_move_constructible_v<adapters::Mol2Reader>);
 
 namespace {
 
@@ -99,7 +96,7 @@ class ScopedGlobalLocale final {
 TEST_CASE("native numeric parsing is complete and locale independent", "[adapters][native]") {
     {
         std::istringstream input{v3000_with_coordinates("+1.25 -2.5e1 3.125E-2")};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         const auto& position = record.molecule.conformer(0)[0];
         CHECK(position.x == 1.25);
         CHECK(position.y == -25.0);
@@ -109,14 +106,14 @@ TEST_CASE("native numeric parsing is complete and locale independent", "[adapter
     for (const auto* const coordinates : {"1.25suffix 0 0", "++1.25 0 0"}) {
         std::istringstream input{v3000_with_coordinates(coordinates)};
 
-        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+        CHECK_THROWS_AS(adapters::parse_mol(input, {}), std::runtime_error);
     }
 
     {
         const auto comma_locale = std::locale{std::locale::classic(), new DecimalCommaNumpunct{}};
         const auto locale_guard = ScopedGlobalLocale{comma_locale};
         std::istringstream input{v3000_with_coordinates("1.25 2.5e1 -3.125E-2")};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         const auto& position = record.molecule.conformer(0)[0];
         CHECK(position.x == 1.25);
         CHECK(position.y == 25.0);
@@ -131,7 +128,7 @@ TEST_CASE("native molecular mappings retain original atom tokens", "[adapters][m
                                  "M  V30 BEGIN CTAB\nM  V30 COUNTS 2 0 0 0 0\nM  V30 BEGIN ATOM\n"
                                  "M  V30 001 C 0 0 0 0\nM  V30 10 O 1 0 0 0\nM  V30 END ATOM\n"
                                  "M  V30 BEGIN BOND\nM  V30 END BOND\nM  V30 END CTAB\nM  END\n"};
-        auto reader = mol::MolReader{input, "mapping.mol"};
+        auto reader = adapters::MolReader{input, "mapping.mol"};
         return *reader.next();
     }();
 
@@ -147,7 +144,7 @@ TEST_CASE("native molecular mappings retain original atom tokens", "[adapters][m
     std::istringstream mol2_input{
         "@<TRIPOS>MOLECULE\nmapping\n2 0 0 0 0\nSMALL\nNO_CHARGES\n"
         "@<TRIPOS>ATOM\n001 C1 0 0 0 C.3\n10 O1 1 0 0 O.2\n@<TRIPOS>BOND\n"};
-    auto mol2_reader = mol2::Mol2Reader{mol2_input, "mapping.mol2"};
+    auto mol2_reader = adapters::Mol2Reader{mol2_input, "mapping.mol2"};
     const auto mol2_record = mol2_reader.next();
     REQUIRE(mol2_record.has_value());
     REQUIRE(mol2_record->import_metadata.has_value());
@@ -164,14 +161,14 @@ TEST_CASE("native MOL, SDF, and MOL2 input accepts CRLF", "[adapters][native]") 
 
     {
         auto input = std::istringstream{with_crlf(v2000)};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         CHECK(record.identity.record_id == "minimal");
         CHECK(record.molecule.atom_count() == 1);
     }
 
     {
         auto input = std::istringstream{with_crlf(v3000_with_coordinates("0 0 0"))};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         CHECK(record.identity.record_id == "coordinates");
         CHECK(record.molecule.atom_count() == 1);
     }
@@ -179,7 +176,7 @@ TEST_CASE("native MOL, SDF, and MOL2 input accepts CRLF", "[adapters][native]") 
     {
         auto input =
             std::istringstream{with_crlf(std::string{v2000} + "$$$$\n" + v2000 + "$$$$\n")};
-        auto reader = sdf::SdfReader{input, "records.sdf"};
+        auto reader = adapters::SdfReader{input, "records.sdf"};
         REQUIRE(reader.next().has_value());
         REQUIRE(reader.next().has_value());
         CHECK_FALSE(reader.next().has_value());
@@ -194,7 +191,7 @@ TEST_CASE("native MOL, SDF, and MOL2 input accepts CRLF", "[adapters][native]") 
         auto input = std::istringstream{
             with_crlf(std::string{v2000} + "$$$$\n" + untitled + "$$$$\n\n  \n")};
         input.exceptions(std::ios::failbit | std::ios::badbit);
-        auto reader = sdf::SdfReader{input, "trailing_blank_lines.sdf"};
+        auto reader = adapters::SdfReader{input, "trailing_blank_lines.sdf"};
         REQUIRE(reader.next().has_value());
         const auto second = reader.next();
         REQUIRE(second.has_value());
@@ -208,8 +205,8 @@ TEST_CASE("native MOL, SDF, and MOL2 input accepts CRLF", "[adapters][native]") 
                                 "@<TRIPOS>BOND\n1 1 2 1\n";
         auto lf_input = std::istringstream{source};
         auto crlf_input = std::istringstream{with_crlf(source)};
-        auto lf_reader = mol2::Mol2Reader{lf_input, "lf.mol2"};
-        auto crlf_reader = mol2::Mol2Reader{crlf_input, "crlf.mol2"};
+        auto lf_reader = adapters::Mol2Reader{lf_input, "lf.mol2"};
+        auto crlf_reader = adapters::Mol2Reader{crlf_input, "crlf.mol2"};
         const auto lf_record = lf_reader.next();
         const auto crlf_record = crlf_reader.next();
         REQUIRE(lf_record.has_value());
@@ -226,7 +223,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
           "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol/v2000/charged_atoms.mol")};
-        auto reader = mol::MolReader{input, "charged_v2000.mol"};
+        auto reader = adapters::MolReader{input, "charged_v2000.mol"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& record = *result;
@@ -250,19 +247,19 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
             "    1.0000    0.0000    0.0000 O   0  5  0  0  0  0  0  0  0  0  0  0\n"
             "    2.0000    0.0000    0.0000 Fe  0  2\n";
         std::istringstream block_only{std::string{atoms} + "M  END\n"};
-        const auto from_block = mol::parse_mol(block_only, {});
+        const auto from_block = adapters::parse_mol(block_only, {});
         CHECK(from_block.molecule.atom(0).formal_charge() == 1);
         CHECK(from_block.molecule.atom(1).formal_charge() == -1);
         CHECK(from_block.molecule.atom(2).formal_charge() == 2);
 
         std::istringstream with_chg{std::string{atoms} + "M  CHG  1   3   3\nM  END\n"};
-        const auto from_chg = mol::parse_mol(with_chg, {});
+        const auto from_chg = adapters::parse_mol(with_chg, {});
         CHECK(from_chg.molecule.atom(0).formal_charge() == 0);
         CHECK(from_chg.molecule.atom(1).formal_charge() == 0);
         CHECK(from_chg.molecule.atom(2).formal_charge() == 3);
 
         std::istringstream with_rad{std::string{atoms} + "M  RAD  1   3   2\nM  END\n"};
-        const auto from_rad = mol::parse_mol(with_rad, {});
+        const auto from_rad = adapters::parse_mol(with_rad, {});
         for (std::size_t index = 0; index < 3; ++index) {
             CHECK(from_rad.molecule.atom(index).formal_charge() == 0);
         }
@@ -270,7 +267,7 @@ TEST_CASE("native MOL input preserves V2000 and V3000 formal charges and bonds",
 
     {
         std::ifstream input{fixture("synthetic/mol/v3000/charged_atoms.mol")};
-        const auto result = mol::parse_mol(
+        const auto result = adapters::parse_mol(
             input, {.source_name = "charged_v3000.mol", .record_index = 0, .record_id = {}});
         CHECK(result.molecule.atom_count() == 2);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
@@ -286,7 +283,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
           "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol/v2000/ignored_properties.mol")};
-        const auto result = mol::parse_mol(input, {});
+        const auto result = adapters::parse_mol(input, {});
         CHECK(result.molecule.atom_count() == 2);
         CHECK(result.molecule.bond_count() == 1);
         CHECK(result.molecule.atom(0).formal_charge() == 1);
@@ -296,7 +293,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
 
     {
         std::ifstream input{fixture("synthetic/mol/v3000/bond_attributes_and_ignored_orders.mol")};
-        const auto result = mol::parse_mol(input, {});
+        const auto result = adapters::parse_mol(input, {});
         CHECK(result.molecule.atom_count() == 4);
         REQUIRE(result.molecule.bond_count() == 2);
         CHECK(result.molecule.bond(0).first_atom_index() == 0);
@@ -316,7 +313,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
 
     {
         std::ifstream input{fixture("corpus/sdf/heme/ideal.sdf")};
-        auto reader = sdf::SdfReader{input, "HEM_ideal.sdf"};
+        auto reader = adapters::SdfReader{input, "HEM_ideal.sdf"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& hem_record = *result;
@@ -334,7 +331,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
             "aromatic\nchargefw\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
             "    0.0000    0.0000    0.0000 C   0  0\n"
             "    1.4000    0.0000    0.0000 C   0  0\n  1  2  4\nM  END\n"};
-        const auto result = mol::parse_mol(aromatic, {});
+        const auto result = adapters::parse_mol(aromatic, {});
         CHECK(result.molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
         REQUIRE(result.import_warnings.size() == 1);
         CHECK(result.import_warnings[0].kind ==
@@ -344,7 +341,7 @@ TEST_CASE("native MOL and SDF input ignore unused properties and report left-out
 
 TEST_CASE("native reader diagnostics use file lines across records", "[adapters][native]") {
     std::istringstream unnamed_input{"broken\n"};
-    CHECK_THROWS_MATCHES(mol::parse_mol(unnamed_input, {}), std::runtime_error,
+    CHECK_THROWS_MATCHES(adapters::parse_mol(unnamed_input, {}), std::runtime_error,
                          snitch::matchers::with_what_contains{"line 2: record 1 ('broken'):"});
 
     for (const auto newline : {std::string_view{"\n"}, std::string_view{"\r\n"}}) {
@@ -364,7 +361,7 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
             "    0.0000    0.0000    0.0000 C   0  0\nM  ISO  1   1  13\nM  END\n"
             "> <comment>\nignored\n\n$$$$\n"};
         std::istringstream sdf_input{input_text(mol_record + mol_record + "broken\n")};
-        auto sdf_reader = sdf::SdfReader{sdf_input, "input.sdf"};
+        auto sdf_reader = adapters::SdfReader{sdf_input, "input.sdf"};
         REQUIRE(sdf_reader.next().has_value());
         const auto second = sdf_reader.next();
         REQUIRE(second.has_value());
@@ -379,7 +376,7 @@ TEST_CASE("native reader diagnostics use file lines across records", "[adapters]
             input_text("# preamble\n" + mol2_record + mol2_record +
                        "@<TRIPOS>MOLECULE\nbroken\n1 1\n@<TRIPOS>ATOM\n"
                        "1 C1 0 0 0 C.3\n@<TRIPOS>BOND\n1 1 9 1\n@<TRIPOS>SUBSTRUCTURE\nignored\n")};
-        auto mol2_reader = mol2::Mol2Reader{mol2_input, "input.mol2"};
+        auto mol2_reader = adapters::Mol2Reader{mol2_input, "input.mol2"};
         REQUIRE(mol2_reader.next().has_value());
         const auto second_mol2 = mol2_reader.next();
         REQUIRE(second_mol2.has_value());
@@ -395,23 +392,23 @@ TEST_CASE("native readers reject non-ASCII text on any line", "[adapters][native
                                "    0.0000    0.0000    0.0000 C   0  0\nM  END\n"};
     // A Latin-1 title, and UTF-8 text in a data item, which ChargeFW does not otherwise read.
     std::istringstream title_input{"Caf\xe9" + mol_body + "$$$$\n"};
-    auto title_reader = sdf::SdfReader{title_input, "input.sdf"};
+    auto title_reader = adapters::SdfReader{title_input, "input.sdf"};
     CHECK_THROWS_MATCHES(title_reader.next(), std::runtime_error,
                          snitch::matchers::with_what_contains{"input.sdf:1: record 1:"});
     std::istringstream data_input{"methane" + mol_body + "> <name>\n\xce\xb1-pinene\n\n$$$$\n"};
-    auto data_reader = sdf::SdfReader{data_input, "input.sdf"};
+    auto data_reader = adapters::SdfReader{data_input, "input.sdf"};
     CHECK_THROWS_MATCHES(
         data_reader.next(), std::runtime_error,
         snitch::matchers::with_what_contains{"input.sdf:8: record 1 ('methane'):"});
     std::istringstream mol_input{"methane" + mol_body + "Caf\xe9\n"};
-    auto mol_reader = mol::MolReader{mol_input, "input.mol"};
+    auto mol_reader = adapters::MolReader{mol_input, "input.mol"};
     CHECK_THROWS_MATCHES(
         mol_reader.next(), std::runtime_error,
         snitch::matchers::with_what_contains{"input.mol:7: record 1 ('methane'):"});
 
     std::istringstream mol2_input{"# \xe5\x88\x86\xe5\xad\x90\n@<TRIPOS>MOLECULE\nligand\n1 0\n"
                                   "@<TRIPOS>ATOM\n1 C1 0 0 0 C.3\n@<TRIPOS>BOND\n"};
-    auto mol2_reader = mol2::Mol2Reader{mol2_input, "input.mol2"};
+    auto mol2_reader = adapters::Mol2Reader{mol2_input, "input.mol2"};
     CHECK_THROWS_MATCHES(mol2_reader.next(), std::runtime_error,
                          snitch::matchers::with_what_contains{"input.mol2:1: record 1:"});
 }
@@ -419,7 +416,7 @@ TEST_CASE("native readers reject non-ASCII text on any line", "[adapters][native
 TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/mol2/aromatic.mol2")};
-        auto reader = mol2::Mol2Reader{input, "charged_aromatic.mol2"};
+        auto reader = adapters::Mol2Reader{input, "charged_aromatic.mol2"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& mol2_record = *result;
@@ -445,7 +442,7 @@ TEST_CASE("native MOL2 input preserves names, charges, and bond orders", "[adapt
                                         "3 N1 -1.3 0 0 N.am\n"
                                         "@<TRIPOS>BOND\n1 1 2 2\n2 1 3 " +
                                         type + "\n"};
-        auto reader = mol2::Mol2Reader{input, "bonds.mol2"};
+        auto reader = adapters::Mol2Reader{input, "bonds.mol2"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         CHECK(result->molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
@@ -469,7 +466,7 @@ TEST_CASE("MOL2 markers tolerate trailing whitespace without losing records",
                              "@<TRIPOS>ATOM \t\n1 Cl 1 0 0 Cl\n"
                              "@<TRIPOS>UNITY_ATOM_ATTR \t\n1 1\ncharge -1\n"
                              "@<TRIPOS>BOND \t\n"};
-    mol2::Mol2Reader reader{input, "padded.mol2"};
+    adapters::Mol2Reader reader{input, "padded.mol2"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
     CHECK(first->molecule.name() == "first");
@@ -489,7 +486,7 @@ TEST_CASE("MOL2 rejects repeated atom and bond sections", "[adapters][native]") 
         std::istringstream input{std::string{"@<TRIPOS>MOLECULE\nion\n1 0\nSMALL\nNO_CHARGES\n"
                                              "@<TRIPOS>ATOM\n1 Na 0 0 0 Na\n@<TRIPOS>BOND\n"} +
                                  repeated};
-        mol2::Mol2Reader reader{input, "duplicate.mol2"};
+        adapters::Mol2Reader reader{input, "duplicate.mol2"};
         CHECK_THROWS_AS(reader.next(), std::runtime_error);
     }
 }
@@ -500,7 +497,7 @@ TEST_CASE("MOL2 rejects atom and bond counts smaller than their sections", "[ada
         std::istringstream input{
             std::string{"@<TRIPOS>MOLECULE\npair\n"} + counts +
             "\n@<TRIPOS>ATOM\n1 C 0 0 0 C.3\n2 H 1 0 0 H\n@<TRIPOS>BOND\n1 1 2 1\n"};
-        mol2::Mol2Reader reader{input, "counts.mol2"};
+        adapters::Mol2Reader reader{input, "counts.mol2"};
         if (std::string_view{counts} == "2 1") {
             const auto record = reader.next();
             REQUIRE(record.has_value());
@@ -525,7 +522,7 @@ TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapt
                              "@<TRIPOS>MOLECULE\nammonium\n1 0 0 0 0\nSMALL\nNO_CHARGES\n\n"
                              "@<TRIPOS>ATOM\n1 N1 0 0 0 N.4\n@<TRIPOS>BOND\n"
                              "@<TRIPOS>UNITY_ATOM_ATTR\n1 2\nS N\ncharge 1\n"};
-    auto reader = mol2::Mol2Reader{input, "charged.mol2"};
+    auto reader = adapters::Mol2Reader{input, "charged.mol2"};
 
     const auto formate = reader.next();
     REQUIRE(formate.has_value());
@@ -550,7 +547,7 @@ TEST_CASE("native MOL2 input reads formal charges from UNITY_ATOM_ATTR", "[adapt
         CAPTURE(attributes);
         std::istringstream malformed{std::string{ammonium_record} + "@<TRIPOS>UNITY_ATOM_ATTR\n" +
                                      attributes + std::string{ammonium_record}};
-        auto malformed_reader = mol2::Mol2Reader{malformed, "malformed.mol2"};
+        auto malformed_reader = adapters::Mol2Reader{malformed, "malformed.mol2"};
         CHECK_THROWS_AS(static_cast<void>(malformed_reader.next()), std::runtime_error);
     }
 }
@@ -559,7 +556,7 @@ TEST_CASE("native SDF input preserves V2000, V3000, and multi-record streams",
           "[adapters][native]") {
     {
         std::ifstream input{fixture("synthetic/sdf/many_records.sdf")};
-        auto reader = sdf::SdfReader{input, "set500.sdf"};
+        auto reader = adapters::SdfReader{input, "set500.sdf"};
         std::size_t count = 0;
 
         while (const auto result = reader.next()) {
@@ -571,7 +568,7 @@ TEST_CASE("native SDF input preserves V2000, V3000, and multi-record streams",
 
     {
         std::ifstream input{fixture("synthetic/sdf/v3000.sdf")};
-        auto reader = sdf::SdfReader{input, "set_v3000.sdf"};
+        auto reader = adapters::SdfReader{input, "set_v3000.sdf"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& v3000_record = *result;
@@ -583,7 +580,7 @@ TEST_CASE("native SDF input preserves V2000, V3000, and multi-record streams",
 
     {
         std::ifstream input{fixture("synthetic/sdf/mixed_v2000_v3000.sdf")};
-        auto reader = sdf::SdfReader{input, "mixed_v2000_v3000.sdf"};
+        auto reader = adapters::SdfReader{input, "mixed_v2000_v3000.sdf"};
         const auto first = reader.next();
         const auto second = reader.next();
         REQUIRE(first.has_value());
@@ -600,7 +597,7 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
           "[adapters][native]") {
     const auto read = [](const std::string_view name) {
         std::ifstream input{fixture("synthetic/sdf/" + std::string{name})};
-        auto reader = sdf::SdfReader{input, std::string{name}};
+        auto reader = adapters::SdfReader{input, std::string{name}};
         auto record = reader.next();
         REQUIRE(record.has_value());
         CHECK_FALSE(reader.next().has_value());
@@ -644,7 +641,7 @@ TEST_CASE("native SDF input imports declared 2D drawings without coordinates",
               1}}) {
         CAPTURE(description);
         auto input = std::istringstream{text};
-        const auto record = mol::parse_mol(input, {.source_name = "input.mol"});
+        const auto record = adapters::parse_mol(input, {.source_name = "input.mol"});
         CHECK(record.molecule.conformer_count() == conformers);
         CHECK(std::ranges::count(record.import_warnings,
                                  chargefw::adapters::ImportIssueKind::coordinates_2d_ignored,
@@ -663,7 +660,7 @@ TEST_CASE("V3000 zero-bond records accept omitted and empty bond blocks", "[adap
                         "M  V30 BEGIN CTAB\nM  V30 COUNTS 1 0 0 0 0\nM  V30 BEGIN ATOM\n"
                         "M  V30 1 Na 0 0 0 0 CHG=1\nM  V30 END ATOM\n"} +
             bond_block + "M  V30 END CTAB\nM  END\n"};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         REQUIRE(record.molecule.atom_count() == 1);
         CHECK(record.molecule.atom(0).atomic_number() == 11);
         CHECK(record.molecule.atom(0).formal_charge() == 1);
@@ -693,7 +690,7 @@ TEST_CASE("V3000 stereo collections preserve the graph and SDF record boundaries
                     "M  V30 BEGIN COLLECTION\nM  V30 MDLV30/STERAC1 ATOMS=(2 2 -\n"
                     "M  V30 4)\nM  V30 END COLLECTION\nM  V30 END CTAB\nM  END\n"};
     std::istringstream input{stereo + "$$$$\n" + v3000_with_coordinates("1 2 3") + "$$$$\n"};
-    sdf::SdfReader reader{input, "stereo.sdf"};
+    adapters::SdfReader reader{input, "stereo.sdf"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
     REQUIRE(first->molecule.atom_count() == 6);
@@ -717,7 +714,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
                              "A    1\nM  END\nG    1  2\nM  CHG  1   1  -1\n"
                              "M  STY  1   1 SRU\nM  SAL   1  2   1   2\n"
                              "M  CHG  1   2  -1\nM  ISO  1   1  13\nM  END\n"};
-    const auto v2000_record = mol::parse_mol(v2000, {});
+    const auto v2000_record = adapters::parse_mol(v2000, {});
     CHECK(v2000_record.molecule.atom_count() == 2);
     CHECK(v2000_record.molecule.bond_count() == 1);
     CHECK(v2000_record.molecule.atom(0).formal_charge() == 0);
@@ -735,7 +732,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
           "M  V30 END CTAB\nM  V30 BEGIN RGROUP 1\nM  V30 END RGROUP\nM  END\n"}) {
         CAPTURE(tail);
         std::istringstream input{atoms_and_bonds + tail};
-        const auto record = mol::parse_mol(input, {});
+        const auto record = adapters::parse_mol(input, {});
         CHECK(record.molecule.atom_count() == 1);
         CHECK(record.import_warnings.empty());
     }
@@ -751,7 +748,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
               "M  CHG  1   1  -1\nM  END\n$$$$\n",
           atoms_and_bonds + "M  V30 END CTAB\n$$$$\n", atoms_and_bonds + "M  V30 BEGIN SGROUP\n"}) {
         std::istringstream input{text};
-        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+        CHECK_THROWS_AS(adapters::parse_mol(input, {}), std::runtime_error);
     }
 
     // The atoms and bonds that are read must match their counts and come in one block each.
@@ -767,7 +764,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[ad
           atoms_and_bonds + "M  V30 BEGIN ATOM\nM  V30 2 C 1 0 0 0\nM  V30 END ATOM\n"
                             "M  V30 END CTAB\nM  END\n"}) {
         std::istringstream input{text};
-        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+        CHECK_THROWS_AS(adapters::parse_mol(input, {}), std::runtime_error);
     }
 }
 
@@ -779,14 +776,17 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
     for (const auto& [path, read_first] :
          {MalformedFixture{"synthetic/mol2/malformed_then_valid.mol2",
                            [](std::istream& input) {
-                               static_cast<void>(mol2::Mol2Reader{input, "malformed.mol2"}.next());
+                               static_cast<void>(
+                                   adapters::Mol2Reader{input, "malformed.mol2"}.next());
                            }},
           MalformedFixture{"synthetic/mol2/missing_atom_section_then_valid.mol2",
                            [](std::istream& input) {
-                               static_cast<void>(mol2::Mol2Reader{input, "malformed.mol2"}.next());
+                               static_cast<void>(
+                                   adapters::Mol2Reader{input, "malformed.mol2"}.next());
                            }},
           MalformedFixture{"synthetic/sdf/malformed_then_water.sdf", [](std::istream& input) {
-                               static_cast<void>(sdf::SdfReader{input, "malformed.sdf"}.next());
+                               static_cast<void>(
+                                   adapters::SdfReader{input, "malformed.sdf"}.next());
                            }}}) {
         CAPTURE(path);
         std::ifstream input{fixture(path)};
@@ -803,7 +803,7 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
                            "M  V30 1 C 0 0 0 0\nM  V30 1 O 1 0 0 0\nM  V30 END ATOM\n"
                            "M  V30 BEGIN BOND\nM  V30 END BOND\nM  V30 END CTAB\nM  END\n"}}) {
         std::istringstream input{std::string{malformed}};
-        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::exception);
+        CHECK_THROWS_AS(adapters::parse_mol(input, {}), std::exception);
     }
 
     for (const auto malformed : {
@@ -829,11 +829,11 @@ TEST_CASE("native readers reject malformed records", "[adapters][native]") {
                  "M  V30 END CTAB\nM  END\n"},
          }) {
         std::istringstream input{std::string{malformed}};
-        CHECK_THROWS_AS(mol::parse_mol(input, {}), std::runtime_error);
+        CHECK_THROWS_AS(adapters::parse_mol(input, {}), std::runtime_error);
     }
 
     std::istringstream unknown_mol2_element{
         "@<TRIPOS>MOLECULE\nunknown\n1 0\nSMALL\nNO_CHARGES\n@<TRIPOS>ATOM\n1 X 0 0 0 Xx\n"};
-    mol2::Mol2Reader mol2_reader{unknown_mol2_element, "unknown.mol2"};
+    adapters::Mol2Reader mol2_reader{unknown_mol2_element, "unknown.mol2"};
     CHECK_THROWS_AS(mol2_reader.next(), std::runtime_error);
 }

@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-namespace chargefw::adapters::gemmi::pdb_input {
+namespace chargefw::adapters {
 
 // Reads a PDB structure through Gemmi. The first PDB MODEL defines atom topology and each model
 // becomes a conformer after validating the same atom sequence. Record selection, alternate-location
@@ -16,7 +16,7 @@ namespace chargefw::adapters::gemmi::pdb_input {
 class PdbReader {
   public:
     explicit PdbReader(std::istream& input, std::string source_name = {},
-                       ::chargefw::adapters::gemmi::InputOptions options = {});
+                       StructureOptions options = {});
 
     PdbReader(const PdbReader&) = delete;
     auto operator=(const PdbReader&) -> PdbReader& = delete;
@@ -30,4 +30,4 @@ class PdbReader {
     std::optional<ImportedMoleculeRecord> record_;
 };
 
-} // namespace chargefw::adapters::gemmi::pdb_input
+} // namespace chargefw::adapters

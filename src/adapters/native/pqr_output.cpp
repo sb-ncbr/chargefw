@@ -20,7 +20,7 @@
 #include <string>
 #include <string_view>
 
-namespace chargefw::adapters::native::pqr_output {
+namespace chargefw::adapters {
 namespace {
 
 // PQR follows PDB, which writes author labels; label_* values are the fallback.
@@ -202,4 +202,4 @@ auto PqrWriter::write(const ChargeCalculationResult& result) const -> void {
     }
 }
 
-} // namespace chargefw::adapters::native::pqr_output
+} // namespace chargefw::adapters

@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-namespace chargefw::adapters::gemmi::mmcif_input {
+namespace chargefw::adapters {
 
 // Parses an mmCIF document eagerly through Gemmi, then converts one coordinate-bearing data block
 // per next() call. Each such block becomes one record; models within a block become conformers
@@ -17,7 +17,7 @@ namespace chargefw::adapters::gemmi::mmcif_input {
 class MmcifReader {
   public:
     explicit MmcifReader(std::istream& input, std::string source_name = {},
-                         ::chargefw::adapters::gemmi::InputOptions options = {});
+                         StructureOptions options = {});
 
     MmcifReader(const MmcifReader&) = delete;
     auto operator=(const MmcifReader&) -> MmcifReader& = delete;
@@ -32,4 +32,4 @@ class MmcifReader {
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace chargefw::adapters::gemmi::mmcif_input
+} // namespace chargefw::adapters

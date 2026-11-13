@@ -125,6 +125,12 @@
 
 ### C++
 
+- Breaking change: the file readers and writers are in `chargefw::adapters`, without the
+  per-format namespaces: `adapters::SdfReader` instead of `adapters::native::sdf_input::SdfReader`,
+  `adapters::MmcifWriter` instead of `adapters::gemmi::mmcif_output::MmcifWriter`, and so on.
+  `adapters::gemmi::InputOptions` is `adapters::StructureOptions`, and `RecordSelection`,
+  `BondStrategy`, and their conversion functions are in `chargefw::adapters`. Public names no
+  longer hide the `::gemmi` namespace. The header paths are unchanged.
 - `adapters::make_requested_provenance()` creates the `RequestedCalculationProvenance` of a
   request, with the thread limit and the residue names of the fixed ions, instead of copying its
   fields by hand.

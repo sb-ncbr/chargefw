@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-namespace chargefw::adapters::native::sdf_input {
+namespace chargefw::adapters {
 
 // Bounded-memory SDF reader. Each call consumes at most one SDF record. A null result denotes clean
 // end-of-file; invalid input throws and terminates import.
@@ -30,4 +30,4 @@ class SdfReader {
     std::size_t line_ = 0;
 };
 
-} // namespace chargefw::adapters::native::sdf_input
+} // namespace chargefw::adapters

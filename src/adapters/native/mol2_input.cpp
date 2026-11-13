@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::native::mol2_input {
+namespace chargefw::adapters {
 namespace {
 
 namespace common = chargefw::adapters::native::common_input;
@@ -298,7 +298,7 @@ struct FormalCharge {
             }
 
             bonds.emplace_back(first->second, second->second,
-                               common::bond_order(type, BondFormat::mol2));
+                               common::bond_order(type, native::BondFormat::mol2));
             if (type == "ar" || type == "4") {
                 aromatic_bonds.push_back(bonds.size() - 1);
             }
@@ -365,4 +365,4 @@ auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
     return parse_record(*input_, std::move(identity), next_record_started_, line_);
 }
 
-} // namespace chargefw::adapters::native::mol2_input
+} // namespace chargefw::adapters

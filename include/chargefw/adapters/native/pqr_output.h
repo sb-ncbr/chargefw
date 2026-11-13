@@ -4,7 +4,7 @@
 
 #include <iosfwd>
 
-namespace chargefw::adapters::native::pqr_output {
+namespace chargefw::adapters {
 
 // Writes PQR for one structure imported from PDB or mmCIF: source atom labels, coordinates,
 // charges, and the van der Waals radius of each atom's element.
@@ -18,4 +18,4 @@ class PqrWriter {
     std::ostream* output_;
 };
 
-} // namespace chargefw::adapters::native::pqr_output
+} // namespace chargefw::adapters

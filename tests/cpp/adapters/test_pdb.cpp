@@ -20,15 +20,14 @@
 #include <utility>
 #include <vector>
 
-namespace gemmi_adapter = chargefw::adapters::gemmi;
-namespace pdb = gemmi_adapter::pdb_input;
+namespace adapters = chargefw::adapters;
 
 namespace {
 
 [[nodiscard]] auto read_first(const std::string& text,
-                              const gemmi_adapter::InputOptions& options = {}) {
+                              const adapters::StructureOptions& options = {}) {
     std::istringstream input{text};
-    auto reader = pdb::PdbReader{input, {}, options};
+    auto reader = adapters::PdbReader{input, {}, options};
     auto record = reader.next();
     REQUIRE(record.has_value());
     return std::move(*record);
@@ -55,12 +54,12 @@ namespace {
 
 } // namespace
 
-static_assert(!std::is_copy_constructible_v<pdb::PdbReader> &&
-              !std::is_copy_assignable_v<pdb::PdbReader>);
-static_assert(std::is_move_constructible_v<pdb::PdbReader>);
+static_assert(!std::is_copy_constructible_v<adapters::PdbReader> &&
+              !std::is_copy_assignable_v<adapters::PdbReader>);
+static_assert(std::is_move_constructible_v<adapters::PdbReader>);
 
 TEST_CASE("PDB templates supplement N-terminal hydrogen connectivity", "[adapters][pdb]") {
-    using Strategy = gemmi_adapter::BondStrategy;
+    using Strategy = adapters::BondStrategy;
     for (const auto strategy : {Strategy::templates, Strategy::hybrid}) {
         std::istringstream input{
             R"pdb(ATOM      1  N   ALA A   7       0.000   0.000   0.000  1.00 20.00           N1+
@@ -71,7 +70,7 @@ ATOM      5  H3  ALA A   7       0.000  -1.000   0.000  1.00 20.00           H
 CONECT    1    3
 END
 )pdb"};
-        auto reader = pdb::PdbReader{input, {}, {.bonds = strategy}};
+        auto reader = adapters::PdbReader{input, {}, {.bonds = strategy}};
         const auto record = reader.next();
         REQUIRE(record.has_value());
         CHECK(record->molecule.atom_count() == 5);
@@ -153,7 +152,7 @@ TEST_CASE("PDB templates follow the protonation state of histidine and arginine"
 
     for (const auto& [residue, atoms, charges, double_bonds] : cases) {
         const auto text = pdb_residue(residue, atoms, charges);
-        const auto record = read_first(text, {.bonds = gemmi_adapter::BondStrategy::templates});
+        const auto record = read_first(text, {.bonds = adapters::BondStrategy::templates});
         const auto& molecule = record.molecule;
         auto read_double_bonds = std::set<std::string>{};
         for (const auto& bond : molecule.bonds()) {
@@ -179,7 +178,7 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
     const auto record =
         read_first(pdb_residue("DA", "P OP1 OP2 O5' C5' C4' O4' C3' O3' C2' C1' N9 C8 N7 C5 C6 N6 "
                                      "N1 C2 N3 C4"),
-                   {.bonds = gemmi_adapter::BondStrategy::templates});
+                   {.bonds = adapters::BondStrategy::templates});
     CHECK(record.molecule.atom_count() == 21);
     CHECK(record.molecule.bond_count() == 23);
     CHECK(record.import_warnings.empty());
@@ -187,13 +186,13 @@ TEST_CASE("PDB templates connect nucleotide sugar atoms", "[adapters][pdb]") {
 
 TEST_CASE("input options and source descriptions share stable string conversion",
           "[adapters][options]") {
-    CHECK(gemmi_adapter::record_selection_from_string("polymers-and-ligands") ==
-          gemmi_adapter::RecordSelection::polymers_and_ligands);
-    CHECK(gemmi_adapter::to_string(gemmi_adapter::RecordSelection::polymers_and_ligands) ==
+    CHECK(adapters::record_selection_from_string("polymers-and-ligands") ==
+          adapters::RecordSelection::polymers_and_ligands);
+    CHECK(adapters::to_string(adapters::RecordSelection::polymers_and_ligands) ==
           "polymers-and-ligands");
-    CHECK(gemmi_adapter::bond_strategy_from_string("explicit") ==
-          gemmi_adapter::BondStrategy::explicit_bonds);
-    CHECK(gemmi_adapter::to_string(gemmi_adapter::BondStrategy::hybrid) == "hybrid");
+    CHECK(adapters::bond_strategy_from_string("explicit") ==
+          adapters::BondStrategy::explicit_bonds);
+    CHECK(adapters::to_string(adapters::BondStrategy::hybrid) == "hybrid");
     CHECK(chargefw::adapters::conformer_selection_from_string("first") ==
           chargefw::adapters::ConformerSelection::first);
     CHECK(chargefw::adapters::to_string(chargefw::adapters::ConformerSelection::all) == "all");
@@ -205,7 +204,7 @@ TEST_CASE("input options and source descriptions share stable string conversion"
     CHECK(chargefw::adapters::to_string(chargefw::adapters::SourceConnectivity::explicitly_empty) ==
           "explicitly-empty");
 
-    CHECK_THROWS_AS(gemmi_adapter::record_selection_from_string("unknown"), std::invalid_argument);
+    CHECK_THROWS_AS(adapters::record_selection_from_string("unknown"), std::invalid_argument);
     CHECK_THROWS_AS(chargefw::adapters::molecular_source_format_from_string("cif"),
                     std::invalid_argument);
 }
@@ -227,7 +226,7 @@ CONECT    1    2
 END
 )pdb"};
 
-    auto reader = pdb::PdbReader{input, "water.pdb"};
+    auto reader = adapters::PdbReader{input, "water.pdb"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
     CHECK(first->identity.source_name == "water.pdb");
@@ -272,7 +271,7 @@ HETATM    4  O   WAT A   4       3.000   0.000   0.000  1.00 20.00           O
 HETATM    5  O   HOH B   3       4.000   0.000   0.000  1.00 20.00           O
 END
 )pdb"};
-        auto all_reader = pdb::PdbReader{selection_input};
+        auto all_reader = adapters::PdbReader{selection_input};
         const auto all_record = all_reader.next();
         REQUIRE(all_record.has_value());
         CHECK(all_record->molecule.atom_count() == 5);
@@ -294,8 +293,8 @@ HETATM    3  O   HOH A   3       2.000   0.000   0.000  1.00 20.00           O
 HETATM    4  O   WAT A   4       3.000   0.000   0.000  1.00 20.00           O
 END
 )pdb";
-        for (const auto selection : {gemmi_adapter::RecordSelection::polymers_and_ligands,
-                                     gemmi_adapter::RecordSelection::polymers}) {
+        for (const auto selection : {adapters::RecordSelection::polymers_and_ligands,
+                                     adapters::RecordSelection::polymers}) {
             CHECK(read_first(ligand_and_water_input, {.selection = selection})
                       .molecule.atom_count() == 2);
         }
@@ -307,8 +306,8 @@ TER
 HETATM    3  C1  LIG A   3       2.000   0.000   0.000  1.00 20.00           C
 END
 )pdb"};
-        auto modified_polymer_reader = pdb::PdbReader{
-            modified_polymer_input, {}, {.selection = gemmi_adapter::RecordSelection::polymers}};
+        auto modified_polymer_reader = adapters::PdbReader{
+            modified_polymer_input, {}, {.selection = adapters::RecordSelection::polymers}};
         const auto modified_polymer_record = modified_polymer_reader.next();
         REQUIRE(modified_polymer_record.has_value());
         CHECK(modified_polymer_record->molecule.atom_count() == 2);
@@ -335,16 +334,15 @@ HETATM   12  C1  LIG A   5       8.200   3.200   0.000  1.00 20.00           C
 CONECT   11   12
 END
 )pdb";
-        const auto read_strategy = [&](const gemmi_adapter::BondStrategy strategy) {
+        const auto read_strategy = [&](const adapters::BondStrategy strategy) {
             return read_first(strategy_input, {.bonds = strategy});
         };
 
-        CHECK(read_strategy(gemmi_adapter::BondStrategy::none).molecule.bond_count() == 0);
-        const auto peptide = read_strategy(gemmi_adapter::BondStrategy::templates);
+        CHECK(read_strategy(adapters::BondStrategy::none).molecule.bond_count() == 0);
+        const auto peptide = read_strategy(adapters::BondStrategy::templates);
         CHECK(peptide.molecule.bond_count() == 8);
-        CHECK(read_strategy(gemmi_adapter::BondStrategy::explicit_bonds).molecule.bond_count() ==
-              2);
-        CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).molecule.bond_count() == 10);
+        CHECK(read_strategy(adapters::BondStrategy::explicit_bonds).molecule.bond_count() == 2);
+        CHECK(read_strategy(adapters::BondStrategy::hybrid).molecule.bond_count() == 10);
 
         REQUIRE(peptide.import_metadata.has_value());
         const auto& components = peptide.import_metadata->components;
@@ -370,8 +368,8 @@ CONECT    1    2
 END
 )pdb";
         for (const auto strategy :
-             {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
-              gemmi_adapter::BondStrategy::hybrid}) {
+             {adapters::BondStrategy::templates, adapters::BondStrategy::explicit_bonds,
+              adapters::BondStrategy::hybrid}) {
             CHECK(read_first(duplicate_input, {.bonds = strategy}).molecule.bond_count() == 1);
         }
     }
@@ -384,8 +382,7 @@ ATOM      2  O   ALA A   1       1.230   0.000   0.000  1.00 20.00           O
 CONECT    1    2
 END
 )pdb";
-        const auto record =
-            read_first(carbonyl_input, {.bonds = gemmi_adapter::BondStrategy::hybrid});
+        const auto record = read_first(carbonyl_input, {.bonds = adapters::BondStrategy::hybrid});
         REQUIRE(record.molecule.bond_count() == 1);
         CHECK(record.molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
     }
@@ -399,7 +396,7 @@ HETATM    3  C1 ALIG A   1       2.000   0.000   0.000  1.00  0.00           C
 END
 )pdb"};
 
-    auto reader = pdb::PdbReader{input};
+    auto reader = adapters::PdbReader{input};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->molecule.atom_count() == 2);
@@ -421,7 +418,7 @@ END
 }
 
 TEST_CASE("PDB input reports residue atoms without bonds", "[adapters][pdb]") {
-    using Strategy = gemmi_adapter::BondStrategy;
+    using Strategy = adapters::BondStrategy;
     // A ligand without a template, and a single-atom ion that is unbonded by design.
     const std::string atoms =
         R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
@@ -454,7 +451,7 @@ ATOM      1  C  AALA A   1       0.000   0.000   0.000  1.00 20.00           C
 HETATM    2  C1 ALIG A   5       1.000   0.000   0.000  1.00 20.00           C
 END
 )pdb",
-                                 {.bonds = gemmi_adapter::BondStrategy::explicit_bonds});
+                                 {.bonds = adapters::BondStrategy::explicit_bonds});
         CHECK(record.molecule.atom_count() == 2);
         return record;
     };
@@ -482,7 +479,7 @@ cOnEcT    1    2
 aToM      2  O1  LIG A   1       1.000   0.000   0.000  1.00 20.00           O
 )pdb"};
 
-    auto reader = pdb::PdbReader{input};
+    auto reader = adapters::PdbReader{input};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     CHECK(record->molecule.atom_count() == 1);
@@ -504,7 +501,7 @@ ATOM      1  C1 BLIG A   1       0.100   0.000   0.000  1.00 20.00           C
 ENDMDL
 END
 )pdb"};
-    auto reader = pdb::PdbReader{input};
+    auto reader = adapters::PdbReader{input};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->import_metadata.has_value());
@@ -523,7 +520,7 @@ ATOM      2  C1  LIG A   1       0.100   0.000   0.000  1.00 20.00           C
 END
 )pdb"};
 
-    CHECK_THROWS_AS(pdb::PdbReader{input}, std::runtime_error);
+    CHECK_THROWS_AS(adapters::PdbReader{input}, std::runtime_error);
 }
 
 TEST_CASE("PDB mapping retains source labels through Gemmi normalization", "[adapters][pdb]") {
@@ -532,7 +529,7 @@ TEST_CASE("PDB mapping retains source labels through Gemmi normalization", "[ada
 ATOM      2  O1  LIGABA000      1.000   0.000   0.000  1.00 20.00           O
 END
 )pdb"};
-    auto reader = pdb::PdbReader{input};
+    auto reader = adapters::PdbReader{input};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->import_metadata.has_value());
@@ -549,7 +546,7 @@ END
 TEST_CASE("PDB input rejects empty and incompatible selected models", "[adapters][pdb]") {
     {
         std::istringstream input{"END\n"};
-        CHECK_THROWS_AS(pdb::PdbReader{input}, std::exception);
+        CHECK_THROWS_AS(adapters::PdbReader{input}, std::exception);
     }
 
     {
@@ -561,7 +558,7 @@ ATOM      1  O   UNL A   1       0.000   0.000   0.000  1.00 20.00           O
 ENDMDL
 END
 )pdb"};
-        CHECK_THROWS_AS(pdb::PdbReader{input}, std::exception);
+        CHECK_THROWS_AS(adapters::PdbReader{input}, std::exception);
     }
 
     {
@@ -573,14 +570,13 @@ ATOM      1  C1  UNL B   1       0.100   0.000   0.000  1.00 20.00           C
 ENDMDL
 END
 )pdb"};
-        CHECK_THROWS_AS(pdb::PdbReader{input}, std::runtime_error);
+        CHECK_THROWS_AS(adapters::PdbReader{input}, std::runtime_error);
     }
 }
 
 TEST_CASE("PDB template links respect chains and insertion codes", "[adapters][pdb]") {
     const auto read_bond_count = [](const std::string& text) {
-        return read_first(text, {.bonds = gemmi_adapter::BondStrategy::templates})
-            .molecule.bond_count();
+        return read_first(text, {.bonds = adapters::BondStrategy::templates}).molecule.bond_count();
     };
 
     CHECK(read_bond_count(
@@ -613,7 +609,7 @@ END
 TEST_CASE("PDB input rejects non-ASCII text", "[adapters][pdb]") {
     const auto read = [](const std::string& text) {
         std::istringstream input{text};
-        static_cast<void>(pdb::PdbReader{input, {}, {}});
+        static_cast<void>(adapters::PdbReader{input, {}, {}});
     };
     CHECK_THROWS_MATCHES(read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O")),
                          std::runtime_error,

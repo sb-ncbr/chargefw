@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::gemmi::pdb_input {
+namespace chargefw::adapters {
 namespace {
 
 [[nodiscard]] auto optional_text(const std::string_view value) -> std::optional<std::string> {
@@ -179,16 +179,17 @@ struct StructuralLabelsLess {
         .segment = optional_text(site.residue->segment)};
 }
 
-[[nodiscard]] auto source_models(const ::gemmi::Structure& structure, const InputOptions options,
-                                 const std::span<const selection::SelectedModel> selected_models,
-                                 const std::vector<PdbSourceModel>& source)
-    -> std::vector<structure_import::SourceModelMapping> {
+[[nodiscard]] auto
+source_models(const ::gemmi::Structure& structure, const StructureOptions options,
+              const std::span<const gemmi::selection::SelectedModel> selected_models,
+              const std::vector<PdbSourceModel>& source)
+    -> std::vector<gemmi::structure_import::SourceModelMapping> {
     const auto retained_count =
         options.conformers == ConformerSelection::all ? structure.models.size() : std::size_t{1};
     if (source.size() != structure.models.size()) {
         throw std::runtime_error{"PDB source mapping does not match parsed models"};
     }
-    auto result = std::vector<structure_import::SourceModelMapping>{};
+    auto result = std::vector<gemmi::structure_import::SourceModelMapping>{};
     result.reserve(retained_count);
     for (std::size_t model_index = 0; model_index < retained_count; ++model_index) {
         const auto& selected = selected_models[model_index];
@@ -211,7 +212,7 @@ struct StructuralLabelsLess {
             sites.push_back(source[model_index].sites[found->second.front()].reference);
             source_indices.erase(found);
         }
-        result.push_back(structure_import::SourceModelMapping{
+        result.push_back(gemmi::structure_import::SourceModelMapping{
             .conformer = SourceConformerReference{
                 .position = model_index, .id = source[model_index].id, .sites = std::move(sites)}});
     }
@@ -221,7 +222,7 @@ struct StructuralLabelsLess {
 } // namespace
 
 PdbReader::PdbReader(std::istream& input, std::string source_name,
-                     const ::chargefw::adapters::gemmi::InputOptions options) {
+                     const ::chargefw::adapters::StructureOptions options) {
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read PDB input"};
@@ -238,7 +239,7 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
     ::gemmi::add_entity_types(structure, false);
     const auto name = structure.name.empty() ? source_name : structure.name;
     auto selected_models =
-        selection::select_models(structure, options.selection, options.conformers);
+        gemmi::selection::select_models(structure, options.selection, options.conformers);
     const auto retained_models =
         options.conformers == ConformerSelection::all ? structure.models.size() : std::size_t{1};
     const auto parsed_source = parse_source(contents, retained_models);
@@ -246,11 +247,11 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
     for (std::size_t index = 0; index < selected_models.size(); ++index) {
         selected_models[index].normalize_component_names(mappings[index].conformer.sites);
     }
-    auto explicit_bonds = bonds::ExplicitBonds{};
+    auto explicit_bonds = gemmi::bonds::ExplicitBonds{};
     if (options.bonds == BondStrategy::explicit_bonds || options.bonds == BondStrategy::hybrid) {
-        explicit_bonds = bonds::explicit_pdb(structure, selected_models.front());
+        explicit_bonds = gemmi::bonds::explicit_pdb(structure, selected_models.front());
     }
-    record_ = structure_import::make_record(
+    record_ = gemmi::structure_import::make_record(
         structure, selected_models,
         MoleculeRecordIdentity{
             .source_name = std::move(source_name), .record_index = 0, .record_id = name},
@@ -258,7 +259,7 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
         MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity);
     if (explicit_bonds.skipped_symmetry_connections > 0) {
         record_->import_warnings.push_back(
-            bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
+            gemmi::bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
     }
 }
 
@@ -266,4 +267,4 @@ auto PdbReader::next() -> std::optional<ImportedMoleculeRecord> {
     return std::exchange(record_, std::nullopt);
 }
 
-} // namespace chargefw::adapters::gemmi::pdb_input
+} // namespace chargefw::adapters

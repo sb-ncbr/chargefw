@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::native::json_output {
+namespace chargefw::adapters {
 namespace {
 
 using Json = nlohmann::json;
@@ -313,4 +313,4 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
     }
 }
 
-} // namespace chargefw::adapters::native::json_output
+} // namespace chargefw::adapters

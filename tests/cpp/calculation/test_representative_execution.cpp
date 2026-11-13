@@ -24,7 +24,6 @@ namespace adapters = chargefw::adapters;
 namespace calculation = chargefw::calculation;
 namespace core = chargefw::core;
 namespace parameters = chargefw::parameters;
-namespace sdf = chargefw::adapters::native::sdf_input;
 
 using chargefw::test::calculate_application;
 
@@ -59,7 +58,7 @@ TEST_CASE("representative molecules preserve full execution under whole-radius r
           "[calculation][reduced-execution]") {
     std::ifstream input{representative_fixture()};
     REQUIRE(input);
-    auto reader = sdf::SdfReader{input, "representative.sdf"};
+    auto reader = adapters::SdfReader{input, "representative.sdf"};
     const auto parameter_sets = std::vector{representative_eem_parameters()};
     auto record_count = std::size_t{0};
 

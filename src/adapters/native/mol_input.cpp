@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::native::mol_input {
+namespace chargefw::adapters {
 namespace {
 
 namespace common = chargefw::adapters::native::common_input;
@@ -137,7 +137,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
 
         result.bonds.emplace_back(static_cast<std::size_t>(first - 1),
                                   static_cast<std::size_t>(second - 1),
-                                  common::bond_order(order, BondFormat::mol));
+                                  common::bond_order(order, native::BondFormat::mol));
         if (order == "4") {
             result.aromatic_bonds.push_back(result.bonds.size() - 1);
         }
@@ -435,11 +435,12 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
 
 auto parse_mol(std::istream& input, MoleculeRecordIdentity identity) -> ImportedMoleculeRecord {
     std::size_t line = 0;
-    return parse_mol(input, std::move(identity), line);
+    return native::mol_input::parse_mol(input, std::move(identity), line);
 }
 
-auto parse_mol(std::istream& input, MoleculeRecordIdentity identity, std::size_t& line)
-    -> ImportedMoleculeRecord {
+// Declared in mol_record_parser.h, outside the public namespace.
+auto native::mol_input::parse_mol(std::istream& input, MoleculeRecordIdentity identity,
+                                  std::size_t& line) -> ImportedMoleculeRecord {
     const auto record_start = line;
     try {
         const auto name = common::read_line(input, line, "MOL");
@@ -476,8 +477,8 @@ auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
 
     consumed_ = true;
     auto line = std::size_t{};
-    auto result =
-        parse_mol(*input_, {.source_name = source_, .record_index = 0, .record_id = {}}, line);
+    auto result = native::mol_input::parse_mol(
+        *input_, {.source_name = source_, .record_index = 0, .record_id = {}}, line);
     // Content after M  END is not read as a molecule but must still be ASCII text.
     try {
         while (common::try_read_line(*input_, line).has_value()) {
@@ -488,4 +489,4 @@ auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
     return result;
 }
 
-} // namespace chargefw::adapters::native::mol_input
+} // namespace chargefw::adapters

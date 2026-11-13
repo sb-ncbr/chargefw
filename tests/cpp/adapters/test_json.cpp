@@ -8,11 +8,11 @@
 #include <string>
 #include <type_traits>
 
-namespace json = chargefw::adapters::native::json_input;
+namespace adapters = chargefw::adapters;
 
-static_assert(!std::is_copy_constructible_v<json::JsonReader> &&
-              !std::is_copy_assignable_v<json::JsonReader>);
-static_assert(std::is_move_constructible_v<json::JsonReader>);
+static_assert(!std::is_copy_constructible_v<adapters::JsonReader> &&
+              !std::is_copy_assignable_v<adapters::JsonReader>);
+static_assert(std::is_move_constructible_v<adapters::JsonReader>);
 
 TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[adapters][json]") {
     {
@@ -46,7 +46,7 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[adapt
   ]
 }
 )json"};
-        auto reader = json::JsonReader{input, "water.json"};
+        auto reader = adapters::JsonReader{input, "water.json"};
         const auto result = reader.next();
         REQUIRE(result.has_value());
         const auto& record = *result;
@@ -83,7 +83,7 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[adapt
   ]
 }
 )json"};
-        auto reader = json::JsonReader{input};
+        auto reader = adapters::JsonReader{input};
         CHECK_THROWS_AS(reader.next(), std::exception);
     }
 
@@ -94,7 +94,7 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[adapt
   "molecules": []
 }
 )json"};
-        CHECK_THROWS_AS(json::JsonReader{input}, std::runtime_error);
+        CHECK_THROWS_AS(adapters::JsonReader{input}, std::runtime_error);
     }
 }
 
@@ -108,7 +108,7 @@ TEST_CASE("JSON input rejects integers outside the native integer range", "[adap
 }
 )json";
     std::istringstream stream{input};
-    auto reader = json::JsonReader{stream};
+    auto reader = adapters::JsonReader{stream};
     CHECK_THROWS_AS(reader.next(), std::runtime_error);
 }
 
@@ -131,7 +131,7 @@ TEST_CASE("JSON input rejects unknown members", "[adapters][json]") {
     for (const auto* document : documents) {
         CAPTURE(document);
         std::istringstream input{document};
-        CHECK_THROWS_AS(static_cast<void>(json::JsonReader{input}.next()), std::runtime_error);
+        CHECK_THROWS_AS(static_cast<void>(adapters::JsonReader{input}.next()), std::runtime_error);
     }
 
     // Also in a conformer that reading only the first one skips.
@@ -139,10 +139,10 @@ TEST_CASE("JSON input rejects unknown members", "[adapters][json]") {
         {"atoms": [{"atomic_number": 1, "formal_charge": 0}],
          "conformers": [{"coordinates": [[0, 0, 0]]},
                         {"coordinates": [[0, 0, 0]], "units": "nm"}]}]})json"};
-    CHECK_THROWS_AS(
-        static_cast<void>(
-            json::JsonReader{skipped, {}, chargefw::adapters::ConformerSelection::first}.next()),
-        std::runtime_error);
+    CHECK_THROWS_AS(static_cast<void>(adapters::JsonReader{
+                        skipped, {}, chargefw::adapters::ConformerSelection::first}
+                                          .next()),
+                    std::runtime_error);
 }
 
 TEST_CASE("JSON input owns coordinate-free source mapping", "[adapters][json]") {
@@ -158,7 +158,7 @@ TEST_CASE("JSON input owns coordinate-free source mapping", "[adapters][json]") 
   }]
 }
 )json"};
-        auto reader = json::JsonReader{input, "topology.json"};
+        auto reader = adapters::JsonReader{input, "topology.json"};
         return *reader.next();
     }();
 

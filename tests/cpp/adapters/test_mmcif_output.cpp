@@ -34,9 +34,6 @@ namespace {
 namespace adapters = chargefw::adapters;
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
-namespace mmcif_input = chargefw::adapters::gemmi::mmcif_input;
-namespace mmcif_output = chargefw::adapters::gemmi::mmcif_output;
-namespace pdb_input = chargefw::adapters::gemmi::pdb_input;
 
 using chargefw::test::calculation_result;
 
@@ -161,7 +158,7 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
           "[adapters][mmcif]") {
     const auto result = structural_result();
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(result);
+    adapters::MmcifWriter{output}.write(result);
     auto document = ::gemmi::cif::read_string(output.str());
     REQUIRE(document.blocks.size() == 1);
     auto& block = document.blocks.front();
@@ -206,8 +203,8 @@ TEST_CASE("result-owned mmCIF preserves hierarchy and joins conformer charges",
     CHECK(::gemmi::cif::as_string(values[0][2]) == "0.1235");
 
     auto round_trip_stream = std::istringstream{output.str()};
-    auto round_trip_reader = mmcif_input::MmcifReader{
-        round_trip_stream, {}, {.bonds = adapters::gemmi::BondStrategy::explicit_bonds}};
+    auto round_trip_reader = adapters::MmcifReader{
+        round_trip_stream, {}, {.bonds = adapters::BondStrategy::explicit_bonds}};
     const auto round_trip = round_trip_reader.next();
     REQUIRE(round_trip.has_value());
     CHECK(round_trip->molecule.atom_count() == 2);
@@ -235,13 +232,12 @@ TEST_CASE("mmCIF bonds between PDB residues read back unchanged", "[adapters][mm
         "CONECT   12    6\n"
         "END\n"};
     auto record =
-        pdb_input::PdbReader{pdb, "input.pdb", {.bonds = adapters::gemmi::BondStrategy::hybrid}}
-            .next();
+        adapters::PdbReader{pdb, "input.pdb", {.bonds = adapters::BondStrategy::hybrid}}.next();
     REQUIRE(record.has_value());
     const auto expected = bond_set(record->molecule);
     const auto atom_count = record->molecule.atom_count();
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(
+    adapters::MmcifWriter{output}.write(
         calculation_result({std::move(*record)}, formal(atom_count)));
 
     auto document = ::gemmi::cif::read_string(output.str());
@@ -254,9 +250,7 @@ TEST_CASE("mmCIF bonds between PDB residues read back unchanged", "[adapters][mm
 
     auto input = std::istringstream{output.str()};
     const auto round_trip =
-        mmcif_input::MmcifReader{
-            input, {}, {.bonds = adapters::gemmi::BondStrategy::explicit_bonds}}
-            .next();
+        adapters::MmcifReader{input, {}, {.bonds = adapters::BondStrategy::explicit_bonds}}.next();
     REQUIRE(round_trip.has_value());
     CHECK(bond_set(round_trip->molecule) == expected);
 }
@@ -298,23 +292,21 @@ TEST_CASE("mmCIF bonds of mixed protonation states read back and write again unc
     const auto write = [](adapters::ImportedMoleculeRecord record) {
         const auto atom_count = record.molecule.atom_count();
         auto output = std::ostringstream{};
-        mmcif_output::MmcifWriter{output}.write(
+        adapters::MmcifWriter{output}.write(
             calculation_result({std::move(record)}, formal(atom_count)));
         return output.str();
     };
     const auto read_mmcif = [](const std::string& text) {
         auto input = std::istringstream{text};
         auto record =
-            mmcif_input::MmcifReader{input, {}, {.bonds = adapters::gemmi::BondStrategy::hybrid}}
-                .next();
+            adapters::MmcifReader{input, {}, {.bonds = adapters::BondStrategy::hybrid}}.next();
         REQUIRE(record.has_value());
         return std::move(*record);
     };
 
     auto pdb_input = std::istringstream{pdb};
     const auto original =
-        pdb_input::PdbReader{pdb_input, {}, {.bonds = adapters::gemmi::BondStrategy::hybrid}}
-            .next();
+        adapters::PdbReader{pdb_input, {}, {.bonds = adapters::BondStrategy::hybrid}}.next();
     REQUIRE(original.has_value());
     const auto written = write(*original);
 
@@ -352,7 +344,7 @@ TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot expre
         {"LIG", "1", "C"}, {"LIG", "1", "O"}, {"LIG", "1", "C", "B"}, {"LIG", "1", "O", "B"}};
     for (const auto& atoms : {two_ligands, other_author_chain}) {
         auto output = std::ostringstream{};
-        mmcif_output::MmcifWriter{output}.write(
+        adapters::MmcifWriter{output}.write(
             calculation_result({labelled_record(atoms, double_bonds, separate)}, formal(4)));
         auto document = ::gemmi::cif::read_string(output.str());
         CHECK(document.blocks.front().find("_chem_comp_bond.", {"comp_id"}).length() == 1);
@@ -378,7 +370,7 @@ TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot expre
         CAPTURE(description);
         const auto result = calculation_result({record}, formal(record.molecule.atom_count()));
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(result), std::invalid_argument);
+        CHECK_THROWS_AS(adapters::MmcifWriter{output}.write(result), std::invalid_argument);
         CHECK(output.str().empty());
     }
 }
@@ -394,7 +386,7 @@ TEST_CASE("mmCIF holds one charge set per result for the same molecules", "[adap
     const auto qeq = calculation_result({generated_record()}, charge_set("qeq", "QEq", 0.25));
     const auto eem = calculation_result({generated_record()}, charge_set("eem", "EEM", 0.5));
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem});
+    adapters::MmcifWriter{output}.write(std::array{&qeq, &eem});
     auto document = ::gemmi::cif::read_string(output.str());
     auto& block = document.blocks.front();
     auto metadata =
@@ -422,7 +414,7 @@ TEST_CASE("mmCIF holds one charge set per result for the same molecules", "[adap
     for (const auto& rejected :
          {Results{&qeq, &other_molecule}, Results{&qeq, &same_set}, Results{&qeq, nullptr}}) {
         auto rejected_output = std::ostringstream{};
-        CHECK_THROWS_AS(mmcif_output::MmcifWriter{rejected_output}.write(rejected),
+        CHECK_THROWS_AS(adapters::MmcifWriter{rejected_output}.write(rejected),
                         std::invalid_argument);
         CHECK(rejected_output.str().empty());
     }
@@ -435,7 +427,7 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[adapters][mmc
             "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  0.00           O\n"
             "ATOM      2  H1  HOH A   1       0.957   0.000   0.000  1.00  0.00           H\n"
             "END\n"};
-        auto record = pdb_input::PdbReader{pdb, "input.pdb"}.next();
+        auto record = adapters::PdbReader{pdb, "input.pdb"}.next();
         REQUIRE(record.has_value());
         return std::move(*record);
     };
@@ -447,7 +439,7 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[adapters][mmc
     const auto qeq = calculation_result({read()}, charge_set("qeq", 0.4));
     const auto eem = calculation_result({read()}, charge_set("eem", 0.3));
     auto output = std::ostringstream{};
-    CHECK_NOTHROW(mmcif_output::MmcifWriter{output}.write(std::array{&qeq, &eem}));
+    CHECK_NOTHROW(adapters::MmcifWriter{output}.write(std::array{&qeq, &eem}));
 
     auto renamed = read();
     auto labels = *renamed.import_metadata->atoms[1].structural_labels;
@@ -456,7 +448,7 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[adapters][mmc
         std::make_shared<const adapters::SourceStructuralLabels>(std::move(labels));
     const auto other = calculation_result({std::move(renamed)}, charge_set("eem", 0.3));
     auto rejected_output = std::ostringstream{};
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{rejected_output}.write(std::array{&qeq, &other}),
+    CHECK_THROWS_AS(adapters::MmcifWriter{rejected_output}.write(std::array{&qeq, &other}),
                     std::invalid_argument);
 }
 
@@ -471,7 +463,7 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
             {{.target = {.molecule_index = 0}, .charges = charges::AtomicCharges{{0.25, -0.25}}},
              {.target = {.molecule_index = 1}, .charges = charges::AtomicCharges{{0.1, -0.1}}}}});
     auto output = std::ostringstream{};
-    mmcif_output::MmcifWriter{output}.write(result);
+    adapters::MmcifWriter{output}.write(result);
     auto document = ::gemmi::cif::read_string(output.str());
     REQUIRE(document.blocks.size() == 2);
     CHECK(document.blocks[0].name == "same");
@@ -494,7 +486,7 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
         records.push_back(generated_record(name));
     }
     auto named_output = std::ostringstream{};
-    mmcif_output::MmcifWriter{named_output}.write(calculation_result(
+    adapters::MmcifWriter{named_output}.write(calculation_result(
         std::move(records), charges::ChargeSet{"formal", std::move(assignments)}));
     auto named = ::gemmi::cif::read_string(named_output.str());
     auto names = std::vector<std::string>{};
@@ -510,7 +502,7 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         {generated_record("cancelled")}, {},
         {.status = chargefw::calculation::ExecutionStatus::cancelled});
     auto output = std::ostringstream{};
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(cancelled), std::invalid_argument);
+    CHECK_THROWS_AS(adapters::MmcifWriter{output}.write(cancelled), std::invalid_argument);
 
     auto coordinate_free = generated_record("missing");
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};
@@ -519,7 +511,7 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
                            charges::ChargeSet{"formal",
                                               {{.target = {.molecule_index = 0},
                                                 .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(missing_result), std::invalid_argument);
+    CHECK_THROWS_AS(adapters::MmcifWriter{output}.write(missing_result), std::invalid_argument);
 
     // The dictionary range is inclusive.
     const auto range_result = [](const double charge) {
@@ -530,9 +522,8 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
                                  .charges = charges::AtomicCharges{{charge, -charge}}}}});
     };
     auto in_range = std::ostringstream{};
-    CHECK_NOTHROW(mmcif_output::MmcifWriter{in_range}.write(range_result(10.0)));
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(range_result(10.1)),
-                    std::invalid_argument);
+    CHECK_NOTHROW(adapters::MmcifWriter{in_range}.write(range_result(10.0)));
+    CHECK_THROWS_AS(adapters::MmcifWriter{output}.write(range_result(10.1)), std::invalid_argument);
 
     auto nonfinite = generated_record("nonfinite");
     nonfinite.molecule = core::Molecule{
@@ -545,7 +536,6 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         charges::ChargeSet{"formal",
                            {{.target = {.molecule_index = 0, .conformer_index = 0},
                              .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
-    CHECK_THROWS_AS(mmcif_output::MmcifWriter{output}.write(nonfinite_result),
-                    std::invalid_argument);
+    CHECK_THROWS_AS(adapters::MmcifWriter{output}.write(nonfinite_result), std::invalid_argument);
     CHECK(output.str().empty());
 }

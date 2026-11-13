@@ -5,7 +5,7 @@
 #include <iosfwd>
 #include <optional>
 
-namespace chargefw::adapters::native::json_output {
+namespace chargefw::adapters {
 
 // Writes a version 1.0 ChargeFW calculation-result JSON document.
 class JsonWriter {
@@ -20,4 +20,4 @@ class JsonWriter {
     std::ostream* output_;
 };
 
-} // namespace chargefw::adapters::native::json_output
+} // namespace chargefw::adapters

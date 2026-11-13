@@ -4,7 +4,7 @@
 
 #include <iosfwd>
 
-namespace chargefw::adapters::native::mol2_output {
+namespace chargefw::adapters {
 
 // Writes fresh MOL2 records generated from the exact inputs retained by a calculation result.
 class Mol2Writer {
@@ -17,4 +17,4 @@ class Mol2Writer {
     std::ostream* output_;
 };
 
-} // namespace chargefw::adapters::native::mol2_output
+} // namespace chargefw::adapters

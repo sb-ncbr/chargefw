@@ -17,7 +17,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace chargefw::adapters::native::mol2_output {
+namespace chargefw::adapters {
 namespace {
 
 [[nodiscard]] auto record_name(const ImportedMoleculeRecord& record,
@@ -113,7 +113,7 @@ auto write_record(std::ostream& output, const ImportedMoleculeRecord& record,
     std::println(output, "****");
     adapters::detail::write_generator_comment(output, charge_set);
     std::println(output, "@<TRIPOS>ATOM");
-    const auto atom_types = detail::sybyl_atom_types(molecule);
+    const auto atom_types = native::detail::sybyl_atom_types(molecule);
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto& atom = molecule.atom(atom_index);
         const auto& position = conformer[atom_index];
@@ -170,4 +170,4 @@ auto Mol2Writer::write(const ChargeCalculationResult& result) const -> void {
     }
 }
 
-} // namespace chargefw::adapters::native::mol2_output
+} // namespace chargefw::adapters

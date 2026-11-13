@@ -214,43 +214,42 @@ auto parse(std::string contents, std::string source_name, const std::string& for
         nb::gil_scoped_release release;
         std::istringstream input{std::move(contents)};
         const auto structural_options = [&] {
-            return adapters::gemmi::InputOptions{
-                .selection = adapters::gemmi::record_selection_from_string(selection),
-                .bonds = adapters::gemmi::bond_strategy_from_string(bonds),
+            return adapters::StructureOptions{
+                .selection = adapters::record_selection_from_string(selection),
+                .bonds = adapters::bond_strategy_from_string(bonds),
                 .conformers = adapters::conformer_selection_from_string(conformers)};
         };
         switch (adapters::molecular_source_format_from_string(format)) {
         case adapters::MolecularSourceFormat::mol: {
-            auto reader = adapters::native::mol_input::MolReader{input, std::move(source_name)};
+            auto reader = adapters::MolReader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::sdf: {
-            auto reader = adapters::native::sdf_input::SdfReader{input, std::move(source_name)};
+            auto reader = adapters::SdfReader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::mol2: {
-            auto reader = adapters::native::mol2_input::Mol2Reader{input, std::move(source_name)};
+            auto reader = adapters::Mol2Reader{input, std::move(source_name)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::molecule_json: {
-            auto reader = adapters::native::json_input::JsonReader{
-                input, std::move(source_name),
-                adapters::conformer_selection_from_string(conformers)};
+            auto reader =
+                adapters::JsonReader{input, std::move(source_name),
+                                     adapters::conformer_selection_from_string(conformers)};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::pdb: {
-            auto reader = adapters::gemmi::pdb_input::PdbReader{input, std::move(source_name),
-                                                                structural_options()};
+            auto reader = adapters::PdbReader{input, std::move(source_name), structural_options()};
             payloads = read_all(reader);
             break;
         }
         case adapters::MolecularSourceFormat::mmcif: {
-            auto reader = adapters::gemmi::mmcif_input::MmcifReader{input, std::move(source_name),
-                                                                    structural_options()};
+            auto reader =
+                adapters::MmcifReader{input, std::move(source_name), structural_options()};
             payloads = read_all(reader);
             break;
         }
@@ -274,7 +273,7 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
     auto output = std::ostringstream{};
     if (format == "mmcif") {
         const auto results = result_pointers(native_results);
-        adapters::gemmi::mmcif_output::MmcifWriter{output}.write(results);
+        adapters::MmcifWriter{output}.write(results);
         return output.str();
     }
     if (native_results.size() != 1) {
@@ -282,11 +281,11 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
     }
     const auto& result = native_results.front()->result();
     if (format == "result-json") {
-        adapters::native::json_output::JsonWriter{output}.write(result);
+        adapters::JsonWriter{output}.write(result);
     } else if (format == "mol2") {
-        adapters::native::mol2_output::Mol2Writer{output}.write(result);
+        adapters::Mol2Writer{output}.write(result);
     } else if (format == "pqr") {
-        adapters::native::pqr_output::PqrWriter{output}.write(result);
+        adapters::PqrWriter{output}.write(result);
     } else {
         throw std::invalid_argument{"unsupported calculation output format: " + format};
     }

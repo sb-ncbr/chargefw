@@ -35,8 +35,6 @@ namespace adapters = chargefw::adapters;
 namespace calculation = chargefw::calculation;
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
-namespace mmcif_input = chargefw::adapters::gemmi::mmcif_input;
-namespace json_output = chargefw::adapters::native::json_output;
 namespace methods = chargefw::methods;
 
 using chargefw::test::full_effective;
@@ -118,14 +116,14 @@ TEST_CASE("JSON output rejects a failed stream", "[adapters][json]") {
     auto output = std::ostringstream{};
     output.setstate(std::ios::badbit);
 
-    CHECK_THROWS_AS(json_output::JsonWriter{output}.write(result), std::runtime_error);
+    CHECK_THROWS_AS(adapters::JsonWriter{output}.write(result), std::runtime_error);
 }
 
 TEST_CASE("JSON output rejects text that is not UTF-8 without writing", "[adapters][json]") {
     const auto result = adapters::make_failed_request_result({}, {}, "caf\xe9.mol");
     auto output = std::ostringstream{};
 
-    CHECK_THROWS_AS(json_output::JsonWriter{output}.write(result), std::invalid_argument);
+    CHECK_THROWS_AS(adapters::JsonWriter{output}.write(result), std::invalid_argument);
     CHECK(output.str().empty());
 }
 
@@ -183,7 +181,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
                                    .peak_resident_memory_bytes = 123456789};
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(owned, execution_metrics);
+    adapters::JsonWriter{output}.write(owned, execution_metrics);
     const auto result = nlohmann::json::parse(output.str());
 
     CHECK(result.at("schema_version") == "1.0");
@@ -274,7 +272,7 @@ TEST_CASE("JSON output projects fixed ion provenance", "[adapters][json]") {
                  .sources = {{.molecule_index = 0, .atom_index = 1, .charge = 0.25}}})});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result);
+    adapters::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
     const auto& fixed_ions = document.at("calculation_provenance").at("effective").at("fixed_ions");
     CHECK(fixed_ions.is_array());
@@ -315,7 +313,7 @@ TEST_CASE("JSON fixed ions retain sources with missing or ambiguous component la
                                      calculation::FixedIons{.sources = std::move(sources)})});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result);
+    adapters::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
     const auto& fixed_ions = document.at("calculation_provenance").at("effective").at("fixed_ions");
     REQUIRE(fixed_ions.size() == 4);
@@ -354,7 +352,7 @@ HETATM 3 Mg MG . MG B 1 ? 0 3 1 1 20 2 1 MG B MG E2 1
 #
 )cif";
     auto input = std::istringstream{document};
-    auto reader = mmcif_input::MmcifReader{input, "component-input.cif"};
+    auto reader = adapters::MmcifReader{input, "component-input.cif"};
     auto records = std::vector<adapters::ImportedMoleculeRecord>{};
     while (auto record = reader.next()) {
         records.push_back(std::move(*record));
@@ -382,7 +380,7 @@ HETATM 3 Mg MG . MG B 1 ? 0 3 1 1 20 2 1 MG B MG E2 1
         std::move(execution));
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result);
+    adapters::JsonWriter{output}.write(result);
     const auto json = nlohmann::json::parse(output.str());
     const auto& fixed_ions = json.at("calculation_provenance").at("effective").at("fixed_ions");
     REQUIRE(fixed_ions.size() == 1);
@@ -419,7 +417,7 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[a
             {}, std::move(execution));
 
         auto output = std::ostringstream{};
-        json_output::JsonWriter{output}.write(result);
+        adapters::JsonWriter{output}.write(result);
         const auto document = nlohmann::json::parse(output.str());
 
         CHECK(document.at("status") == test_case.expected_status);
@@ -456,7 +454,7 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[adapters
         {}, std::move(execution));
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(result);
+    adapters::JsonWriter{output}.write(result);
     const auto document = nlohmann::json::parse(output.str());
 
     const auto& diagnostics = document.at("results").at(0).at("diagnostics");
@@ -485,7 +483,7 @@ TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[adapte
          .effective = full_effective("formal")});
 
     auto output = std::ostringstream{};
-    json_output::JsonWriter{output}.write(owned);
+    adapters::JsonWriter{output}.write(owned);
     const auto result = nlohmann::json::parse(output.str());
 
     CHECK(result.at("results").at(0).at("input").at("atom_ids") == nlohmann::json{"H", 9});

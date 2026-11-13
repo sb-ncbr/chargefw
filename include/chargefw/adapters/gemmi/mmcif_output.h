@@ -5,7 +5,7 @@
 #include <iosfwd>
 #include <span>
 
-namespace chargefw::adapters::gemmi::mmcif_output {
+namespace chargefw::adapters {
 
 // Writes a fresh mmCIF representation of calculation results.
 class MmcifWriter {
@@ -21,4 +21,4 @@ class MmcifWriter {
     std::ostream* output_;
 };
 
-} // namespace chargefw::adapters::gemmi::mmcif_output
+} // namespace chargefw::adapters

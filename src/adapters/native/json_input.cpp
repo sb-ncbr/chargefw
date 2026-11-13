@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::native::json_input {
+namespace chargefw::adapters {
 namespace {
 
 namespace common = chargefw::adapters::native::common_input;
@@ -331,4 +331,4 @@ auto JsonReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
     return record;
 }
 
-} // namespace chargefw::adapters::native::json_input
+} // namespace chargefw::adapters

@@ -38,7 +38,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::gemmi::mmcif_output {
+namespace chargefw::adapters {
 namespace {
 
 constexpr auto metadata_category = "_sb_ncbr_partial_atomic_charges_meta.";
@@ -190,7 +190,7 @@ struct OutputAssignments {
         throw std::invalid_argument{
             "Gemmi target block identity does not match the calculation input"};
     }
-    auto atom_sites = mmcif_labels::source_atom_sites(block);
+    auto atom_sites = gemmi::mmcif_labels::source_atom_sites(block);
     auto type_symbols = block.find("_atom_site.", {"type_symbol"});
     auto identity_sites =
         block.find("_atom_site.", {"Cartn_x", "Cartn_y", "Cartn_z", "?pdbx_formal_charge"});
@@ -236,12 +236,13 @@ struct OutputAssignments {
                     "Gemmi target site mapping does not match the calculation input"};
             }
             if (site.structural_labels == nullptr ||
-                mmcif_labels::decode_source_labels(target_site) != *site.structural_labels) {
+                gemmi::mmcif_labels::decode_source_labels(target_site) != *site.structural_labels) {
                 throw std::invalid_argument{
                     "Gemmi target site mapping does not match the calculation input"};
             }
-            if (target_site.has(mmcif_labels::model_id_column) &&
-                ::gemmi::cif::as_string(target_site[mmcif_labels::model_id_column]) != model_id) {
+            if (target_site.has(gemmi::mmcif_labels::model_id_column) &&
+                ::gemmi::cif::as_string(target_site[gemmi::mmcif_labels::model_id_column]) !=
+                    model_id) {
                 throw std::invalid_argument{
                     "Gemmi target model mapping does not match the calculation input"};
             }
@@ -407,10 +408,10 @@ struct RecordBonds {
 [[nodiscard]] auto follows_protonation(const core::Molecule& molecule,
                                        const std::vector<ResidueBonds>& residues,
                                        const ComponentBond& bond) -> bool {
-    const auto* const component_template = component_templates::find(bond.component);
+    const auto* const component_template = gemmi::component_templates::find(bond.component);
     if (component_template == nullptr ||
-        !component_templates::varies_with_protonation(*component_template, bond.first_atom,
-                                                      bond.second_atom)) {
+        !gemmi::component_templates::varies_with_protonation(*component_template, bond.first_atom,
+                                                             bond.second_atom)) {
         return false;
     }
     const auto key = bond_key(bond.first_atom, bond.second_atom);
@@ -419,19 +420,21 @@ struct RecordBonds {
         if (residue.component != bond.component || order == residue.bonds.end()) {
             return true;
         }
-        const auto atom =
-            [&](const std::string_view name) -> std::optional<component_templates::MotifAtom> {
+        const auto atom = [&](const std::string_view name)
+            -> std::optional<gemmi::component_templates::MotifAtom> {
             const auto found = residue.atoms.find(name);
             if (found == residue.atoms.end()) {
                 return std::nullopt;
             }
             const auto& source = molecule.atom(found->second);
-            return component_templates::MotifAtom{.atomic_number = source.atomic_number(),
-                                                  .formal_charge = source.formal_charge()};
+            return gemmi::component_templates::MotifAtom{.atomic_number = source.atomic_number(),
+                                                         .formal_charge = source.formal_charge()};
         };
-        const auto protonation = component_templates::protonation_bonds(*component_template, atom);
-        return component_templates::bond_order(*component_template, protonation, bond.first_atom,
-                                               bond.second_atom) == order->second;
+        const auto protonation =
+            gemmi::component_templates::protonation_bonds(*component_template, atom);
+        return gemmi::component_templates::bond_order(*component_template, protonation,
+                                                      bond.first_atom,
+                                                      bond.second_atom) == order->second;
     });
 }
 
@@ -504,7 +507,7 @@ struct RecordBonds {
     }
     const auto template_position = [](const ComponentBond& bond) {
         constexpr auto untemplated = std::numeric_limits<std::size_t>::max();
-        const auto* const component_template = component_templates::find(bond.component);
+        const auto* const component_template = gemmi::component_templates::find(bond.component);
         if (component_template == nullptr) {
             return untemplated;
         }
@@ -838,8 +841,10 @@ auto MmcifWriter::write(const ResultSpan results) const -> void {
     }
 }
 
-auto write_attached(std::ostream& output, const ResultSpan results,
-                    const ::gemmi::cif::Document& source, const bool overwrite) -> void {
+// Declared in mmcif_attachment.h, outside the public namespace.
+auto gemmi::mmcif_output::write_attached(std::ostream& output, const ResultSpan results,
+                                         const ::gemmi::cif::Document& source, const bool overwrite)
+    -> void {
     validate_results_output(results);
     const auto inputs = results.front()->inputs();
     auto document = source;
@@ -868,4 +873,4 @@ auto write_attached(std::ostream& output, const ResultSpan results,
     }
 }
 
-} // namespace chargefw::adapters::gemmi::mmcif_output
+} // namespace chargefw::adapters

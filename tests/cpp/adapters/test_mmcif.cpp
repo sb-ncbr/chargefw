@@ -11,9 +11,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace mmcif = chargefw::adapters::gemmi::mmcif_input;
-namespace gemmi_adapter = chargefw::adapters::gemmi;
-
+namespace adapters = chargefw::adapters;
 namespace {
 
 // mmCIF data block opening with the atom-site loop header shared by these fixtures; each fixture
@@ -41,10 +39,10 @@ _atom_site.auth_atom_id
 _atom_site.pdbx_PDB_model_num)cif";
 }
 
-[[nodiscard]] auto read_first(const std::string& text, const gemmi_adapter::InputOptions& options)
+[[nodiscard]] auto read_first(const std::string& text, const adapters::StructureOptions& options)
     -> chargefw::core::Molecule {
     std::istringstream input{text};
-    auto reader = mmcif::MmcifReader{input, {}, options};
+    auto reader = adapters::MmcifReader{input, {}, options};
     auto record = reader.next();
     REQUIRE(record.has_value());
     return std::move(record->molecule);
@@ -52,9 +50,9 @@ _atom_site.pdbx_PDB_model_num)cif";
 
 } // namespace
 
-static_assert(!std::is_copy_constructible_v<mmcif::MmcifReader> &&
-              !std::is_copy_assignable_v<mmcif::MmcifReader>);
-static_assert(std::is_move_constructible_v<mmcif::MmcifReader>);
+static_assert(!std::is_copy_constructible_v<adapters::MmcifReader> &&
+              !std::is_copy_assignable_v<adapters::MmcifReader>);
+static_assert(std::is_move_constructible_v<adapters::MmcifReader>);
 
 TEST_CASE("mmCIF input preserves arbitrary atom-site IDs and label namespaces",
           "[adapters][mmcif]") {
@@ -89,7 +87,7 @@ _atom_site.pdbx_PDB_model_num
         "HETATM 9223372036854775808 N L3 . LIG LA 7 ? 2 0 0 1 20 0 17 AUTH AC A3 E1 1\n"
         "HETATM '.' C L4 . LIG LA 7 ? 3 0 0 1 20 0 17 AUTH AC A4 E1 1\n"
         "HETATM '?' O L5 . LIG LA 7 ? 4 0 0 1 20 0 17 AUTH AC A5 E1 1\n#\n"};
-    auto reader = mmcif::MmcifReader{input};
+    auto reader = adapters::MmcifReader{input};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->import_metadata.has_value());
@@ -110,7 +108,7 @@ _atom_site.pdbx_PDB_model_num
     for (const auto missing : {".", "?"}) {
         std::istringstream missing_input{"data_missing\nloop_\n_atom_site.id\n" +
                                          std::string{missing} + "\n"};
-        auto missing_reader = mmcif::MmcifReader{missing_input};
+        auto missing_reader = adapters::MmcifReader{missing_input};
         CHECK_THROWS_AS(missing_reader.next(), std::runtime_error);
     }
 
@@ -118,14 +116,14 @@ _atom_site.pdbx_PDB_model_num
         std::string{header} +
         "HETATM duplicate C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 E1 1\n"
         "HETATM 'duplicate' O O1 . LIG A 1 ? 1 0 0 1 20 0 1 LIG A O1 E1 1\n#\n"};
-    auto duplicate_reader = mmcif::MmcifReader{duplicate};
+    auto duplicate_reader = adapters::MmcifReader{duplicate};
     CHECK_THROWS_AS(duplicate_reader.next(), std::runtime_error);
 
     std::istringstream long_value{atom_site_header("long") +
                                   "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"
                                   "_struct.title " +
                                   std::string(5000, 'x') + "\n"};
-    auto long_reader = mmcif::MmcifReader{long_value};
+    auto long_reader = adapters::MmcifReader{long_value};
     const auto long_record = long_reader.next();
     REQUIRE(long_record.has_value());
     CHECK(long_record->molecule.atoms().size() == 1);
@@ -134,7 +132,7 @@ _atom_site.pdbx_PDB_model_num
         std::istringstream model_input{
             std::string{header} + "HETATM source C L1 . LIG LA 7 ? 0 0 0 1 20 0 17 AUTH AC A1 E1 " +
             model_id + "\n#\n"};
-        auto model_reader = mmcif::MmcifReader{model_input};
+        auto model_reader = adapters::MmcifReader{model_input};
         const auto model_record = model_reader.next();
         REQUIRE(model_record.has_value());
         REQUIRE(model_record->import_metadata.has_value());
@@ -151,7 +149,7 @@ TEST_CASE("mmCIF templates use canonical labels and reject ambiguous selected na
 
     std::istringstream input{make_input("ATOM 1 N N . ALA A 1 ? 0 0 0 1 20 0 9 AUTHOR A N1 1\n"
                                         "ATOM 2 C CA . ALA A 1 ? 1 0 0 1 20 0 9 AUTHOR A CA1 1")};
-    auto reader = mmcif::MmcifReader{input, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
+    auto reader = adapters::MmcifReader{input, {}, {.bonds = adapters::BondStrategy::templates}};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     CHECK(record->molecule.atom(0).name() == "N1");
@@ -171,7 +169,7 @@ TEST_CASE("mmCIF templates use canonical labels and reject ambiguous selected na
                    "ATOM 5 C CD . PRO A 1 ? 4 0 0 1 20 0 9 AUTHOR A DELTA 1\n"
                    "ATOM 6 H H1 . PRO A 1 ? 5 0 0 1 20 0 9 AUTHOR A FIRST 1")};
     auto terminal_reader =
-        mmcif::MmcifReader{terminal, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
+        adapters::MmcifReader{terminal, {}, {.bonds = adapters::BondStrategy::templates}};
     const auto terminal_record = terminal_reader.next();
     REQUIRE(terminal_record.has_value());
     CHECK(terminal_record->molecule.atom_count() == 6);
@@ -196,8 +194,8 @@ ALA N CA SING
 #
 )cif";
     std::istringstream explicit_stream{explicit_input};
-    auto explicit_reader = mmcif::MmcifReader{
-        explicit_stream, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}};
+    auto explicit_reader = adapters::MmcifReader{
+        explicit_stream, {}, {.bonds = adapters::BondStrategy::explicit_bonds}};
     const auto explicit_record = explicit_reader.next();
     REQUIRE(explicit_record.has_value());
     REQUIRE(explicit_record->molecule.bond_count() == 1);
@@ -206,7 +204,7 @@ ALA N CA SING
     std::istringstream fallback{make_input("ATOM 1 N . . . A 1 ? 0 0 0 1 20 0 9 ALA A N 1\n"
                                            "ATOM 2 C . . . A 1 ? 1 0 0 1 20 0 9 ALA A CA 1")};
     auto fallback_reader =
-        mmcif::MmcifReader{fallback, {}, {.bonds = gemmi_adapter::BondStrategy::templates}};
+        adapters::MmcifReader{fallback, {}, {.bonds = adapters::BondStrategy::templates}};
     const auto fallback_record = fallback_reader.next();
     REQUIRE(fallback_record.has_value());
     CHECK(fallback_record->molecule.bond_count() == 1);
@@ -214,13 +212,13 @@ ALA N CA SING
 
     std::istringstream ambiguous{make_input("HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
                                             "HETATM 2 O C1 . LIG A 1 ? 1 0 0 1 20 0 9 LIG A X2 1")};
-    auto ambiguous_reader = mmcif::MmcifReader{ambiguous};
+    auto ambiguous_reader = adapters::MmcifReader{ambiguous};
     CHECK_THROWS_AS(ambiguous_reader.next(), std::runtime_error);
 
     std::istringstream alternates{
         make_input("HETATM 1 C C1 A LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
                    "HETATM 2 C C1 B LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};
-    auto alternate_reader = mmcif::MmcifReader{alternates};
+    auto alternate_reader = adapters::MmcifReader{alternates};
     const auto alternate_record = alternate_reader.next();
     REQUIRE(alternate_record.has_value());
     CHECK(alternate_record->molecule.atom_count() == 1);
@@ -248,7 +246,7 @@ _sb_ncbr_partial_atomic_charges.charge
 #
 )cif"};
 
-    auto reader = mmcif::MmcifReader{input, "structure.cif"};
+    auto reader = adapters::MmcifReader{input, "structure.cif"};
     const auto first = reader.next();
     REQUIRE(first.has_value());
     CHECK(first->identity.source_name == "structure.cif");
@@ -278,7 +276,7 @@ ATOM 1 C CA . ALA A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 ALA A CA 1
 ATOM 1 Xx CA . ALA A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 ALA A CA 1
 #
 )cif"};
-    auto deferred_error_reader = mmcif::MmcifReader{deferred_error_input};
+    auto deferred_error_reader = adapters::MmcifReader{deferred_error_input};
     REQUIRE(deferred_error_reader.next().has_value());
     CHECK_THROWS_AS(deferred_error_reader.next(), std::runtime_error);
 
@@ -288,8 +286,8 @@ HETATM 2 C C1 . LIG A 2 ? 1.0 0.0 0.0 1.0 20.0 0 2 LIG A C1 1
 HETATM 3 O O . HOH A 3 ? 2.0 0.0 0.0 1.0 20.0 0 3 HOH A O 1
 #
 )cif"};
-    auto filtered = mmcif::MmcifReader{
-        filtered_input, {}, {.selection = gemmi_adapter::RecordSelection::polymers}};
+    auto filtered = adapters::MmcifReader{
+        filtered_input, {}, {.selection = adapters::RecordSelection::polymers}};
     const auto filtered_record = filtered.next();
     REQUIRE(filtered_record.has_value());
     CHECK(filtered_record->molecule.atom_count() == 2);
@@ -324,27 +322,27 @@ link1 covale A LIG 1 O1 B LIG 1 C2 doub
 link2 covale A LIG 1 C1 B LIG 1 O2 ?
 #
 )cif";
-    const auto read_strategy = [&](const gemmi_adapter::BondStrategy strategy) {
+    const auto read_strategy = [&](const adapters::BondStrategy strategy) {
         return read_first(strategy_input, {.bonds = strategy});
     };
 
-    CHECK(read_strategy(gemmi_adapter::BondStrategy::none).bond_count() == 0);
-    const auto explicit_molecule = read_strategy(gemmi_adapter::BondStrategy::explicit_bonds);
+    CHECK(read_strategy(adapters::BondStrategy::none).bond_count() == 0);
+    const auto explicit_molecule = read_strategy(adapters::BondStrategy::explicit_bonds);
     REQUIRE(explicit_molecule.bond_count() == 4);
     CHECK(explicit_molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
     CHECK(explicit_molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
     // Connections between residues take their pdbx_value_order, single when it is missing.
     CHECK(explicit_molecule.bond(2).order() == chargefw::core::BondOrder::DOUBLE);
     CHECK(explicit_molecule.bond(3).order() == chargefw::core::BondOrder::SINGLE);
-    CHECK(read_strategy(gemmi_adapter::BondStrategy::hybrid).bond_count() == 4);
+    CHECK(read_strategy(adapters::BondStrategy::hybrid).bond_count() == 4);
 
     // An aromatic connection is read as a single bond, with a warning.
     auto aromatic_connection_input = strategy_input;
     aromatic_connection_input.replace(aromatic_connection_input.find(" doub\n"), 5, " arom");
     std::istringstream aromatic_connection{aromatic_connection_input};
     const auto aromatic_record =
-        mmcif::MmcifReader{
-            aromatic_connection, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}}
+        adapters::MmcifReader{
+            aromatic_connection, {}, {.bonds = adapters::BondStrategy::explicit_bonds}}
             .next();
     REQUIRE(aromatic_record.has_value());
     CHECK(aromatic_record->molecule.bond(2).order() == chargefw::core::BondOrder::SINGLE);
@@ -373,9 +371,9 @@ _struct_conn.ptnr2_label_atom_id
 _struct_conn.ptnr2_symmetry
 disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
                                             std::string{second_symmetry} + "\n#\n"};
-        auto record = mmcif::MmcifReader{connection_input,
-                                         {},
-                                         {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}}
+        auto record = adapters::MmcifReader{connection_input,
+                                            {},
+                                            {.bonds = adapters::BondStrategy::explicit_bonds}}
                           .next();
         REQUIRE(record.has_value());
         return std::move(*record);
@@ -402,17 +400,17 @@ _chem_comp_bond.value_order
 )cif" + std::string{component_bond} +
                "\n#\n";
     };
-    const auto read_duplicate_bond = [&](const gemmi_adapter::BondStrategy strategy,
+    const auto read_duplicate_bond = [&](const adapters::BondStrategy strategy,
                                          const std::string_view component_bond) {
         const auto molecule = read_first(duplicate_input(component_bond), {.bonds = strategy});
         REQUIRE(molecule.bond_count() == 1);
         return molecule.bond(0);
     };
 
-    CHECK(read_duplicate_bond(gemmi_adapter::BondStrategy::templates, "ALA N CA DOUB").order() ==
+    CHECK(read_duplicate_bond(adapters::BondStrategy::templates, "ALA N CA DOUB").order() ==
           chargefw::core::BondOrder::SINGLE);
     for (const auto strategy :
-         {gemmi_adapter::BondStrategy::explicit_bonds, gemmi_adapter::BondStrategy::hybrid}) {
+         {adapters::BondStrategy::explicit_bonds, adapters::BondStrategy::hybrid}) {
         const auto unquoted = read_duplicate_bond(strategy, "ALA N CA DOUB");
         const auto quoted = read_duplicate_bond(strategy, "'ALA' 'N' 'CA' 'DOUB'");
         CHECK(quoted.first_atom_index() == unquoted.first_atom_index());
@@ -423,12 +421,11 @@ _chem_comp_bond.value_order
 
     const auto explicit_bond_count = [&](const std::string_view value_order) {
         return read_first(duplicate_input("ALA N CA " + std::string{value_order}),
-                          {.bonds = gemmi_adapter::BondStrategy::explicit_bonds})
+                          {.bonds = adapters::BondStrategy::explicit_bonds})
             .bond_count();
     };
-    CHECK(
-        read_duplicate_bond(gemmi_adapter::BondStrategy::explicit_bonds, "ALA N CA aRoM").order() ==
-        chargefw::core::BondOrder::SINGLE);
+    CHECK(read_duplicate_bond(adapters::BondStrategy::explicit_bonds, "ALA N CA aRoM").order() ==
+          chargefw::core::BondOrder::SINGLE);
     for (const auto value_order : {"DELO", "METAL", "1.5", ".", "?", "invalid"}) {
         CHECK(explicit_bond_count(value_order) == 0);
     }
@@ -436,17 +433,17 @@ _chem_comp_bond.value_order
     // The warning comes with the file's bonds, which templates do not read. It lists the aromatic
     // bond by its index in the record, with explicit and hybrid reading.
     for (const auto strategy :
-         {gemmi_adapter::BondStrategy::templates, gemmi_adapter::BondStrategy::explicit_bonds,
-          gemmi_adapter::BondStrategy::hybrid}) {
-        CAPTURE(gemmi_adapter::to_string(strategy));
+         {adapters::BondStrategy::templates, adapters::BondStrategy::explicit_bonds,
+          adapters::BondStrategy::hybrid}) {
+        CAPTURE(adapters::to_string(strategy));
         std::istringstream aromatic{duplicate_input("ALA N CA arom")};
-        const auto record = mmcif::MmcifReader{aromatic, {}, {.bonds = strategy}}.next();
+        const auto record = adapters::MmcifReader{aromatic, {}, {.bonds = strategy}}.next();
         REQUIRE(record.has_value());
         const auto warning = std::ranges::find_if(record->import_warnings, [](const auto& issue) {
             return issue.kind == chargefw::adapters::ImportIssueKind::aromatic_bonds_converted;
         });
         REQUIRE((warning != record->import_warnings.end()) ==
-                (strategy != gemmi_adapter::BondStrategy::templates));
+                (strategy != adapters::BondStrategy::templates));
         if (warning != record->import_warnings.end()) {
             REQUIRE(warning->location.bond_indices.size() == 1);
             const auto& bond = record->molecule.bond(warning->location.bond_indices[0]);
@@ -476,7 +473,7 @@ LIG C1 N1 SING
 #
 )cif"};
     auto reader =
-        mmcif::MmcifReader{input, {}, {.bonds = gemmi_adapter::BondStrategy::explicit_bonds}};
+        adapters::MmcifReader{input, {}, {.bonds = adapters::BondStrategy::explicit_bonds}};
     const auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE(record->molecule.atom_count() == 3);
@@ -512,7 +509,7 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
 #
 )cif";
     std::istringstream input{incompatible_input};
-    auto reader = mmcif::MmcifReader{input};
+    auto reader = adapters::MmcifReader{input};
     CHECK_THROWS_MATCHES(reader.next(), std::exception,
                          snitch::matchers::with_what_contains{"same selected component instances"});
 }
@@ -520,6 +517,6 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
 TEST_CASE("mmCIF input rejects non-ASCII text", "[adapters][mmcif]") {
     std::istringstream input{"# structure\n# \xe5\x88\x86\xe5\xad\x90\n" + atom_site_header("x") +
                              "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"};
-    CHECK_THROWS_MATCHES(mmcif::MmcifReader{input}, std::runtime_error,
+    CHECK_THROWS_MATCHES(adapters::MmcifReader{input}, std::runtime_error,
                          snitch::matchers::with_what_contains{"line 2 contains a non-ASCII"});
 }

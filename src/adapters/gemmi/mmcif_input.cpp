@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace chargefw::adapters::gemmi::mmcif_input {
+namespace chargefw::adapters {
 namespace {
 
 // Replaces the validated _atom_site.id values with their one-based positions for Gemmi while it
@@ -91,12 +91,12 @@ class ParserAtomSiteIds {
 
 [[nodiscard]] auto
 make_source_mappings(::gemmi::cif::Block& block,
-                     const std::span<const selection::SelectedModel> selected_models)
-    -> std::vector<structure_import::SourceModelMapping> {
+                     const std::span<const gemmi::selection::SelectedModel> selected_models)
+    -> std::vector<gemmi::structure_import::SourceModelMapping> {
     // Gemmi built the structure while each _atom_site.id held its row position plus one, so an
     // atom's serial number names its row. Only the rows of selected atoms are decoded.
-    auto atom_sites = mmcif_labels::source_atom_sites(block);
-    auto result = std::vector<structure_import::SourceModelMapping>{};
+    auto atom_sites = gemmi::mmcif_labels::source_atom_sites(block);
+    auto result = std::vector<gemmi::structure_import::SourceModelMapping>{};
     result.reserve(selected_models.size());
     for (std::size_t model_index = 0; model_index < selected_models.size(); ++model_index) {
         const auto& selected = selected_models[model_index];
@@ -110,16 +110,17 @@ make_source_mappings(::gemmi::cif::Block& block,
             }
             const auto row = atom_sites[atom->serial - 1];
             if (!model_id_initialized) {
-                model_id = mmcif_labels::source_value(row, mmcif_labels::model_id_column);
+                model_id =
+                    gemmi::mmcif_labels::source_value(row, gemmi::mmcif_labels::model_id_column);
                 model_id_initialized = true;
             }
             mapped.push_back(SourceAtomReference{
                 .position = static_cast<std::size_t>(atom->serial) - 1,
                 .id = ::gemmi::cif::as_string(row[0]),
                 .structural_labels = std::make_shared<const SourceStructuralLabels>(
-                    mmcif_labels::decode_source_labels(row))});
+                    gemmi::mmcif_labels::decode_source_labels(row))});
         }
-        result.push_back(structure_import::SourceModelMapping{
+        result.push_back(gemmi::structure_import::SourceModelMapping{
             .conformer = SourceConformerReference{
                 .position = model_index, .id = std::move(model_id), .sites = std::move(mapped)}});
     }
@@ -136,18 +137,18 @@ make_source_mappings(::gemmi::cif::Block& block,
 
 struct MmcifReader::Impl {
     Impl(std::istream& input, std::string source_name,
-         ::chargefw::adapters::gemmi::InputOptions options);
+         ::chargefw::adapters::StructureOptions options);
     auto next() -> std::optional<ImportedMoleculeRecord>;
 
     ::gemmi::cif::Document document_;
     std::string source_;
-    ::chargefw::adapters::gemmi::InputOptions options_;
+    ::chargefw::adapters::StructureOptions options_;
     std::size_t block_index_ = 0;
     std::size_t record_index_ = 0;
 };
 
 MmcifReader::MmcifReader(std::istream& input, std::string source_name,
-                         const ::chargefw::adapters::gemmi::InputOptions options)
+                         const ::chargefw::adapters::StructureOptions options)
     : impl_{std::make_unique<Impl>(input, std::move(source_name), options)} {}
 
 MmcifReader::MmcifReader(MmcifReader&&) noexcept = default;
@@ -159,7 +160,7 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
 }
 
 MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
-                        const ::chargefw::adapters::gemmi::InputOptions options)
+                        const ::chargefw::adapters::StructureOptions options)
     : source_{std::move(source_name)}, options_{options} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
     const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
@@ -196,18 +197,19 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
         }
         ::gemmi::add_entity_types(structure, false);
         auto selected_models =
-            selection::select_models(structure, options_.selection, options_.conformers);
+            gemmi::selection::select_models(structure, options_.selection, options_.conformers);
         auto source_models = make_source_mappings(block, selected_models);
         for (std::size_t index = 0; index < selected_models.size(); ++index) {
             selected_models[index].normalize_component_names(source_models[index].conformer.sites);
         }
-        auto explicit_bonds = bonds::ExplicitBonds{};
+        auto explicit_bonds = gemmi::bonds::ExplicitBonds{};
         if (options_.bonds == BondStrategy::explicit_bonds ||
             options_.bonds == BondStrategy::hybrid) {
-            explicit_bonds = bonds::explicit_mmcif(structure, block, selected_models.front());
+            explicit_bonds =
+                gemmi::bonds::explicit_mmcif(structure, block, selected_models.front());
         }
         const auto current_record_index = record_index_++;
-        auto record = structure_import::make_record(
+        auto record = gemmi::structure_import::make_record(
             structure, selected_models,
             MoleculeRecordIdentity{.source_name = source_,
                                    .record_index = current_record_index,
@@ -220,8 +222,8 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
                 adapters::aromatic_bonds_issue(std::move(explicit_bonds.aromatic_bonds)));
         }
         if (explicit_bonds.skipped_symmetry_connections > 0) {
-            record.import_warnings.push_back(
-                bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
+            record.import_warnings.push_back(gemmi::bonds::symmetry_connections_issue(
+                explicit_bonds.skipped_symmetry_connections));
         }
         if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.")) {
             record.import_warnings.push_back(ImportIssue{
@@ -236,4 +238,4 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
     return std::nullopt;
 }
 
-} // namespace chargefw::adapters::gemmi::mmcif_input
+} // namespace chargefw::adapters

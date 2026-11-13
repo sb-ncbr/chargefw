@@ -145,7 +145,7 @@ int main() {
     using namespace chargefw;
 
     auto input = std::ifstream{"paracetamol.sdf"};
-    auto reader = adapters::native::sdf_input::SdfReader{input, "paracetamol.sdf"};
+    auto reader = adapters::SdfReader{input, "paracetamol.sdf"};
     auto records = std::vector<adapters::ImportedMoleculeRecord>{};
     auto molecules = std::vector<core::Molecule>{};
     while (auto record = reader.next()) {
@@ -172,9 +172,9 @@ int main() {
         adapters::make_charge_calculation_result(std::move(records), requested, std::move(execution));
 
     auto mol2 = std::ofstream{"paracetamol.mol2"};
-    adapters::native::mol2_output::Mol2Writer{mol2}.write(result);
+    adapters::Mol2Writer{mol2}.write(result);
     auto json = std::ofstream{"paracetamol.json"};
-    adapters::native::json_output::JsonWriter{json}.write(result);
+    adapters::JsonWriter{json}.write(result);
 }
 ```
 
@@ -182,7 +182,7 @@ int main() {
 | --- | --- |
 | `chargefw/adapters/native/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
 | `chargefw/adapters/native/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
-| `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options |
+| `chargefw/adapters/gemmi/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
 | `chargefw/adapters/native/mol2_output.h` | `Mol2Writer` |
 | `chargefw/adapters/native/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
 | `chargefw/adapters/gemmi/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
@@ -193,12 +193,13 @@ results calculated from equal records, for example from copies of `records` abov
 
 ```cpp
 auto cif = std::ofstream{"paracetamol.cif"};
-adapters::gemmi::mmcif_output::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
+adapters::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
 ```
 
 The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
-`chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of a namespace, for applications.
+`chargefw/adapters/native/all.h` and `gemmi/all.h` include all headers of their directory, for
+applications. All readers and writers are in `chargefw::adapters`.
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
 records stay valid after the reader is destroyed.
 

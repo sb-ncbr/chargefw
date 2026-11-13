@@ -113,7 +113,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
 }
 
 auto read_collection(const std::string& input_path,
-                     const adapters::gemmi::InputOptions structural_options,
+                     const adapters::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     std::ifstream input{input_path};
     if (!input) {
@@ -130,28 +130,27 @@ auto read_collection(const std::string& input_path,
             "Structural input options are only supported for PDB and mmCIF input"};
     }
     if (extension == ".sdf") {
-        adapters::native::sdf_input::SdfReader reader{input, input_path};
+        adapters::SdfReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol") {
-        adapters::native::mol_input::MolReader reader{input, input_path};
+        adapters::MolReader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".mol2") {
-        adapters::native::mol2_input::Mol2Reader reader{input, input_path};
+        adapters::Mol2Reader reader{input, input_path};
         return read_collection(reader, input_path);
     }
     if (extension == ".json") {
-        adapters::native::json_input::JsonReader reader{input, input_path,
-                                                        structural_options.conformers};
+        adapters::JsonReader reader{input, input_path, structural_options.conformers};
         return read_collection(reader, input_path);
     }
     if (extension == ".pdb") {
-        adapters::gemmi::pdb_input::PdbReader reader{input, input_path, structural_options};
+        adapters::PdbReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
     if (extension == ".cif" || extension == ".mmcif") {
-        adapters::gemmi::mmcif_input::MmcifReader reader{input, input_path, structural_options};
+        adapters::MmcifReader reader{input, input_path, structural_options};
         return read_collection(reader, input_path);
     }
 
@@ -205,9 +204,9 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
 }
 
 auto import_input(const InputArguments& arguments) -> ImportedCollection {
-    const auto options = adapters::gemmi::InputOptions{
-        .selection = adapters::gemmi::record_selection_from_string(arguments.structural_selection),
-        .bonds = adapters::gemmi::bond_strategy_from_string(arguments.structural_bonds),
+    const auto options = adapters::StructureOptions{
+        .selection = adapters::record_selection_from_string(arguments.structural_selection),
+        .bonds = adapters::bond_strategy_from_string(arguments.structural_bonds),
         .conformers = adapters::conformer_selection_from_string(arguments.conformer_selection)};
     auto imported = read_collection(arguments.path, options,
                                     arguments.structural_selection_option->count() > 0 ||

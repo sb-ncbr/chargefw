@@ -24,8 +24,6 @@ namespace {
 namespace adapters = chargefw::adapters;
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
-namespace mol2_input = chargefw::adapters::native::mol2_input;
-namespace mol2_output = chargefw::adapters::native::mol2_output;
 
 using chargefw::test::calculation_result;
 
@@ -66,7 +64,7 @@ auto generated_record() -> adapters::ImportedMoleculeRecord {
                            {{.target = {.molecule_index = 0},
                              .charges = charges::AtomicCharges{std::vector(atom_count, 0.0)}}}});
     auto output = std::ostringstream{};
-    mol2_output::Mol2Writer{output}.write(result);
+    adapters::Mol2Writer{output}.write(result);
 
     auto input = std::istringstream{output.str()};
     auto types = std::vector<std::string>{};
@@ -215,7 +213,7 @@ TEST_CASE("result-owned MOL2 writes every conformer with its charges", "[adapter
               .charges = charges::AtomicCharges{{0.25, -0.25}}}},
             "qeq-default"});
     auto output = std::ostringstream{};
-    mol2_output::Mol2Writer{output}.write(result);
+    adapters::Mol2Writer{output}.write(result);
     const auto text = output.str();
 
     CHECK(occurrences(text, "@<TRIPOS>MOLECULE") == 2);
@@ -237,7 +235,7 @@ TEST_CASE("result-owned MOL2 writes every conformer with its charges", "[adapter
     CHECK_FALSE(second_text.contains(" 0.1235\n"));
 
     auto round_trip_stream = std::istringstream{text};
-    auto reader = mol2_input::Mol2Reader{round_trip_stream};
+    auto reader = adapters::Mol2Reader{round_trip_stream};
     const auto first = reader.next();
     const auto second = reader.next();
     REQUIRE(first.has_value());
@@ -263,7 +261,7 @@ TEST_CASE("result-owned MOL2 broadcasts molecule charges to retained conformers"
             {{.target = {.molecule_index = 0}, .charges = charges::AtomicCharges{{0.25, -0.25}}},
              {.target = {.molecule_index = 1}, .charges = charges::AtomicCharges{{0.5, -0.5}}}}});
     auto output = std::ostringstream{};
-    mol2_output::Mol2Writer{output}.write(result);
+    adapters::Mol2Writer{output}.write(result);
 
     CHECK(occurrences(output.str(), " 0.2500\n") == 2);
     CHECK(occurrences(output.str(), " -0.2500\n") == 2);
@@ -278,7 +276,7 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
             {generated_record()}, {},
             {.status = chargefw::calculation::ExecutionStatus::cancelled});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(mol2_output::Mol2Writer{output}.write(cancelled), std::invalid_argument);
+        CHECK_THROWS_AS(adapters::Mol2Writer{output}.write(cancelled), std::invalid_argument);
         CHECK(output.str().empty());
     }
 
@@ -291,7 +289,7 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                {{.target = {.molecule_index = 0},
                                  .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(mol2_output::Mol2Writer{output}.write(missing), std::invalid_argument);
+        CHECK_THROWS_AS(adapters::Mol2Writer{output}.write(missing), std::invalid_argument);
         CHECK(output.str().empty());
     }
 
@@ -303,7 +301,7 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                                     {{.target = {.molecule_index = 0},
                                                       .charges = charges::AtomicCharges{{}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(mol2_output::Mol2Writer{output}.write(empty), std::invalid_argument);
+        CHECK_THROWS_AS(adapters::Mol2Writer{output}.write(empty), std::invalid_argument);
         CHECK(output.str().empty());
     }
 
@@ -320,7 +318,7 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                {{.target = {.molecule_index = 0, .conformer_index = 0},
                                  .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(mol2_output::Mol2Writer{output}.write(nonfinite_coordinates),
+        CHECK_THROWS_AS(adapters::Mol2Writer{output}.write(nonfinite_coordinates),
                         std::invalid_argument);
         CHECK(output.str().empty());
     }

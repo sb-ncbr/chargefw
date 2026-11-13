@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 
-namespace chargefw::adapters::native::mol_input {
+namespace chargefw::adapters {
 
 // Parses exactly one MOL record and throws on invalid input. The record ends at M  END; a following
 // SDF separator is not consumed. V2000 atom/bond blocks plus M  CHG and the V3000 CTAB atom/bond
@@ -34,4 +34,4 @@ class MolReader {
     bool consumed_ = false;
 };
 
-} // namespace chargefw::adapters::native::mol_input
+} // namespace chargefw::adapters

@@ -21,8 +21,7 @@
 namespace detail = chargefw::adapters::detail;
 using chargefw::adapters::ImportedMoleculeRecord;
 namespace calculation = chargefw::calculation;
-namespace gemmi_adapter = chargefw::adapters::gemmi;
-namespace mmcif = chargefw::adapters::gemmi::mmcif_input;
+namespace adapters = chargefw::adapters;
 
 namespace {
 // Structural labels are shared and immutable; replace them with an edited copy.
@@ -68,9 +67,9 @@ HETATM 7 H H2 . HOH W . ? -0.24 0.93 0 1 20 0 5 HOH W H2 1 2
 HETATM 8 Mg MG . MG I . ? 0.25 0 3 1 20 0 9 MG I MG 2 2
 #
 )cif"};
-    auto options = gemmi_adapter::InputOptions{};
-    options.bonds = gemmi_adapter::BondStrategy::templates;
-    auto reader = mmcif::MmcifReader{input, "fixed-ion-test.cif", options};
+    auto options = adapters::StructureOptions{};
+    options.bonds = adapters::BondStrategy::templates;
+    auto reader = adapters::MmcifReader{input, "fixed-ion-test.cif", options};
     auto record = reader.next();
     REQUIRE(record.has_value());
     REQUIRE_FALSE(reader.next().has_value());

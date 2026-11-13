@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace chargefw::adapters::gemmi {
+namespace chargefw::adapters {
 
 auto record_selection_from_string(const std::string_view value) -> RecordSelection {
     if (value == "all") {
@@ -60,4 +60,4 @@ auto to_string(const BondStrategy value) -> std::string_view {
     throw std::invalid_argument{"unknown bond strategy"};
 }
 
-} // namespace chargefw::adapters::gemmi
+} // namespace chargefw::adapters
