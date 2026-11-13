@@ -6,11 +6,37 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
+- [ ] Merge `pre-release` into `main` and publish one more release candidate before 3.0.0: the
+  interfaces of all three languages changed after rc3.
+- [ ] Give the JSON schemas a stable address. Their `$id` is `urn:chargefw:schema:…:1.0`, the wheel
+  does not ship them, `docs/reference/formats.md` links to files outside `docs/` (published as hashed
+  downloads), and the file names carry the minor version although every 1.x document must validate.
+  Proposal: rename them to `result-1.schema.json` and `molecule-input-1.schema.json`; copy
+  `schemas/*.json` into the HTML output under `schemas/` from `docs/conf.py`; set `$id` to
+  `https://chargefw.readthedocs.io/en/stable/schemas/<name>` and link `formats.md` there; keep them
+  out of the wheel. The URLs work once 3.0.0 is the `stable` version.
+- [ ] Restructure the changelog. `RELEASING.md` renames `Unreleased` to the version, so the 3.0.0 notes
+  would list only the changes since rc3, with "Breaking change:" entries that concern nobody. The
+  overview against ChargeFW2 under `## 3.0.0a1` is stale (Python 3.11–3.14, Linux only, `--pre`). Open
+  the 3.0.0 section with a short summary since ChargeFW2 and a link to the migration page, and put the
+  pre-release sections under one history heading.
+- [ ] `docs/about/chargefw2.md` says parameter-set IDs only lost their number, but ChargeFW2's
+  `KCM_00_original` became `KCM_original_initial` and `KCM_original_fitted`; add the mapping.
+- [ ] `docs/about/citing.md` shows `3.0.0rc2` in its sample output.
+- [ ] The `chargefw methods peoe` example in `docs/interfaces/cli.md` lacks the `recommended:` line the
+  program prints.
+- [ ] Add Python-version and operating-system classifiers to `pyproject.toml` and a
+  `preferred-citation` to `CITATION.cff`.
+- [ ] List `dist/`, `wheelhouse/`, and `release-wheelhouse/` in `.gitignore`.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
   READMEs and the documentation, show the Docker image as plain `sbncbr/chargefw`, and remove the image
-  tag update from `utils/release/01-prepare.sh` and RELEASING.md.
+  tag update from `utils/release/01-prepare.sh` and RELEASING.md. The script fails if the tag is
+  missing from the files that show it, so change the script and the documents in one commit.
+- [ ] Point the documentation links in `README.md`, `python/README.md`, and `pyproject.toml` at
+  `/en/stable/` instead of `/en/latest/` in the release commit: a published PyPI description cannot be
+  edited.
 - [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
   page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
   and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
@@ -33,7 +59,10 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Fit to several targets at once: electrostatic potentials at points, and the response of the
   charges to external charges, which needs a second plan with fixed sources. The targets share one
   parameter layout (`parameters::compatible()`); `fit()` takes a list of them and reports diagnostics
-  per target, and `fit(evaluator, references)` stays the shorthand for one charge target.
+  per target, and `fit(evaluator, references)` stays the shorthand for one charge target. Planned for
+  3.1.0: branch `multi-target` holds the difference normal equations, their Python binding, and
+  explicit per-atom fixed charges in `fixed_ions`, which need a new attribute in `RequestedCalculation`
+  and `CalculationSettings`.
 - [ ] Charged groups: find resonance groups and formal charges shared within them (carboxylate,
   guanidinium) from the bond graph into `features::TopologyFeatures`, independent of atom order and of
   the resonance form in the input; add an ionic-group atom classifier and a resonance bond
@@ -57,3 +86,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] After 3.0.0, add `CONTRIBUTING.md`, linking to DEVELOPMENT.md and asking contributors to run the
   `gcc-debug` tests and pre-commit locally.
 - [ ] After 3.0.0, enable Dependabot for GitHub Actions versions only.
+- [ ] After 3.0.0, export the type aliases of `assess()` and `calculate()` (`MethodScope`,
+  `ParameterMatching`, `RequestedExecution`, `ResourceThreshold`, the issue kinds) from `chargefw`, as
+  `PortableId` and the `chargefw.io` aliases are.
