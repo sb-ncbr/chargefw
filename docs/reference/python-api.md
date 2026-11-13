@@ -191,7 +191,7 @@ input molecule, counted from 0.
 | --- | --- |
 | `method` | `Method` |
 | `parameter_set` | `ParameterSet`; `None` for methods without parameter sets |
-| `options` | Values of all method options, including defaults |
+| `method_options` | Values of all options of the method, including defaults |
 | `execution` | `Execution` |
 | `warnings` | Tuple of `ExecutionIssue` |
 | `fixed_ions` | `FixedIons`; `None` without fixed ions |
@@ -214,7 +214,7 @@ from `plan.settings` or `result.plan.settings`. Two settings are equal when all 
 | --- | --- |
 | `method` | `Method` |
 | `parameter_set` | `ParameterSet`; `None` for methods without parameter sets |
-| `options` | Values of all method options, including defaults |
+| `method_options` | Values of all options of the method, including defaults |
 | `parameter_matching` | `"strict"` or `"permissive"` |
 | `execution` | `Execution` |
 | `fixed_ions` | Tuple of the residue names requested for fixed ions, also those not found in the molecules |
@@ -232,7 +232,7 @@ residue name it was selected by, such as `"MG"`), `molecule_index`, `atom_index`
 ### RequestedCalculation
 
 The arguments of a call as ChargeFW read them: `method` as a `Method` and `parameter_set` as a
-`ParameterSet`, or `None` when not given, `method_scope`, `options_by_method`, `parameter_matching`,
+`ParameterSet`, or `None` when not given, `method_scope`, `method_options`, `parameter_matching`,
 `execution`, `radius`, `cutoff_threshold`, `cover_threshold`, `threads`, and `fixed_ions` as a tuple
 of residue names.
 
@@ -252,7 +252,7 @@ of residue names.
 
 | Attribute | Content |
 | --- | --- |
-| `method`, `parameter_set`, `options`, `execution`, `warnings`, `settings` | As in `ExecutedPlan` |
+| `method`, `parameter_set`, `method_options`, `execution`, `warnings`, `settings` | As in `ExecutedPlan` |
 | `estimate(*, threads=None)` | `ResourceEstimate` with `memory_bytes` and `operations`; see [Threads and estimates](../guide/large-structures.md#threads-and-estimates) |
 | `calculate(*, threads=None, observer=None)` | `CalculationResult` for the molecules the plan was assessed with; raises and warns as `chargefw.calculate()` does |
 

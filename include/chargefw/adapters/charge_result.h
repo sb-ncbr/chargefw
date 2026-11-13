@@ -60,7 +60,8 @@ struct RequestedCalculationProvenance {
     std::size_t threads = 0;
     calculation::ExecutionSelectionMode execution = calculation::ExecutionSelectionMode::automatic;
     std::optional<double> radius;
-    std::map<std::string, methods::MethodOptions> method_options;
+    // The options given for the requested method.
+    methods::MethodOptions method_options;
     // The residue names requested as fixed ions, also those not found in the molecules.
     std::vector<std::string> fixed_ions;
 };

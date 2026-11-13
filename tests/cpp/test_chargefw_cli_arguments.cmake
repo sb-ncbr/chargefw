@@ -9,8 +9,9 @@ run_cli(unknown_parameter_set 2 parameters not-a-parameter-set)
 run_cli(unknown_parameter_method 2 parameters --method not-a-method)
 run_cli(parameter_filter_and_detail 2 parameters --method qeq QEq_original)
 run_cli(parameter_keys_without_set 2 parameters --keys)
-run_cli(method_option_preserves_positionals 0 applicability --method-option peoe.iters=8
+run_cli(method_option_preserves_positionals 0 applicability --method peoe --method-option iters=8
         "${CHARGEFW_INPUT}")
+run_cli(method_option_without_method 2 applicability --method-option iters=8 "${CHARGEFW_INPUT}")
 run_cli(method_scope_with_method 2 applicability --method-scope all --method eem
         "${CHARGEFW_INPUT}")
 run_cli(unknown_method_scope 2 applicability --method-scope some "${CHARGEFW_INPUT}")

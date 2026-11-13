@@ -173,9 +173,7 @@ auto make_requested_provenance(const calculation::AssessmentRequest& request,
         .execution = request.execution.mode(),
         .radius = request.execution.radius(),
         .fixed_ions = arguments.fixed_ion_ids};
-    for (const auto& [method_id, options] : request.method_options) {
-        requested.method_options.emplace(method_id, options);
-    }
+    requested.method_options = request.method_options;
     return requested;
 }
 

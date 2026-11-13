@@ -125,8 +125,7 @@ keyword arguments:
 | `method` | Method ID or `Method`; default `None`, chosen automatically |
 | `parameter_set` | Parameter-set ID or `ParameterSet`; requires `method` |
 | `method_scope` | Methods automatic selection may use: `"recommended"` (default) or `"all"`, which adds the [methods not recommended](../guide/methods.md#available-methods) for general use; `"all"` cannot be combined with `method` |
-| `options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
-| `options_by_method` | Options per method ID for automatic selection, such as `{"peoe": {"iters": 8}}` |
+| `method_options` | Options of the named method, such as `{"iters": 8}`; requires `method` |
 | `parameter_matching` | `"strict"` (default) or `"permissive"`; see [permissive matching](../reference/parameter-format.md#strict-and-permissive-matching) |
 | `execution` | `"auto"` (default), `"full"`, `"cutoff"`, or `"cover"`; see [Large structures](../guide/large-structures.md) |
 | `radius` | Fragment radius in ångströms, at least `8.0`; required with `"cutoff"` and `"cover"`, optional with `"auto"` (default 12), not allowed with `"full"` |
@@ -137,10 +136,9 @@ keyword arguments:
 | `settings` | The choices of an earlier plan, instead of the arguments that make them; see [One model for all molecules](#one-model-for-all-molecules) |
 | `observer` | Receives progress and can cancel; see [Progress and cancellation](#progress-and-cancellation) |
 
-`options` and `options_by_method` cannot be used together. Thresholds must satisfy
-`cutoff_threshold <= cover_threshold`. To remove both limits, pass `cutoff_threshold=None` and
-`cover_threshold=None`; `cutoff_threshold=None` alone is an error, `cover_threshold=None` alone keeps the
-cutoff limit.
+Thresholds must satisfy `cutoff_threshold <= cover_threshold`. To remove both limits, pass
+`cutoff_threshold=None` and `cover_threshold=None`; `cutoff_threshold=None` alone is an error,
+`cover_threshold=None` alone keeps the cutoff limit.
 
 Name both the method and the parameter set when results must be reproducible. Automatic selection, as
 described in [Choosing a method](../guide/methods.md#choosing-a-method), is deterministic, but its order
@@ -191,12 +189,12 @@ for example because the parameter set has no values for one of its atoms, it rai
 [`NoExecutablePlanError`](#errors) instead of choosing something else. If every choice is already
 named in your call, you do not need settings.
 
-`settings` cannot be combined with `method`, `parameter_set`, `method_scope`, `options`,
-`options_by_method`, `parameter_matching`, `execution`, `radius`, or `fixed_ions`. You can still pass
-`threads`. The execution mode stays the same for every structure: settings from a structure that was
-calculated in full also calculate a structure of 100,000 atoms in full, with a warning and the memory
-that requires (see [Large structures](../guide/large-structures.md)). If your structures differ that
-much in size, or you want any other choice, name the arguments in the call instead of passing settings.
+`settings` cannot be combined with `method`, `parameter_set`, `method_scope`, `method_options`,
+`parameter_matching`, `execution`, `radius`, or `fixed_ions`. You can still pass `threads`. The
+execution mode stays the same for every structure: settings from a structure that was calculated in
+full also calculate a structure of 100,000 atoms in full, with a warning and the memory that
+requires (see [Large structures](../guide/large-structures.md)). If your structures differ that much
+in size, or you want any other choice, name the arguments in the call instead of passing settings.
 
 ### Fixed ions
 

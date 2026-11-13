@@ -54,23 +54,18 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
     return threshold;
 }
 
-[[nodiscard]] auto parse_method_option(const std::string& text)
-    -> std::pair<std::string, std::pair<std::string, methods::MethodOptionValue>> {
+// Reads OPTION=VALUE for the method named by --method, converting VALUE to the option's type.
+[[nodiscard]] auto parse_method_option(const std::string& method_id, const std::string& text)
+    -> std::pair<std::string, methods::MethodOptionValue> {
     const auto equals = text.find('=');
-    const auto dot = text.find('.');
-    if (dot == std::string::npos || equals == std::string::npos || dot == 0 || dot + 1 >= equals ||
-        equals + 1 >= text.size()) {
-        throw std::runtime_error{"Method option must have the form METHOD.OPTION=VALUE: " + text};
+    if (equals == std::string::npos || equals == 0 || equals + 1 >= text.size()) {
+        throw std::runtime_error{"Method option must have the form OPTION=VALUE: " + text};
     }
 
-    const auto method_id = text.substr(0, dot);
-    const auto option_id = text.substr(dot + 1, equals - dot - 1);
+    const auto option_id = text.substr(0, equals);
     const auto value = text.substr(equals + 1);
-    const auto* method = methods::method_registry().find(method_id);
-    if (method == nullptr) {
-        throw std::runtime_error{"Unknown method in method option: " + method_id};
-    }
-    const auto schema = method->option_schema();
+    const auto& method = methods::method_registry().require(method_id);
+    const auto schema = method.option_schema();
     const auto spec =
         std::ranges::find_if(schema, [&option_id](const methods::MethodOptionSpec& item) {
             return item.id == option_id;
@@ -83,10 +78,10 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
     switch (spec->type) {
     case methods::MethodOptionType::boolean:
         if (value == "true" || value == "1") {
-            return {method_id, {option_id, true}};
+            return {option_id, true};
         }
         if (value == "false" || value == "0") {
-            return {method_id, {option_id, false}};
+            return {option_id, false};
         }
         break;
     case methods::MethodOptionType::integer: {
@@ -94,7 +89,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
         const auto [end, error] =
             std::from_chars(value.data(), value.data() + value.size(), parsed);
         if (error == std::errc{} && end == value.data() + value.size()) {
-            return {method_id, {option_id, parsed}};
+            return {option_id, parsed};
         }
         break;
     }
@@ -103,7 +98,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
             std::size_t end = 0;
             const auto parsed = std::stod(value, &end);
             if (end == value.size()) {
-                return {method_id, {option_id, parsed}};
+                return {option_id, parsed};
             }
         } catch (const std::exception&) {
             break;
@@ -111,7 +106,7 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
         break;
     }
     case methods::MethodOptionType::string:
-        return {method_id, {option_id, value}};
+        return {option_id, value};
     }
     throw std::runtime_error{"Invalid value for method option '" + method_id + "." + option_id +
                              "': " + value};
@@ -193,8 +188,9 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
                        "Parameter matching: strict or permissive");
     command
         .add_option("--method-option", arguments.method_options,
-                    "Method option METHOD.OPTION=VALUE (repeatable)")
-        ->allow_extra_args(false);
+                    "Option of the method given by --method, OPTION=VALUE (repeatable)")
+        ->allow_extra_args(false)
+        ->needs(arguments.method_option);
     command.add_option("--execution", arguments.execution,
                        "Execution: auto, full, cutoff, or cover");
     command.add_option("--radius", arguments.radius, "Cutoff or cover radius in angstrom");
@@ -220,10 +216,10 @@ auto import_input(const InputArguments& arguments) -> ImportedCollection {
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
                   const std::span<const adapters::ImportedMoleculeRecord> records)
     -> calculation::AssessmentRequest {
-    auto method_options = std::unordered_map<std::string, methods::MethodOptions>{};
+    auto method_options = methods::MethodOptions{};
     for (const auto& text : arguments.method_options) {
-        const auto [method_id, option] = parse_method_option(text);
-        method_options[method_id].set(option.first, option.second);
+        auto [option_id, value] = parse_method_option(arguments.method_id, text);
+        method_options.set(std::move(option_id), std::move(value));
     }
     auto request = calculation::AssessmentRequest{
         .molecules = std::move(molecules),

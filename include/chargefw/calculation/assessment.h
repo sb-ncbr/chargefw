@@ -19,7 +19,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -145,7 +144,9 @@ struct AssessmentRequest {
     std::optional<std::string> parameter_set_id;
     // Applies only without method_id; a named method is always assessed.
     MethodScope method_scope = MethodScope::recommended;
-    std::unordered_map<std::string, methods::MethodOptions> method_options;
+    // Options of the method named by method_id; the method's defaults for the others. Options
+    // require method_id.
+    methods::MethodOptions method_options;
     parameters::ParameterMatching parameter_matching = parameters::ParameterMatching::strict;
     ExecutionSelection execution{};
     ResourcePolicy resource_policy{};
@@ -188,7 +189,7 @@ class AssessmentResult {
                     std::span<const methods::Method* const> selected_methods,
                     const parameters::ClassificationOptions& classification_options,
                     const ResourcePolicy& resource_policy,
-                    const std::unordered_map<std::string, methods::MethodOptions>& method_options,
+                    const methods::MethodOptions& method_options,
                     const ExecutionSelection& execution_selection) -> std::vector<ExecutionPlan>;
 
     friend auto assess(const AssessmentRequest& request) -> AssessmentResult;

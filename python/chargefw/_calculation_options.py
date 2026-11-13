@@ -95,29 +95,6 @@ def _normalized_option_values(
     return result
 
 
-def _normalized_options_by_method(
-    values: Mapping[str, Mapping[str, MethodOptionValue]] | None,
-) -> dict[str, dict[str, MethodOptionValue]]:
-    if values is None:
-        return {}
-    if not isinstance(values, Mapping):
-        raise TypeError("options_by_method must be a mapping")
-    result: dict[str, dict[str, MethodOptionValue]] = {}
-    for method_id, options in values.items():
-        if not isinstance(method_id, str):
-            raise TypeError("options_by_method keys must be method ID strings")
-        result[method_id] = _normalized_option_values(options, method_id)
-    return result
-
-
-def _frozen_options_by_method(
-    values: Mapping[str, Mapping[str, MethodOptionValue]],
-) -> Mapping[str, Mapping[str, MethodOptionValue]]:
-    return MappingProxyType(
-        {method_id: MappingProxyType(dict(options)) for method_id, options in values.items()}
-    )
-
-
 @dataclass(frozen=True, slots=True, init=False)
 class RequestedCalculation:
     """Normalized policy requested for an assessment or calculation."""
@@ -125,7 +102,7 @@ class RequestedCalculation:
     method: Method | None
     parameter_set: ParameterSet | None
     method_scope: MethodScope
-    options_by_method: Mapping[str, Mapping[str, MethodOptionValue]]
+    method_options: Mapping[str, MethodOptionValue]
     parameter_matching: ParameterMatching
     execution: RequestedExecution
     radius: float | None
@@ -140,8 +117,7 @@ class RequestedCalculation:
         method: Method | None = None,
         parameter_set: ParameterSet | None = None,
         method_scope: MethodScope = "recommended",
-        options: Mapping[str, MethodOptionValue] | None = None,
-        options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
+        method_options: Mapping[str, MethodOptionValue] | None = None,
         parameter_matching: ParameterMatching = "strict",
         execution: RequestedExecution = "auto",
         radius: float | None = None,
@@ -161,14 +137,16 @@ class RequestedCalculation:
             raise ValueError("method_scope must be 'recommended' or 'all'")
         if method_scope == "all" and method_id is not None:
             raise ValueError("method_scope applies only without an explicit method")
-        if options is not None and options_by_method is not None:
-            raise ValueError("options and options_by_method cannot be used together")
-        if options is not None:
-            if method_id is None:
-                raise ValueError("options requires an explicit method")
-            normalized_options = {method_id: _normalized_option_values(options, method_id)}
-        else:
-            normalized_options = _normalized_options_by_method(options_by_method)
+        # Options belong to the named method: with automatic selection, an option such as
+        # iters would apply to whichever method happened to be chosen.
+        normalized_options: dict[str, MethodOptionValue] = {}
+        if method_options is not None:
+            if not isinstance(method_options, Mapping):
+                raise TypeError("method_options must be a mapping")
+            if method_options:
+                if method_id is None:
+                    raise ValueError("method_options requires an explicit method")
+                normalized_options = _normalized_option_values(method_options, method_id)
 
         if not isinstance(parameter_matching, str):
             raise TypeError("parameter_matching must be a string")
@@ -210,11 +188,7 @@ class RequestedCalculation:
         object.__setattr__(self, "method", method)
         object.__setattr__(self, "parameter_set", parameter_set)
         object.__setattr__(self, "method_scope", method_scope)
-        object.__setattr__(
-            self,
-            "options_by_method",
-            _frozen_options_by_method(normalized_options),
-        )
+        object.__setattr__(self, "method_options", MappingProxyType(normalized_options))
         object.__setattr__(self, "parameter_matching", parameter_matching)
         object.__setattr__(self, "execution", execution)
         object.__setattr__(self, "radius", radius)

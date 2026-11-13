@@ -37,7 +37,7 @@ def _make_assessment(
     method_id: str | None,
     parameter_set_id: str | None,
     method_scope: MethodScope,
-    method_options: dict[str, dict[str, bool | int | float | str]],
+    method_options: dict[str, bool | int | float | str],
     parameter_matching: ParameterMatching,
     execution: RequestedExecution,
     radius: float | None,

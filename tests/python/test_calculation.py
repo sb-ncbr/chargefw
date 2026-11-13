@@ -417,7 +417,7 @@ def test_assessment_and_full_calculation() -> None:
     assert result.timings.applicability_seconds >= 0.0
     assert result.timings.computation_seconds >= 0.0
     with pytest.raises(TypeError):
-        cast(Any, result.requested.options_by_method)["eem"] = {"unexpected": True}
+        cast(Any, result.requested.method_options)["iters"] = 1
 
     overridden_threads = plan.calculate(threads=1)
     assert overridden_threads.requested.threads == 1
@@ -523,7 +523,7 @@ def test_objects_that_chargefw_creates_cannot_be_constructed() -> None:
         cast(Any, chargefw.CalculationSettings)(
             settings.method,
             settings.parameter_set,
-            settings.options,
+            settings.method_options,
             settings.execution,
             result.requested,
         )
@@ -866,15 +866,14 @@ def test_invalid_options_are_rejected_early() -> None:
         with pytest.raises(error_type):
             chargefw.assess(water(), **options)
 
+    # Options belong to a named method.
     with pytest.raises(ValueError):
-        chargefw.assess(water(), options={"iters": 2})
-    with pytest.raises(ValueError):
-        chargefw.assess(
-            water(),
-            method="peoe",
-            options={"iters": 2},
-            options_by_method={"peoe": {"iters": 2}},
-        )
+        chargefw.assess(water(), method_options={"iters": 2})
+    # Also an empty value that is not a mapping is refused, not taken as no options.
+    not_mappings: tuple[object, ...] = ([], "", 0, False)
+    for not_a_mapping in not_mappings:
+        with pytest.raises(TypeError):
+            chargefw.assess(water(), method="peoe", method_options=cast(Any, not_a_mapping))
 
 
 def test_method_option_overrides_are_validated_and_reported() -> None:
@@ -882,12 +881,13 @@ def test_method_option_overrides_are_validated_and_reported() -> None:
     result = chargefw.calculate(
         molecule,
         method="peoe",
-        options={"iters": 2},
+        method_options={"iters": 2},
         execution="full",
     )
     assert result.status == "success"
     assert result.plan is not None, "successful calculation must report plan provenance"
-    assert dict(result.plan.options) == {"initial_charges": "zero", "iters": 2}
+    assert dict(result.requested.method_options) == {"iters": 2}
+    assert dict(result.plan.method_options) == {"initial_charges": "zero", "iters": 2}
 
     for options in (
         {"iters": 0},
@@ -899,16 +899,9 @@ def test_method_option_overrides_are_validated_and_reported() -> None:
             chargefw.assess(
                 molecule,
                 method="peoe",
-                options=options,
+                method_options=options,
                 execution="full",
             )
-    with pytest.raises(ValueError):
-        chargefw.assess(
-            molecule,
-            method="peoe",
-            options_by_method={"qeq": {"overlap_term": "Ohno"}},
-            execution="full",
-        )
 
 
 def test_catalogs_and_descriptors_are_immutable_values() -> None:

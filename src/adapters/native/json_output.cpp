@@ -216,14 +216,10 @@ constexpr auto metric_scale = 1000.0;
         return std::visit([](const auto& item) -> Json { return item; }, value);
     };
     const auto method_options_json =
-        [&option_value](const std::map<std::string, methods::MethodOptions>& options) -> Json {
+        [&option_value](const methods::MethodOptions& options) -> Json {
         Json encoded = Json::object();
-        for (const auto& [method_id, values] : options) {
-            Json method = Json::object();
-            for (const auto& [id, value] : values.values()) {
-                method[id] = option_value(value);
-            }
-            encoded[method_id] = std::move(method);
+        for (const auto& [id, value] : options.values()) {
+            encoded[id] = option_value(value);
         }
         return encoded;
     };
@@ -235,7 +231,7 @@ constexpr auto metric_scale = 1000.0;
     };
 
     const auto& requested_provenance = result.requested();
-    // Named as the arguments of chargefw.calculate() in Python, except method_options.
+    // Named as the arguments of chargefw.calculate() in Python.
     Json requested{
         {"method", optional_id(requested_provenance.method_id)},
         {"parameter_set", optional_id(requested_provenance.parameter_set_id)},
@@ -263,8 +259,7 @@ constexpr auto metric_scale = 1000.0;
         }
         effective["execution"] = {{"mode", calculation::to_string(value.execution_policy.mode())},
                                   {"radius", optional_radius(value.execution_policy.radius())}};
-        effective["method_options"] =
-            method_options_json({{value.method_id, value.method_options}});
+        effective["method_options"] = method_options_json(value.method_options);
         if (value.fixed_ions.has_value()) {
             effective["fixed_ions"] = fixed_ions_json(*value.fixed_ions, result.inputs());
         }

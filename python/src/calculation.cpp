@@ -47,31 +47,23 @@ namespace nb = nanobind;
 namespace chargefw::python {
 namespace {
 
-auto method_options(const nb::dict& values)
-    -> std::unordered_map<std::string, methods::MethodOptions> {
-    std::unordered_map<std::string, methods::MethodOptions> result;
-    for (const auto& [method_value, options_value] : values) {
-        const auto method_id = nb::cast<std::string>(method_value);
-        const auto options = nb::cast<nb::dict>(options_value);
-        std::unordered_map<std::string, methods::MethodOptionValue> native_values;
-        for (const auto& [option_value, value] : options) {
-            const auto option_id = nb::cast<std::string>(option_value);
-            if (nb::isinstance<nb::bool_>(value)) {
-                native_values.emplace(option_id, nb::cast<bool>(value));
-            } else if (nb::isinstance<nb::int_>(value)) {
-                native_values.emplace(option_id, nb::cast<int>(value));
-            } else if (nb::isinstance<nb::float_>(value)) {
-                native_values.emplace(option_id, nb::cast<double>(value));
-            } else if (nb::isinstance<nb::str>(value)) {
-                native_values.emplace(option_id, nb::cast<std::string>(value));
-            } else {
-                throw std::invalid_argument{
-                    "method option values must be bool, int, float, or str"};
-            }
+auto method_options(const nb::dict& options) -> methods::MethodOptions {
+    std::unordered_map<std::string, methods::MethodOptionValue> native_values;
+    for (const auto& [option_value, value] : options) {
+        const auto option_id = nb::cast<std::string>(option_value);
+        if (nb::isinstance<nb::bool_>(value)) {
+            native_values.emplace(option_id, nb::cast<bool>(value));
+        } else if (nb::isinstance<nb::int_>(value)) {
+            native_values.emplace(option_id, nb::cast<int>(value));
+        } else if (nb::isinstance<nb::float_>(value)) {
+            native_values.emplace(option_id, nb::cast<double>(value));
+        } else if (nb::isinstance<nb::str>(value)) {
+            native_values.emplace(option_id, nb::cast<std::string>(value));
+        } else {
+            throw std::invalid_argument{"method option values must be bool, int, float, or str"};
         }
-        result.emplace(method_id, methods::MethodOptions{std::move(native_values)});
     }
-    return result;
+    return methods::MethodOptions{std::move(native_values)};
 }
 
 [[nodiscard]] auto portable_id(const nb::handle value) -> adapters::PortableId {
@@ -400,10 +392,7 @@ auto make_assessment(const nb::sequence& molecules, const nb::sequence& input_me
         source_caller_atom_ids.push_back(portable_ids(caller_atom_ids[index]));
     }
     auto native_method_options = method_options(options);
-    auto requested_options = std::map<std::string, methods::MethodOptions>{};
-    for (const auto& [id, values] : native_method_options) {
-        requested_options.emplace(id, values);
-    }
+    auto requested_options = native_method_options;
     nb::gil_scoped_release release;
     auto inputs = std::vector<adapters::ImportedMoleculeRecord>{};
     inputs.reserve(source_molecules.size());

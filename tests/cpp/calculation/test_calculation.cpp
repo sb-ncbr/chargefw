@@ -309,7 +309,7 @@ TEST_CASE("method options are validated and recorded in effective provenance",
         .parameter_sets = {make_permissive_peoe_parameter_set()},
         .method_id = "peoe",
         .parameter_set_id = "permissive-peoe-parameters",
-        .method_options = {{"peoe", peoe_options}},
+        .method_options = peoe_options,
         .parameter_matching = parameters::ParameterMatching::permissive});
     REQUIRE(configured_peoe_result.calculated());
     REQUIRE(configured_peoe_result.effective.has_value());
@@ -323,7 +323,7 @@ TEST_CASE("method options are validated and recorded in effective provenance",
             .parameter_sets = {make_permissive_peoe_parameter_set()},
             .method_id = "peoe",
             .parameter_set_id = "permissive-peoe-parameters",
-            .method_options = {{"peoe", invalid_peoe_options}},
+            .method_options = invalid_peoe_options,
             .parameter_matching = parameters::ParameterMatching::permissive}));
     };
     CHECK_THROWS_AS(calculate_with_invalid_peoe_options(), std::invalid_argument);
@@ -758,6 +758,8 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
     const auto water = core::MoleculeCollection{std::vector{chargefw::test::make_water()}};
     const auto invalid_requests = std::vector<calculation::AssessmentRequest>{
         {.molecules = water, .method_id = "missing"},
+        // Options belong to a named method.
+        {.molecules = water, .method_options = methods::MethodOptions{{{"iters", 2}}}},
         {.molecules = water, .method_id = "formal", .parameter_set_id = "missing"},
         {.molecules = water,
          .parameter_sets = {make_singular_eem_parameter_set()},

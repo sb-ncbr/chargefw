@@ -9,7 +9,6 @@
 
 #include <span>
 #include <string>
-#include <unordered_map>
 
 namespace chargefw::methods {
 
@@ -22,7 +21,9 @@ struct ApplicabilityRequest {
     std::span<const parameters::ParameterSet> parameter_sets;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     parameters::ClassificationOptions classification_options{};
-    std::unordered_map<std::string, MethodOptions> method_options;
+    // Applied over each method's defaults. Options come only with a named method, which is then the
+    // only one in `methods`; with automatic selection they are empty.
+    MethodOptions method_options;
 };
 
 [[nodiscard]] auto find_applicable_methods(const ApplicabilityRequest& request)

@@ -40,7 +40,7 @@ calculate_method(core::Molecule molecule, std::string_view method_id,
         .method_id = std::string{method_id}};
 
     if (method_options != nullptr) {
-        request.method_options.emplace(method_id, *method_options);
+        request.method_options = *method_options;
     }
 
     auto assessment = calculation::assess(std::move(request));

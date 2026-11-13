@@ -104,8 +104,9 @@ Two further IDs are not charge models: `formal` returns the formal charges of yo
 `dummy` returns zero for every atom. Automatic selection never uses them; name them to use them.
 
 `chargefw methods METHOD` on the command line, or `chargefw.methods["METHOD"]` in Python, shows a
-method's options and their defaults. Set an option with `--method-option peoe.iters=8` on the
-command line, or `options={"iters": 8}` in Python; see
+method's options and their defaults. Options belong to the method you name: set one with
+`method="peoe", method_options={"iters": 8}` in Python, or `--method peoe --method-option iters=8`
+on the command line; see
 [Choosing the model](../interfaces/cli.md#choosing-the-model) and
 [Calculating charges](../interfaces/python.md#calculating-charges).
 

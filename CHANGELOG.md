@@ -234,6 +234,15 @@
 
 ### Calculation
 
+- Breaking change: method options belong to the method you name, and are called method options
+  everywhere. In Python, `method_options={"iters": 8}` with `method=` replaces `options` and
+  `options_by_method`, and `Plan`, `ExecutedPlan`, and `CalculationSettings` have `method_options`
+  instead of `options`. On the command line, `--method-option iters=8` needs `--method` instead of
+  naming the method as in `peoe.iters=8`. In C++, `AssessmentRequest::method_options` and
+  `RequestedCalculationProvenance::method_options` are one `MethodOptions`. In result JSON,
+  `requested.method_options` and `effective.method_options` map option IDs to values instead of
+  method IDs to options. Options for automatic selection are no longer accepted: they applied only
+  if that method happened to be chosen.
 - Breaking change: automatic selection of an EEM parameter set follows ChargeFW2 again. It tries the
   NEEMP sets first, then Cheminf, Bult, Ouy, Svob, and Baek, and the Ionescu sets last; earlier 3.0
   pre-releases tried Ionescu first. `--method eem` without a parameter set therefore now uses

@@ -52,9 +52,8 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
 
         try {
             method_options = make_default_options(method->option_schema());
-            if (const auto options = request.method_options.find(std::string{method->id()});
-                options != request.method_options.end()) {
-                for (const auto& [id, value] : options->second.values()) {
+            if (!request.method_options.values().empty()) {
+                for (const auto& [id, value] : request.method_options.values()) {
                     method_options.set(id, value);
                 }
                 validate_method_options(method->option_schema(), method_options);

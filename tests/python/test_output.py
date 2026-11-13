@@ -86,6 +86,11 @@ def test_json_records_requested_scope_and_execution() -> None:
     assert (requested["execution"], requested["radius"]) == ("full", None)
     assert (requested["parameter_matching"], requested["fixed_ions"]) == ("strict", [])
 
+    configured = chargefw.calculate(water(), method="peoe", method_options={"iters": 2})
+    provenance = result_json(configured)["calculation_provenance"]
+    assert provenance["requested"]["method_options"] == {"iters": 2}
+    assert provenance["effective"]["method_options"] == {"initial_charges": "zero", "iters": 2}
+
     named = chargefw.calculate(
         water(), method="eem", parameter_set="EEM_Baek1991", execution="full"
     )

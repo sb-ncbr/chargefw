@@ -249,7 +249,7 @@
     },
     "requested": {
       "type": "object",
-      "description": "The calculation as requested, named as the arguments of chargefw.calculate() in Python except method_options, which holds the options of any method by method ID.",
+      "description": "The calculation as requested, named as the arguments of chargefw.calculate() in Python.",
       "required": ["method", "parameter_set", "method_scope", "method_options", "parameter_matching", "execution", "radius", "cutoff_threshold", "cover_threshold", "threads", "fixed_ions"],
       "properties": {
         "method": { "$ref": "#/$defs/optionalId" },
@@ -358,11 +358,8 @@
     },
     "methodOptions": {
       "type": "object",
-      "description": "Method IDs map to option objects. Option values are scalar strings, numbers, or booleans.",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": { "type": ["string", "number", "boolean"] }
-      }
+      "description": "Options of the method by option ID: those requested for the named method, or all values of the method used. Option values are scalar strings, numbers, or booleans.",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
     },
     "executionMetrics": {
       "type": "object",

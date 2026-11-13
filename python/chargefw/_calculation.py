@@ -299,8 +299,7 @@ def assess(
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
     method_scope: MethodScope | None = None,
-    options: Mapping[str, MethodOptionValue] | None = None,
-    options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
+    method_options: Mapping[str, MethodOptionValue] | None = None,
     parameter_matching: ParameterMatching | None = None,
     execution: RequestedExecution | None = None,
     radius: float | None = None,
@@ -327,8 +326,7 @@ def assess(
                 ("method", method),
                 ("parameter_set", parameter_set),
                 ("method_scope", method_scope),
-                ("options", options),
-                ("options_by_method", options_by_method),
+                ("method_options", method_options),
                 ("parameter_matching", parameter_matching),
                 ("execution", execution),
                 ("radius", radius),
@@ -340,7 +338,7 @@ def assess(
             raise ValueError(f"settings cannot be combined with {', '.join(combined)}")
         method = settings.method
         parameter_set = settings.parameter_set
-        options = settings.options
+        method_options = settings.method_options
         parameter_matching = settings.parameter_matching
         execution = settings.execution.mode
         radius = settings.execution.radius
@@ -350,8 +348,7 @@ def assess(
         method=_requested_method(method),
         parameter_set=_requested_parameter_set(parameter_set),
         method_scope="recommended" if method_scope is None else method_scope,
-        options=options,
-        options_by_method=options_by_method,
+        method_options=method_options,
         parameter_matching="strict" if parameter_matching is None else parameter_matching,
         execution="auto" if execution is None else execution,
         radius=radius,
@@ -379,10 +376,7 @@ def assess(
         None if requested.method is None else requested.method.id,
         None if requested.parameter_set is None else requested.parameter_set.id,
         requested.method_scope,
-        {
-            method_id: dict(overrides)
-            for method_id, overrides in requested.options_by_method.items()
-        },
+        dict(requested.method_options),
         requested.parameter_matching,
         requested.execution,
         requested.radius,
@@ -400,8 +394,7 @@ def calculate(
     method: str | Method | None = None,
     parameter_set: str | ParameterSet | None = None,
     method_scope: MethodScope | None = None,
-    options: Mapping[str, MethodOptionValue] | None = None,
-    options_by_method: Mapping[str, Mapping[str, MethodOptionValue]] | None = None,
+    method_options: Mapping[str, MethodOptionValue] | None = None,
     parameter_matching: ParameterMatching | None = None,
     execution: RequestedExecution | None = None,
     radius: float | None = None,
@@ -426,8 +419,7 @@ def calculate(
         method=method,
         parameter_set=parameter_set,
         method_scope=method_scope,
-        options=options,
-        options_by_method=options_by_method,
+        method_options=method_options,
         parameter_matching=parameter_matching,
         execution=execution,
         radius=radius,

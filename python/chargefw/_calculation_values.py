@@ -199,7 +199,7 @@ class CalculationSettings:
     __slots__ = (
         "_method",
         "_parameter_set",
-        "_options",
+        "_method_options",
         "_parameter_matching",
         "_execution",
         "_fixed_ions",
@@ -207,7 +207,7 @@ class CalculationSettings:
 
     _method: Method
     _parameter_set: ParameterSet | None
-    _options: Mapping[str, MethodOptionValue]
+    _method_options: Mapping[str, MethodOptionValue]
     _parameter_matching: ParameterMatching
     _execution: Execution
     _fixed_ions: tuple[str, ...]
@@ -222,14 +222,14 @@ class CalculationSettings:
         cls,
         method: Method,
         parameter_set: ParameterSet | None,
-        options: Mapping[str, MethodOptionValue],
+        method_options: Mapping[str, MethodOptionValue],
         execution: Execution,
         requested: RequestedCalculation,
     ) -> CalculationSettings:
         settings = object.__new__(cls)
         settings._method = method
         settings._parameter_set = parameter_set
-        settings._options = MappingProxyType(dict(options))
+        settings._method_options = MappingProxyType(dict(method_options))
         settings._parameter_matching = requested.parameter_matching
         settings._execution = execution
         # The requested names, so that ions absent from the assessed molecules are fixed in others.
@@ -245,8 +245,8 @@ class CalculationSettings:
         return self._parameter_set
 
     @property
-    def options(self) -> Mapping[str, MethodOptionValue]:
-        return self._options
+    def method_options(self) -> Mapping[str, MethodOptionValue]:
+        return self._method_options
 
     @property
     def parameter_matching(self) -> ParameterMatching:
@@ -267,7 +267,7 @@ class CalculationSettings:
         return (
             self._method is other._method
             and self._parameter_set == other._parameter_set
-            and self._options == other._options
+            and self._method_options == other._method_options
             and self._parameter_matching == other._parameter_matching
             and self._execution == other._execution
             and self._fixed_ions == other._fixed_ions
@@ -277,7 +277,7 @@ class CalculationSettings:
         parameter_set = self.parameter_set.id if self.parameter_set is not None else None
         return (
             f"{type(self).__name__}(method={self.method.id!r}, "
-            f"parameter_set={parameter_set!r}, options={dict(self.options)!r}, "
+            f"parameter_set={parameter_set!r}, method_options={dict(self.method_options)!r}, "
             f"parameter_matching={self.parameter_matching!r}, execution={self.execution!r}, "
             f"fixed_ions={self.fixed_ions!r})"
         )
@@ -289,7 +289,7 @@ class Plan:
     __slots__ = (
         "_method",
         "_parameter_set",
-        "_options",
+        "_method_options",
         "_execution",
         "_warnings",
         "_native",
@@ -302,7 +302,7 @@ class Plan:
 
     _method: Method
     _parameter_set: ParameterSet | None
-    _options: Mapping[str, MethodOptionValue]
+    _method_options: Mapping[str, MethodOptionValue]
     _execution: Execution
     _warnings: tuple[ExecutionIssue, ...]
     _native: _native_calculation._NativePlan
@@ -328,7 +328,7 @@ class Plan:
         payload = native.report()
         plan._method = methods[payload["method_id"]]
         plan._parameter_set = _resolved_parameter_set(payload["parameter_set_id"], parameter_sets)
-        plan._options = MappingProxyType(dict(payload["method_options"]))
+        plan._method_options = MappingProxyType(dict(payload["method_options"]))
         plan._execution = _execution(payload["execution_policy"])
         plan._warnings = tuple(_execution_issue(issue) for issue in payload["warnings"])
         plan._native = native
@@ -338,7 +338,7 @@ class Plan:
         # Resolves the parameter set of results, including a set that is not bundled.
         plan._parameter_sets = parameter_sets
         plan._settings = CalculationSettings._create(
-            plan._method, plan._parameter_set, plan._options, plan._execution, requested
+            plan._method, plan._parameter_set, plan._method_options, plan._execution, requested
         )
         return plan
 
@@ -351,8 +351,8 @@ class Plan:
         return self._parameter_set
 
     @property
-    def options(self) -> Mapping[str, MethodOptionValue]:
-        return self._options
+    def method_options(self) -> Mapping[str, MethodOptionValue]:
+        return self._method_options
 
     @property
     def execution(self) -> Execution:
@@ -442,7 +442,7 @@ class FixedIons:
 class ExecutedPlan:
     method: Method
     parameter_set: ParameterSet | None
-    options: Mapping[str, MethodOptionValue]
+    method_options: Mapping[str, MethodOptionValue]
     execution: Execution
     warnings: tuple[ExecutionIssue, ...]
     fixed_ions: FixedIons | None
@@ -450,7 +450,7 @@ class ExecutedPlan:
     settings: CalculationSettings = field(repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "options", MappingProxyType(dict(self.options)))
+        object.__setattr__(self, "method_options", MappingProxyType(dict(self.method_options)))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -558,7 +558,7 @@ def _executed_plan(
     return ExecutedPlan(
         method=method,
         parameter_set=parameter_set,
-        options=value["method_options"],
+        method_options=value["method_options"],
         execution=execution,
         warnings=tuple(_execution_issue(issue) for issue in value["execution_issues"]),
         fixed_ions=_fixed_ions_provenance(value["fixed_ions"], molecules),

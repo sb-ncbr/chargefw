@@ -87,19 +87,18 @@ namespace {
 }
 
 auto validate_assessment_method_options(const AssessmentRequest& request) -> void {
-    for (const auto& [method_id, overrides] : request.method_options) {
-        const auto& method = methods::method_registry().require(method_id);
-        if (request.method_id.has_value() && method_id != *request.method_id) {
-            throw std::invalid_argument{"method options supplied for '" + method_id +
-                                        "' but method '" + *request.method_id + "' was requested"};
-        }
-
-        auto options = methods::make_default_options(method.option_schema());
-        for (const auto& [id, value] : overrides.values()) {
-            options.set(id, value);
-        }
-        methods::validate_method_options(method.option_schema(), options);
+    if (request.method_options.values().empty()) {
+        return;
     }
+    if (!request.method_id.has_value()) {
+        throw std::invalid_argument{"method options require a method"};
+    }
+    const auto& method = methods::method_registry().require(*request.method_id);
+    auto options = methods::make_default_options(method.option_schema());
+    for (const auto& [id, value] : request.method_options.values()) {
+        options.set(id, value);
+    }
+    methods::validate_method_options(method.option_schema(), options);
 }
 
 auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void {
@@ -279,8 +278,7 @@ auto AssessmentResult::assess_prepared(
     const std::shared_ptr<detail::AssessmentState>& state,
     const std::span<const methods::Method* const> selected_methods,
     const parameters::ClassificationOptions& classification_options,
-    const ResourcePolicy& resource_policy,
-    const std::unordered_map<std::string, methods::MethodOptions>& method_options,
+    const ResourcePolicy& resource_policy, const methods::MethodOptions& method_options,
     const ExecutionSelection& execution_selection) -> std::vector<ExecutionPlan> {
     auto& rejections = state->rejections;
     auto plans = std::vector<ExecutionPlan>{};

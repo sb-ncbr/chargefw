@@ -158,8 +158,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
          .cover_threshold = std::nullopt,
          .threads = 0,
          .execution = calculation::ExecutionSelectionMode::automatic,
-         .radius = std::nullopt,
-         .method_options = {{"qeq", chargefw::methods::MethodOptions{{{"overlap_term", "Ohno"}}}}}},
+         .radius = std::nullopt},
         {.charges =
              charges::ChargeSet{"formal",
                                 {{.target = {.molecule_index = 0, .conformer_index = 0},
@@ -207,7 +206,8 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(requested.at("cutoff_threshold") == "unlimited");
     CHECK(requested.at("cover_threshold") == "unlimited");
     CHECK(requested.at("threads") == 0);
-    CHECK(requested.at("method_options").at("qeq").at("overlap_term") == "Ohno");
+    // An automatic request has no options; they belong to a named method.
+    CHECK(requested.at("method_options") == nlohmann::json::object());
     const auto& effective = provenance.at("effective");
     const auto& encoded_metrics = provenance.at("execution_metrics");
     CHECK(encoded_metrics.at("started_at") == "2026-08-20T10:00:00.000Z");
@@ -222,7 +222,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(effective.at("parameter_set").at("id") == "test-formal");
     CHECK(effective.at("execution").at("radius") == 8.0);
     CHECK(effective.at("warnings").at(0) == "full execution exceeds the shared threshold");
-    CHECK(effective.at("method_options").at("formal").empty());
+    CHECK(effective.at("method_options") == nlohmann::json::object());
     CHECK_FALSE(effective.contains("fixed_ions"));
 
     const auto& calculated = result.at("results").at(0);

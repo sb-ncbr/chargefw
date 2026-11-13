@@ -223,7 +223,7 @@ result with `make_failed_request_result()` and the exception's message. Its `sta
 `ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
 `RequestedCalculationProvenance` records what was requested, for the result JSON. Copy its
-`method_scope` and `parameter_matching` from your request, its `execution` from
+`method_scope`, `method_options`, and `parameter_matching` from your request, its `execution` from
 `request.execution.mode()` (`automatic` is written as `"auto"` in JSON), its `radius` from
 `request.execution.radius()`, its `cutoff_threshold` and `cover_threshold` from
 `request.resource_policy`, and list the residue names you selected fixed ions by in `fixed_ions`.
@@ -264,7 +264,7 @@ geometry then reject the molecule.
 - an optional method ID and parameter-set ID;
 - a `MethodScope` for automatic selection without a method ID: `recommended` (default) considers only
   the [recommended methods](../guide/methods.md#available-methods), `all` every method;
-- options per method, as `methods::MethodOptions`;
+- `method_options`, the options of the method named by `method_id`, as `methods::MethodOptions`;
 - `parameter_matching`: `ParameterMatching::strict` (default) or `permissive`;
 - `execution`, an `ExecutionSelection`: automatic, full, cutoff, or cover, with an optional radius;
 - a `ResourcePolicy` with the automatic size limits, where `std::nullopt` removes a limit; and
