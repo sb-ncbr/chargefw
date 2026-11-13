@@ -275,6 +275,8 @@
 
 ### Output
 
+- Breaking change: result JSON has no `calculation_provenance.effective.warnings`. It repeated
+  the messages of the plan's warnings, which are diagnostics with their codes.
 - Breaking change: `calculation_provenance.requested` in result JSON is flat and uses the names of
   the arguments of `chargefw.calculate()`: `parameter_matching` (`"strict"` or `"permissive"`)
   replaces `classification.permissive_types`; `execution` is a string and `radius` a number or

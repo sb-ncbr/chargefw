@@ -286,11 +286,10 @@
     },
     "effective": {
       "type": "object",
-      "required": ["method", "parameter_set", "warnings", "method_options"],
+      "required": ["method", "parameter_set", "method_options"],
       "properties": {
         "method": { "$ref": "#/$defs/optionalId" },
         "parameter_set": { "$ref": "#/$defs/optionalId" },
-        "warnings": { "type": "array", "items": { "type": "string" } },
         "execution": {
           "type": "object",
           "required": ["mode", "radius"],

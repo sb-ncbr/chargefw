@@ -245,18 +245,14 @@ constexpr auto metric_scale = 1000.0;
         {"fixed_ions", requested_provenance.fixed_ions}};
     requested["method_options"] = method_options_json(requested_provenance.method_options);
 
-    auto effective = Json{{"method", nullptr},
-                          {"parameter_set", nullptr},
-                          {"warnings", Json::array()},
-                          {"method_options", Json::object()}};
+    // The plan's warnings are diagnostics, with their codes, in the records or the document.
+    auto effective =
+        Json{{"method", nullptr}, {"parameter_set", nullptr}, {"method_options", Json::object()}};
     if (const auto* execution = result.execution();
         execution != nullptr && execution->effective.has_value()) {
         const auto& value = *execution->effective;
         effective["method"] = optional_id(value.method_id);
         effective["parameter_set"] = optional_id(value.parameter_set_id);
-        for (const auto& issue : value.warnings) {
-            effective["warnings"].push_back(issue.message);
-        }
         effective["execution"] = {{"mode", calculation::to_string(value.execution_policy.mode())},
                                   {"radius", optional_radius(value.execution_policy.radius())}};
         effective["method_options"] = method_options_json(value.method_options);

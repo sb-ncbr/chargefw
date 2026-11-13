@@ -448,9 +448,8 @@ or numbers.
 options given for the named method), `parameter_matching`, `execution`, `radius` in Å,
 `cutoff_threshold` and `cover_threshold` in atoms or `"unlimited"`, `threads`, and the residue names
 in `fixed_ions`. `effective` records the method, parameter set, all option values, and execution
-that were used, and the warnings. Each warning also appears as a diagnostic with severity `warning`
-and its code, such as `resource_threshold_exceeded`: in the record of the molecule it concerns, or
-in the document's diagnostics. `execution_metrics` gives the start and end time in UTC, the time of
+that were used. Warnings about the plan, such as `resource_threshold_exceeded`, are diagnostics with
+severity `warning`: in the record of the molecule they concern, or in the document's diagnostics. `execution_metrics` gives the start and end time in UTC, the time of
 each step, and the peak memory, rounded to three decimal places.
 
 With fixed ions, `effective` also has `fixed_ions`: one entry per residue name and charge, with

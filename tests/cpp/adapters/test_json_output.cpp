@@ -221,8 +221,8 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     CHECK(effective.at("method").at("id") == "formal");
     CHECK(effective.at("parameter_set").at("id") == "test-formal");
     CHECK(effective.at("execution").at("radius") == 8.0);
-    CHECK(effective.at("warnings").at(0) == "full execution exceeds the shared threshold");
     CHECK(effective.at("method_options") == nlohmann::json::object());
+    CHECK_FALSE(effective.contains("warnings"));
     CHECK_FALSE(effective.contains("fixed_ions"));
 
     const auto& calculated = result.at("results").at(0);
