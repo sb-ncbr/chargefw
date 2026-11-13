@@ -158,9 +158,7 @@ def _molecule(payload: _native_io.MoleculePayload) -> Molecule:
     return result
 
 
-def _collection(
-    payloads: list[_native_io.MoleculePayload], source_name: str
-) -> MoleculeCollection:
+def _collection(payloads: list[_native_io.MoleculePayload], source_name: str) -> MoleculeCollection:
     molecules = tuple(_molecule(payload) for payload in payloads)
     return MoleculeCollection(molecules, name=source_name)
 

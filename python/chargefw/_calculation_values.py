@@ -435,6 +435,7 @@ class FixedIons:
 
     def __init__(
         self,
+        *,
         sources: Iterable[FixedAtomCharge],
     ) -> None:
         normalized_sources = tuple(sources)

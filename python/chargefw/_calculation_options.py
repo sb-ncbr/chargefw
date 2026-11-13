@@ -56,6 +56,7 @@ class FixedAtomCharge:
 
     def __init__(
         self,
+        *,
         molecule_index: SupportsIndex,
         atom_index: SupportsIndex,
         charge: float,

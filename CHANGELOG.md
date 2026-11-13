@@ -40,6 +40,9 @@
 
 ### Python
 
+- Breaking change: `FixedAtomCharge` and `FixedIons` take their attributes as keyword arguments
+  only, as the other value classes, for example
+  `FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG")`.
 - Breaking change: `Method.publication` is `""` for a method without a publication, not `None`,
   as for parameter sets. `PeriodicTable` can no longer be constructed; use
   `chargefw.periodic_table`.

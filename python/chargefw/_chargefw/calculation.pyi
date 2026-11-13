@@ -3,8 +3,8 @@ from typing import Final
 
 from .._payloads import AssessmentReportPayload, ExecutionPlanPayload, ExecutionResultPayload
 from .._types import MethodScope, ParameterMatching, PortableId, RequestedExecution
-from .io import _NativeInputMetadata
 from .core import _NativeMolecule
+from .io import _NativeInputMetadata
 from .parameters import _NativeParameterCatalog
 
 _default_cutoff_atom_threshold: Final[int]

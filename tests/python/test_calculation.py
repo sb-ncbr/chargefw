@@ -114,7 +114,9 @@ def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> 
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "ALL_IONS must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 1.0, "CU1"),)
+    assert result.plan.fixed_ions.sources == (
+        chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=1.0, component_id="CU1"),
+    )
 
 
 def test_observer_receives_owned_execution_progress() -> None:
@@ -201,8 +203,17 @@ def test_fixed_ions_snapshot_resolve_and_reuse_plan() -> None:
     assert result.plan is not None and result.plan.fixed_ions is not None, (
         "executed plan must retain effective source provenance"
     )
-    assert result.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
-    assert result.plan.fixed_ions == chargefw.FixedIons([chargefw.FixedAtomCharge(0, 3, 2.0, "MG")])
+    assert result.plan.fixed_ions.sources == (
+        chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG"),
+    )
+    assert result.plan.fixed_ions == chargefw.FixedIons(
+        sources=[
+            chargefw.FixedAtomCharge(molecule_index=0, atom_index=3, charge=2.0, component_id="MG")
+        ]
+    )
+    # Keyword arguments only, as the other value classes.
+    with pytest.raises(TypeError):
+        cast(Any, chargefw.FixedAtomCharge)(0, 3, 2.0)
     with pytest.raises(AttributeError):
         cast(Any, result.plan.fixed_ions).sources = ()
     with pytest.raises(AttributeError):
@@ -314,7 +325,11 @@ def test_observer_can_cancel_a_reusable_plan() -> None:
         if groups is not None:
             assert cancelled.plan is not None
             assert cancelled.plan.fixed_ions is not None
-            assert cancelled.plan.fixed_ions.sources == (chargefw.FixedAtomCharge(0, 3, 2.0, "MG"),)
+            assert cancelled.plan.fixed_ions.sources == (
+                chargefw.FixedAtomCharge(
+                    molecule_index=0, atom_index=3, charge=2.0, component_id="MG"
+                ),
+            )
 
         result = plan.calculate(threads=1)
         assert result.status == "success"
