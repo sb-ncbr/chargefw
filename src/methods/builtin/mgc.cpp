@@ -1,5 +1,5 @@
 #include "methods/builtin/mgc.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include "methods/builtin/prerequisite_helpers.h"
 
@@ -56,7 +56,7 @@ auto MGCMethod::calculate(const CalculationInput& input) const -> charges::Atomi
         S(j, i) -= w;
     }
 
-    Eigen::VectorXd chi = solve_in_place(S, X0);
+    Eigen::VectorXd chi = linear_algebra::solve_in_place(S, X0);
     chi -= X0;
     chi /= std::exp(log_sum / static_cast<double>(n));
 

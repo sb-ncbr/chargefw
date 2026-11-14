@@ -1,5 +1,5 @@
 #include "methods/builtin/tsef.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/builtin/charge_constraint.h"
 
 #include "features/topology_helpers.h"
 

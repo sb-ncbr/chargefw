@@ -2,6 +2,7 @@
 #include "methods/atom_parameter_values.h"
 #include "methods/builtin/prerequisite_helpers.h"
 #include "methods/builtin/sqe_system.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include "methods/fixed_source_validation.h"
 
@@ -9,7 +10,6 @@
 #include <chargefw/core/position.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
-#include <Eigen/Cholesky>
 #include <Eigen/Core>
 
 #include <cmath>
@@ -150,13 +150,13 @@ auto sqe_core::solve(System& system) -> void {
     // S is symmetric; a positive definite S means the energy has a unique minimum. Any other
     // system (indefinite, semidefinite, or nearly singular to working precision) is rejected
     // rather than solved. The calling execution adds the molecule, conformer, and fragment.
-    const Eigen::LLT<Eigen::Ref<Eigen::MatrixXd>> llt{system.split_matrix};
-    if (llt.info() != Eigen::Success) {
+    if (!linear_algebra::cholesky_in_place(system.split_matrix)) {
         throw std::runtime_error{
             "SQE split-charge system could not be factorized as positive definite; no charges were "
             "returned. Check the geometry or use another parameter set"};
     }
-    system.split_charges = llt.solve(system.split_rhs);
+    system.split_charges = system.split_rhs;
+    linear_algebra::cholesky_solve_in_place(system.split_matrix, system.split_charges);
 }
 
 auto sqe_core::atom_charges(const System& system) -> Eigen::VectorXd {

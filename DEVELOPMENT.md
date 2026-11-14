@@ -356,6 +356,16 @@ The application-facing charge result owns those ordered imported records togethe
 execution result. The writers consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
 
+**Dense linear algebra is compiled in one place.** An Eigen decomposition or product of two
+dynamic-size matrices compiles Eigen's blocked LU, Cholesky, and matrix-product kernels into the
+file that uses it: about 2 GiB of compiler memory and 10 s in a debug build, and about 5 GiB with
+UBSan. Methods and the fitting code therefore assemble their matrices with Eigen in their own files
+and factorize, solve, and multiply them through `src/methods/linear_algebra/`
+(`chargefw::methods::linear_algebra`), which compiles those kernels once per operation. Add a helper
+there instead of calling a decomposition or a large matrix product in a method. The total-charge
+constraint that the equalization methods add to their systems is chemistry and stays in
+`src/methods/builtin/charge_constraint.h`.
+
 ### Parameterization
 
 Fitting parameter values builds on the calculation without changing it. `chargefw::parameterization`

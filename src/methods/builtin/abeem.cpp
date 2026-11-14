@@ -1,5 +1,5 @@
 #include "methods/builtin/abeem.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/builtin/charge_constraint.h"
 
 #include "methods/builtin/prerequisite_helpers.h"
 
