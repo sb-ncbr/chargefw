@@ -48,18 +48,18 @@ install(
         FILES
         ${PROJECT_SOURCE_DIR}/README.md
         ${PROJECT_SOURCE_DIR}/LICENSE
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}
         COMPONENT documentation
 )
 install(
         DIRECTORY
         ${PROJECT_SOURCE_DIR}/licenses
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}
         COMPONENT documentation
 )
 install(
         DIRECTORY ${PROJECT_SOURCE_DIR}/docs/
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw/docs
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs
         COMPONENT documentation
         FILES_MATCHING
         PATTERN "*.md"
@@ -74,15 +74,15 @@ install(
 # The documentation site generates the parameter-set tables; installations get a page without them.
 install(
         FILES ${PROJECT_SOURCE_DIR}/cmake/installed-parameter-sets.md
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw/docs/reference
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/docs/reference
         RENAME parameter-sets.md
         COMPONENT documentation
 )
 install(
         FILES
-        ${PROJECT_SOURCE_DIR}/schemas/molecule-input-1.0.schema.json
-        ${PROJECT_SOURCE_DIR}/schemas/result-1.0.schema.json
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}/chargefw/schemas
+        ${PROJECT_SOURCE_DIR}/schemas/molecule-input-1.schema.json
+        ${PROJECT_SOURCE_DIR}/schemas/result-1.schema.json
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/schemas
         COMPONENT documentation
 )
 

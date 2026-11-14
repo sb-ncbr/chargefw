@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Debian 13 builds against the minimum supported dependency versions, Fedora 44 against the newest
+  # Debian 13 builds against the minimum supported dependency versions, Fedora 45 against the newest
   # packaged ones, and Ubuntu 26.04 against the per-commit CI set.
   containers:
     name: container (${{ matrix.image }})
@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [debian-13, ubuntu-26.04, fedora-44]
+        image: [debian-13, ubuntu-26.04, fedora-45]
     steps:
       - uses: actions/checkout@v7
       - run: docker build --file docker/Dockerfile.${{ matrix.image }} .

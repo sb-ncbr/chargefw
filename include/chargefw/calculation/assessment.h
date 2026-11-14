@@ -170,12 +170,12 @@ class AssessmentResult {
     // Not available on a temporary assessment, whose plans would be destroyed with it; copy a plan
     // to keep it.
     [[nodiscard]] auto plans() const& noexcept -> std::span<const ExecutionPlan>;
-    auto plans() const&& -> std::span<const ExecutionPlan> = delete;
+    [[nodiscard]] auto plans() const&& -> std::span<const ExecutionPlan> = delete;
     [[nodiscard]] auto rejections() const noexcept -> std::span<const Rejection>;
     // Every input issue of the molecules, whichever plan is executed.
     [[nodiscard]] auto input_warnings() const noexcept -> std::span<const InputIssue>;
     [[nodiscard]] auto default_plan() const& noexcept -> const ExecutionPlan*;
-    auto default_plan() const&& -> const ExecutionPlan* = delete;
+    [[nodiscard]] auto default_plan() const&& -> const ExecutionPlan* = delete;
 
   private:
     AssessmentResult(std::shared_ptr<const detail::AssessmentState> state,

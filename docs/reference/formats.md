@@ -113,8 +113,9 @@ the bonds refer to them.
 ## ChargeFW molecule JSON input 1.0
 
 Molecule JSON is ChargeFW's own format for giving molecules as JSON; it is not the result JSON. A
-document follows the [molecule input JSON Schema](../../schemas/molecule-input-1.0.schema.json) and
-looks like this:
+document follows the
+[molecule input JSON Schema](https://chargefw.readthedocs.io/en/stable/schemas/molecule-input-1.schema.json)
+and looks like this:
 
 ```json
 {
@@ -409,8 +410,8 @@ ChargeFW checks every atom before writing, so a refused structure leaves no PQR 
 ### ChargeFW result JSON 1.0
 
 Result JSON is the complete record of a calculation, for programs and for reporting. The
-[result JSON Schema](../../schemas/result-1.0.schema.json) defines every field. At the top level it
-has:
+[result JSON Schema](https://chargefw.readthedocs.io/en/stable/schemas/result-1.schema.json)
+defines every field. At the top level it has:
 
 - `schema_version`, the `generator` with its name and version, the overall `status`, and the
   `diagnostics` that concern no single molecule;

@@ -6,28 +6,10 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-- [ ] Merge `pre-release` into `main` and publish one more release candidate before 3.0.0: the
-  interfaces of all three languages changed after rc3.
-- [ ] Give the JSON schemas a stable address. Their `$id` is `urn:chargefw:schema:…:1.0`, the wheel
-  does not ship them, `docs/reference/formats.md` links to files outside `docs/` (published as hashed
-  downloads), and the file names carry the minor version although every 1.x document must validate.
-  Proposal: rename them to `result-1.schema.json` and `molecule-input-1.schema.json`; copy
-  `schemas/*.json` into the HTML output under `schemas/` from `docs/conf.py`; set `$id` to
-  `https://chargefw.readthedocs.io/en/stable/schemas/<name>` and link `formats.md` there; keep them
-  out of the wheel. The URLs work once 3.0.0 is the `stable` version.
-- [ ] Restructure the changelog. `RELEASING.md` renames `Unreleased` to the version, so the 3.0.0 notes
-  would list only the changes since rc3, with "Breaking change:" entries that concern nobody. The
-  overview against ChargeFW2 under `## 3.0.0a1` is stale (Python 3.11–3.14, Linux only, `--pre`). Open
-  the 3.0.0 section with a short summary since ChargeFW2 and a link to the migration page, and put the
-  pre-release sections under one history heading.
-- [ ] `docs/about/chargefw2.md` says parameter-set IDs only lost their number, but ChargeFW2's
-  `KCM_00_original` became `KCM_original_initial` and `KCM_original_fitted`; add the mapping.
-- [ ] `docs/about/citing.md` shows `3.0.0rc2` in its sample output.
-- [ ] The `chargefw methods peoe` example in `docs/interfaces/cli.md` lacks the `recommended:` line the
-  program prints.
-- [ ] Add Python-version and operating-system classifiers to `pyproject.toml` and a
-  `preferred-citation` to `CITATION.cff`.
-- [ ] List `dist/`, `wheelhouse/`, and `release-wheelhouse/` in `.gitignore`.
+- [ ] Write the 3.0.0 changelog section by hand instead of renaming `## Unreleased`: open it with the
+  summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
+  changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
+  lower, so that the 3.0.0 release notes do not repeat its breaking changes.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
@@ -37,6 +19,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Point the documentation links in `README.md`, `python/README.md`, and `pyproject.toml` at
   `/en/stable/` instead of `/en/latest/` in the release commit: a published PyPI description cannot be
   edited.
+- [ ] Add a PyPI version badge to `README.md` at 3.0.0
+  (`https://img.shields.io/pypi/v/chargefw`). shields.io shows only final releases, so until then it
+  shows 0.1.7.
 - [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
   page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
   and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
@@ -46,7 +31,13 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Distribution
 
-- [ ] Publish the Figshare item before the ChargeFW publication.
+- [ ] When Gemmi releases a version that builds with nanobind 3 or has CPython 3.15 wheels, move the
+  Gemmi pins to it (`pyproject.toml`, `cmake/dependencies.cmake`, the CI and container installs, and
+  the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
+  `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
+
+- [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
+  `README.md`.
 
 ## Integrations
 
@@ -77,15 +68,3 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Investigate metal–ligand coordination as bonds, so that SQE-family methods can move charge
   between a bound metal and its ligands instead of holding the metal as a fixed ion. This is a
   chemistry policy: no coordination bonds are inferred automatically until the policy is decided.
-
-## Project infrastructure
-
-- [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
-  installed on Read the Docs, without compiling ChargeFW there; the Python page remains the guide.
-- [ ] After 3.0.0, add README badges for CI, documentation, PyPI version, and DOI.
-- [ ] After 3.0.0, add `CONTRIBUTING.md`, linking to DEVELOPMENT.md and asking contributors to run the
-  `gcc-debug` tests and pre-commit locally.
-- [ ] After 3.0.0, enable Dependabot for GitHub Actions versions only.
-- [ ] After 3.0.0, export the type aliases of `assess()` and `calculate()` (`MethodScope`,
-  `ParameterMatching`, `RequestedExecution`, `ResourceThreshold`, the issue kinds) from `chargefw`, as
-  `PortableId` and the `chargefw.io` aliases are.

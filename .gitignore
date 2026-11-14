@@ -80,5 +80,10 @@ CMakeUserPresets.json
 .kilo
 tmp
 
+# Python distributions
+dist/
+wheelhouse/
+release-wheelhouse/
+
 # Generated documentation pages
 docs/_generated/

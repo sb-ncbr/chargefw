@@ -372,6 +372,7 @@ TEST_CASE("native reader diagnostics use file lines across records", "[io][nativ
         const std::string mol2_record{"@<TRIPOS>MOLECULE\nligand\n1 0\n@<TRIPOS>ATOM\n"
                                       "1 C1 0 0 0 C.3 1 LIG 0.2\n@<TRIPOS>BOND\n"};
         std::istringstream mol2_input{
+            // NOLINTNEXTLINE(performance-inefficient-string-concatenation): readable test input.
             input_text("# preamble\n" + mol2_record + mol2_record +
                        "@<TRIPOS>MOLECULE\nbroken\n1 1\n@<TRIPOS>ATOM\n"
                        "1 C1 0 0 0 C.3\n@<TRIPOS>BOND\n1 1 9 1\n@<TRIPOS>SUBSTRUCTURE\nignored\n")};
@@ -738,6 +739,7 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[io
     for (const auto& text :
          {"no-end" + v2000_atom + "> <name>\nvalue\n\n$$$$\n",
           // A record that ends in place of alias text must not take the next record's charge.
+          // NOLINTNEXTLINE(performance-inefficient-string-concatenation): readable test input.
           "alias-end" + v2000_atom + "A    1\n$$$$\nnext" + v2000_atom +
               "M  CHG  1   1  -1\nM  END\n$$$$\n",
           atoms_and_bonds + "M  V30 END CTAB\n$$$$\n", atoms_and_bonds + "M  V30 BEGIN SGROUP\n"}) {

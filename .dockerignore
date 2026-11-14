@@ -1,4 +1,17 @@
-build/
-_release_install/
-**/__pycache__/
 .git/
+**/__pycache__/
+.cache/
+
+# Local builds, installations, and distributions
+build/
+build-*/
+_*install/
+dist/
+wheelhouse/
+release-wheelhouse/
+docs/_generated/
+
+# Local development files
+CMakeUserPresets.json
+old/
+tmp/

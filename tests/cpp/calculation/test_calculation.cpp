@@ -36,6 +36,8 @@
 namespace calculation = chargefw::calculation;
 
 TEST_CASE("unknown method scope values are invalid arguments", "[calculation][assessment]") {
+    // Deliberately outside MethodScope, to check that it is rejected.
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     CHECK_THROWS_AS(calculation::to_string(static_cast<calculation::MethodScope>(255)),
                     std::invalid_argument);
 }
@@ -212,13 +214,13 @@ TEST_CASE("assessment owns its inputs across lvalue, rvalue, and relocation",
 
     // Moving a plan, by construction or assignment, leaves the source a complete plan.
     auto source = plan;
+    // NOLINTBEGIN(bugprone-use-after-move,performance-move-const-arg): moves copy, under test.
     auto moved = std::move(source);
     moved = std::move(source);
-    // NOLINTBEGIN(bugprone-use-after-move): the moved-from source is under test.
     CHECK(calculation::calculate(source).calculated());
     CHECK(calculation::estimate(source, 1).operations ==
           calculation::estimate(moved, 1).operations);
-    // NOLINTEND(bugprone-use-after-move)
+    // NOLINTEND(bugprone-use-after-move,performance-move-const-arg)
     CHECK(std::ranges::equal(kept_result.charges->assignment(0).charges.values(),
                              copied_result.charges->assignment(0).charges.values()));
 }

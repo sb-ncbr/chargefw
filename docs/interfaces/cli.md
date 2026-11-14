@@ -12,7 +12,8 @@ Docker image and building from source.
 | `chargefw methods [METHOD]` | Lists the methods, or describes one |
 | `chargefw parameters [PARAMETER_SET]` | Lists the parameter sets, or describes one |
 
-`chargefw COMMAND --help` lists the options of a command.
+`chargefw COMMAND --help` lists the options of a command, and `chargefw --version` prints the
+version, such as `ChargeFW 3.0.0`.
 
 ## Calculating charges
 
@@ -157,6 +158,7 @@ name: PEOE
 full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default initial_charges=zero, the formal charges of every bonded part must add up to zero. initial_charges=formal, added by ChargeFW, starts from the formal charges and allows charged molecules.
+recommended: yes
 requires coordinates: no
 requires bonds: yes
 time complexity: O(n + m)
