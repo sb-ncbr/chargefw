@@ -104,6 +104,12 @@ target_link_libraries(chargefw_objects
 target_compile_definitions(chargefw_objects
   PRIVATE
     EIGEN_DONT_PARALLELIZE
+)
+
+# Only the bundled-parameter lookup depends on the installation layout. Defining its paths for that
+# one file keeps a different layout from recompiling the rest of the library.
+set_property(SOURCE src/parameters/io/parameter_data_paths.cpp
+  APPEND PROPERTY COMPILE_DEFINITIONS
     CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY="${CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY}"
     CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE="${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}"
 )
