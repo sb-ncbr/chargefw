@@ -88,6 +88,7 @@ if(CHARGEFW_BUILD_CLI)
             COMMAND ${CMAKE_COMMAND}
                     -DCHARGEFW_CLI=${chargefw_cli}
                     -DCHARGEFW_INPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/sdf/water.sdf
+                    -DCHARGEFW_VERSION=${CHARGEFW_VERSION}
                     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cli_arguments.cmake
     )
     add_test(

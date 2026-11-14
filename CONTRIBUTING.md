@@ -5,8 +5,8 @@ Bug reports, questions, and pull requests are welcome on
 
 ## Reporting a problem
 
-Open an issue with the ChargeFW version (`chargefw.__version__` in Python), how you installed it, and
-the command or code you ran. Attach the input file if you can share it. For charges you think are
+Open an issue with the ChargeFW version (`chargefw --version`, or `chargefw.__version__` in Python),
+how you installed it, and the command or code you ran. Attach the input file if you can share it. For charges you think are
 wrong, name the method and the parameter set.
 
 ## Changing ChargeFW

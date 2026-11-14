@@ -19,8 +19,8 @@ SQEqp_Schindler2021_CCD_gen 10.1186/s13321-021-00528-w
 ```
 
 The publications are DOIs. Methods with built-in values, such as EQeq, MGC, and VEEM, have no
-parameter set, and `plan.parameter_set` is then `None`. On the command line, `chargefw methods ID`
-and `chargefw parameters ID` show the same DOIs, and the [parameter-set
+parameter set, and `plan.parameter_set` is then `None`. On the command line, `chargefw --version`
+prints the version, and `chargefw methods ID` and `chargefw parameters ID` show the same DOIs, and the [parameter-set
 reference](../reference/parameter-sets.md) lists them for every bundled set.
 
 For ChargeFW itself, cite the publication of Atomic Charge Calculator III, whose calculation core

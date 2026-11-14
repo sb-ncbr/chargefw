@@ -18,6 +18,10 @@ The changes since 3.0.0rc4 follow.
 - Native installations put the documentation, license notices, and JSON Schemas directly in
   `share/doc/chargefw/` instead of `share/doc/chargefw/chargefw/`.
 
+### Command line
+
+- `chargefw --version` prints the version, such as `ChargeFW 3.0.0`.
+
 ### Output
 
 - Breaking change: the JSON Schemas are `result-1.schema.json` and `molecule-input-1.schema.json`,

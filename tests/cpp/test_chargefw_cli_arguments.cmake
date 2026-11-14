@@ -20,6 +20,11 @@ run_cli(unknown_parameter_matching 2 applicability --parameter-matching loose "$
 run_cli(all_methods 0 applicability --method-scope all "${CHARGEFW_INPUT}")
 
 run_cli(help 0 --help)
+execute_process(COMMAND "${CHARGEFW_CLI}" --version RESULT_VARIABLE result OUTPUT_VARIABLE output)
+if(NOT result EQUAL 0 OR NOT output STREQUAL "ChargeFW ${CHARGEFW_VERSION}\n")
+    message(FATAL_ERROR "version: expected exit 0 and 'ChargeFW ${CHARGEFW_VERSION}', got ${result}: "
+                        "${output}")
+endif()
 run_cli(calculate_help 0 calculate --help)
 run_cli(inspect 0 inspect "${CHARGEFW_INPUT}")
 run_cli(applicable 0 applicability --method formal "${CHARGEFW_INPUT}")

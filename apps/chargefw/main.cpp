@@ -1,5 +1,7 @@
 #include "cli_support.h"
 
+#include <chargefw/version.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -131,6 +133,8 @@ class TerminalProgressObserver final : public chargefw::calculation::Calculation
 
 auto run(std::span<char*> arguments) -> int {
     CLI::App app{"ChargeFW molecular charge calculation and inspection."};
+    app.set_version_flag("--version", std::string{"ChargeFW "} + CHARGEFW_VERSION_STRING,
+                         "Print the ChargeFW version and exit");
     app.require_subcommand(1, 1);
     chargefw::cli::InputArguments calculate_input;
     chargefw::cli::InputArguments inspect_input;

@@ -12,7 +12,8 @@ Docker image and building from source.
 | `chargefw methods [METHOD]` | Lists the methods, or describes one |
 | `chargefw parameters [PARAMETER_SET]` | Lists the parameter sets, or describes one |
 
-`chargefw COMMAND --help` lists the options of a command.
+`chargefw COMMAND --help` lists the options of a command, and `chargefw --version` prints the
+version, such as `ChargeFW 3.0.0`.
 
 ## Calculating charges
 
