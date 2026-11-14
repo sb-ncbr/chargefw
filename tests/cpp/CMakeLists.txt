@@ -67,21 +67,20 @@ function(chargefw_add_snitch_test name)
     )
 endfunction()
 
-if(CHARGEFW_BUILD_CLI)
-    set(chargefw_cli_install_prefix "${PROJECT_BINARY_DIR}/tests/cpp/chargefw_cli_prefix")
-    set(chargefw_cli "${chargefw_cli_install_prefix}/${CMAKE_INSTALL_BINDIR}/chargefw")
+# One installation, moved after installing, serves the tests of the installed command line and the
+# downstream CMake consumer. Those tests only read it.
+set(chargefw_install_prefix "${PROJECT_BINARY_DIR}/tests/cpp/chargefw_install_prefix")
+add_test(
+        NAME test_chargefw_install
+        COMMAND ${CMAKE_COMMAND}
+                -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
+                -DCHARGEFW_INSTALL_PREFIX=${chargefw_install_prefix}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/prepare_moved_install.cmake
+)
+set_tests_properties(test_chargefw_install PROPERTIES FIXTURES_SETUP chargefw_install)
 
-    add_test(
-            NAME test_chargefw_cli_install
-            COMMAND ${CMAKE_COMMAND}
-                    -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
-                    -DCHARGEFW_INSTALL_BINDIR=${CMAKE_INSTALL_BINDIR}
-                    -DCHARGEFW_INSTALL_PREFIX=${chargefw_cli_install_prefix}
-                    -P ${CMAKE_CURRENT_SOURCE_DIR}/prepare_moved_install.cmake
-    )
-    set_tests_properties(test_chargefw_cli_install PROPERTIES
-            FIXTURES_SETUP chargefw_cli_install
-    )
+if(CHARGEFW_BUILD_CLI)
+    set(chargefw_cli "${chargefw_install_prefix}/${CMAKE_INSTALL_BINDIR}/chargefw")
 
     add_test(
             NAME test_chargefw_cli_arguments
@@ -120,7 +119,7 @@ if(CHARGEFW_BUILD_CLI)
             test_chargefw_cli_outputs
             test_chargefw_cli_structural_outputs
             test_chargefw_cli_fixed_ions
-            PROPERTIES FIXTURES_REQUIRED chargefw_cli_install
+            PROPERTIES FIXTURES_REQUIRED chargefw_install
     )
 endif()
 
@@ -166,11 +165,12 @@ file(CONFIGURE OUTPUT "${chargefw_install_test_cache}"
 add_test(
         NAME test_chargefw_cmake_consumer
         COMMAND ${CMAKE_COMMAND}
-                -DCHARGEFW_BUILD_DIR=${PROJECT_BINARY_DIR}
+                -DCHARGEFW_INSTALL_PREFIX=${chargefw_install_prefix}
                 -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
                 -DCHARGEFW_INSTALL_DOCDIR=${CMAKE_INSTALL_DOCDIR}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cmake_consumer.cmake
 )
+set_tests_properties(test_chargefw_cmake_consumer PROPERTIES FIXTURES_REQUIRED chargefw_install)
 add_test(
         NAME test_chargefw_custom_install_layout
         COMMAND ${CMAKE_COMMAND}
