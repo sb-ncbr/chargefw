@@ -6,7 +6,7 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/prepare_moved_install.cmake")
 
 expect_files_exist("Installed third-party notices"
-                   "${CHARGEFW_INSTALL_PREFIX}/${CHARGEFW_INSTALL_DOCDIR}/chargefw/licenses/README.md")
+                   "${CHARGEFW_INSTALL_PREFIX}/${CHARGEFW_INSTALL_DOCDIR}/licenses/README.md")
 
 set(consumer_build_directory "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cmake_consumer_build")
 file(REMOVE_RECURSE "${consumer_build_directory}")

@@ -40,7 +40,7 @@ def validate(instance: Any, schema_name: str) -> None:
 
 def result_json(result: chargefw.CalculationResult) -> dict[str, Any]:
     encoded: dict[str, Any] = json.loads(chargefw.io.dumps(result, format="result-json"))
-    validate(encoded, "result-1.0.schema.json")
+    validate(encoded, "result-1.schema.json")
     return encoded
 
 
@@ -225,15 +225,15 @@ def test_result_schema_accepts_later_minor_versions() -> None:
     provenance = document["calculation_provenance"]
     provenance["requested"]["execution"] = "added_kind"
     provenance["effective"]["execution"]["mode"] = "added_mode"
-    validate(document, "result-1.0.schema.json")
+    validate(document, "result-1.schema.json")
 
     document["schema_version"] = "2.0"
     with pytest.raises(jsonschema.ValidationError):
-        validate(document, "result-1.0.schema.json")
+        validate(document, "result-1.schema.json")
 
 
 def test_failed_result_json_preserves_input_identity() -> None:
-    validate(json.loads(TOPOLOGY_JSON), "molecule-input-1.0.schema.json")
+    validate(json.loads(TOPOLOGY_JSON), "molecule-input-1.schema.json")
     imported = chargefw.io.parse(TOPOLOGY_JSON, format="molecule-json", source_name="topology.json")
     manual = chargefw.Molecule([1], atom_ids=["hydrogen"])
     with pytest.raises(chargefw.NoExecutablePlanError) as raised:

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Installation
+
+- Native installations put the documentation, license notices, and JSON Schemas directly in
+  `share/doc/chargefw/` instead of `share/doc/chargefw/chargefw/`.
+
+### Output
+
+- Breaking change: the JSON Schemas are `result-1.schema.json` and `molecule-input-1.schema.json`,
+  without the minor version, because each one accepts every 1.x document. Their `$id` is the address
+  where the documentation publishes them, such as
+  `https://chargefw.readthedocs.io/en/stable/schemas/result-1.schema.json`, instead of a
+  `urn:chargefw:schema:` name.
+
 ## 3.0.0rc4
 
 ### Input

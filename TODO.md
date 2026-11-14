@@ -8,13 +8,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 - [ ] Merge `pre-release` into `main` and publish one more release candidate before 3.0.0: the
   interfaces of all three languages changed after rc3.
-- [ ] Give the JSON schemas a stable address. Their `$id` is `urn:chargefw:schema:…:1.0`, the wheel
-  does not ship them, `docs/reference/formats.md` links to files outside `docs/` (published as hashed
-  downloads), and the file names carry the minor version although every 1.x document must validate.
-  Proposal: rename them to `result-1.schema.json` and `molecule-input-1.schema.json`; copy
-  `schemas/*.json` into the HTML output under `schemas/` from `docs/conf.py`; set `$id` to
-  `https://chargefw.readthedocs.io/en/stable/schemas/<name>` and link `formats.md` there; keep them
-  out of the wheel. The URLs work once 3.0.0 is the `stable` version.
 - [ ] Restructure the changelog. `RELEASING.md` renames `Unreleased` to the version, so the 3.0.0 notes
   would list only the changes since rc3, with "Breaking change:" entries that concern nobody. The
   overview against ChargeFW2 under `## 3.0.0a1` is stale (Python 3.11–3.14, Linux only, `--pre`). Open

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chargefw:schema:result:1.0",
-  "title": "ChargeFW calculation result JSON 1.0",
+  "$id": "https://chargefw.readthedocs.io/en/stable/schemas/result-1.schema.json",
+  "title": "ChargeFW calculation result JSON, version 1",
   "description": "A complete machine-readable record of one ChargeFW calculation invocation. Charge arrays use calculation atom order; structural charge-to-site correspondence is provided by generated mmCIF.",
   "type": "object",
   "required": ["schema_version", "generator", "status", "diagnostics", "results", "calculation_provenance"],
