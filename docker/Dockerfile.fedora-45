@@ -1,4 +1,4 @@
-FROM fedora:44
+FROM fedora:45
 
 RUN dnf install --assumeyes \
     ca-certificates \
@@ -29,8 +29,12 @@ RUN curl --fail --silent --show-error --location --output /tmp/gemmi.tar.gz \
     && cmake --install /tmp/gemmi/build \
     && rm -rf /tmp/gemmi /tmp/gemmi.tar.gz
 
-RUN python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir \
+# Gemmi 0.7.4 has no wheel for Python 3.15, so pip builds it from source. Its build accepts any
+# nanobind 2.4 or newer but fails with nanobind 3, so keep nanobind below 3 for that build, as the
+# installation guide tells users to. ChargeFW itself builds with the newest nanobind.
+RUN echo 'nanobind<3' > /tmp/build-constraints.txt \
+    && python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt \
         'gemmi==0.7.4' \
         'jsonschema' \
         'mypy' \

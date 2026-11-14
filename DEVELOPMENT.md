@@ -203,7 +203,7 @@ otherwise uses the runner's default C compiler, and link-time optimization fails
 versions differ.
 
 `.github/workflows/qualification.yml` runs weekly and on demand. It builds and tests the compatibility
-containers (Debian 13 with the minimum supported dependency versions, Ubuntu 26.04, and Fedora 44 with
+containers (Debian 13 with the minimum supported dependency versions, Ubuntu 26.04, and Fedora 45 with
 the newest packaged versions), builds and runs the CLI image, and tests the pinned dependency downloads
 with `gcc-release` and the newest RDKit. It detects breakage that arrives without a commit, such as
 distribution package updates or a new RDKit release; compiler, sanitizer, and clang-tidy checks stay in
@@ -242,13 +242,13 @@ docker build \
     --tag chargefw:local-native .
 ```
 
-The Dockerfiles under `docker/` build and test ChargeFW on Ubuntu 26.04, Debian 13, and Fedora 44. Run
+The Dockerfiles under `docker/` build and test ChargeFW on Ubuntu 26.04, Debian 13, and Fedora 45. Run
 these builds one at a time because they are resource intensive:
 
 ```bash
 docker build --file docker/Dockerfile.ubuntu-26.04 .
 docker build --file docker/Dockerfile.debian-13 .
-docker build --file docker/Dockerfile.fedora-44 .
+docker build --file docker/Dockerfile.fedora-45 .
 ```
 
 Python distribution builds and publication are documented in [RELEASING.md](RELEASING.md).
