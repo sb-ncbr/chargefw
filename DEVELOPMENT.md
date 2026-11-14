@@ -120,21 +120,25 @@ cmake --preset clang-tidy
 cmake --build build/clang-tidy
 ```
 
-Build sanitizer presets with low parallelism because they can use substantial memory:
+The sanitizer presets build and test in the same way, but their compiles need more memory: on 16
+cores, a clean `clang-ubsan` build peaks at about 15 GiB and a `clang-asan` build at about 7.5 GiB.
+Most of it comes from the three files in `src/methods/linear_algebra/`, which need 4.0 to 5.7 GiB
+each with UBSan, so fewer jobs lower the peak only below three; with one job a UBSan build needs
+about 6 GiB:
 
 ```bash
-cmake --preset clang-asan
-cmake --build build/clang-asan --parallel 1
-ctest --test-dir build/clang-asan --output-on-failure -E '^cpptest$'
+cmake --preset clang-ubsan
+cmake --build build/clang-ubsan --parallel 1
+ctest --test-dir build/clang-ubsan --output-on-failure -E '^cpptest$'
 ```
 
-On systemd-based Linux, an optional memory scope can protect an interactive workstation; adjust the
-limits and parallelism for the machine:
+On systemd-based Linux, a memory-limited scope protects an interactive workstation: when the build
+reaches the limit, the kernel stops a compiler inside the scope instead of another program.
+`utils/release/02-validate.sh` runs every build and test this way; adjust the limit for the machine:
 
 ```bash
-systemd-run --user --scope \
-    -p MemoryHigh=24G -p MemoryMax=32G -p MemorySwapMax=1G \
-    cmake --build build/clang-asan --parallel 8
+systemd-run --user --scope -p MemoryMax=32G -p MemorySwapMax=0 \
+    cmake --build build/clang-ubsan
 ```
 
 Choose validation by risk and qualification stage using [AGENTS.md](AGENTS.md#validation-cadence).
