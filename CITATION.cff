@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: If you use ChargeFW, please cite it using the metadata from this file.
+message: If you use ChargeFW, please cite it using the metadata from preferred-citation.
 type: software
 title: ChargeFW
 abstract: >-
@@ -16,3 +16,36 @@ keywords:
   - partial atomic charges
   - cheminformatics
   - electronegativity equalization
+preferred-citation:
+  type: article
+  title: "Atomic Charge Calculator III: a modern platform for calculating partial atomic charges"
+  authors:
+    - family-names: Raček
+      given-names: Tomáš
+      orcid: https://orcid.org/0000-0002-0296-2452
+    - family-names: Pilát
+      given-names: Martin
+      orcid: https://orcid.org/0009-0004-7116-2039
+    - family-names: Schindler
+      given-names: Ondřej
+      orcid: https://orcid.org/0000-0002-9047-0334
+    - family-names: Bučeková
+      given-names: Gabriela
+      orcid: https://orcid.org/0009-0000-3623-718X
+    - family-names: Tichý
+      given-names: Dominik
+      orcid: https://orcid.org/0000-0001-7266-1789
+    - family-names: Berka
+      given-names: Karel
+      orcid: https://orcid.org/0000-0001-9472-2589
+    - family-names: Svobodová
+      given-names: Radka
+      orcid: https://orcid.org/0000-0002-3840-8760
+  journal: Nucleic Acids Research
+  volume: 54
+  issue: W1
+  start: W211
+  end: W215
+  year: 2026
+  month: 7
+  doi: 10.1093/nar/gkag379

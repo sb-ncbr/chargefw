@@ -12,9 +12,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
   changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
   lower, so that the 3.0.0 release notes do not repeat its breaking changes.
-- [ ] Add Python-version and operating-system classifiers to `pyproject.toml` and a
-  `preferred-citation` to `CITATION.cff`.
-- [ ] List `dist/`, `wheelhouse/`, and `release-wheelhouse/` in `.gitignore`.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
