@@ -14,13 +14,13 @@
 
 #include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
-#include <Eigen/LU>
 
 #include <cstddef>
 #include <memory>
@@ -52,7 +52,7 @@ class EemLinearization final : public LinearizedCharges {
         if (!system.has_value()) {
             return;
         }
-        // In place, exactly as solve_in_place() does in calculate().
+        // In place, exactly as linear_algebra::solve_in_place() does in calculate().
         lu_.emplace(matrix_);
         const auto n = matrix_.rows() - 1;
         charges_ = lu_->solve(system->rhs).head(n);
@@ -109,7 +109,7 @@ class EemLinearization final : public LinearizedCharges {
   private:
     // The LU factors of M after construction; lu_ refers to it, so this object cannot move.
     Eigen::MatrixXd matrix_;
-    std::optional<Eigen::PartialPivLU<Eigen::Ref<Eigen::MatrixXd>>> lu_;
+    std::optional<methods::linear_algebra::InPlaceLu> lu_;
     Eigen::VectorXd charges_;
     // (A + B q) / kappa.
     Eigen::VectorXd kappa_terms_;

@@ -34,3 +34,4 @@ target_sources(chargefw_objects
 )
 
 add_subdirectory(builtin)
+add_subdirectory(linear_algebra)

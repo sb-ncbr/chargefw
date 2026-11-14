@@ -67,8 +67,14 @@ matrix and build the distributable CLI image on the version commit:
 ```
 
 It requires `cmake`, `ctest`, `pre-commit`, the development dependencies from
-[DEVELOPMENT.md](DEVELOPMENT.md), and Podman or Docker; set `CHARGEFW_CONTAINER_ENGINE=docker` to choose
-Docker when both are installed. The sanitizer builds run sequentially with one build job.
+[DEVELOPMENT.md](DEVELOPMENT.md), a systemd user session, and Podman or Docker; set
+`CHARGEFW_CONTAINER_ENGINE=docker` to choose Docker when both are installed. Each build and test
+runs in a systemd scope limited to half of the physical memory without swap, or to
+`CHARGEFW_VALIDATE_MEMORY_MAX`, for example `24G`: a step that reaches the limit is stopped and
+fails the validation. The limit does not cover memory used by other programs, nor the final image
+build, which runs in the container engine and compiles only the release command line.
+`CHARGEFW_VALIDATE_JOBS` sets the build parallelism, also for the builds that tests start; by
+default it is the build tool's own.
 
 The tests check generated charge categories against the charges dictionary. Also check generated mmCIF
 against the current PDBx dictionary, with an installed `chargefw` and the Gemmi command-line program:

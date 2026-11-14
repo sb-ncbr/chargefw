@@ -1,6 +1,6 @@
 #include "methods/builtin/eqeqc.h"
 #include "methods/atom_parameter_values.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/builtin/charge_constraint.h"
 
 #include "methods/builtin/eqeq.h"
 

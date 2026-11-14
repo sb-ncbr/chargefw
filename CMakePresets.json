@@ -39,7 +39,8 @@
       "displayName": "GCC Debug",
       "inherits": "_gcc-validation",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT": "ON"
       }
     },
     {
@@ -48,6 +49,7 @@
       "inherits": "_gcc-validation",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
+        "CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT": "ON",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
       }
     },

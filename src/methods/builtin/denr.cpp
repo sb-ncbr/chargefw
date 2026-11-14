@@ -1,10 +1,9 @@
 #include "methods/builtin/denr.h"
 
 #include "methods/builtin/prerequisite_helpers.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include <chargefw/parameters/models/parameter_view.h>
-
-#include <Eigen/LU>
 
 #include <stdexcept>
 #include <vector>
@@ -56,11 +55,11 @@ auto DENRMethod::calculate(const CalculationInput& input) const -> charges::Atom
     }
 
     // Factorize in place to avoid holding a second dense copy of A.
-    const Eigen::PartialPivLU<Eigen::Ref<Eigen::MatrixXd>> lu{A};
+    const linear_algebra::InPlaceLu lu{A};
     Eigen::VectorXd q = Eigen::VectorXd::Zero(n);
 
     for (auto i = 0; i < iterations; ++i) {
-        q = lu.solve(q - tmp);
+        q = lu.solve(Eigen::VectorXd{q - tmp});
     }
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};

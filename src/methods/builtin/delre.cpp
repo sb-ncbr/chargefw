@@ -1,6 +1,6 @@
 #include "methods/builtin/delre.h"
-#include "methods/builtin/dense_solve.h"
 #include "methods/builtin/prerequisite_helpers.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
@@ -73,7 +73,7 @@ auto DelReMethod::calculate(const CalculationInput& input) const -> charges::Ato
             first_is_parameter_a ? gamma_b[bond_index] : gamma_a[bond_index];
     }
 
-    const Eigen::VectorXd solution = solve_in_place(matrix, rhs);
+    const Eigen::VectorXd solution = linear_algebra::solve_in_place(matrix, rhs);
 
     auto values = std::vector(atom_count, 0.0);
 

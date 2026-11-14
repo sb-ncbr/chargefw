@@ -1,5 +1,5 @@
 #include "methods/builtin/kcm.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include "methods/builtin/prerequisite_helpers.h"
 
@@ -58,7 +58,7 @@ auto KCMMethod::calculate(const CalculationInput& input) const -> charges::Atomi
         A(ej, ei) -= w;
     }
 
-    Eigen::VectorXd q = solve_in_place(A, chi0);
+    Eigen::VectorXd q = linear_algebra::solve_in_place(A, chi0);
     q -= chi0;
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};

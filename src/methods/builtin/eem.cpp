@@ -1,7 +1,8 @@
 #include "methods/builtin/eem.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/builtin/charge_constraint.h"
 #include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
@@ -93,8 +94,8 @@ auto EEMMethod::calculate(const CalculationInput& input) const -> charges::Atomi
     }
 
     auto system = eem_core::build_system(input);
-    const Eigen::VectorXd q =
-        solve_in_place(system.matrix, system.rhs).head(static_cast<Eigen::Index>(atom_count));
+    const Eigen::VectorXd q = linear_algebra::solve_in_place(system.matrix, system.rhs)
+                                  .head(static_cast<Eigen::Index>(atom_count));
 
     return charges::AtomicCharges{std::vector<double>{q.data(), q.data() + q.size()}};
 }

@@ -27,6 +27,8 @@ set(CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE "_data/parameters")
 
 option(CHARGEFW_ENABLE_CCACHE "Use ccache if available" ON)
 option(CHARGEFW_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
+option(CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT
+  "Test a second build of the library and command line with a non-default installation layout" OFF)
 option(CHARGEFW_BUILD_LIBRARY "Build and install the shared C++ library (supported on Linux)" ON)
 option(CHARGEFW_BUILD_CLI "Build the native chargefw command line, which links the shared library"
        ${PROJECT_IS_TOP_LEVEL})
@@ -104,6 +106,12 @@ target_link_libraries(chargefw_objects
 target_compile_definitions(chargefw_objects
   PRIVATE
     EIGEN_DONT_PARALLELIZE
+)
+
+# Only the bundled-parameter lookup depends on the installation layout. Defining its paths for that
+# one file keeps a different layout from recompiling the rest of the library.
+set_property(SOURCE src/parameters/io/parameter_data_paths.cpp
+  APPEND PROPERTY COMPILE_DEFINITIONS
     CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY="${CHARGEFW_PARAMETER_DIRECTORY_FROM_LIBRARY}"
     CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE="${CHARGEFW_PARAMETER_DIRECTORY_IN_PACKAGE}"
 )

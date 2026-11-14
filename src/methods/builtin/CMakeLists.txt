@@ -1,6 +1,6 @@
 target_sources(chargefw_objects
         PRIVATE
-        dense_solve.h
+        charge_constraint.h
         initial_charges.h
         prerequisite_helpers.h
         dummy.h

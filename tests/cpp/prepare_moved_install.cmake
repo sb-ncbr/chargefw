@@ -11,7 +11,3 @@ run_checked("ChargeFW installation"
             "${CMAKE_COMMAND}" --install "${CHARGEFW_BUILD_DIR}" --prefix "${install_source_prefix}")
 
 file(RENAME "${install_source_prefix}" "${CHARGEFW_INSTALL_PREFIX}")
-
-if(DEFINED CHARGEFW_INSTALL_BINDIR)
-    set(CHARGEFW_CLI "${CHARGEFW_INSTALL_PREFIX}/${CHARGEFW_INSTALL_BINDIR}/chargefw")
-endif()

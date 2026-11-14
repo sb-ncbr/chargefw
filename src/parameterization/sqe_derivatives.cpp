@@ -24,6 +24,8 @@
 #include "methods/builtin/initial_charges.h"
 #include "methods/builtin/sqe.h"
 #include "methods/builtin/sqe_system.h"
+#include "methods/linear_algebra/dense_product.h"
+#include "methods/linear_algebra/dense_solve.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/core/molecule.h>
@@ -174,8 +176,8 @@ class SqeLinearization final : public LinearizedCharges {
             subtract(columns.atom[width_channel], width_terms_);
             // The dense products only for the columns that have widths or initial charges.
             const auto widths = indicator_block(columns.atom[width_channel]);
-            const Eigen::MatrixXd width_products =
-                widths_.pairs.transpose() * (charges_.asDiagonal() * widths.values);
+            const Eigen::MatrixXd width_products = methods::linear_algebra::multiply_transposed(
+                widths_.pairs, charges_.asDiagonal() * widths.values);
             for (std::size_t index = 0; index < widths.columns.size(); ++index) {
                 u.col(static_cast<Eigen::Index>(widths.columns[index])) -=
                     width_products.col(static_cast<Eigen::Index>(index));
@@ -183,7 +185,7 @@ class SqeLinearization final : public LinearizedCharges {
             if (initial_count != 0) {
                 const auto& charge_matrix = system_->charge_matrix;
                 const Eigen::MatrixXd initial_products =
-                    charge_matrix * initial_charges.values -
+                    methods::linear_algebra::multiply(charge_matrix, initial_charges.values) -
                     charge_matrix.diagonal().asDiagonal() * initial_charges.values;
                 for (std::size_t index = 0; index < initial_count; ++index) {
                     u.col(static_cast<Eigen::Index>(initial_charges.columns[index])) -=
@@ -201,9 +203,7 @@ class SqeLinearization final : public LinearizedCharges {
                     split(a, static_cast<Eigen::Index>(column)) -= p(a);
                 }
             }
-            const auto factor = system_->split_matrix.triangularView<Eigen::Lower>();
-            factor.solveInPlace(split);
-            factor.transpose().solveInPlace(split);
+            methods::linear_algebra::cholesky_solve_in_place(system_->split_matrix, split);
 
             // dq += T^T dp.
             for (Eigen::Index a = 0; a < m; ++a) {

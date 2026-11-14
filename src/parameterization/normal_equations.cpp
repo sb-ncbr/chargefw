@@ -10,6 +10,7 @@
 #include "calculation/target_execution.h"
 #include "calculation/target_input.h"
 #include "methods/applicable_method_execution.h"
+#include "methods/linear_algebra/dense_product.h"
 #include "methods/method_applicability.h"
 
 #include <chargefw/calculation/execution_policy.h>
@@ -236,8 +237,8 @@ struct TargetTerms {
         rows.row(r) = weight * charge_derivatives.row(static_cast<Eigen::Index>(atom));
     }
     Eigen::Map<Eigen::MatrixXd>{result.gauss_newton.data(), static_cast<Eigen::Index>(k),
-                                static_cast<Eigen::Index>(k)}
-        .noalias() = rows.transpose() * rows;
+                                static_cast<Eigen::Index>(k)} =
+        methods::linear_algebra::multiply_transposed(rows, rows);
     Eigen::Map<Eigen::VectorXd>{result.gradient.data(), static_cast<Eigen::Index>(k)}.noalias() =
         rows.transpose() * residuals;
 

@@ -1,5 +1,5 @@
 #include "methods/builtin/eqeq.h"
-#include "methods/builtin/dense_solve.h"
+#include "methods/builtin/charge_constraint.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>

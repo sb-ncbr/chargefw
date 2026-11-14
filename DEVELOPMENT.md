@@ -104,10 +104,13 @@ instead, and the wheel workflow tests them. Ignored `CMakeUserPresets.json` pres
 stable `gcc-debug` and `gcc-release` names to customize local build and installation directories.
 
 Installation tests use the parent's build type, C and C++ compilers, compiler/linker flags, and IPO
-settings for their nested builds. The custom-layout build also inherits ChargeFW's dependency, optimization,
-sanitizer, warning, and developer-tool options; it changes the installation layout and builds only the
-native library and CLI. The downstream consumer receives sanitizer requirements from the installed
-library's exported target.
+settings for their nested builds. The custom-layout build also inherits ChargeFW's dependency,
+optimization, sanitizer, warning, and developer-tool options; it changes the installation layout and
+builds only the native library and CLI. It compiles the library a second time, so only the
+`gcc-debug` and `gcc-release` presets enable it, with `CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT=ON`; they
+cover the non-default layout, and the other presets keep the default-layout installation tests
+without repeating this build. The downstream consumer receives sanitizer requirements from the
+installed library's exported target.
 
 Configure another preset in the same way, then build and test its directory. `clang-tidy` runs during
 its build and does not need a test run:
@@ -117,21 +120,25 @@ cmake --preset clang-tidy
 cmake --build build/clang-tidy
 ```
 
-Build sanitizer presets with low parallelism because they can use substantial memory:
+The sanitizer presets build and test in the same way, but their compiles need more memory: on 16
+cores, a clean `clang-ubsan` build peaks at about 15 GiB and a `clang-asan` build at about 7.5 GiB.
+Most of it comes from the three files in `src/methods/linear_algebra/`, which need 4.0 to 5.7 GiB
+each with UBSan, so fewer jobs lower the peak only below three; with one job a UBSan build needs
+about 6 GiB:
 
 ```bash
-cmake --preset clang-asan
-cmake --build build/clang-asan --parallel 1
-ctest --test-dir build/clang-asan --output-on-failure -E '^cpptest$'
+cmake --preset clang-ubsan
+cmake --build build/clang-ubsan --parallel 1
+ctest --test-dir build/clang-ubsan --output-on-failure -E '^cpptest$'
 ```
 
-On systemd-based Linux, an optional memory scope can protect an interactive workstation; adjust the
-limits and parallelism for the machine:
+On systemd-based Linux, a memory-limited scope protects an interactive workstation: when the build
+reaches the limit, the kernel stops a compiler inside the scope instead of another program.
+`utils/release/02-validate.sh` runs every build and test this way; adjust the limit for the machine:
 
 ```bash
-systemd-run --user --scope \
-    -p MemoryHigh=24G -p MemoryMax=32G -p MemorySwapMax=1G \
-    cmake --build build/clang-asan --parallel 8
+systemd-run --user --scope -p MemoryMax=32G -p MemorySwapMax=0 \
+    cmake --build build/clang-ubsan
 ```
 
 Choose validation by risk and qualification stage using [AGENTS.md](AGENTS.md#validation-cadence).
@@ -355,6 +362,16 @@ snapshots, or per-bond provenance.
 The application-facing charge result owns those ordered imported records together with the toolkit-neutral
 execution result. The writers consume that boundary directly, keeping source correspondence out of the
 scientific calculation engine without requiring parallel caller-supplied structures or contexts.
+
+**Dense linear algebra is compiled in one place.** An Eigen decomposition or product of two
+dynamic-size matrices compiles Eigen's blocked LU, Cholesky, and matrix-product kernels into the
+file that uses it: about 2 GiB of compiler memory and 10 s in a debug build, and about 5 GiB with
+UBSan. Methods and the fitting code therefore assemble their matrices with Eigen in their own files
+and factorize, solve, and multiply them through `src/methods/linear_algebra/`
+(`chargefw::methods::linear_algebra`), which compiles those kernels once per operation. Add a helper
+there instead of calling a decomposition or a large matrix product in a method. The total-charge
+constraint that the equalization methods add to their systems is chemistry and stays in
+`src/methods/builtin/charge_constraint.h`.
 
 ### Parameterization
 
