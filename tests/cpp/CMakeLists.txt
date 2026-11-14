@@ -171,14 +171,17 @@ add_test(
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cmake_consumer.cmake
 )
 set_tests_properties(test_chargefw_cmake_consumer PROPERTIES FIXTURES_REQUIRED chargefw_install)
-add_test(
-        NAME test_chargefw_custom_install_layout
-        COMMAND ${CMAKE_COMMAND}
-                -DCHARGEFW_SOURCE_DIR=${PROJECT_SOURCE_DIR}
-                -DCHARGEFW_BINARY_DIR=${PROJECT_BINARY_DIR}
-                -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_custom_install_layout.cmake
-)
+# The layout test builds the library and command line a second time; the presets choose where it runs.
+if(CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT)
+    add_test(
+            NAME test_chargefw_custom_install_layout
+            COMMAND ${CMAKE_COMMAND}
+                    -DCHARGEFW_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+                    -DCHARGEFW_BINARY_DIR=${PROJECT_BINARY_DIR}
+                    -DCHARGEFW_PARENT_CACHE=${chargefw_install_test_cache}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_custom_install_layout.cmake
+    )
+endif()
 
 add_subdirectory(core)
 add_subdirectory(charges)

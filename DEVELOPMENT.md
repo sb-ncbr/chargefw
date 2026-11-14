@@ -104,10 +104,13 @@ instead, and the wheel workflow tests them. Ignored `CMakeUserPresets.json` pres
 stable `gcc-debug` and `gcc-release` names to customize local build and installation directories.
 
 Installation tests use the parent's build type, C and C++ compilers, compiler/linker flags, and IPO
-settings for their nested builds. The custom-layout build also inherits ChargeFW's dependency, optimization,
-sanitizer, warning, and developer-tool options; it changes the installation layout and builds only the
-native library and CLI. The downstream consumer receives sanitizer requirements from the installed
-library's exported target.
+settings for their nested builds. The custom-layout build also inherits ChargeFW's dependency,
+optimization, sanitizer, warning, and developer-tool options; it changes the installation layout and
+builds only the native library and CLI. It compiles the library a second time, so only the
+`gcc-debug` and `gcc-release` presets enable it, with `CHARGEFW_TEST_CUSTOM_INSTALL_LAYOUT=ON`; they
+cover the non-default layout, and the other presets keep the default-layout installation tests
+without repeating this build. The downstream consumer receives sanitizer requirements from the
+installed library's exported target.
 
 Configure another preset in the same way, then build and test its directory. `clang-tidy` runs during
 its build and does not need a test run:
