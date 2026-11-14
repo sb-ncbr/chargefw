@@ -12,11 +12,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
   changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
   lower, so that the 3.0.0 release notes do not repeat its breaking changes.
-- [ ] `docs/about/chargefw2.md` says parameter-set IDs only lost their number, but ChargeFW2's
-  `KCM_00_original` became `KCM_original_initial` and `KCM_original_fitted`; add the mapping.
-- [ ] `docs/about/citing.md` shows `3.0.0rc2` in its sample output.
-- [ ] The `chargefw methods peoe` example in `docs/interfaces/cli.md` lacks the `recommended:` line the
-  program prints.
 - [ ] Add Python-version and operating-system classifiers to `pyproject.toml` and a
   `preferred-citation` to `CITATION.cff`.
 - [ ] List `dist/`, `wheelhouse/`, and `release-wheelhouse/` in `.gitignore`.

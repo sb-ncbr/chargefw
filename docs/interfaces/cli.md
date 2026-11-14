@@ -157,6 +157,7 @@ name: PEOE
 full name: Partial Equalization of Orbital Electronegativity
 publication: 10.1016/0040-4020(80)80168-2
 notes: With the default initial_charges=zero, the formal charges of every bonded part must add up to zero. initial_charges=formal, added by ChargeFW, starts from the formal charges and allows charged molecules.
+recommended: yes
 requires coordinates: no
 requires bonds: yes
 time complexity: O(n + m)

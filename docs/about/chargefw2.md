@@ -49,7 +49,10 @@ In Python:
 Things to know when you move over:
 
 - **Parameter-set IDs** no longer contain a number, so `EEM_00_NEEMP_ccd2016_npa` is now
-  `EEM_NEEMP_ccd2016_npa`. The [parameter-set reference](../reference/parameter-sets.md) lists them.
+  `EEM_NEEMP_ccd2016_npa`. KCM is the exception: ChargeFW2's `KCM_00_original` is now
+  `KCM_original_initial`, which automatic selection still picks for KCM, and the new
+  `KCM_original_fitted` has the values fitted to MMFF94 multipoles. The
+  [parameter-set reference](../reference/parameter-sets.md) lists them.
 - **Results** are assignments per molecule and conformer, in input order, not a dictionary keyed by
   molecule name; [Results](../guide/results.md) describes them.
 - **Automatic selection** tries methods and parameter sets in a fixed priority order, the same for
