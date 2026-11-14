@@ -187,6 +187,7 @@ auto ensure_array(const Json& value, const std::string& context) -> void {
     metadata.notes = optional_string_member(metadata_json, "notes", metadata_context);
 
     // The format version this reader reads; files without one are version 1.
+    // NOLINTNEXTLINE(readability-redundant-nested-if): merging would repeat the declared member.
     if (const auto* format_version = optional_member(metadata_json, "format_version")) {
         if (!format_version->is_number_integer() || format_version->get<std::int64_t>() != 1) {
             throw_error(child_context(metadata_context, "format_version"),
