@@ -31,6 +31,11 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Distribution
 
+- [ ] When Gemmi releases a version that builds with nanobind 3 or has CPython 3.15 wheels, move the
+  Gemmi pins to it (`pyproject.toml`, `cmake/dependencies.cmake`, the CI and container installs, and
+  the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
+  `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
+
 - [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
   `README.md`.
 

@@ -15,6 +15,10 @@ The changes since 3.0.0rc4 follow.
 
 ### Installation
 
+- The wheels are tested on CPython 3.15. Gemmi 0.7.4 has no wheel for it, and building Gemmi from
+  source fails with nanobind 3, so the `gemmi` extra needs a build constraint there;
+  [Installation](https://chargefw.readthedocs.io/en/latest/getting-started/installation.html#python-package)
+  shows the command.
 - Native installations put the documentation, license notices, and JSON Schemas directly in
   `share/doc/chargefw/` instead of `share/doc/chargefw/chargefw/`.
 

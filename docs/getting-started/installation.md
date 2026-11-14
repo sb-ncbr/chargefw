@@ -42,6 +42,16 @@ pip install --pre "chargefw[rdkit]"
 The `gemmi` extra installs exactly Gemmi 0.7.4 and replaces any other Gemmi version in the
 environment.
 
+Gemmi 0.7.4 has no wheel for Python 3.15, so pip builds it from source there, and that build fails
+with nanobind 3. On Python 3.15, keep nanobind below version 3 for the build. This needs pip 25.3 or
+newer, a C++ compiler, and the Python development headers (`python3-devel` on Fedora,
+`python3-dev` on Debian and Ubuntu), and the build takes a few minutes:
+
+```bash
+echo "nanobind<3" > build-constraints.txt
+pip install --pre --build-constraint build-constraints.txt "chargefw[gemmi]"
+```
+
 pip also installs the `chargefw` command line. Check both:
 
 ```bash
