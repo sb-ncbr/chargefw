@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # The workflows pin actions by major version, so this proposes only new major versions.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]

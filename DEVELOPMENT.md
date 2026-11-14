@@ -212,6 +212,9 @@ local release validation.
 `.github/workflows/release.yml` is dispatched manually to build and publish a release; see
 [RELEASING.md](RELEASING.md).
 
+`.github/dependabot.yml` opens one pull request a month when the actions used by the workflows have new
+major versions. Other dependencies are pinned and updated by hand.
+
 The `main` ruleset requires `lint` and `gcc-debug`; repository admins can bypass it, for example to
 merge after local qualification when CI is unavailable. The workflows have no path filters on purpose:
 a required check whose workflow is skipped stays pending and blocks the pull request. If

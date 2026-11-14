@@ -67,9 +67,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
   installed on Read the Docs, without compiling ChargeFW there; the Python page remains the guide.
 - [ ] After 3.0.0, add README badges for CI, documentation, PyPI version, and DOI.
-- [ ] After 3.0.0, add `CONTRIBUTING.md`, linking to DEVELOPMENT.md and asking contributors to run the
-  `gcc-debug` tests and pre-commit locally.
-- [ ] After 3.0.0, enable Dependabot for GitHub Actions versions only.
 - [ ] After 3.0.0, export the type aliases of `assess()` and `calculate()` (`MethodScope`,
   `ParameterMatching`, `RequestedExecution`, `ResourceThreshold`, the issue kinds) from `chargefw`, as
   `PortableId` and the `chargefw.io` aliases are.

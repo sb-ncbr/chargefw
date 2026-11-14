@@ -74,6 +74,7 @@ The documentation is at [chargefw.readthedocs.io](https://chargefw.readthedocs.i
 ## Development
 
 - [Changelog](CHANGELOG.md): changes in each release.
+- [Contributing](CONTRIBUTING.md): reporting a problem and preparing a pull request.
 - [Development guide](DEVELOPMENT.md): building, testing, and validating the repository.
 - [Release guide](RELEASING.md): publishing a release.
 - [Unfinished work](TODO.md): current gaps.
