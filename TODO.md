@@ -8,11 +8,10 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 - [ ] Merge `pre-release` into `main` and publish one more release candidate before 3.0.0: the
   interfaces of all three languages changed after rc3.
-- [ ] Restructure the changelog. `RELEASING.md` renames `Unreleased` to the version, so the 3.0.0 notes
-  would list only the changes since rc3, with "Breaking change:" entries that concern nobody. The
-  overview against ChargeFW2 under `## 3.0.0a1` is stale (Python 3.11–3.14, Linux only, `--pre`). Open
-  the 3.0.0 section with a short summary since ChargeFW2 and a link to the migration page, and put the
-  pre-release sections under one history heading.
+- [ ] Write the 3.0.0 changelog section by hand instead of renaming `## Unreleased`: open it with the
+  summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
+  changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
+  lower, so that the 3.0.0 release notes do not repeat its breaking changes.
 - [ ] `docs/about/chargefw2.md` says parameter-set IDs only lost their number, but ChargeFW2's
   `KCM_00_original` became `KCM_original_initial` and `KCM_original_fitted`; add the mapping.
 - [ ] `docs/about/citing.md` shows `3.0.0rc2` in its sample output.
