@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor
 of [ChargeFW2](https://github.com/sb-ncbr/ChargeFW2). ChargeFW has the same 20 methods and
