@@ -6,8 +6,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-- [ ] Merge `pre-release` into `main` and publish one more release candidate before 3.0.0: the
-  interfaces of all three languages changed after rc3.
 - [ ] Write the 3.0.0 changelog section by hand instead of renaming `## Unreleased`: open it with the
   summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
   changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
@@ -21,6 +19,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Point the documentation links in `README.md`, `python/README.md`, and `pyproject.toml` at
   `/en/stable/` instead of `/en/latest/` in the release commit: a published PyPI description cannot be
   edited.
+- [ ] Add a PyPI version badge to `README.md` at 3.0.0
+  (`https://img.shields.io/pypi/v/chargefw`). shields.io shows only final releases, so until then it
+  shows 0.1.7.
 - [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
   page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
   and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
@@ -30,7 +31,8 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Distribution
 
-- [ ] Publish the Figshare item before the ChargeFW publication.
+- [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
+  `README.md`.
 
 ## Integrations
 
@@ -61,12 +63,3 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Investigate metal–ligand coordination as bonds, so that SQE-family methods can move charge
   between a bound metal and its ligands instead of holding the metal as a fixed ion. This is a
   chemistry policy: no coordination bonds are inferred automatically until the policy is decided.
-
-## Project infrastructure
-
-- [ ] After 3.0.0, generate a Python API reference with `sphinx.ext.autodoc` from the published wheel
-  installed on Read the Docs, without compiling ChargeFW there; the Python page remains the guide.
-- [ ] After 3.0.0, add README badges for CI, documentation, PyPI version, and DOI.
-- [ ] After 3.0.0, export the type aliases of `assess()` and `calculate()` (`MethodScope`,
-  `ParameterMatching`, `RequestedExecution`, `ResourceThreshold`, the issue kinds) from `chargefw`, as
-  `PortableId` and the `chargefw.io` aliases are.

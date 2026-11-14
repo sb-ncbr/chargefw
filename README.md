@@ -1,5 +1,9 @@
 # ChargeFW
 
+[![CI](https://github.com/sb-ncbr/chargefw/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sb-ncbr/chargefw/actions/workflows/ci.yml)
+[![Documentation](https://readthedocs.org/projects/chargefw/badge/?version=latest)](https://chargefw.readthedocs.io/en/latest/)
+[![Cite: NAR 2026](https://img.shields.io/badge/cite-NAR%202026-blue)](https://doi.org/10.1093/nar/gkag379)
+
 ChargeFW calculates empirical partial atomic charges for small molecules and biomolecular structures,
 from Python, from the command line, or from C++.
 
