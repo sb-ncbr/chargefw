@@ -59,8 +59,9 @@ in file order.
 `assignment.atom_ids` holds one ID per atom: its ID in the input file, or its position in the file
 when the format has no atom IDs. For PDB and mmCIF files with several models, these IDs are those of
 the first model; the atoms of the other models are listed, with their IDs, in
-`molecule.source_mapping.conformers[assignment.conformer_index].sites`. mmCIF output and
-`attach_charges()` for Gemmi documents put each charge on the right atom of every model for you.
+`molecule.source_mapping.conformers[assignment.conformer_index].sites`. mmCIF output, mmCIF
+annotation, and `attach_charges()` for Gemmi documents put each charge on the right atom of its
+model for you; models that were not read get no charges.
 
 ## What the result records
 
@@ -167,6 +168,7 @@ eem molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom
 | Result JSON | Scripts and analysis: full-precision charges and the complete record of the calculation |
 | MOL2 | Small molecules in molecular viewers and docking programs |
 | mmCIF | Proteins and other structures: charges stay linked to chains, residues, and atoms |
+| Annotated mmCIF | Viewing charges on the PDB or mmCIF structure you read, with its water, ligands, and assemblies |
 | PQR | Electrostatics of proteins read from PDB or mmCIF, for example with APBS; one model only |
 | Python objects | Further calculation: charges as NumPy arrays, attached to RDKit molecules or Gemmi documents |
 
@@ -175,3 +177,9 @@ command line writes them with `--output-mol2`, `--output-mmcif`, and `--output-p
 `chargefw.io.write()`. PQR holds one model, so read a file with several models with
 `--conformers first` on the command line, or `conformers="first"` in Python. The
 [format reference](../reference/formats.md#charge-output) describes each format.
+
+mmCIF output is a new structure made of the atoms that were calculated. Annotated mmCIF is the
+mmCIF file you read, or a PDB file converted to mmCIF, with charges on the atoms that were
+calculated; write it with `--annotate-mmcif` or `chargefw.io.annotate()`. A converted PDB file lacks
+the `CONECT` records, so keep the PDB file to calculate again. [Charges added to the input
+structure](../reference/formats.md#charges-added-to-the-input-structure) describes it.

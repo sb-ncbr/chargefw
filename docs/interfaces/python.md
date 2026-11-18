@@ -330,8 +330,8 @@ chargefw.io.write("charged.cif", [sqeqp, eem], format="mmcif")
 
 The other formats hold one result. The [mmCIF reference](../reference/formats.md#mmcif) lists the rules.
 
-`write()` creates a new structure from the atoms and bonds that were calculated. To keep the PDB or
-mmCIF structure you read and add the charges to it, use `chargefw.io.annotate()`:
+`write()` creates a new structure from the atoms and bonds that were calculated. To write the PDB or
+mmCIF input with the charges added instead, use `chargefw.io.annotate()`:
 
 ```python
 molecules = chargefw.io.read("structure.cif", format="mmcif", selection="polymers")
@@ -339,14 +339,12 @@ result = chargefw.calculate(molecules)
 chargefw.io.annotate("structure-charged.cif", result)
 ```
 
-The output has everything the input had, such as water, ligands, and biological assemblies; here only
-the polymer atoms have charges. The result keeps the text of the input, so the input file is not read
-again and `molecules` is not needed. A PDB input is written as mmCIF, converted as a whole.
-`annotate()` also takes a list of results. Charges that are
-already in the input are an error unless you pass `if_exists="replace"`, or `if_exists="append"` to
-keep them and add the new charge sets after them. It raises `ValueError` for
-molecules that were not read from one PDB or mmCIF input; see
-[Charges added to the input structure](../reference/formats.md#charges-added-to-the-input-structure).
+The result keeps the text of the input, so `annotate()` needs neither the input file nor
+`molecules`. It also takes a list of results. Charges that are already in the input are an error
+unless you pass `if_exists="replace"`, or `if_exists="append"` to keep them and add the new charge
+sets after them. `annotate()` raises `ValueError` for molecules that were not read from one PDB or
+mmCIF input. [Charges added to the input
+structure](../reference/formats.md#charges-added-to-the-input-structure) describes the file.
 
 MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates; PQR
 only for a structure read from PDB or mmCIF, with one model. [Choosing an output
@@ -648,5 +646,6 @@ each. Do not change the document between `from_document()` and `attach_charges()
 matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
 document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
 longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
-Existing charge data is an error unless you pass `if_exists="replace"` or `if_exists="append"`. The function replaces the document's
-blocks, so get block objects such as `document.sole_block()` again afterwards.
+Existing charge data is an error unless you pass `if_exists="replace"` or `if_exists="append"`. The
+function replaces the document's blocks, so get block objects such as `document.sole_block()` again
+afterwards.

@@ -2,8 +2,11 @@
 
 Working notes for the migration of [Atomic Charge Calculator III](https://acc.biodata.ceitec.cz/)
 (ACC) from ChargeFW2 to ChargeFW 3, and for the ChargeFW changes the migration calls for. They record an
-analysis made on 2026-11-14 with ChargeFW 3.0.0rc5. Nothing in ACC has been changed yet. Remove this
-file when the migration is complete; move what remains open to `TODO.md`.
+analysis made on 2026-11-14 with ChargeFW 3.0.0rc5; where they say rc5, they describe that release.
+The ChargeFW changes listed in [ChargeFW work](#chargefw-work) were made after rc5 and are in the
+Unreleased section of `CHANGELOG.md`; ACC needs the first release that contains them. Nothing in ACC
+has been changed yet. Remove this file when the migration is complete; move what remains open to
+`TODO.md`.
 
 ## Goal and rules
 
@@ -131,7 +134,7 @@ Malformed records and numerical failure paths were not exercised in the migratio
 | `calculate_charges(...)` | `chargefw.calculate(molecules, method=..., parameter_set=..., parameter_matching=..., threads=1)`; charges are in `result.assignments`, in input order |
 | written `.pqr`, `.mol2` | `chargefw.io.write(path, result, format="pqr" / "mol2")` |
 | written `.txt` | no writer; ACC writes it from the assignments |
-| written `.fw2.cif` | see [Viewer files](#viewer-files) |
+| written `.fw2.cif` | `chargefw.io.annotate(path, result)`, then `_chem_comp` and the atom rows without a charge removed; see [Viewer files](#viewer-files) |
 
 Metadata ACC's models need:
 
@@ -251,7 +254,9 @@ most 0.09 e.
   `parameter_set` are separate items, plus `software_name` and `software_version`), bonds with
   orders in `_chem_comp_bond` and `_struct_conn`. `chargefw.io.write` builds the block from the
   molecule, retaining available atom and residue labels but not copying arbitrary source categories.
-  `chargefw.io.gemmi.attach_charges(document, result)` instead checks the source mmCIF mapping and
+  `chargefw.io.annotate(path, result)` writes the PDB or mmCIF input instead, with charges on the
+  calculated atoms; see [Annotating the source structure](#annotating-the-source-structure).
+  `chargefw.io.gemmi.attach_charges(document, result)` checks the source mmCIF mapping and
   writes charges to the matching document without pruning its atom rows. It checks the mapped sites,
   not Python object identity. It can attach several results for the same inputs at once; use
   `if_exists="replace"` when replacing old charge categories (including in ACC examples).
@@ -285,6 +290,7 @@ Tested variants of the per-molecule file ACC serves to Mol*, against the file Ch
 | Attached, then the first model's atom rows without a charge removed | Same components, representations, and bonds as ChargeFW2 for 2HU4, 8YAX, 1EK9 with and without water, 1D3Z, and 1CBN |
 | PDB converted to mmCIF by Gemmi, `_chem_comp` kept | Worse. Mol* shows everything as spacefill |
 | PDB converted to mmCIF by Gemmi, `_chem_comp` removed | Same as ChargeFW2 |
+| Annotated (`io.annotate`) from PDB and from mmCIF, then `_chem_comp` and the atom rows without a charge removed | 1CBN: the same 640 charged sites and charges from both, and the same cartoon picture in Mol* 4.5.0 (checked 2026-11-18, after rc5) |
 | Small molecules written by ChargeFW | Same picture, and Mol* gets the bond orders (ChargeFW2's `_chem_comp_bond` rows use numeric atom IDs that match no atom name, so Mol* guesses the bonds) |
 | Charge metadata as ChargeFW writes it (dictionary 1.1) | Worse. The Charge Set selector shows only `sqeqp`, and the "Parameters:" line is empty, because ACC splits `method` at `/` and the Mol* extension reads only `method` |
 
@@ -292,7 +298,7 @@ Details that matter:
 
 - The Mol* extension matches `_sb_ncbr_partial_atomic_charges.atom_id` to `_atom_site.id` as
   integers. When the upload is kept, the charge rows must carry the file's atom IDs, not position plus
-  one. `attach_charges` does that.
+  one. `annotate` and `attach_charges` do that.
 - With `_chem_comp` kept in an mmCIF from the PDB, Mol* additionally shows modified residues as
   ball-and-stick (120 MSE atoms in 1EK9). ChargeFW2 removes the category, so this is a choice.
 - For a PDB upload, calculate from the PDB file and write the viewer file with
@@ -308,7 +314,7 @@ Details that matter:
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; all four are resolved.
+In the order proposed to the maintainer; all are resolved after rc5 and wait for the next release.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of
@@ -316,12 +322,17 @@ In the order proposed to the maintainer; all four are resolved.
    that uses coordinates is rejected with `invalid_geometry`, "identical coordinates"; the default
    becomes PEOE. ChargeFW2 keeps alternative A and calculates SQE+qp. The choice has to be made for
    the residue position. Resolved after rc5: of consecutive residues with the same number and
-   insertion code, the first is read, and the later ones of the same segment and label chain are left out when all
-   their atoms have an alternate location; 1CBN gives 640 atoms, and SQE+qp is the default.
+   insertion code, the first is read, and the later ones of the same segment and label chain are
+   left out when all their atoms have an alternate location. 1CBN gives 640 atoms and 648 bonds from
+   the PDB and from the mmCIF, and SQE+qp is the default; residues that repeat a number in another
+   segment are all read.
 2. **mmCIF output that keeps an mmCIF input.** Accepted design and state in
    [Annotating the source structure](#annotating-the-source-structure).
 3. **mmCIF output from PDB input.** Same section.
 4. **MOL2 coordinates** in fixed notation, without exponents. Resolved after rc5: four decimal places.
+5. **PDB molecule names.** Found during the review of 2 and 3: rc5 named a PDB molecule by its file
+   name, so an ACC upload would be named `<sha256>_<name>`. Resolved after rc5: the ID code of the
+   `HEADER` record names it, as in ChargeFW2, and the block of the annotated file.
 
 Decided against: CCD templates for all ligands (large data for a gap that the files from the PDB do
 not have); sanitized names, TXT output, and per-molecule files (ACC's conventions); calculating
@@ -329,6 +340,7 @@ bond-based methods on charged molecules; leaving out molecules that fail; select
 
 Open questions for ChargeFW:
 
+- The release that ships the work above, another release candidate or 3.0.0, for ACC to pin.
 - Whether full calculations should use several threads. The `threads` option exists and does not
   affect them.
 - Whether ACC should build ChargeFW from the sdist with
@@ -474,4 +486,4 @@ Open, with the recommendation given:
 | MOL2 and PQR downloads in ChargeFW's form | Accept |
 | Users' stored calculation history from ChargeFW2 | Keep it viewable; do not reuse it for new requests |
 | Keep `_chem_comp` in mmCIF uploads (modified residues shown as sticks) | Remove it, as ChargeFW2 does |
-| ChargeFW issues 1–3 before 3.0.0, in another release candidate | Ship the fix for 1. Review the design for 2 and 3 before stable if changing defaults; ACC viewer parity alone need not gate ChargeFW 3.0.0 if the adapter can provide and verify it |
+| ChargeFW issues 1–5 before 3.0.0, in another release candidate | All are implemented and the design of 2 and 3 accepted; release them in another release candidate so that ACC can switch to it and verify the viewer files before 3.0.0 |
