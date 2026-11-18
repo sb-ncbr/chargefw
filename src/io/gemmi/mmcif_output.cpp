@@ -995,7 +995,8 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
     validate_results_output(results);
     // Equal records can come from inputs that differ outside the selected sites, such as in an
     // assembly, so every record of every result must have the same source text.
-    const auto& first_metadata = results.front()->inputs().front().import_metadata;
+    const auto first_inputs = results.front()->inputs();
+    const auto& first_metadata = first_inputs.front().import_metadata;
     const auto text = first_metadata.has_value() ? first_metadata->source_text : nullptr;
     const auto same_source = [&text](const ImportedMoleculeRecord& record) {
         if (!record.import_metadata.has_value()) {
@@ -1012,11 +1013,11 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
     }
     if (first_metadata->format == MolecularSourceFormat::pdb) {
         // A PDB input is one molecule and has no charges; the document is its conversion.
-        if (results.front()->inputs().size() != 1) {
+        if (first_inputs.size() != 1) {
             throw std::invalid_argument{
                 "mmCIF annotation of PDB input requires results for one molecule"};
         }
-        auto converted = gemmi::pdb_conversion::convert(*text, results.front()->inputs().front());
+        auto converted = gemmi::pdb_conversion::convert(*text, first_inputs.front());
         append_charge_sets(converted.document.blocks.front(), results, 0, converted.atom_site_ids);
         ::gemmi::cif::write_cif_to_stream(*output_, converted.document);
         if (!*output_) {
