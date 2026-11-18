@@ -227,8 +227,8 @@ most 0.09 e.
 
 - TXT: no writer.
 - MOL2: SYBYL atom types (`O.3`) instead of element symbols, atom names `O1`, charges with four
-  decimals, formal charges in `UNITY_ATOM_ATTR`, coordinates in the shortest exact form, which gives
-  `8e-04` for 0.0008.
+  decimals, formal charges in `UNITY_ATOM_ATTR`, coordinates with four decimals where ChargeFW2 has
+  three. rc5 wrote coordinates in the shortest exact form, which gives `8e-04` for 0.0008.
 - PQR: two `REMARK` lines, charges and radii with four decimals.
 - mmCIF: one file with one data block per molecule, charges dictionary 1.1 (`method` and
   `parameter_set` are separate items, plus `software_name` and `software_version`), bonds with
@@ -286,7 +286,7 @@ Details that matter:
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; none is started.
+In the order proposed to the maintainer; 4 is resolved, the others are not started.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of
@@ -303,7 +303,7 @@ In the order proposed to the maintainer; none is started.
 3. **mmCIF output from PDB input.** The written block should have the entities, secondary structure,
    and assembly that Gemmi derives from the PDB file, as ChargeFW2's has, without `_chem_comp`, and
    with the bonds ChargeFW used. It belongs to the same design as item 2.
-4. **MOL2 coordinates** in fixed notation, without exponents.
+4. **MOL2 coordinates** in fixed notation, without exponents. Resolved after rc5: four decimal places.
 
 Decided against: CCD templates for all ligands (large data for a gap that the files from the PDB do
 not have); sanitized names, TXT output, and per-molecule files (ACC's conventions); calculating

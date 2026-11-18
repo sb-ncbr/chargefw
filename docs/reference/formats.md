@@ -267,10 +267,11 @@ or without a hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bo
 Result JSON, MOL2, PQR, and mmCIF output, including charges attached to a Gemmi document, name
 ChargeFW and the library version as the program that wrote them.
 
-Result JSON keeps charges at full precision, as do the Python and C++ results. MOL2 and mmCIF files
-write each coordinate with the fewest digits that read back as exactly the same value, and charges
-rounded to four decimal places, so the charges in such a file can differ from the molecule's total
-charge by up to 0.00005 per atom; use result JSON when you need exact values. ChargeFW writes a file
+Result JSON keeps charges at full precision, as do the Python and C++ results. mmCIF files write
+each coordinate with the fewest digits that read back as exactly the same value, and MOL2 files with
+four decimal places. Both round charges to four decimal places, so the charges in such a file can
+differ from the molecule's total charge by up to 0.00005 per atom; use result JSON when you need
+exact values. ChargeFW writes a file
 only when the charges belong to the molecules being written, in the same order; it never reorders
 them.
 

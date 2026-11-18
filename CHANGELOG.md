@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Output
+
+- MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
+  digits that read back as the same value, which could have an exponent, such as `8e-04`.
+
 ## 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor
