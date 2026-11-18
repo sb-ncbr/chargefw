@@ -11,6 +11,17 @@
 
 ### Output
 
+- ChargeFW can write the PDB or mmCIF structure it read with the charges added:
+  `--annotate-mmcif` on the command line, `chargefw.io.annotate()` in Python, and
+  `MmcifWriter::annotate` in C++. The file has the whole structure, such as water, ligands, and
+  biological assemblies, and only the atoms that were calculated get charges. An mmCIF input keeps
+  its categories and `_atom_site.id` values; a PDB input is converted to mmCIF with Gemmi, for
+  viewing the charges and not as input for another calculation. Charges that an mmCIF input already
+  has are an error by default; `--if-exists` or `if_exists` set to `replace` or `append` replaces
+  them or adds the new charge sets after them. `chargefw.io.gemmi.attach_charges()` accepts
+  `if_exists="append"` too. [Charges added to the input
+  structure](https://chargefw.readthedocs.io/en/latest/reference/formats.html#charges-added-to-the-input-structure)
+  describes the file.
 - MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
   digits that read back as the same value, which could have an exponent, such as `8e-04`.
 
