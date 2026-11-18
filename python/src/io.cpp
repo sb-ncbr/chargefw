@@ -291,20 +291,20 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
 }
 
 auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*>& native_results,
-                  const bool overwrite) -> std::string {
+                  const std::string& if_exists) -> std::string {
     auto output = std::ostringstream{};
     auto document = ::gemmi::cif::read_memory(contents.data(), contents.size(), "<Gemmi document>");
     const auto results = result_pointers(native_results);
-    io::gemmi::mmcif_output::write_attached(output, results, std::move(document), overwrite);
+    io::gemmi::mmcif_output::write_attached(output, results, std::move(document),
+                                            io::existing_charges_from_string(if_exists));
     return output.str();
 }
 
-auto annotate_mmcif(const std::vector<NativeExecutionResult*>& native_results, const bool replace)
-    -> std::string {
+auto annotate_mmcif(const std::vector<NativeExecutionResult*>& native_results,
+                    const std::string& if_exists) -> std::string {
     auto output = std::ostringstream{};
     const auto results = result_pointers(native_results);
-    io::MmcifWriter{output}.annotate(results, replace ? io::ExistingCharges::replace
-                                                      : io::ExistingCharges::error);
+    io::MmcifWriter{output}.annotate(results, io::existing_charges_from_string(if_exists));
     return output.str();
 }
 
@@ -317,10 +317,10 @@ void bind_io(nb::module_& module) {
                nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"));
     module.def("_dumps", &dumps, nb::arg("results"), nb::arg("format"),
                nb::call_guard<nb::gil_scoped_release>());
-    module.def("_annotate_mmcif", &annotate_mmcif, nb::arg("results"), nb::arg("replace"),
+    module.def("_annotate_mmcif", &annotate_mmcif, nb::arg("results"), nb::arg("if_exists"),
                nb::call_guard<nb::gil_scoped_release>());
     module.def("_attach_mmcif", &attach_mmcif, nb::arg("contents"), nb::arg("results"),
-               nb::arg("overwrite"), nb::call_guard<nb::gil_scoped_release>());
+               nb::arg("if_exists"), nb::call_guard<nb::gil_scoped_release>());
 }
 
 } // namespace chargefw::python

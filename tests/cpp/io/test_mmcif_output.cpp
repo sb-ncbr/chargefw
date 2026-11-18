@@ -529,6 +529,81 @@ HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
     REQUIRE(methods.length() == 1);
     CHECK(methods[0].str(0) == "eem");
 
+    // Appending keeps the set that is there and continues its IDs; the same method is refused.
+    auto appended = std::ostringstream{};
+    io::MmcifWriter{appended}.annotate(std::array{&again}, io::ExistingCharges::append);
+    auto appended_document = gemmi::cif::read_string(appended.str());
+    auto sets = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row : appended_document.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.",
+                                                           {"id", "method"})) {
+        sets.emplace_back(row.str(0), row.str(1));
+    }
+    CHECK(sets == std::vector<std::pair<std::string, std::string>>{{"1", "qeq"}, {"2", "eem"}});
+    auto set_of_row = std::vector<std::string>{};
+    for (const auto row :
+         appended_document.blocks[1].find("_sb_ncbr_partial_atomic_charges.", {"type_id"})) {
+        set_of_row.push_back(row.str(0));
+    }
+    CHECK(set_of_row == std::vector<std::string>{"1", "1", "2", "2"});
+    const auto repeated = calculation_result({reread}, charge_set("qeq"));
+    CHECK_THROWS_AS(
+        io::MmcifWriter{rejected}.annotate(std::array{&repeated}, io::ExistingCharges::append),
+        std::invalid_argument);
+    // Without charges in the source, appending only adds; charges of dictionary 1.0 are refused.
+    auto first = std::ostringstream{};
+    io::MmcifWriter{first}.annotate(std::array{&result}, io::ExistingCharges::append);
+    CHECK(first.str() == output.str());
+    const auto legacy = calculation_result(
+        {read(std::string{source} + "_sb_ncbr_partial_atomic_charges_meta.id 1\n"
+                                    "_sb_ncbr_partial_atomic_charges_meta.type empirical\n"
+                                    "_sb_ncbr_partial_atomic_charges_meta.method 'qeq/set'\n")},
+        charge_set("eem"));
+    CHECK_THROWS_AS(
+        io::MmcifWriter{rejected}.annotate(std::array{&legacy}, io::ExistingCharges::append),
+        std::invalid_argument);
+
+    // Existing sets may lack the optional parameter set and have any text as ID; the new set
+    // follows the largest number among the IDs.
+    const auto with_charges = [&](const std::string_view declaration,
+                                  const std::string_view set_rows, const std::string_view rows) {
+        return std::format("{}{}loop_\n_sb_ncbr_partial_atomic_charges_meta.id\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.type\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.method\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.software_name\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.software_version\n{}"
+                           "loop_\n_sb_ncbr_partial_atomic_charges.type_id\n"
+                           "_sb_ncbr_partial_atomic_charges.atom_id\n"
+                           "_sb_ncbr_partial_atomic_charges.charge\n{}",
+                           source, declaration, set_rows, rows);
+    };
+    const auto append_to = [&](const std::string& text) {
+        const auto added = calculation_result({read(text)}, charge_set("eem"));
+        auto written = std::ostringstream{};
+        io::MmcifWriter{written}.annotate(std::array{&added}, io::ExistingCharges::append);
+        return written.str();
+    };
+    constexpr auto two_sets = std::string_view{"qm_ref empirical qm other 1\n"
+                                               "2147483647 empirical qeq other 1\n"};
+    auto text_ids = gemmi::cif::read_string(
+        append_to(with_charges("", two_sets, "qm_ref 10 0.1\n2147483647 30 0.2\n")));
+    auto id_rows = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row : text_ids.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.",
+                                                  {"id", "method", "parameter_set"})) {
+        id_rows.emplace_back(row.str(0), row.str(1));
+        CHECK_FALSE(row.has2(2));
+    }
+    CHECK(id_rows == std::vector<std::pair<std::string, std::string>>{
+                         {"qm_ref", "qm"}, {"2147483647", "qeq"}, {"2147483648", "eem"}});
+
+    // Refused: a charge of an unknown site, two charges of one site in a set, and tables declared
+    // to follow another version of the dictionary.
+    constexpr auto v10 = std::string_view{"_audit_conform.dict_name mmcif_charges_v10.dic\n"};
+    for (const auto& text : {with_charges("", two_sets, "qm_ref 99999 0.1\n"),
+                             with_charges("", two_sets, "qm_ref 10 0.1\nqm_ref 10 0.2\n"),
+                             with_charges(v10, two_sets, "qm_ref 10 0.1\n")}) {
+        CHECK_THROWS_AS(append_to(text), std::invalid_argument);
+    }
+
     // Equal molecules from inputs that differ elsewhere are not one source, in either order.
     auto other_source = std::string{source};
     other_source.replace(other_source.find("10.0"), 4, "20.0");

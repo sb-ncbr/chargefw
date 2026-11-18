@@ -385,7 +385,11 @@ written. Reading the output with the same options therefore gives the same molec
 calculation gives the same charges. The charges in the file are ignored on input, with a warning.
 
 Calculate all results of one file from the same input. ChargeFW refuses a block that already has
-partial charges unless you ask it to replace them. The `_atom_site.id` of every atom that gets a
+partial charges unless you ask it to replace them or to append to them. Appending keeps the charge
+sets of the input and gives the new sets the next IDs. It needs charges that follow dictionary 1.1,
+not those of older ChargeFW or ACC files, and refuses a set whose method and parameter set the input
+already has. The sets are those of the input you read, not of a file at the output path: to add to a
+file you wrote, read that file. The `_atom_site.id` of every atom that gets a
 charge must be a positive integer without leading zeros, which the charges dictionary requires; the
 IDs of the other atoms can be any text.
 

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <span>
+#include <string_view>
 
 namespace chargefw::io {
 
@@ -12,7 +13,12 @@ namespace chargefw::io {
 enum class ExistingCharges : std::uint8_t {
     error,
     replace,
+    // Keeps the charge sets of the source and gives the new ones the next IDs. The source's sets
+    // must follow dictionary 1.1 and differ from the new ones in method or parameter set.
+    append,
 };
+
+[[nodiscard]] auto existing_charges_from_string(std::string_view value) -> ExistingCharges;
 
 // Writes calculation results as mmCIF: write() generates the structure from the calculated
 // molecules; annotate() adds the charges to the structure the molecules were read from.

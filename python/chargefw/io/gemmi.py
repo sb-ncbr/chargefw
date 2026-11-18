@@ -12,10 +12,10 @@ from .._core import MoleculeCollection
 from . import (
     BondStrategy,
     ConformerSelection,
-    IfExists,
+    ExistingCharges,
     RecordSelection,
+    _existing_charges,
     _native_results,
-    _replace_existing,
     dumps,
     parse,
 )
@@ -123,7 +123,7 @@ def attach_charges(
     document: _gemmi.cif.Document,
     result: CalculationResult | Sequence[CalculationResult],
     *,
-    if_exists: IfExists = "error",
+    if_exists: ExistingCharges = "error",
 ) -> None:
     """Attach charges to the unchanged Gemmi document used for the calculation input.
 
@@ -134,9 +134,9 @@ def attach_charges(
     if not isinstance(document, gemmi.cif.Document):
         raise TypeError("document must be a gemmi.cif.Document")
     results = _native_results(result)
-    replace = _replace_existing(if_exists)
+    existing = _existing_charges(if_exists)
     attached = gemmi.cif.read_string(
-        _native_io._attach_mmcif(document.as_string(), results, replace)
+        _native_io._attach_mmcif(document.as_string(), results, existing)
     )
     document.clear()
     for block in attached:

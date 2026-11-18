@@ -20,6 +20,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <limits>
@@ -717,22 +718,107 @@ auto append_charge_metadata(::gemmi::cif::Table& metadata, const std::string_vie
                          quote(CHARGEFW_VERSION_STRING)});
 }
 
-// Appends one metadata row per charge set and its charges for one record. Charge set k has id
-// k + 1 and covers every conformer; site_ids[conformer][atom] are the record's _atom_site.id
-// values.
+// Checks the charge sets a block already has, for adding the given ones, and returns their IDs.
+// Both categories become loops, and the metadata gets the parameter_set column if it lacks it.
+[[nodiscard]] auto existing_charge_sets(::gemmi::cif::Block& block, const ResultSpan results)
+    -> std::set<std::string> {
+    const auto refuse = [](const std::string_view reason) {
+        return std::invalid_argument{std::format("charge sets cannot be appended: {}", reason)};
+    };
+    // Rows under another version of the charges dictionary are not reinterpreted.
+    for (const auto row : block.find("_audit_conform.", {"dict_name"})) {
+        if (const auto name = row.str(0);
+            name.starts_with("mmcif_charges_") && name != dictionary_name) {
+            throw refuse("the existing charges are declared to follow " + name);
+        }
+    }
+    for (const auto* const category : {metadata_category, charges_category}) {
+        if (auto any = block.find_mmcif_category(category); any.ok()) {
+            any.ensure_loop();
+        }
+    }
+    auto metadata = block.find(metadata_category, {"id", "type", "method", "?parameter_set",
+                                                   "software_name", "software_version"});
+    auto charge_rows = block.find(charges_category, charge_columns());
+    if (!metadata.ok() || !charge_rows.ok()) {
+        throw refuse("the existing charges do not follow dictionary 1.1");
+    }
+    auto ids = std::set<std::string>{};
+    for (const auto row : metadata) {
+        if (!ids.insert(row.str(0)).second) {
+            throw refuse("the existing charge sets have repeated IDs");
+        }
+        const auto parameter_set =
+            row.has2(3) ? std::optional<std::string>{row.str(3)} : std::nullopt;
+        for (const auto* const result : results) {
+            const auto& added = *result->charges();
+            if (row.str(2) == added.method_id() && parameter_set == added.parameter_set_id()) {
+                throw refuse(std::format("there is a charge set of method {} with parameter set {}",
+                                         added.method_id(), parameter_set.value_or("none")));
+            }
+        }
+    }
+    // Every existing charge belongs to a set and to an atom site of the block, once.
+    auto sites = std::unordered_set<std::string>{};
+    for (const auto row : block.find("_atom_site.", {"id"})) {
+        sites.insert(row.str(0));
+    }
+    auto charged = std::set<std::pair<std::string, std::string>>{};
+    for (const auto row : charge_rows) {
+        if (!ids.contains(row.str(0)) || !sites.contains(row.str(1))) {
+            throw refuse("an existing charge refers to an unknown charge set or atom site");
+        }
+        if (!charged.emplace(row.str(0), row.str(1)).second) {
+            throw refuse("an atom site has two charges in one existing charge set");
+        }
+    }
+    if (!metadata.has_column(3)) {
+        metadata.get_loop()->add_columns({std::string{metadata_category} + "parameter_set"}, ".");
+    }
+    return ids;
+}
+
+// The number that new charge set IDs follow: the largest existing ID that is a number.
+[[nodiscard]] auto largest_number(const std::set<std::string>& ids) -> std::uint64_t {
+    auto largest = std::uint64_t{0};
+    for (const auto& id : ids) {
+        auto value = std::uint64_t{0};
+        const auto [end, error] = std::from_chars(id.data(), id.data() + id.size(), value);
+        if (error == std::errc{} && end == id.data() + id.size()) {
+            largest = std::max(largest, value);
+        }
+    }
+    if (largest > std::numeric_limits<std::uint64_t>::max() - 1'000'000) {
+        throw std::invalid_argument{
+            "charge sets cannot be appended: the existing charge set IDs are too large"};
+    }
+    return largest;
+}
+
+// Adds one metadata row per charge set and its charges for one record. The sets replace those of
+// the block and get IDs from 1, or with keep_existing follow them with the next numbers. Each
+// covers every conformer; site_ids[conformer][atom] are the record's _atom_site.id values.
 auto append_charge_sets(::gemmi::cif::Block& block, const ResultSpan results,
                         const std::size_t record_index,
-                        const std::vector<std::vector<std::string>>& site_ids) -> void {
-    ensure_dictionary(block);
-    block.init_mmcif_loop(metadata_category, metadata_columns());
-    block.init_mmcif_loop(charges_category, charge_columns());
+                        const std::vector<std::vector<std::string>>& site_ids,
+                        const bool keep_existing = false) -> void {
+    auto last_id = std::uint64_t{0};
+    if (keep_existing && (block.has_mmcif_category(metadata_category) ||
+                          block.has_mmcif_category(charges_category))) {
+        last_id = largest_number(existing_charge_sets(block, results));
+        ensure_dictionary(block);
+    } else {
+        ensure_dictionary(block);
+        block.init_mmcif_loop(metadata_category, metadata_columns());
+        block.init_mmcif_loop(charges_category, charge_columns());
+    }
 
-    // Category initialization can invalidate tables, so acquire them only after both mutations.
+    // Category initialization can invalidate tables, so acquire them only after the mutations.
     auto metadata = block.find(metadata_category, metadata_columns());
     auto charge_rows = block.find(charges_category, charge_columns());
     for (std::size_t result_index = 0; result_index < results.size(); ++result_index) {
         const auto& result = *results[result_index];
-        const auto id = std::to_string(result_index + 1);
+        const auto id = std::to_string(last_id + result_index + 1);
         append_charge_metadata(metadata, id, *result.charges());
         const auto assignments = assignments_for_result(result, record_index);
         for (std::size_t conformer = 0; conformer < site_ids.size(); ++conformer) {
@@ -830,7 +916,7 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
 // Adds the charges of validated results to the document and writes it. Record k belongs to the
 // block with coordinates number record_index of k.
 auto write_charged(std::ostream& output, const ResultSpan results, ::gemmi::cif::Document document,
-                   const bool overwrite, const bool every_block) -> void {
+                   const ExistingCharges existing, const bool every_block) -> void {
     const auto inputs = results.front()->inputs();
     auto blocks = std::vector<::gemmi::cif::Block*>{};
     for (auto& block : document.blocks) {
@@ -851,12 +937,13 @@ auto write_charged(std::ostream& output, const ResultSpan results, ::gemmi::cif:
         }
         charged[block_index] = true;
         auto& block = *blocks[block_index];
-        if (!overwrite && (block.has_mmcif_category(metadata_category) ||
-                           block.has_mmcif_category(charges_category))) {
+        if (existing == ExistingCharges::error && (block.has_mmcif_category(metadata_category) ||
+                                                   block.has_mmcif_category(charges_category))) {
             throw std::invalid_argument{"Gemmi target already contains partial charge categories"};
         }
         const auto mapping = attached_mapping(block, inputs[index]);
-        append_charge_sets(block, results, index, mapping.atom_site_ids);
+        append_charge_sets(block, results, index, mapping.atom_site_ids,
+                           existing == ExistingCharges::append);
     }
     ::gemmi::cif::write_cif_to_stream(output, document);
     if (!output) {
@@ -865,6 +952,19 @@ auto write_charged(std::ostream& output, const ResultSpan results, ::gemmi::cif:
 }
 
 } // namespace
+
+auto existing_charges_from_string(const std::string_view value) -> ExistingCharges {
+    if (value == "error") {
+        return ExistingCharges::error;
+    }
+    if (value == "replace") {
+        return ExistingCharges::replace;
+    }
+    if (value == "append") {
+        return ExistingCharges::append;
+    }
+    throw std::invalid_argument{"unknown policy for existing charges: " + std::string{value}};
+}
 
 MmcifWriter::MmcifWriter(std::ostream& output) : output_{std::addressof(output)} {}
 
@@ -910,17 +1010,16 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
             "mmCIF annotation requires molecules read from one mmCIF input"};
     }
     write_charged(*output_, results,
-                  ::gemmi::cif::read_memory(text->data(), text->size(), "source"),
-                  existing == ExistingCharges::replace, false);
+                  ::gemmi::cif::read_memory(text->data(), text->size(), "source"), existing, false);
 }
 
 // Declared in mmcif_attachment.h, outside the public namespace. The target is the caller's
 // document, so a coordinate block without a calculated molecule means that it has changed.
 auto gemmi::mmcif_output::write_attached(std::ostream& output, const ResultSpan results,
-                                         ::gemmi::cif::Document document, const bool overwrite)
-    -> void {
+                                         ::gemmi::cif::Document document,
+                                         const ExistingCharges existing) -> void {
     validate_results_output(results);
-    write_charged(output, results, std::move(document), overwrite, true);
+    write_charged(output, results, std::move(document), existing, true);
 }
 
 } // namespace chargefw::io

@@ -360,8 +360,7 @@ on 8YAX (3.5 MB): the text costs 3.3 MB and parsing it 26 ms; the parsed Gemmi d
 30 MB. Reading the collection itself raises the resident memory by about 160 MB, so the text adds
 about 2 %, whatever the selection. No option to turn retention off.
 
-**Existing charges.** `if_exists` is `"error"` (default), `"replace"`, or `"append"`; only the first
-two are implemented. Append adds sets above the largest set ID of compatible 1.1 tables and refuses
+**Existing charges.** `if_exists` is `"error"` (default), `"replace"`, or `"append"`. Append adds sets above the largest set ID of compatible 1.1 tables and refuses
 1.0 tables and a method and parameter-set pair that is already there. It appends to the charge sets
 of the retained source, not to the file at the output path: two writes from one source do not
 accumulate. To add two sets, pass both results in one call; to extend a written file, read it as
@@ -405,9 +404,9 @@ bonds with orders, and charges to solver tolerance. Check an assembly separately
 equality would not detect the loss of 8YAX's assembly operators.
 
 **Done:** `MmcifWriter::annotate`, `chargefw.io.annotate`, and `--annotate-mmcif` with
-`--if-exists`, with `error` and `replace`.
+`--if-exists`, with `error`, `replace`, and `append`; `attach_charges` appends too.
 
-**Remaining steps:** append; PDB.
+**Remaining steps:** PDB.
 
 ## ACC work
 

@@ -167,8 +167,8 @@ auto run(std::span<char*> arguments) -> int {
                             "Write the mmCIF input with the charges added");
     calculate
         ->add_option("--if-exists", calculate_output.if_exists,
-                     "Partial charges already in the mmCIF input: error or replace")
-        ->check(CLI::IsMember({"error", "replace"}))
+                     "Partial charges already in the mmCIF input: error, replace, or append")
+        ->check(CLI::IsMember({"error", "replace", "append"}))
         ->needs(annotate_option);
     chargefw::cli::add_input_options(*inspect, inspect_input);
     chargefw::cli::add_input_options(*applicability, applicability_input);

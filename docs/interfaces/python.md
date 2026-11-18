@@ -342,7 +342,8 @@ chargefw.io.annotate("structure-charged.cif", result)
 The output has everything the input had, such as water, ligands, and biological assemblies; here only
 the polymer atoms have charges. The result keeps the text of the input, so the input file is not read
 again and `molecules` is not needed. `annotate()` also takes a list of results. Charges that are
-already in the input are an error unless you pass `if_exists="replace"`. It raises `ValueError` for
+already in the input are an error unless you pass `if_exists="replace"`, or `if_exists="append"` to
+keep them and add the new charge sets after them. It raises `ValueError` for
 molecules that were not read from one mmCIF input; see
 [Charges added to the mmCIF input](../reference/formats.md#charges-added-to-the-mmcif-input).
 
@@ -646,5 +647,5 @@ each. Do not change the document between `from_document()` and `attach_charges()
 matched to its atoms by `_atom_site.id` and describe the structure as it was read. ChargeFW refuses a
 document whose blocks, atom sites, IDs, models, elements, labels, coordinates, or formal charges no
 longer match, and leaves it unchanged; it does not check other data, such as occupancies and B factors.
-Existing charge data is an error unless you pass `if_exists="replace"`. The function replaces the document's
+Existing charge data is an error unless you pass `if_exists="replace"` or `if_exists="append"`. The function replaces the document's
 blocks, so get block objects such as `document.sole_block()` again afterwards.

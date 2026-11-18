@@ -35,6 +35,7 @@ type RecordSelection = Literal["all", "polymers-and-ligands", "polymers"]
 type BondStrategy = Literal["none", "explicit", "templates", "hybrid"]
 type ConformerSelection = Literal["first", "all"]
 type IfExists = Literal["error", "replace"]
+type ExistingCharges = Literal["error", "replace", "append"]
 
 INPUT_FORMATS: tuple[InputFormat, ...] = ("mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif")
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("mol2", "mmcif", "pqr", "result-json")
@@ -42,13 +43,23 @@ _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
 
 
 def _replace_existing(if_exists: IfExists) -> bool:
-    """Whether charges that are already in the structure may be replaced."""
+    """Whether charges that are already there may be replaced."""
 
     if not isinstance(if_exists, str):
         raise TypeError("if_exists must be a string")
     if if_exists not in ("error", "replace"):
         raise ValueError("if_exists must be 'error' or 'replace'")
     return if_exists == "replace"
+
+
+def _existing_charges(if_exists: ExistingCharges) -> ExistingCharges:
+    """Validate what to do with charges that are already in an mmCIF structure."""
+
+    if not isinstance(if_exists, str):
+        raise TypeError("if_exists must be a string")
+    if if_exists not in get_args(ExistingCharges.__value__):
+        raise ValueError("if_exists must be 'error', 'replace', or 'append'")
+    return if_exists
 
 
 _MULTI_CONFORMER_FORMATS = frozenset(("molecule-json", "pdb", "mmcif"))
@@ -336,7 +347,7 @@ def annotate(
     path: str | PathLike[str],
     result: CalculationResult | Sequence[CalculationResult],
     *,
-    if_exists: IfExists = "error",
+    if_exists: ExistingCharges = "error",
 ) -> None:
     """Write the mmCIF input of a result with its charges added.
 
@@ -346,7 +357,7 @@ def annotate(
 
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
-    contents = _native_io._annotate_mmcif(_native_results(result), _replace_existing(if_exists))
+    contents = _native_io._annotate_mmcif(_native_results(result), _existing_charges(if_exists))
     Path(path).write_text(contents, encoding="utf-8")
 
 
@@ -359,6 +370,7 @@ __all__ = [
     "BondStrategy",
     "ConformerSelection",
     "IfExists",
+    "ExistingCharges",
     "parse",
     "read",
     "dumps",

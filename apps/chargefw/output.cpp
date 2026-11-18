@@ -131,12 +131,11 @@ void write_mmcif(const std::filesystem::path& path, const io::ChargeCalculationR
 }
 
 void write_annotated_mmcif(const std::filesystem::path& path,
-                           const io::ChargeCalculationResult& result, const bool replace) {
-    write_output(path, [&result, replace](auto& output) {
+                           const io::ChargeCalculationResult& result,
+                           const io::ExistingCharges existing) {
+    write_output(path, [&result, existing](auto& output) {
         const auto* const single = std::addressof(result);
-        io::MmcifWriter{output}.annotate(std::span{&single, 1}, replace
-                                                                    ? io::ExistingCharges::replace
-                                                                    : io::ExistingCharges::error);
+        io::MmcifWriter{output}.annotate(std::span{&single, 1}, existing);
     });
 }
 
@@ -243,7 +242,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         if (output_arguments.annotate_mmcif) {
             const auto annotated_path = std::filesystem::path{prefix.string() + ".annotated.cif"};
             write_annotated_mmcif(annotated_path, owned_result,
-                                  output_arguments.if_exists == "replace");
+                                  io::existing_charges_from_string(output_arguments.if_exists));
             std::println("Wrote {}", annotated_path.string());
         }
         if (output_arguments.pqr) {

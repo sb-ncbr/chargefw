@@ -62,6 +62,12 @@ function(expect_annotated_mmcif contents)
     run_cli(annotate_replace 0 calculate --method formal --annotate-mmcif --if-exists replace
             "${input_path}" "${output_directory}")
     expect_files_exist(annotate_replace "${annotated}")
+    run_cli(annotate_append 0 calculate --method dummy --annotate-mmcif --if-exists append
+            "${input_path}" "${output_directory}")
+    file(READ "${annotated}" annotated_contents)
+    if(NOT annotated_contents MATCHES "formal" OR NOT annotated_contents MATCHES "dummy")
+        message(FATAL_ERROR "annotate_append: the annotated mmCIF lacks one of the charge sets")
+    endif()
     run_cli(annotate_option_alone 2 calculate --method formal --if-exists replace
             "${input_path}" "${output_directory}")
 

@@ -75,7 +75,7 @@ chargefw calculate --selection polymers --annotate-mmcif structure.cif output
 The file has everything the input had, such as water, ligands, and biological assemblies; here only
 the polymer atoms have charges. An input that is not mmCIF, or that already has partial charges, is
 refused before the calculation starts, with exit status 2; `--if-exists replace` replaces the charges
-instead. [Charges added to the mmCIF input](../reference/formats.md#charges-added-to-the-mmcif-input)
+and `--if-exists append` adds the new charge set after them. [Charges added to the mmCIF input](../reference/formats.md#charges-added-to-the-mmcif-input)
 describes the file.
 
 ChargeFW writes the result JSON first. If writing MOL2, mmCIF, or PQR then fails, the JSON stays, still
@@ -140,7 +140,7 @@ A malformed record in the input stops the command before any calculation.
 | `--output-mmcif` | Also write mmCIF |
 | `--output-pqr` | Also write PQR |
 | `--annotate-mmcif` | Also write the mmCIF input with the charges added |
-| `--if-exists error\|replace` | With `--annotate-mmcif`, what to do when the input already has partial charges (default `error`) |
+| `--if-exists error\|replace\|append` | With `--annotate-mmcif`, what to do when the input already has partial charges (default `error`) |
 | `--progress` | Show the progress of the calculation |
 
 `applicability` accepts the input, model, and execution options of `calculate`; `inspect` accepts the

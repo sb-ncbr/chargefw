@@ -214,6 +214,17 @@ def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
     with pytest.raises(ValueError):
         chargefw.io.annotate(tmp_path / "rejected.cif", again)
     chargefw.io.annotate(tmp_path / "replaced.cif", again, if_exists="replace")
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(tmp_path / "rejected.cif", again, if_exists="append")
+    other = chargefw.calculate(
+        chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="dummy"
+    )
+    chargefw.io.annotate(tmp_path / "appended.cif", other, if_exists="append")
+    appended = gemmi.cif.read(str(tmp_path / "appended.cif"))[0]
+    assert [
+        gemmi.cif.as_string(value)
+        for value in appended.find_values("_sb_ncbr_partial_atomic_charges_meta.method")
+    ] == ["formal", "dummy"]
 
     # Another dictionary's declaration stays, whichever columns it has, as does a text site ID of
     # an atom that gets no charge.
