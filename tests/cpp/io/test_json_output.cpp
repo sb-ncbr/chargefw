@@ -442,6 +442,16 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
              .message = "no bond parameters",
              .molecule_index = 0,
              .location = {.bond_index = 1, .bond_indices = {0, 1}}}}});
+    execution.rejections.push_back({.method_id = "eem",
+                                    .parameter_set_id = "test",
+                                    .issues = {methods::PrerequisiteIssue{
+                                        .kind = methods::PrerequisiteIssueKind::invalid_geometry,
+                                        .message = "identical coordinates",
+                                        .molecule_index = 0,
+                                        .location = {.conformer_index = 0,
+                                                     .atom_index = 2,
+                                                     .other_atom_index = 0,
+                                                     .atom_indices = {0, 2}}}}});
     const auto result = io::make_charge_calculation_result(
         {{.molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}},
                                      std::vector{core::Bond{0, 1}, core::Bond{1, 2}}},
@@ -459,6 +469,13 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
     CHECK(rejection->at("bond_index") == 1);
     CHECK(rejection->at("bond_indices") == nlohmann::json::array({0, 1}));
     CHECK_FALSE(rejection->contains("atom_indices"));
+
+    const auto geometry = std::ranges::find(diagnostics, "invalid_geometry",
+                                            [](const auto& value) { return value.at("code"); });
+    REQUIRE(geometry != diagnostics.end());
+    CHECK(geometry->at("atom_index") == 2);
+    CHECK(geometry->at("other_atom_index") == 0);
+    CHECK(geometry->at("atom_indices") == nlohmann::json::array({0, 2}));
 }
 
 TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[io][json]") {

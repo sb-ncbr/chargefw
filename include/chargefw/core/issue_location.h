@@ -12,7 +12,8 @@ struct IssueLocation {
     std::optional<std::size_t> conformer_index = std::nullopt;
     // The atom or bond the issue's message names.
     std::optional<std::size_t> atom_index = std::nullopt;
-    // The other atom of a pair the message names that is not a bond, such as two atoms too close.
+    // The other atom of a pair the message names, such as two atoms too close, whether or not a
+    // bond joins them.
     std::optional<std::size_t> other_atom_index = std::nullopt;
     std::optional<std::size_t> bond_index = std::nullopt;
     // Every atom and bond the issue concerns, in index order, so that programs can find them

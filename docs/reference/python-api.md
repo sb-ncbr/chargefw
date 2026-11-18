@@ -277,6 +277,7 @@ A reason why a method or parameter set does not apply to the molecules.
 | `kind` | One of the kinds below |
 | `message` | Reason, such as `the parameter set has no atom parameter matching atom 1 (...)`; numbers in messages count from one |
 | `molecule_index`, `atom_index`, `bond_index`, `conformer_index` | Where the problem is; `None` where it does not apply |
+| `other_atom_index` | For two atoms at the same position, the other one the message names; otherwise `None` |
 | `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of every atom and bond the problem concerns; `atom_index` and `bond_index` are the ones the message names |
 
 | Kind | Meaning |
@@ -308,6 +309,7 @@ calculates.
 | `molecule_index` | Index of the input molecule |
 | `conformer_index` | Index of the conformer the caution concerns; `None` when it concerns the whole molecule |
 | `atom_index` | Index of an atom the caution points to, for `"atoms_too_close"` the second atom of the closest pair; otherwise `None` |
+| `other_atom_index` | For `"atoms_too_close"`, the first atom of the closest pair; otherwise `None` |
 | `atom_indices` | Read-only NumPy `int64` array of every atom the caution concerns, for `"atoms_too_close"` each atom of a close pair; empty for cautions about the whole molecule |
 
 `"atoms_too_close"` appears only in the results of methods that use coordinates, not in
@@ -325,6 +327,7 @@ A caution about calculated charges: ChargeFW returns them, but they are probably
 | `molecule_index` | Index of the input molecule |
 | `conformer_index` | Index of the conformer of the charges; `None` for methods that do not use coordinates |
 | `atom_index` | Index of the atom the message names, the one furthest from its formal charge |
+| `other_atom_index` | Always `None`; charge cautions name one atom |
 | `atom_indices` | Read-only NumPy `int64` array of every affected atom, in atom order |
 
 ### ChargeFWWarning, InputWarning, and ChargeWarning

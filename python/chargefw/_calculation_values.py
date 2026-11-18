@@ -66,6 +66,8 @@ class InputIssue:
     molecule_index: int
     conformer_index: int | None = None
     atom_index: int | None = None
+    # For atoms_too_close, the other atom of the closest pair, which the message names too.
+    other_atom_index: int | None = None
     # Every atom the issue concerns, in atom order; atom_index is the one the message names.
     atom_indices: NDArray[np.int64] = field(default_factory=index_array)
 
@@ -78,6 +80,7 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
+            other_atom_index=issue["other_atom_index"],
             atom_indices=index_array(issue["atom_indices"]),
         )
         for issue in payload
@@ -93,6 +96,7 @@ class ChargeIssue:
     molecule_index: int
     conformer_index: int | None
     atom_index: int | None
+    other_atom_index: int | None = None
     # Every atom the issue concerns, in atom order; atom_index is the one the message names.
     atom_indices: NDArray[np.int64]
 
@@ -105,6 +109,7 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
             molecule_index=issue["molecule_index"],
             conformer_index=issue["conformer_index"],
             atom_index=issue["atom_index"],
+            other_atom_index=issue["other_atom_index"],
             atom_indices=index_array(issue["atom_indices"]),
         )
         for issue in payload
@@ -471,6 +476,7 @@ def _prerequisite_issue(value: PrerequisiteIssuePayload) -> PrerequisiteIssue:
         message=value["message"],
         molecule_index=value["molecule_index"],
         atom_index=value["atom_index"],
+        other_atom_index=value["other_atom_index"],
         bond_index=value["bond_index"],
         conformer_index=value["conformer_index"],
         atom_indices=index_array(value["atom_indices"]),

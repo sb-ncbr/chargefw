@@ -40,6 +40,7 @@ class PrerequisiteIssuePayload(TypedDict):
     message: str
     molecule_index: int | None
     atom_index: int | None
+    other_atom_index: int | None
     bond_index: int | None
     conformer_index: int | None
     atom_indices: list[int]
@@ -58,6 +59,7 @@ class InputIssuePayload(TypedDict):
     molecule_index: int
     conformer_index: int | None
     atom_index: int | None
+    other_atom_index: int | None
     bond_index: int | None
     atom_indices: list[int]
     bond_indices: list[int]
@@ -119,6 +121,7 @@ class ChargeIssuePayload(TypedDict):
     molecule_index: int
     conformer_index: int | None
     atom_index: int | None
+    other_atom_index: int | None
     bond_index: int | None
     atom_indices: list[int]
     bond_indices: list[int]

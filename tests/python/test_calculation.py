@@ -754,9 +754,15 @@ def test_close_atoms_are_reported_with_their_atom() -> None:
         result = chargefw.calculate(molecule, method="eqeq")
 
     assert [
-        (issue.kind, issue.molecule_index, issue.conformer_index, issue.atom_index)
+        (
+            issue.kind,
+            issue.molecule_index,
+            issue.conformer_index,
+            issue.atom_index,
+            issue.other_atom_index,
+        )
         for issue in result.input_warnings
-    ] == [("atoms_too_close", 0, 0, 1)]
+    ] == [("atoms_too_close", 0, 0, 1, 0)]
     assert result.input_warnings[0].atom_indices.tolist() == [0, 1]
 
 

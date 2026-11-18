@@ -27,6 +27,8 @@ class PrerequisiteIssue:
     message: str
     molecule_index: int | None = None
     atom_index: int | None = None
+    # The other atom of a pair the message names, such as two atoms at the same position.
+    other_atom_index: int | None = None
     bond_index: int | None = None
     conformer_index: int | None = None
     # Every atom and bond the issue concerns, in index order; atom_index and bond_index are the

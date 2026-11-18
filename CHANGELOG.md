@@ -30,6 +30,9 @@
 
 ### Diagnostics
 
+- Diagnostics about a pair of atoms, such as `atoms_too_close` and atoms at the same position, give
+  the other atom the message names as `other_atom_index`, whether or not the two are bonded: in
+  result JSON and in Python `InputIssue`, `PrerequisiteIssue`, and `ChargeIssue`.
 - The message of a reason why a method or parameter set does not apply, or of an execution warning,
   gives only the reason, such as `the parameter set has no atom parameter matching atom 1 (...)`.
   The molecule is in `molecule_index`, and the method and parameter set are those of the rejection;

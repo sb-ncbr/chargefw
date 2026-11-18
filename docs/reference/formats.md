@@ -471,7 +471,8 @@ is their sum. Failed and cancelled records have no assignments.
 A diagnostic has a `severity`, a `code`, such as `atoms_too_close`, and a `message`. It can give the
 molecule, atom, bond, and conformer it concerns, counted from zero, and the `line` of the file,
 counted from one. A diagnostic about several atoms or bonds lists all of them in `atom_indices` or
-`bond_indices`; `atom_index` and `bond_index` are the ones its message names. A viewer can select
+`bond_indices`; `atom_index` and `bond_index` are the ones its message names, and `other_atom_index`
+the other atom of a pair it names, such as two atoms too close, whether or not they are bonded. A viewer can select
 the listed atoms and bonds to show where the problem is. For PDB and mmCIF input, the message also
 names the residue of each atom it mentions, as PDB files and viewers do, for example
 `atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages.

@@ -103,6 +103,7 @@ template <typename Issue> auto issue_payload(const Issue& issue) -> nb::dict {
     const auto& location = issue.location;
     result["conformer_index"] = location.conformer_index;
     result["atom_index"] = location.atom_index;
+    result["other_atom_index"] = location.other_atom_index;
     result["bond_index"] = location.bond_index;
     result["atom_indices"] = location.atom_indices;
     result["bond_indices"] = location.bond_indices;
