@@ -140,6 +140,8 @@ struct MmcifReader::Impl {
     auto next() -> std::optional<ImportedMoleculeRecord>;
 
     ::gemmi::cif::Document document_;
+    // Kept by the records for annotated output: a tenth of the memory of the parsed document.
+    std::shared_ptr<const std::string> text_;
     std::string source_;
     ::chargefw::io::StructureOptions options_;
     std::size_t block_index_ = 0;
@@ -162,7 +164,8 @@ MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
                         const ::chargefw::io::StructureOptions options)
     : source_{std::move(source_name)}, options_{options} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
-    const std::string text{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
+    auto text =
+        std::string{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     if (input.bad()) {
         throw std::runtime_error{"failed to read mmCIF input"};
     }
@@ -171,6 +174,7 @@ MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
                                  " contains a non-ASCII character; mmCIF files must be ASCII text"};
     }
     document_ = ::gemmi::cif::read_memory(text.data(), text.size(), source_.c_str());
+    text_ = std::make_shared<const std::string>(std::move(text));
 
     const auto has_coordinates = [](const ::gemmi::cif::Block& block) -> bool {
         return block.has_tag("_atom_site.id");
@@ -216,6 +220,7 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             options_.selection, options_.bonds, options_.conformers,
             std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
             MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
+        record.import_metadata->source_text = text_;
         if (!explicit_bonds.aromatic_bonds.empty()) {
             record.import_warnings.push_back(
                 io::aromatic_bonds_issue(std::move(explicit_bonds.aromatic_bonds)));

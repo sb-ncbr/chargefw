@@ -9,7 +9,9 @@
 
 namespace chargefw::io::gemmi::mmcif_output {
 
+// Adds the charges to the document and writes it. Every block with coordinates must belong to a
+// calculated molecule.
 auto write_attached(std::ostream& output, std::span<const ChargeCalculationResult* const> results,
-                    const ::gemmi::cif::Document& source, bool overwrite) -> void;
+                    ::gemmi::cif::Document document, bool overwrite) -> void;
 
 } // namespace chargefw::io::gemmi::mmcif_output

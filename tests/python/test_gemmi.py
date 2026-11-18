@@ -550,6 +550,15 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
     assert document.as_string() == before_rejected_replacement
     chargefw.io.gemmi.attach_charges(document, result, if_exists="replace")
 
+    # A coordinate block added after the calculation is a changed target.
+    extended = gemmi.cif.read_string(MMCIF_TEXT)
+    extended_result = calculate(chargefw.io.gemmi.from_document(extended), method="formal")
+    extended.add_copied_block(extended[0]).name = "added"
+    before_rejected_block = extended.as_string()
+    with pytest.raises(ValueError):
+        chargefw.io.gemmi.attach_charges(extended, extended_result)
+    assert extended.as_string() == before_rejected_block
+
     conformer_document = gemmi.cif.read_string(MMCIF_TEXT)
     conformer_result = calculate(chargefw.io.gemmi.from_document(conformer_document), method="qeq")
     assert [assignment.conformer_index for assignment in conformer_result.assignments] == [0, 1, 0]

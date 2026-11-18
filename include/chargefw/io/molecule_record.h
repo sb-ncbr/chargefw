@@ -179,8 +179,18 @@ struct MoleculeImportMetadata {
     ImportPolicy policy;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
     std::vector<SourceComponentInstance> components;
+    // The text of the mmCIF input, shared by the records read from it, so that charges can be
+    // written into the structure it holds (MmcifWriter::annotate). Null for other formats.
+    std::shared_ptr<const std::string> source_text = nullptr;
 
-    [[nodiscard]] auto operator==(const MoleculeImportMetadata&) const -> bool = default;
+    // Leaves out source_text: records read separately from equal input compare equal.
+    [[nodiscard]] friend auto operator==(const MoleculeImportMetadata& first,
+                                         const MoleculeImportMetadata& second) -> bool {
+        return first.format == second.format && first.atoms == second.atoms &&
+               first.conformers == second.conformers && first.policy == second.policy &&
+               first.source_connectivity == second.source_connectivity &&
+               first.components == second.components;
+    }
 };
 
 // Identifies one source record without imposing a file-format or toolkit dependency. The source

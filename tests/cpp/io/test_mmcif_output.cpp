@@ -444,6 +444,111 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[io][mmcif]") 
                     std::invalid_argument);
 }
 
+TEST_CASE("mmCIF annotation adds charges for the selected sites to the source structure",
+          "[io][mmcif]") {
+    // Gapped site IDs, an alternate location, water, a second model, and a block without atoms.
+    constexpr auto source = std::string_view{R"(data_notes
+_note.text 'kept'
+data_structure
+_cell.length_a 10.0
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.pdbx_PDB_model_num
+HETATM 10 C C1 . LIG A 1 . 0.0 0.0 0.0 1
+HETATM 20 O O1 A LIG A 1 . 1.2 0.0 0.0 1
+HETATM 21 O O1 B LIG A 1 . 0.0 1.2 0.0 1
+HETATM 30 O O  . HOH B 2 . 5.0 5.0 5.0 1
+HETATM 40 C C1 . LIG A 1 . 0.1 0.0 0.0 2
+HETATM 50 O O1 A LIG A 1 . 1.3 0.0 0.0 2
+HETATM 51 O O1 B LIG A 1 . 0.1 1.2 0.0 2
+HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
+)"};
+    const auto read = [](const std::string_view text) {
+        auto input = std::istringstream{std::string{text}};
+        // The reader is gone before the charges are written.
+        auto record = io::MmcifReader{input,
+                                      "input.cif",
+                                      {.selection = io::RecordSelection::polymers_and_ligands,
+                                       .conformers = io::ConformerSelection::first}}
+                          .next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+    const auto charge_set = [](std::string method) {
+        return charges::ChargeSet{
+            std::move(method),
+            {{.target = {.molecule_index = 0}, .charges = charges::AtomicCharges{{0.25, -0.25}}}}};
+    };
+    const auto result = calculation_result({read(source)}, charge_set("qeq"));
+    auto output = std::ostringstream{};
+    io::MmcifWriter{output}.annotate(std::array{&result});
+
+    auto document = gemmi::cif::read_string(output.str());
+    REQUIRE(document.blocks.size() == 2);
+    CHECK(*document.blocks[0].find_value("_note.text") == "'kept'");
+    auto& block = document.blocks[1];
+    CHECK(*block.find_value("_cell.length_a") == "10.0");
+    auto site_ids = std::vector<std::string>{};
+    for (const auto row : block.find("_atom_site.", {"id"})) {
+        site_ids.push_back(row.str(0));
+    }
+    CHECK(site_ids == std::vector<std::string>{"10", "20", "21", "30", "40", "50", "51", "60"});
+    auto charged = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row :
+         block.find("_sb_ncbr_partial_atomic_charges.", {"type_id", "atom_id", "charge"})) {
+        CHECK(row.str(0) == "1");
+        charged.emplace_back(row.str(1), row.str(2));
+    }
+    CHECK(charged ==
+          std::vector<std::pair<std::string, std::string>>{{"10", "0.2500"}, {"20", "-0.2500"}});
+
+    // The output is input again: the same molecule, so the same settings give the same charges.
+    const auto reread = read(output.str());
+    CHECK(reread.molecule == result.inputs().front().molecule);
+    CHECK(reread.import_metadata == result.inputs().front().import_metadata);
+
+    const auto again = calculation_result({reread}, charge_set("eem"));
+    auto rejected = std::ostringstream{};
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&again}), std::invalid_argument);
+    auto replaced = std::ostringstream{};
+    io::MmcifWriter{replaced}.annotate(std::array{&again}, io::ExistingCharges::replace);
+    auto replaced_document = gemmi::cif::read_string(replaced.str());
+    auto methods =
+        replaced_document.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.", {"method"});
+    REQUIRE(methods.length() == 1);
+    CHECK(methods[0].str(0) == "eem");
+
+    // Equal molecules from inputs that differ elsewhere are not one source, in either order.
+    auto other_source = std::string{source};
+    other_source.replace(other_source.find("10.0"), 4, "20.0");
+    const auto other = calculation_result({read(other_source)}, charge_set("eem"));
+    REQUIRE(other.inputs().front() == result.inputs().front());
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&result, &other}),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&other, &result}),
+                    std::invalid_argument);
+    // Separate reads of the same text are.
+    const auto same = calculation_result({read(source)}, charge_set("eem"));
+    auto combined = std::ostringstream{};
+    CHECK_NOTHROW(io::MmcifWriter{combined}.annotate(std::array{&result, &same}));
+
+    // A molecule that was not read from mmCIF has no structure to annotate.
+    const auto generated = calculation_result({generated_record()}, formal(2));
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&generated}),
+                    std::invalid_argument);
+}
+
 TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique blocks",
           "[io][mmcif]") {
     auto first = generated_record("same");

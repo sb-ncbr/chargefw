@@ -293,10 +293,9 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
 auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*>& native_results,
                   const bool overwrite) -> std::string {
     auto output = std::ostringstream{};
-    const auto document =
-        ::gemmi::cif::read_memory(contents.data(), contents.size(), "<Gemmi document>");
+    auto document = ::gemmi::cif::read_memory(contents.data(), contents.size(), "<Gemmi document>");
     const auto results = result_pointers(native_results);
-    io::gemmi::mmcif_output::write_attached(output, results, document, overwrite);
+    io::gemmi::mmcif_output::write_attached(output, results, std::move(document), overwrite);
     return output.str();
 }
 

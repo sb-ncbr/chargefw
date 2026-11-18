@@ -55,7 +55,7 @@ Behavior of ChargeFW2 that ACC inherits:
   file to mmCIF first (`setup_entities`, `assign_label_seq_id`, `make_mmcif_block`). For SDF and MOL2,
   ChargeFW2 writes `_atom_site` and `_chem_comp_bond` itself.
 - ACC then replaces the charge categories in each `.fw2.cif` with its own
-  (`MmCIFService._write_molecule_to_mmcif`): one row per model in
+  (`MmCIFService._write_molecule_to_mmcif`): one row per calculation configuration (not coordinate model) in
   `_sb_ncbr_partial_atomic_charges_meta` with `method` set to `'<method>/<parameters>'`, charges
   dictionary 1.0, and `atom_id` equal to the atom's position plus one.
 - Only the first model of a file is read. Atoms are kept when they have no alternate location or
@@ -97,8 +97,22 @@ test recorded what Mol* built (atoms, bonds and orders, entity types, components
 charge rows, atoms without a charge), ACC's own consistency check, and screenshots of the three view
 types.
 
-Not tested: malformed input records, calculations that fail numerically, MOL2 input, and modified
-residues such as MSE in a PDB file downloaded from the PDB (the 1EK9 PDB file was converted by Gemmi).
+Follow-up on 2026-11-18, with the rc5 wheel:
+
+- Re-read ACC's shipped `app/examples/phenols/*.sdf.mol2` as MOL2 in both libraries. With SQE+qp,
+  Schindler 2021 CCD_gen and permissive matching, all seven molecule names and charge counts matched.
+  Compared by name and atom position, the largest difference over 121 charges was below 1e-15 e.
+  This checks re-upload of this download, not arbitrary MOL2 files. In particular, the legacy reader
+  treats bond endpoints as row positions and skips `UNITY_ATOM_ATTR` (`ChargeFW2/src/formats/mol2.cpp`);
+  ChargeFW uses the file's atom IDs and reads explicit formal charges. Do not emulate the old reader.
+- Read `https://files.rcsb.org/download/1EK9.pdb` and `tests/fixtures/corpus/cif/1ek9.cif` with
+  `selection="polymers", conformers="first"`. Both gave 9,918 atoms including 15 seleniums, the same
+  ordered atom names and elements, and the same 10,041 bonded pairs. **Bond counts alone hide a
+  difference:** 15 C–O bonds are single in the PDB read and double in the mmCIF read. The deposited
+  PDB lists each MSE carbonyl connection once in each direction. This is not evidence of dropped
+  `CONECT` records; do not add an MSE bond-order override in ACC. Charges were not compared here.
+
+Malformed records and numerical failure paths were not exercised in the migration comparison.
 
 ## API mapping
 
@@ -234,10 +248,11 @@ most 0.09 e.
 - mmCIF: one file with one data block per molecule, charges dictionary 1.1 (`method` and
   `parameter_set` are separate items, plus `software_name` and `software_version`), bonds with
   orders in `_chem_comp_bond` and `_struct_conn`. `chargefw.io.write` builds the block from the
-  molecule, so nothing else of an uploaded structure file is in it.
-  `chargefw.io.gemmi.attach_charges(document, result)` adds the charge categories to the unchanged
-  Gemmi document instead; it accepts only results calculated from that document
-  (`chargefw.io.gemmi.from_document`).
+  molecule, retaining available atom and residue labels but not copying arbitrary source categories.
+  `chargefw.io.gemmi.attach_charges(document, result)` instead checks the source mmCIF mapping and
+  writes charges to the matching document without pruning its atom rows. It checks the mapped sites,
+  not Python object identity. It can attach several results for the same inputs at once; use
+  `if_exists="replace"` when replacing old charge categories (including in ACC examples).
 
 ### Speed
 
@@ -281,13 +296,18 @@ Details that matter:
 - For a PDB upload, calculating from the Gemmi-converted document loses the `CONECT` bonds (1CBN:
   678 bonds instead of 680), and `attach_charges` refuses a result read from the PDB file. Until
   ChargeFW handles this (issue 3 below), ACC has to calculate from the PDB file and write the charge
-  rows into the converted document itself. Both list the atoms in the same order.
+  rows into the converted document itself. Match selected atoms to the converted sites and verify
+  identity before taking their IDs; the filtered assignment and unfiltered block need not line up.
+- `viewer.ts` checks whether the total nonzero charge-row count is divisible by the displayed model's
+  atom count. That catches some missing rows but not a charge on the wrong atom. In ACC's viewer
+  tests, compare IDs **per charge set**: each displayed site has exactly one charge, including with
+  water or alternate locations removed and nonconsecutive `_atom_site.id` values.
 - Where charges changed, the colors change with them: the scale maximum for 2HU4 goes from 1.10 to
   1.36.
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; 1 and 4 are resolved, 2 and 3 are not started.
+In the order proposed to the maintainer; 1 and 4 are resolved, 2 is in progress, 3 is not started.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of
@@ -296,15 +316,9 @@ In the order proposed to the maintainer; 1 and 4 are resolved, 2 and 3 are not s
    becomes PEOE. ChargeFW2 keeps alternative A and calculates SQE+qp. The choice has to be made for
    the residue position. Resolved after rc5: of consecutive residues with the same number and
    insertion code, the first is read; 1CBN gives 640 atoms, and SQE+qp is the default.
-2. **mmCIF output that keeps an mmCIF input.** Writing mmCIF for a result read from mmCIF should give
-   the source data block with the charges, as `attach_charges` does, without the atom rows that were
-   not calculated. Today the command line's `--output-mmcif` gives the rebuilt block, with the losses
-   in the table above, for every user who opens the result in Mol*. `attach_charges` needs the same
-   treatment of uncalculated atoms. This changes what the writer produces and needs a design sketch
-   first.
-3. **mmCIF output from PDB input.** The written block should have the entities, secondary structure,
-   and assembly that Gemmi derives from the PDB file, as ChargeFW2's has, without `_chem_comp`, and
-   with the bonds ChargeFW used. It belongs to the same design as item 2.
+2. **mmCIF output that keeps an mmCIF input.** Accepted design and state in
+   [Annotating the source structure](#annotating-the-source-structure).
+3. **mmCIF output from PDB input.** Same section; not started.
 4. **MOL2 coordinates** in fixed notation, without exponents. Resolved after rc5: four decimal places.
 
 Decided against: CCD templates for all ligands (large data for a gap that the files from the PDB do
@@ -320,7 +334,80 @@ Open questions for ChargeFW:
   `-march=native` today. On the test machine that makes full calculations 1.6–2 times faster.
 
 Outside ChargeFW: the Mol* partial-charges extension should read `parameter_set` (dictionary 1.1).
-Until it does, ACC must keep writing `method/parameters` into `method`.
+Until it does, keeping `method/parameters` is the least disruptive option for an unchanged ACC viewer.
+Alternatively ACC can read the separate fields for its controls and fall back to the old label for
+stored files. Neither requires changing ChargeFW's dictionary 1.1 writer.
+
+### Annotating the source structure
+
+Design accepted on 2026-11-18. The native mmCIF step is implemented (`MmcifWriter::annotate`); the
+rest is open.
+
+**Selection limits the charge rows, not the structure.** If a calculation used sites `4`, `19`, and
+`52`, the output still has every atom, alternate location, water, model, assembly, bond, and block
+of the input. The charge set has three rows that refer to `4`, `19`, and `52` in the same block's
+`_atom_site.id`. The other atoms have no charge in this set, not a charge of zero.
+
+**Two outputs, both kept.** The generated file (`io.write(..., format="mmcif")`, `--output-mmcif`)
+records the atoms and bonds ChargeFW calculated with; result JSON does not hold the bond graph. The
+annotated file (`io.annotate(path, result, if_exists=...)`, `--annotate-mmcif`) puts the charges
+into the structure that was read. `io.gemmi.attach_charges` stays for callers who want to change a
+live Gemmi document, with its checks of the target.
+
+**The record keeps the input text.** `MoleculeImportMetadata::source_text` is one immutable string
+shared by the records of an input. It is not part of record equality. Annotation parses it again,
+so the reader and the input collection can be gone, and nothing is read from disk twice. Measured
+on 8YAX (3.5 MB): the text costs 3.3 MB and parsing it 26 ms; the parsed Gemmi document would cost
+30 MB. Reading the collection itself raises the resident memory by about 160 MB, so the text adds
+about 2 %, whatever the selection. No option to turn retention off.
+
+**Existing charges.** `if_exists` is `"error"` (default), `"replace"`, or `"append"`; only the first
+two are implemented. Append adds sets above the largest set ID of compatible 1.1 tables and refuses
+1.0 tables and a method and parameter-set pair that is already there. It appends to the charge sets
+of the retained source, not to the file at the output path: two writes from one source do not
+accumulate. To add two sets, pass both results in one call; to extend a written file, read it as
+the new source.
+
+**mmCIF details.** Gemmi's writer keeps values, quoting, and category order, not whitespace or
+comments, so the output is not byte-identical. `_atom_site.id` values that are not positive
+integers are an error, never renumbered. A record belongs to the block with coordinates at its
+`record_index`; blocks without a record are written unchanged.
+
+**PDB, through the same interface, after qualification.** Keep the PDB text; on output read it
+again with Gemmi, run `setup_entities` and `assign_label_seq_id`, turn `conect_map` into covalent
+`Connection` objects, and call `make_mmcif_document`. Gemmi then writes them as `_struct_conn` rows
+for each instance, next to `LINK` and `SSBOND`, with secondary structure and assemblies.
+
+- Gemmi numbers the output sites in its traversal order, which is not always line order: it joins
+  the parts of a residue that are apart in one chain run. The reader records each selected atom's
+  traversal number.
+- Normalize each `CONECT` pair and deduplicate; a record can list a bond in one direction only.
+  Skip a pair that a `LINK` or `SSBOND` connection already states.
+- `_struct_conn.pdbx_value_order` defaults to `sing` in the wwPDB dictionary, so a connection
+  without an order is a stated single bond and the mmCIF reader is right to let it override a
+  template. `CONECT` is connectivity only. For selected pairs, write the order the calculation
+  used; Gemmi's `write_struct_conn` has no such column, so add it after conversion. The promise is
+  the same settings, the same charges, not that one converted file reproduces every other bond
+  policy.
+- Omit Gemmi's `_chem_comp` (only `id` and type `.`; it makes Mol* show spacefill) unless the
+  structure has shortened CCD codes, which that category carries in `three_letter_code`.
+
+A prototype of the conversion without bond orders (2026-11-18, rc5, a PDB made from 1EK9 with
+`CONECT` in one MSE and on one alanine C–O) gave the same atoms and coordinates in all nine
+combinations of three selections and the `hybrid`, `explicit`, and `templates` strategies, and the
+same bonds in six; under `hybrid` the alanine C–O was double from the PDB and single from the
+converted file. Charges were not compared.
+
+**Qualification of PDB:** `read → calculate → annotate → read → calculate` with one
+topology-sensitive method, on a fixture with a one-direction `CONECT`, two ligands of the same
+name with `CONECT` on only one, a `CONECT` on a carbonyl that a template covers, and a selection
+that leaves a ligand uncharged. Compare atom identities, elements, formal charges, coordinates,
+bonds with orders, and charges to solver tolerance. Check an assembly separately: graph and charge
+equality would not detect the loss of 8YAX's assembly operators.
+
+**Remaining steps:** `io.annotate` in Python, with the test that it works after the collection is
+released; `--annotate-mmcif` and `--if-exists` on the command line; append; user documentation in
+`docs/reference/formats.md`; PDB.
 
 ## ACC work
 
@@ -334,7 +421,7 @@ Needed whatever is decided:
   entry ID) for dictionary keys, file names, and the `molecule` parameter.
 - Write the TXT file: the name in upper case on one line, the charges with five decimals on the next.
 - Produce the viewer files by the variants that match ChargeFW2 in [Viewer files](#viewer-files), one
-  file per molecule, and keep writing the charge metadata as today.
+  file per molecule. Preserve the displayed labels, not the legacy positional atom numbering.
 - Stop reusing calculations stored before the switch.
 - Dependencies: remove the `ChargeFW2` submodule and the `chargefw2-base:acc` image from
   `src/backend/Dockerfile`, `.github/workflows/deploy-logic.yml`, and the deployment documentation;
@@ -343,6 +430,32 @@ Needed whatever is decided:
   `tests/data/integrations/chargefw2_data.py`.
 - Update the parameter-set IDs in `wiki.md` and the ChargeFW2 links in `wiki.md` and
   `components/home/sections/about.tsx`.
+
+### Cutover checks for the adapter
+
+Source inspection on 2026-11-18: ACC `dev` at `d9e537f`, ChargeFW at `16d04d1`. These are adapter
+risks found in code, not failures reproduced in a running ACC deployment.
+
+- **Assess what will run.** `services/chargefw2.py` assesses with hetero atoms and water included;
+  the calculation uses the requested flags. In `api/v1/routes/charges.py` an automatic request for
+  a subset of an existing upload can assess the whole input directory. Choose one applicable method
+  and parameter set across exactly the requested files, with the same selections and matching mode
+  used to calculate. Keep `method_scope="all"` if retaining ACC's full catalog. Never retry an
+  unknown explicit parameter ID as an automatic choice. Test a subset and a water-excluding request.
+- **Separate history from reuse.** `db/repositories/calculation_repository.py` does not key hits by
+  engine version. Translating a legacy ID must not make old charges eligible for a new hit. Give new
+  results a separate engine/cache version and record the executed model and settings, not just what
+  was requested. Keep the original provenance when displaying history.
+- **Exercise the cache-hit export path.** `services/calculation_storage.py` restores name-keyed float
+  lists and the original filename; `services/chargefw2.py` rereads the input for the legacy writer.
+  ChargeFW's writers need a `CalculationResult`, not that dictionary. Generate artifacts while the
+  result is available, or recompute a missing artifact. Test identical bytes uploaded under another
+  name; resolve paths against the current job, not the first job to cache the charges.
+- **Compare cold, mixed and all-hit responses.** `models/calculation.py` hashes configuration DTOs
+  by identity; `api/v1/routes/charges.py` merges new and cached groups, and the service writes
+  `configs.json` before that merge. Group once by configuration values and build the manifest from
+  the merged result. Each configuration should list each requested file exactly once in all three
+  cases. None of these cache checks calls for a ChargeFW API change.
 
 ## Decisions
 
@@ -356,7 +469,7 @@ Open, with the recommendation given:
 
 | Question | Recommendation |
 | --- | --- |
-| Should ACC's API still accept the old parameter-set IDs, and what happens to the IDs stored in the database? | Accept the old IDs as aliases; rename the stored ones |
+| Should ACC's API still accept the old parameter-set IDs, and what happens to the IDs stored in the database? | Accept verified aliases for new requests; keep the original ID on historical results and map it for display |
 | PDB files without `CONECT`: ligands unbonded | Show ChargeFW's `unbonded_residue_atoms` warning in ACC, as it shows the missing-hydrogens warning |
 | Parameter-set order for proteins (EEM starts with a general set, not a protein set) | Accept ChargeFW's order |
 | SQE+qp as the default above 20,000 atoms | Accept |
@@ -367,4 +480,4 @@ Open, with the recommendation given:
 | MOL2 and PQR downloads in ChargeFW's form | Accept |
 | Users' stored calculation history from ChargeFW2 | Keep it viewable; do not reuse it for new requests |
 | Keep `_chem_comp` in mmCIF uploads (modified residues shown as sticks) | Remove it, as ChargeFW2 does |
-| ChargeFW issues 1–3 before 3.0.0, in another release candidate | Yes: 2 and 3 change the mmCIF output, which is easier before the stable release |
+| ChargeFW issues 1–3 before 3.0.0, in another release candidate | Ship the fix for 1. Review the design for 2 and 3 before stable if changing defaults; ACC viewer parity alone need not gate ChargeFW 3.0.0 if the adapter can provide and verify it |

@@ -815,6 +815,43 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
     table.append_row({dictionary_name, dictionary_version, dictionary_location});
 }
 
+// Adds the charges of validated results to the document and writes it. Record k belongs to the
+// block with coordinates number record_index of k.
+auto write_charged(std::ostream& output, const ResultSpan results, ::gemmi::cif::Document document,
+                   const bool overwrite, const bool every_block) -> void {
+    const auto inputs = results.front()->inputs();
+    auto blocks = std::vector<::gemmi::cif::Block*>{};
+    for (auto& block : document.blocks) {
+        if (block.has_tag("_atom_site.id")) {
+            blocks.push_back(std::addressof(block));
+        }
+    }
+    if (every_block && blocks.size() != inputs.size()) {
+        throw std::invalid_argument{
+            "Gemmi target molecule count does not match the calculation input"};
+    }
+    auto charged = std::vector<bool>(blocks.size(), false);
+    for (std::size_t index = 0; index < inputs.size(); ++index) {
+        const auto block_index = inputs[index].identity.record_index;
+        if (block_index >= blocks.size() || charged[block_index]) {
+            throw std::invalid_argument{
+                "Gemmi target molecules do not match the calculation input"};
+        }
+        charged[block_index] = true;
+        auto& block = *blocks[block_index];
+        if (!overwrite && (block.has_mmcif_category(metadata_category) ||
+                           block.has_mmcif_category(charges_category))) {
+            throw std::invalid_argument{"Gemmi target already contains partial charge categories"};
+        }
+        const auto mapping = attached_mapping(block, inputs[index]);
+        append_charge_sets(block, results, index, mapping.atom_site_ids);
+    }
+    ::gemmi::cif::write_cif_to_stream(output, document);
+    if (!output) {
+        throw std::runtime_error{"failed to write mmCIF output"};
+    }
+}
+
 } // namespace
 
 MmcifWriter::MmcifWriter(std::ostream& output) : output_{std::addressof(output)} {}
@@ -841,36 +878,37 @@ auto MmcifWriter::write(const ResultSpan results) const -> void {
     }
 }
 
-// Declared in mmcif_attachment.h, outside the public namespace.
+auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges existing) const -> void {
+    validate_results_output(results);
+    // Equal records can come from inputs that differ outside the selected sites, such as in an
+    // assembly, so every record of every result must have the same source text.
+    const auto& first_metadata = results.front()->inputs().front().import_metadata;
+    const auto text = first_metadata.has_value() ? first_metadata->source_text : nullptr;
+    const auto same_source = [&text](const ImportedMoleculeRecord& record) {
+        if (!record.import_metadata.has_value()) {
+            return false;
+        }
+        const auto& other = record.import_metadata->source_text;
+        return other == text || (other != nullptr && *other == *text);
+    };
+    if (text == nullptr || !std::ranges::all_of(results, [&](const auto* result) {
+            return std::ranges::all_of(result->inputs(), same_source);
+        })) {
+        throw std::invalid_argument{
+            "mmCIF annotation requires molecules read from one mmCIF input"};
+    }
+    write_charged(*output_, results,
+                  ::gemmi::cif::read_memory(text->data(), text->size(), "source"),
+                  existing == ExistingCharges::replace, false);
+}
+
+// Declared in mmcif_attachment.h, outside the public namespace. The target is the caller's
+// document, so a coordinate block without a calculated molecule means that it has changed.
 auto gemmi::mmcif_output::write_attached(std::ostream& output, const ResultSpan results,
-                                         const ::gemmi::cif::Document& source, const bool overwrite)
+                                         ::gemmi::cif::Document document, const bool overwrite)
     -> void {
     validate_results_output(results);
-    const auto inputs = results.front()->inputs();
-    auto document = source;
-    auto blocks = std::vector<::gemmi::cif::Block*>{};
-    for (auto& block : document.blocks) {
-        if (block.has_tag("_atom_site.id")) {
-            blocks.push_back(std::addressof(block));
-        }
-    }
-    if (blocks.size() != inputs.size()) {
-        throw std::invalid_argument{
-            "Gemmi target molecule count does not match the calculation input"};
-    }
-    for (std::size_t index = 0; index < blocks.size(); ++index) {
-        auto& block = *blocks[index];
-        if (!overwrite && (block.has_mmcif_category(metadata_category) ||
-                           block.has_mmcif_category(charges_category))) {
-            throw std::invalid_argument{"Gemmi target already contains partial charge categories"};
-        }
-        const auto mapping = attached_mapping(block, inputs[index]);
-        append_charge_sets(block, results, index, mapping.atom_site_ids);
-    }
-    ::gemmi::cif::write_cif_to_stream(output, document);
-    if (!output) {
-        throw std::runtime_error{"failed to write mmCIF output"};
-    }
+    write_charged(output, results, std::move(document), overwrite, true);
 }
 
 } // namespace chargefw::io
