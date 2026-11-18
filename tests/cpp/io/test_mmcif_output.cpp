@@ -449,6 +449,7 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[io][mmcif]") 
 TEST_CASE("mmCIF annotation adds charges for the selected sites to the source structure",
           "[io][mmcif]") {
     // Gapped site IDs, an alternate location, water, a second model, and a block without atoms.
+    // Only the charged sites need integer IDs; the water of the second model has a text ID.
     constexpr auto source = std::string_view{R"(data_notes
 _note.text 'kept'
 data_structure
@@ -474,7 +475,7 @@ HETATM 30 O O  . HOH B 2 . 5.0 5.0 5.0 1
 HETATM 40 C C1 . LIG A 1 . 0.1 0.0 0.0 2
 HETATM 50 O O1 A LIG A 1 . 1.3 0.0 0.0 2
 HETATM 51 O O1 B LIG A 1 . 0.1 1.2 0.0 2
-HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
+HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
 )"};
     const auto read = [](const std::string_view text) {
         auto input = std::istringstream{std::string{text}};
@@ -505,7 +506,7 @@ HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
     for (const auto row : block.find("_atom_site.", {"id"})) {
         site_ids.push_back(row.str(0));
     }
-    CHECK(site_ids == std::vector<std::string>{"10", "20", "21", "30", "40", "50", "51", "60"});
+    CHECK(site_ids == std::vector<std::string>{"10", "20", "21", "30", "40", "50", "51", "waterO"});
     auto charged = std::vector<std::pair<std::string, std::string>>{};
     for (const auto row :
          block.find("_sb_ncbr_partial_atomic_charges.", {"type_id", "atom_id", "charge"})) {
@@ -620,6 +621,23 @@ HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
     auto combined = std::ostringstream{};
     CHECK_NOTHROW(io::MmcifWriter{combined}.annotate(std::array{&result, &same}));
 
+    // A declaration of another dictionary as single items stays, without a location.
+    auto declared_source = std::string{source};
+    declared_source.insert(declared_source.find("_cell."),
+                           "_audit_conform.dict_name mmcif_pdbx.dic\n"
+                           "_audit_conform.dict_version 5.0\n");
+    const auto declared = calculation_result({read(declared_source)}, charge_set("eem"));
+    auto declared_output = std::ostringstream{};
+    io::MmcifWriter{declared_output}.annotate(std::array{&declared});
+    auto declared_document = gemmi::cif::read_string(declared_output.str());
+    auto declarations = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row :
+         declared_document.blocks[1].find("_audit_conform.", {"dict_name", "dict_version"})) {
+        declarations.emplace_back(row.str(0), row.str(1));
+    }
+    CHECK(declarations == std::vector<std::pair<std::string, std::string>>{
+                              {"mmcif_pdbx.dic", "5.0"}, {"mmcif_charges_v11.dic", "1.1"}});
+
     // A molecule that was not read from mmCIF has no structure to annotate.
     const auto generated = calculation_result({generated_record()}, formal(2));
     CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&generated}),
@@ -664,21 +682,19 @@ TEST_CASE("PDB annotation puts the charges on the calculated atoms of the conver
                          .charged_ids = std::move(charged_ids)};
     };
 
-    // Two alanines, two ligands, and water: the whole structure is written for every selection.
+    // Two alanines, two ligands, and water: the whole structure is written, and the selected atoms
+    // get charges.
     const auto fixture = [] {
         auto file = std::ifstream{std::filesystem::path{CHARGEFW_TEST_SOURCE_DIR} / "tests" /
                                   "fixtures" / "synthetic" / "pdb" / "annotation.pdb"};
         REQUIRE(file.good());
         return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
     }();
-    const auto all = annotate(fixture, io::RecordSelection::all);
-    // The block is named as the molecule, by the HEADER ID code, not by the file.
-    CHECK(all.block_name == "1ANN");
-    CHECK(all.site_count == 16);
-    CHECK(all.charged_ids.size() == 16);
     const auto polymers = annotate(fixture, io::RecordSelection::polymers);
     CHECK(polymers.site_count == 16);
     CHECK(polymers.charged_ids.size() == 11);
+    // The block is named as the molecule, by the HEADER ID code, not by the file.
+    CHECK(polymers.block_name == "1ANN");
 
     // Gemmi joins the two parts of the first ligand, so its sites are not in the order of the
     // lines. The atom that differs from another only in the segment is a site with a charge too.

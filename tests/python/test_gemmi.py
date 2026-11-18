@@ -638,15 +638,14 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
 
 
 def test_attach_charges_replaces_other_charges_dictionary_declarations() -> None:
+    # The declarations lack dict_location, which the charges dictionary's row has.
     document = gemmi.cif.read_string(MMCIF_TEXT)
-    declarations = document[0].init_loop(
-        "_audit_conform.", ["dict_name", "dict_version", "dict_location"]
-    )
+    declarations = document[0].init_loop("_audit_conform.", ["dict_name", "dict_version"])
     for row in (
-        ["mmcif_pdbx.dic", "5.0", "."],
-        ["mmcif_charges_v10.dic", "1.0", "."],
-        ["mmcif_charges_v11.dic", "1.1", "."],
-        ["mmcif_charges_v11.dic", "1.1", "."],
+        ["mmcif_pdbx.dic", "5.0"],
+        ["mmcif_charges_v10.dic", "1.0"],
+        ["mmcif_charges_v11.dic", "1.1"],
+        ["mmcif_charges_v11.dic", "1.1"],
     ):
         declarations.add_row(row)
     result = calculate(chargefw.io.gemmi.from_document(document), method="formal")
