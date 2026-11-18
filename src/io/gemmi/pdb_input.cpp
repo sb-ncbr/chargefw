@@ -242,7 +242,11 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
         throw std::runtime_error{"structural input contains no models"};
     }
     ::gemmi::add_entity_types(structure, false);
-    const auto name = structure.name.empty() ? source_name : structure.name;
+    // The ID code of the HEADER record, such as 1CBN; otherwise the file name without .pdb.
+    const auto entry_id = structure.info.find("_entry.id");
+    const auto name = entry_id != structure.info.end() ? entry_id->second
+                      : structure.name.empty()         ? source_name
+                                                       : structure.name;
     auto selected_models =
         gemmi::selection::select_models(structure, options.selection, options.conformers);
     const auto retained_models =
@@ -352,6 +356,8 @@ auto gemmi::pdb_conversion::convert(const std::string& text, const ImportedMolec
     }
     ::gemmi::setup_entities(structure);
     ::gemmi::assign_label_seq_id(structure, false);
+    // The block is named as the molecule, so that reading the file gives the same record ID.
+    structure.name = record.identity.record_id.display_string();
     if (structure.name.empty()) {
         structure.name = "structure";
     }

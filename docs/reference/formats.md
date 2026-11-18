@@ -155,9 +155,10 @@ instead of giving a molecule without bonds.
 
 ## PDB and mmCIF input
 
-ChargeFW reads PDB and mmCIF files with Gemmi. A PDB file is one molecule. In mmCIF, every data
-block with atom coordinates (`_atom_site`) is one molecule, whose ID is the block name; blocks
-without coordinates are skipped. Every mmCIF atom-site row needs a unique ID, which can be any
+ChargeFW reads PDB and mmCIF files with Gemmi. A PDB file is one molecule, whose ID is the ID code
+of the `HEADER` record, such as `1CBN`, or the file name without `.pdb` when the file has no ID
+code. In mmCIF, every data block with atom coordinates (`_atom_site`) is one molecule, whose ID is
+the block name; blocks without coordinates are skipped. Every mmCIF atom-site row needs a unique ID, which can be any
 string or integer; IDs such as `Csite`, `001`, or integers with more than 64 bits are kept exactly
 as written. ChargeFW does not change the file. Partial charges in it, such as those of an earlier
 ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges` and its `_meta` category, are not

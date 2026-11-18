@@ -225,7 +225,8 @@ END
     REQUIRE(first.has_value());
     CHECK(first->identity.source_name == "water.pdb");
     CHECK(first->identity.record_index == 0);
-    CHECK_FALSE(first->identity.record_id.empty());
+    // Without a HEADER record, the molecule is named by the file.
+    CHECK(first->identity.record_id.display_string() == "water");
     CHECK(first->molecule.atom_count() == 2);
     CHECK(first->molecule.bond_count() == 0);
     CHECK(first->molecule.atom(0).atomic_number() == 8);
@@ -408,6 +409,19 @@ END
     CHECK(record->import_metadata->atoms[1].id == "2");
     REQUIRE(record->import_metadata->atoms[0].structural_labels != nullptr);
     CHECK(record->import_metadata->atoms[0].structural_labels->alternate_location == "B");
+}
+
+TEST_CASE("PDB input is named by the ID code of its HEADER record", "[io][pdb]") {
+    std::istringstream input{
+        R"pdb(HEADER    HYDROLASE                               01-JAN-00   1ABC
+HETATM    1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O
+END
+)pdb"};
+    auto reader = io::PdbReader{input, "0123abcd_upload.pdb"};
+    const auto record = reader.next();
+    REQUIRE(record.has_value());
+    CHECK(record->identity.record_id.display_string() == "1ABC");
+    CHECK(record->identity.source_name == "0123abcd_upload.pdb");
 }
 
 TEST_CASE("PDB input reads one residue of alternative residues at a position", "[io][pdb]") {

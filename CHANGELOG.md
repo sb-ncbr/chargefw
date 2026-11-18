@@ -8,6 +8,9 @@
   such as SER with alternate locations A and B and PRO with C at the same residue number: the first
   one in the file. ChargeFW read all of them before, and methods that use coordinates were rejected
   because their backbone atoms coincide.
+- A molecule read from PDB is named by the ID code of the `HEADER` record, such as `1CBN`, as an
+  mmCIF molecule is named by its data block. A file without an ID code is still named by the file
+  name.
 
 ### Output
 

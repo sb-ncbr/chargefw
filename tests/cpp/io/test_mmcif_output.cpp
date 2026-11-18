@@ -628,9 +628,10 @@ HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
 
 TEST_CASE("PDB annotation puts the charges on the calculated atoms of the converted structure",
           "[io][mmcif][pdb]") {
-    // The number of atom sites and, in calculation order, the sites of the charge rows, after
-    // checking that each is the site of its calculated atom.
+    // The block name, the number of atom sites and, in calculation order, the sites of the charge
+    // rows, after checking that each is the site of its calculated atom.
     struct Annotated {
+        std::string block_name;
         std::size_t site_count;
         std::vector<std::string> charged_ids;
     };
@@ -658,7 +659,9 @@ TEST_CASE("PDB annotation puts the charges on the calculated atoms of the conver
             charged_ids.push_back(charges[static_cast<int>(atom)].str(0));
             CHECK(positions.at(charged_ids.back()) == molecule.conformer(0)[atom]);
         }
-        return Annotated{.site_count = positions.size(), .charged_ids = std::move(charged_ids)};
+        return Annotated{.block_name = block.name,
+                         .site_count = positions.size(),
+                         .charged_ids = std::move(charged_ids)};
     };
 
     // Two alanines, two ligands, and water: the whole structure is written for every selection.
@@ -669,6 +672,8 @@ TEST_CASE("PDB annotation puts the charges on the calculated atoms of the conver
         return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
     }();
     const auto all = annotate(fixture, io::RecordSelection::all);
+    // The block is named as the molecule, by the HEADER ID code, not by the file.
+    CHECK(all.block_name == "1ANN");
     CHECK(all.site_count == 16);
     CHECK(all.charged_ids.size() == 16);
     const auto polymers = annotate(fixture, io::RecordSelection::polymers);

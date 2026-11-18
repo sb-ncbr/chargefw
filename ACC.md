@@ -234,8 +234,10 @@ most 0.09 e.
   LEU A 1195 is 1.08 Å from the carbonyl carbon of the previous residue and 2.69 Å from its own
   nitrogen. ChargeFW is right to report them. It makes no peptide bond across a chain gap; this was
   checked on 2HU4, 8YAX, and 1EK9.
-- A PDB molecule is named by its file name, an mmCIF molecule by its data block. ACC stores uploads
-  as `<sha256>_<name>`, so the hash would become the name of a PDB molecule.
+- A PDB molecule is named by the ID code of its `HEADER` record, as in ChargeFW2, and by its file
+  name when there is none; an mmCIF molecule by its data block. ACC stores uploads as
+  `<sha256>_<name>`, so a PDB file without an ID code is named with the hash. rc5 named every PDB
+  molecule by its file name.
 - Names are kept as written: `2,4-dinitrophenol`, where ChargeFW2 has `2_4_dinitrophenol`.
 
 ### Output files
