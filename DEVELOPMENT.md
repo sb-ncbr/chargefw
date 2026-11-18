@@ -199,9 +199,10 @@ pre-commit run --all-files
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It checks formatting with the
 pre-commit hook using clang-format 22.1.8, runs Ruff over the repository, and builds and tests
 `gcc-debug` with GCC 14, Python 3.12, and RDKit 2024.9 using the CTest command above. It also calls
-`.github/workflows/wheels.yml`, which builds and tests the wheel for every published platform, so the
-release workflow's requirement of a successful CI run covers all of them. Update the pinned clang-format
-and Ruff versions in the workflow together with the local tools.
+`.github/workflows/wheels.yml`, which builds the wheel for every published platform and tests it with
+every optional dependency installed, so the release workflow's requirement of a successful CI run
+covers all of them. Update the pinned clang-format and Ruff versions in the workflow together with the
+local tools.
 
 The per-commit job uses the oldest supported toolchain on purpose: development usually happens with a
 newer compiler and Python, which accept code that the oldest supported versions reject, so CI catches
