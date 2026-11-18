@@ -404,9 +404,10 @@ that leaves a ligand uncharged. Compare atom identities, elements, formal charge
 bonds with orders, and charges to solver tolerance. Check an assembly separately: graph and charge
 equality would not detect the loss of 8YAX's assembly operators.
 
-**Done:** `MmcifWriter::annotate` and `chargefw.io.annotate`, with `error` and `replace`.
+**Done:** `MmcifWriter::annotate`, `chargefw.io.annotate`, and `--annotate-mmcif` with
+`--if-exists`, with `error` and `replace`.
 
-**Remaining steps:** `--annotate-mmcif` and `--if-exists` on the command line; append; PDB.
+**Remaining steps:** append; PDB.
 
 ## ACC work
 

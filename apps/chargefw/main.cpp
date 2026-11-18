@@ -162,6 +162,14 @@ auto run(std::span<char*> arguments) -> int {
     calculate->add_flag("--output-mol2", calculate_output.mol2, "Write generated MOL2 output");
     calculate->add_flag("--output-mmcif", calculate_output.mmcif, "Write generated mmCIF output");
     calculate->add_flag("--output-pqr", calculate_output.pqr, "Write generated PQR output");
+    auto* const annotate_option =
+        calculate->add_flag("--annotate-mmcif", calculate_output.annotate_mmcif,
+                            "Write the mmCIF input with the charges added");
+    calculate
+        ->add_option("--if-exists", calculate_output.if_exists,
+                     "Partial charges already in the mmCIF input: error or replace")
+        ->check(CLI::IsMember({"error", "replace"}))
+        ->needs(annotate_option);
     chargefw::cli::add_input_options(*inspect, inspect_input);
     chargefw::cli::add_input_options(*applicability, applicability_input);
     chargefw::cli::add_selection_options(*applicability, applicability_selection);
@@ -214,6 +222,7 @@ auto run(std::span<char*> arguments) -> int {
     run.metrics.parsing_seconds =
         std::chrono::duration<double>{std::chrono::steady_clock::now() - parsing_started}.count();
     auto records = std::move(imported.records);
+    chargefw::cli::validate_annotation(records, calculate_output);
     auto request =
         chargefw::cli::make_request(std::move(imported.molecules), calculate_selection, records);
     const auto requested_provenance = chargefw::io::make_requested_provenance(

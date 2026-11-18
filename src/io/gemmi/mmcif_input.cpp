@@ -229,7 +229,9 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             record.import_warnings.push_back(gemmi::bonds::symmetry_connections_issue(
                 explicit_bonds.skipped_symmetry_connections));
         }
-        if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.")) {
+        // Either category, as the annotating writer refuses a block that has either.
+        if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.") ||
+            block.has_mmcif_category("_sb_ncbr_partial_atomic_charges_meta.")) {
             record.import_warnings.push_back(ImportIssue{
                 .kind = ImportIssueKind::partial_charges_ignored,
                 .message = "mmCIF partial charges were ignored; they are not formal charges and "

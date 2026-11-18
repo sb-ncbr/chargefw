@@ -130,6 +130,16 @@ void write_mmcif(const std::filesystem::path& path, const io::ChargeCalculationR
     write_output(path, [&result](auto& output) { io::MmcifWriter{output}.write(result); });
 }
 
+void write_annotated_mmcif(const std::filesystem::path& path,
+                           const io::ChargeCalculationResult& result, const bool replace) {
+    write_output(path, [&result, replace](auto& output) {
+        const auto* const single = std::addressof(result);
+        io::MmcifWriter{output}.annotate(std::span{&single, 1}, replace
+                                                                    ? io::ExistingCharges::replace
+                                                                    : io::ExistingCharges::error);
+    });
+}
+
 void write_mol2(const std::filesystem::path& path, const io::ChargeCalculationResult& result) {
     write_output(path, [&result](auto& output) { io::Mol2Writer{output}.write(result); });
 }
@@ -144,6 +154,26 @@ auto utc_timestamp() -> std::string {
     // system_clock is UTC; millisecond precision makes %T print three decimal places.
     return std::format("{:%FT%T}Z", std::chrono::floor<std::chrono::milliseconds>(
                                         std::chrono::system_clock::now()));
+}
+
+void validate_annotation(const std::span<const io::ImportedMoleculeRecord> records,
+                         const OutputArguments& arguments) {
+    if (!arguments.annotate_mmcif) {
+        return;
+    }
+    for (const auto& record : records) {
+        if (!record.import_metadata.has_value() || record.import_metadata->source_text == nullptr) {
+            throw std::runtime_error{"--annotate-mmcif is only supported for mmCIF input"};
+        }
+        // The mmCIF reader warns about the charges that the writer would refuse.
+        if (arguments.if_exists == "error" &&
+            std::ranges::any_of(record.import_warnings, [](const io::ImportIssue& issue) {
+                return issue.kind == io::ImportIssueKind::partial_charges_ignored;
+            })) {
+            throw std::runtime_error{"The input already contains partial charges; to replace "
+                                     "them in the annotated mmCIF, use --if-exists replace"};
+        }
+    }
 }
 
 auto write_calculation_outputs(const std::string& output_directory, const std::string& input_path,
@@ -209,6 +239,12 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
             const auto mmcif_path = std::filesystem::path{prefix.string() + ".cif"};
             write_mmcif(mmcif_path, owned_result);
             std::println("Wrote {}", mmcif_path.string());
+        }
+        if (output_arguments.annotate_mmcif) {
+            const auto annotated_path = std::filesystem::path{prefix.string() + ".annotated.cif"};
+            write_annotated_mmcif(annotated_path, owned_result,
+                                  output_arguments.if_exists == "replace");
+            std::println("Wrote {}", annotated_path.string());
         }
         if (output_arguments.pqr) {
             const auto pqr_path = std::filesystem::path{prefix.string() + ".pqr"};

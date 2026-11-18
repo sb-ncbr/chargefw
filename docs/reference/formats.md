@@ -160,8 +160,8 @@ block with atom coordinates (`_atom_site`) is one molecule, whose ID is the bloc
 without coordinates are skipped. Every mmCIF atom-site row needs a unique ID, which can be any
 string or integer; IDs such as `Csite`, `001`, or integers with more than 64 bits are kept exactly
 as written. ChargeFW does not change the file. Partial charges in it, such as those of an earlier
-ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges`, are not used, and the record gets
-a `partial_charges_ignored` warning.
+ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges` and its `_meta` category, are not
+used, and the record gets a `partial_charges_ignored` warning.
 
 The first model gives the atoms of the molecule, in the order of the rows in the file, with their
 elements, formal charges, and names. Every further model must contain the same atoms: the same
@@ -373,7 +373,8 @@ readers such as Gemmi would not find that atom. Nothing is written when ChargeFW
 #### Charges added to the mmCIF input
 
 For molecules read from mmCIF, ChargeFW can instead write the input structure with the charges
-added: [`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. The output has
+added: `--annotate-mmcif` on the command line, or
+[`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. The output has
 every data block, category, and atom site of the input, with their values and `_atom_site.id`
 unchanged. Only the atoms that were calculated get charge rows. With `selection="polymers"` and
 `conformers="first"`, for example, water, ligands, and later models stay in the file without charges.
