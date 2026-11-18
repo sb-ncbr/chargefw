@@ -37,7 +37,12 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
     std::size_t atom_index = 0;
     for (const auto& chain : model.chains) {
         for (const auto& residue : chain.residues) {
-            if (!include_residue(residue, selection)) {
+            // Of alternative residues at one position, such as SER and PRO at 22 with alternate
+            // locations A and C, read the first. Gemmi groups adjacent residues by sequence number;
+            // residues without one are not alternatives.
+            const auto alternative =
+                residue.seqid.num.has_value() && !chain.is_first_in_group(residue);
+            if (alternative || !include_residue(residue, selection)) {
                 continue;
             }
 

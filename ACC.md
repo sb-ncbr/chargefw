@@ -197,7 +197,8 @@ most 0.09 e.
   EEM becomes the default instead of EQeq. Both sets have parameters for every atom type of heme,
   iron with a bond included, so ChargeFW is right; why ChargeFW2 reports "parameters don't cover the
   molecule" was not found.
-- A structure with atoms at identical coordinates gets no 3D method; see the first ChargeFW issue.
+- rc5 offers no 3D method for 1CBN, because it reads both residues of each alternative pair and their
+  atoms coincide; resolved after rc5, see the first ChargeFW issue.
 
 ### Reading structures
 
@@ -205,9 +206,9 @@ most 0.09 e.
   residues stay. 1EK9 keeps its 15 MSE residues: 9,918 atoms instead of 9,798, and only 6 pairs remain
   applicable instead of 52, because few sets have selenium.
 - `polymers-and-ligands` leaves out `HOH`, `WAT`, `H2O`, and `DOD`, not only `HOH`.
-- Alternate locations: ChargeFW reads the first one in the file for each atom name of a residue;
-  ChargeFW2 reads atoms without one or with `A`. 1CBN gives 673 atoms instead of 640; see the first
-  ChargeFW issue.
+- Alternate locations: of consecutive residues with the same number and insertion code, ChargeFW
+  reads the first, and in it the first alternate location for each atom name; ChargeFW2 reads atoms
+  without one or with `A`. Both read 640 atoms of 1CBN; rc5 read 673, see the first ChargeFW issue.
 - ChargeFW reads all models as conformers by default; `conformers="first"` gives ChargeFW2's
   behavior.
 - Bonds of ligands and modified residues come from the file. A PDB file without `CONECT` leaves them
@@ -286,14 +287,15 @@ Details that matter:
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; 4 is resolved, the others are not started.
+In the order proposed to the maintainer; 1 and 4 are resolved, 2 and 3 are not started.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of
    a residue, so it reads both residues of each pair. Their backbone atoms coincide, and every method
    that uses coordinates is rejected with `invalid_geometry`, "identical coordinates"; the default
    becomes PEOE. ChargeFW2 keeps alternative A and calculates SQE+qp. The choice has to be made for
-   the residue position.
+   the residue position. Resolved after rc5: of consecutive residues with the same number and
+   insertion code, the first is read; 1CBN gives 640 atoms, and SQE+qp is the default.
 2. **mmCIF output that keeps an mmCIF input.** Writing mmCIF for a result read from mmCIF should give
    the source data block with the charges, as `attach_charges` does, without the atom rows that were
    not calculated. Today the command line's `--output-mmcif` gives the rebuilt block, with the losses

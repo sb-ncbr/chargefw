@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Input
+
+- PDB and mmCIF input reads one residue where the file has alternative residues at one position,
+  such as SER with alternate locations A and B and PRO with C at the same residue number: the first
+  one in the file. ChargeFW read all of them before, and methods that use coordinates were rejected
+  because their backbone atoms coincide.
+
 ### Output
 
 - MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
