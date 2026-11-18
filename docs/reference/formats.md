@@ -382,34 +382,17 @@ For mmCIF input, the output has every data block, category, and atom site of the
 values and `_atom_site.id` unchanged. Comments and the spacing of the input are not kept. The bond
 categories are those of the input; the bonds ChargeFW added from residue templates are not written.
 
+Reading the output with the same options therefore gives the same molecules, and the same
+calculation gives the same charges. The charges in the file are ignored on input, with a warning.
+
 A PDB input is converted to mmCIF with Gemmi as a whole: all atoms and models, the unit cell and
 symmetry, the sequence, helices and sheets, biological assemblies, and `LINK` and `SSBOND`
 connections. Atom sites are numbered anew in `_atom_site.id`, and keep their PDB chain, residue
-number, insertion code, and names. Remarks and other records that Gemmi does not convert are not
-kept.
+number, insertion code, and names. Remarks, `CONECT` records, and segment names are not kept.
 
-Connections are written to `_struct_conn` between the atoms that ChargeFW read them for. Each
-`CONECT` bond becomes a covalent connection between the two atoms it names, so a ligand without
-`CONECT` records does not get the bonds of another with the same name. `LINK` and `SSBOND`
-connections keep the distance they report and their symmetry, stated relative to the first atom:
-operators `1655` and `1755` are written as `1_555` and `1_655`. A connection to an atom that is not
-in the file is left out. A connection between calculated atoms states the bond order that was
-calculated with, in `pdbx_value_order`.
-
-ChargeFW refuses a PDB input that mmCIF cannot state:
-
-- a calculated or connected atom that has the same chain, residue, atom name, and alternate location
-  as another and differs only in the segment;
-- `CONECT` records that refer to a serial number that several atoms of the first model have;
-- a `LINK` or `SSBOND` for which ChargeFW cannot state the symmetry of the second atom relative to
-  the first, such as operators `2555` and `3555`; equal operators are a connection within the file;
-  or
-- a result for more than one molecule, since a PDB file is one.
-
-Reading the output with the same options gives the same molecules, and the same calculation gives
-the same charges. The charges in the file are ignored on input, with a warning. For converted PDB
-input this holds for the bond strategy that was used; another strategy can give other bond orders
-than it would for the PDB file.
+Use the converted file to view or pass on the charges, and keep the PDB file for calculations. The
+converted file has no `CONECT` bonds, so reading it can give a ligand without bonds and other
+charges than the PDB file gives.
 
 Calculate all results of one file from the same input. ChargeFW refuses an mmCIF block that already has
 partial charges unless you ask it to replace them or to append to them. Appending keeps the charge

@@ -626,145 +626,66 @@ HETATM 60 O O  . HOH B 2 . 5.1 5.0 5.0 2
                     std::invalid_argument);
 }
 
-TEST_CASE("PDB annotation converts the structure so that it reads back as it was calculated",
+TEST_CASE("PDB annotation puts the charges on the calculated atoms of the converted structure",
           "[io][mmcif][pdb]") {
-    // Two alanines, two ligands with the same name, and water. CONECT joins a carbonyl that the
-    // alanine template makes double, and the atoms of the first ligand only, in one direction.
-    const auto text = [] {
+    // The number of atom sites and, in calculation order, the sites of the charge rows, after
+    // checking that each is the site of its calculated atom.
+    struct Annotated {
+        std::size_t site_count;
+        std::vector<std::string> charged_ids;
+    };
+    const auto annotate = [](const std::string& text, const io::RecordSelection selection) {
+        auto pdb = std::istringstream{text};
+        auto read = io::PdbReader{pdb, "input.pdb", {.selection = selection}}.next();
+        REQUIRE(read.has_value());
+        const auto atom_count = read->molecule.atom_count();
+        const auto result = calculation_result({std::move(*read)}, formal(atom_count));
+        const auto& molecule = result.inputs().front().molecule;
+        auto output = std::ostringstream{};
+        io::MmcifWriter{output}.annotate(std::array{&result});
+
+        auto document = gemmi::cif::read_string(output.str());
+        auto& block = document.sole_block();
+        auto positions = std::map<std::string, core::Position>{};
+        for (const auto row : block.find("_atom_site.", {"id", "Cartn_x", "Cartn_y", "Cartn_z"})) {
+            positions.emplace(row.str(0), core::Position{std::stod(row[1]), std::stod(row[2]),
+                                                         std::stod(row[3])});
+        }
+        auto charges = block.find("_sb_ncbr_partial_atomic_charges.", {"atom_id"});
+        REQUIRE(charges.length() == atom_count);
+        auto charged_ids = std::vector<std::string>{};
+        for (std::size_t atom = 0; atom < atom_count; ++atom) {
+            charged_ids.push_back(charges[static_cast<int>(atom)].str(0));
+            CHECK(positions.at(charged_ids.back()) == molecule.conformer(0)[atom]);
+        }
+        return Annotated{.site_count = positions.size(), .charged_ids = std::move(charged_ids)};
+    };
+
+    // Two alanines, two ligands, and water: the whole structure is written for every selection.
+    const auto fixture = [] {
         auto file = std::ifstream{std::filesystem::path{CHARGEFW_TEST_SOURCE_DIR} / "tests" /
                                   "fixtures" / "synthetic" / "pdb" / "annotation.pdb"};
         REQUIRE(file.good());
         return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
     }();
-    for (const auto selection : {io::RecordSelection::all, io::RecordSelection::polymers}) {
-        for (const auto bonds : {io::BondStrategy::hybrid, io::BondStrategy::explicit_bonds,
-                                 io::BondStrategy::templates}) {
-            CAPTURE(io::to_string(selection), io::to_string(bonds));
-            const auto options = io::StructureOptions{.selection = selection, .bonds = bonds};
-            auto pdb = std::istringstream{text};
-            auto read = io::PdbReader{pdb, "annotation.pdb", options}.next();
-            REQUIRE(read.has_value());
-            const auto atom_count = read->molecule.atom_count();
-            const auto result = calculation_result({std::move(*read)}, formal(atom_count));
-            const auto& calculated = result.inputs().front().molecule;
-            auto output = std::ostringstream{};
-            io::MmcifWriter{output}.annotate(std::array{&result});
+    const auto all = annotate(fixture, io::RecordSelection::all);
+    CHECK(all.site_count == 16);
+    CHECK(all.charged_ids.size() == 16);
+    const auto polymers = annotate(fixture, io::RecordSelection::polymers);
+    CHECK(polymers.site_count == 16);
+    CHECK(polymers.charged_ids.size() == 11);
 
-            // The whole structure is there, with the bonds the file states for each ligand.
-            auto document = gemmi::cif::read_string(output.str());
-            auto& block = document.sole_block();
-            CHECK(block.find("_atom_site.", {"id"}).length() == 16);
-            CHECK(block.find("_sb_ncbr_partial_atomic_charges.", {"atom_id"}).length() ==
-                  atom_count);
-            auto ligand_bonds = std::vector<std::string>{};
-            for (const auto row :
-                 block.find("_struct_conn.", {"ptnr1_label_comp_id", "ptnr1_auth_seq_id"})) {
-                if (row.str(0) == "LIG") {
-                    ligand_bonds.push_back(row.str(1));
-                }
-            }
-            CHECK(ligand_bonds == std::vector<std::string>{"101"});
-
-            auto cif = std::istringstream{output.str()};
-            const auto reread = io::MmcifReader{cif, "annotated.cif", options}.next();
-            REQUIRE(reread.has_value());
-            const auto& molecule = reread->molecule;
-            REQUIRE(molecule.atom_count() == atom_count);
-            for (std::size_t atom = 0; atom < atom_count; ++atom) {
-                CHECK(molecule.atom(atom) == calculated.atom(atom));
-                CHECK(molecule.conformer(0)[atom] == calculated.conformer(0)[atom]);
-            }
-            CHECK(bond_set(molecule) == bond_set(calculated));
-        }
-    }
-}
-
-TEST_CASE("PDB annotation keeps the connections as the PDB reader used them", "[io][mmcif][pdb]") {
-    // The bonds of the PDB record, the bonds of the annotated file read with the same options,
-    // and the file.
-    struct RoundTrip {
-        std::size_t calculated_bonds;
-        std::size_t reread_bonds;
-        std::string output;
-    };
-    const auto round_trip = [](const std::string_view text) {
-        constexpr auto options = io::StructureOptions{.bonds = io::BondStrategy::explicit_bonds};
-        auto pdb = std::istringstream{std::string{text}};
-        auto read = io::PdbReader{pdb, "input.pdb", options}.next();
-        REQUIRE(read.has_value());
-        const auto atom_count = read->molecule.atom_count();
-        const auto result = calculation_result({std::move(*read)}, formal(atom_count));
-        auto output = std::ostringstream{};
-        io::MmcifWriter{output}.annotate(std::array{&result});
-        auto cif = std::istringstream{output.str()};
-        const auto reread = io::MmcifReader{cif, "annotated.cif", options}.next();
-        REQUIRE(reread.has_value());
-        CHECK(bond_set(reread->molecule) == bond_set(result.inputs().front().molecule));
-        return RoundTrip{.calculated_bonds = result.inputs().front().molecule.bonds().size(),
-                         .reread_bonds = reread->molecule.bonds().size(),
-                         .output = output.str()};
-    };
-
-    // A LINK to a translated copy is not a bond of the molecule and stays one to that copy; the
-    // CONECT between the same two atoms is the local bond.
-    constexpr auto symmetry_link =
-        std::string_view{R"(CRYST1   10.000   10.000   10.000  90.00  90.00  90.00 P 1           1
-LINK         C1  LIG A   1                 O1  LIG A   1    1555   1455  1.20
-HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
-HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O
-CONECT    1    2
-END
-)"};
-    const auto with_conect = round_trip(symmetry_link);
-    CHECK(with_conect.calculated_bonds == 1);
-    CHECK(with_conect.reread_bonds == 1);
-    auto document = gemmi::cif::read_string(with_conect.output);
-    auto symmetries = std::vector<std::string>{};
-    for (const auto row : document.sole_block().find("_struct_conn.", {"ptnr2_symmetry"})) {
-        symmetries.push_back(row.str(0));
-    }
-    CHECK(symmetries == std::vector<std::string>{"1_455", "1_555"});
-    // The LINK reports its distance; the CONECT reports none.
-    auto distances = std::vector<std::string>{};
-    for (const auto row : document.sole_block().find("_struct_conn.", {"pdbx_dist_value"})) {
-        distances.push_back(row[0]);
-    }
-    CHECK(distances == std::vector<std::string>{"1.2", "?"});
-    // Operators are kept relative to the first atom.
-    auto shifted = std::string{symmetry_link};
-    shifted.replace(shifted.find("1555   1455"), 11, "1655   1755");
-    auto shifted_document = gemmi::cif::read_string(round_trip(shifted).output);
-    CHECK(shifted_document.sole_block().find("_struct_conn.", {"ptnr2_symmetry"})[0].str(0) ==
-          "1_655");
-    constexpr auto symmetry_link_alone =
-        std::string_view{R"(CRYST1   10.000   10.000   10.000  90.00  90.00  90.00 P 1           1
-LINK         C1  LIG A   1                 O1  LIG A   1    1555   1455  1.20
-HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
-HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O
-END
-)"};
-    CHECK(round_trip(symmetry_link_alone).reread_bonds == 0);
-
-    // A LINK without alternate locations between atoms that have one.
-    constexpr auto blank_altloc = std::string_view{
-        R"(LINK         C   ALA A   1                 O   ALA A   1    1555   1555  1.23
-ATOM      1  N   ALA A   1      -1.458   0.000   0.000  1.00 20.00           N
-ATOM      2  CA  ALA A   1       0.000   0.000   0.000  1.00 20.00           C
-ATOM      3  C  AALA A   1       0.551   1.420   0.000  1.00 20.00           C
-ATOM      4  O  AALA A   1      -0.203   2.390   0.000  1.00 20.00           O
-END
-)"};
-    CHECK(round_trip(blank_altloc).reread_bonds == 1);
-
-    // Atoms that differ only in the PDB segment have one name in mmCIF: refused.
-    constexpr auto segments = std::string_view{
+    // Gemmi joins the two parts of the first ligand, so its sites are not in the order of the
+    // lines. The atom that differs from another only in the segment is a site with a charge too.
+    const auto reordered = std::string{
         R"(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00      SEG1 C
-HETATM    2  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00      SEG2 C
-HETATM    3  O1  LIG A   1       6.200   0.000   0.000  1.00 20.00      SEG2 O
-CONECT    2    3
+HETATM    2  O   HOH A   2       5.000   0.000   0.000  1.00 20.00      SEG1 O
+HETATM    3  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00      SEG1 O
+HETATM    4  C1  LIG A   1       0.000   5.000   0.000  1.00 20.00      SEG2 C
 END
 )"};
-    CHECK_THROWS_AS(round_trip(segments), std::invalid_argument);
+    CHECK(annotate(reordered, io::RecordSelection::all).charged_ids ==
+          std::vector<std::string>{"1", "3", "2", "4"});
 }
 
 TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique blocks",

@@ -82,12 +82,73 @@ class BondAccumulator {
     std::vector<std::size_t> aromatic_bonds_; // Indices in bonds_.
 };
 
+// Residues of a model by chain name and sequence ID, in model order, so that each connection
+// partner is found without scanning every chain and residue.
+class ResidueIndex {
+  public:
+    explicit ResidueIndex(const ::gemmi::Model& model) {
+        for (const auto& chain : model.chains) {
+            for (const auto& residue : chain.residues) {
+                residues_[key(chain.name, residue.seqid)].push_back(std::addressof(residue));
+            }
+        }
+    }
+
+    [[nodiscard]] auto find(const std::string_view chain_name, const ::gemmi::SeqId& seqid) const
+        -> std::span<const ::gemmi::Residue* const> {
+        const auto found = residues_.find(key(chain_name, seqid));
+        if (found == residues_.end()) {
+            return {};
+        }
+        return found->second;
+    }
+
+  private:
+    using Key = std::tuple<std::string_view, int, char>;
+
+    // gemmi compares insertion codes ignoring case and treats a blank code as no code.
+    [[nodiscard]] static auto key(const std::string_view chain_name, const ::gemmi::SeqId& seqid)
+        -> Key {
+        return {chain_name, seqid.num.value,
+                static_cast<char>(static_cast<unsigned char>(seqid.icode) | 0x20U)};
+    }
+
+    std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;
+};
+
 [[nodiscard]] auto selected_atom_index(const ResidueIndex& residues,
                                        const selection::SelectedModel& selected,
                                        const ::gemmi::AtomAddress& address)
     -> std::optional<std::size_t> {
-    const auto* const atom = partner_atom(residues, address);
-    return atom != nullptr ? selected.atom_index(atom) : std::nullopt;
+    const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
+    // As Model::find_cra(address, true): the first residue with the given name decides.
+    for (const auto* residue : candidates) {
+        if (residue->name != address.res_id.name) {
+            continue;
+        }
+        if (!address.atom_name.empty()) {
+            if (const auto* atom = residue->find_atom(address.atom_name, address.altloc)) {
+                return selected.atom_index(atom);
+            }
+        }
+        break;
+    }
+    if (!address.res_id.name.empty() && address.altloc != '\0') {
+        return std::nullopt;
+    }
+
+    for (const auto* residue : candidates) {
+        if (!address.res_id.name.empty() && residue->name != address.res_id.name) {
+            continue;
+        }
+        for (const auto& atom : residue->atoms) {
+            if (atom.name == address.atom_name &&
+                (address.altloc == '\0' || atom.altloc == address.altloc)) {
+                return selected.atom_index(std::addressof(atom));
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 // Connection bond orders by _struct_conn.id; a connection without one is a single bond.
@@ -283,39 +344,6 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
 }
 
 } // namespace
-
-auto partner_atom(const ResidueIndex& residues, const ::gemmi::AtomAddress& address)
-    -> const ::gemmi::Atom* {
-    const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
-    // As Model::find_cra(address, true): the first residue with the given name decides.
-    for (const auto* residue : candidates) {
-        if (residue->name != address.res_id.name) {
-            continue;
-        }
-        if (!address.atom_name.empty()) {
-            if (const auto* atom = residue->find_atom(address.atom_name, address.altloc)) {
-                return atom;
-            }
-        }
-        break;
-    }
-    if (!address.res_id.name.empty() && address.altloc != '\0') {
-        return nullptr;
-    }
-
-    for (const auto* residue : candidates) {
-        if (!address.res_id.name.empty() && residue->name != address.res_id.name) {
-            continue;
-        }
-        for (const auto& atom : residue->atoms) {
-            if (atom.name == address.atom_name &&
-                (address.altloc == '\0' || atom.altloc == address.altloc)) {
-                return std::addressof(atom);
-            }
-        }
-    }
-    return nullptr;
-}
 
 auto explicit_pdb(const ::gemmi::Structure& structure, const selection::SelectedModel& model)
     -> ExplicitBonds {

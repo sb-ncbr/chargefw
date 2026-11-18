@@ -294,8 +294,9 @@ Details that matter:
 - With `_chem_comp` kept in an mmCIF from the PDB, Mol* additionally shows modified residues as
   ball-and-stick (120 MSE atoms in 1EK9). ChargeFW2 removes the category, so this is a choice.
 - For a PDB upload, calculate from the PDB file and write the viewer file with
-  `chargefw.io.annotate`, which converts the structure and keeps the `CONECT` bonds; then remove
-  the first model's atom rows without a charge as for mmCIF.
+  `chargefw.io.annotate`, which converts the structure as Gemmi does; then remove `_chem_comp` and
+  the first model's atom rows without a charge as for mmCIF. The file is for the viewer and the
+  download, not for another calculation: it has no `CONECT` bonds.
 - `viewer.ts` checks whether the total nonzero charge-row count is divisible by the displayed model's
   atom count. That catches some missing rows but not a charge on the wrong atom. In ACC's viewer
   tests, compare IDs **per charge set**: each displayed site has exactly one charge, including with
@@ -370,42 +371,27 @@ integers are an error, never renumbered. A record belongs to the block with coor
 `record_index`; blocks without a record are written unchanged.
 
 **PDB, through the same interface.** The record keeps the PDB text. On output it is read again
-with Gemmi, `setup_entities` and `assign_label_seq_id` run, `conect_map` becomes covalent
-`Connection` objects, and `make_mmcif_document` writes the whole structure: `_struct_conn` rows for
-each instance, next to `LINK` and `SSBOND`, with secondary structure and assemblies.
+with Gemmi, `setup_entities` and `assign_label_seq_id` run, and `make_mmcif_document` writes the
+whole structure as Gemmi converts it, with secondary structure, assemblies, and `LINK` and `SSBOND`
+connections. This is the conversion ChargeFW2 did, without removing `_chem_comp`.
 
 - Gemmi numbers the output sites in its traversal order, which is not always line order: it joins
   the parts of a residue that are apart in one chain run. The calculated atoms are found in the
   structure read again by the labels the PDB reader matched them by, and checked by element and
-  coordinates.
-- `_struct_conn` is written by ChargeFW, not by Gemmi's `write_struct_conn`, which finds partners
-  and nearest images anew: it can name another atom than the reader used (atoms that differ only
-  in the segment, or a `LINK` without alternate locations) and turn a `LINK` to a symmetry copy
-  into a local one. Partners are the atoms the PDB reader resolves; the symmetry is that of the
-  file relative to the first partner (`reported_sym`), and the reported distance is kept.
-- Each `CONECT` pair is normalized and written once; a pair that a local `LINK` or `SSBOND` states
-  is skipped, a link to a symmetry copy does not replace it.
-- Refused: calculated or connected atoms that differ only in the segment, a `CONECT` to a serial
-  number several atoms have, a link whose second operator cannot be stated relative to the first (`2555` and `3555`; equal
-  operators are local), and a result for more than
-  one PDB record.
-- `_struct_conn.pdbx_value_order` defaults to `sing` in the wwPDB dictionary, so a connection
-  without an order is a stated single bond and the mmCIF reader is right to let it override a
-  template. `CONECT` is connectivity only. For connections between calculated atoms, the order the
-  calculation used is written. The promise is the same settings, the same charges, not that one
-  converted file reproduces every other bond policy.
-- Gemmi's `_chem_comp` (only `id` and type `.`; it makes Mol* show spacefill) is omitted unless
-  the structure has shortened CCD codes, which that category carries in `three_letter_code`.
+  coordinates. This mapping is what ChargeFW adds to Gemmi's conversion.
+- The file shows the result; it is not an input that gives the result again. A PDB file does not
+  have the information for a reliable mmCIF, and ChargeFW does not try to supply it. A version that
+  wrote `CONECT` bonds, bond orders, and the reader's connection partners to `_struct_conn`, so that
+  the file read back to the same molecule, was written and withdrawn on 2026-11-18: it needed its
+  own `_struct_conn` writer and refusals for segments, repeated serial numbers, and symmetry
+  operators.
+- Gemmi's `_chem_comp` (only `id` and type `.`) is written. It makes Mol* show spacefill, so ACC
+  removes it, as ChargeFW2 did.
 
-Qualified on 2026-11-18 with `tests/fixtures/synthetic/pdb/annotation.pdb` (two alanines, two
-ligands of one name with `CONECT` on only one and in one direction, a `CONECT` on a template
-carbonyl, water): for the selections `all` and `polymers` and the strategies `hybrid`, `explicit`,
-and `templates`, the annotated file reads back with the same atoms, coordinates, and bonds with
-orders; MGC charges agree to 1e-12 e. Separate cases cover a link to a symmetry copy with and
-without a local `CONECT`, a `LINK` without alternate locations, and the refusals. On PDB files written by Gemmi from 8YAX and 1EK9, the
-annotated files have the source's 6 and 1 assembly operators and 102 and 34 helices; annotation
-took 0.06 s and 0.02 s, the second with 8,735 `CONECT` pairs. Mol* rendering of these files was not
-checked again.
+Checked on 2026-11-18 with `tests/fixtures/synthetic/pdb/annotation.pdb` (two alanines, two
+ligands, water) for the selections `all` and `polymers`, and with a residue in two parts and atoms
+that differ only in the segment: every charge row names the site of its calculated atom. Mol*
+rendering of the converted files was not checked again.
 
 **Done:** `MmcifWriter::annotate`, `chargefw.io.annotate`, and `--annotate-mmcif` with
 `--if-exists` (`error`, `replace`, `append`), for mmCIF and PDB input; `attach_charges` appends

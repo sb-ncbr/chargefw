@@ -15,10 +15,10 @@ struct ConvertedPdb {
     std::vector<std::vector<std::string>> atom_site_ids;
 };
 
-// Converts the PDB text a record was read from to mmCIF with Gemmi: the whole structure, with its
-// entities, secondary structure, assemblies, and LINK and SSBOND connections. CONECT bonds become
-// covalent connections, and a connection between calculated atoms states the bond order that the
-// record has, so that reading the document with the record's options gives the record again.
+// Converts the PDB text a record was read from to mmCIF as Gemmi does: the whole structure, with
+// its entities, secondary structure, assemblies, and LINK and SSBOND connections. The document
+// shows what was calculated; it does not state the CONECT bonds or the bond orders of the record,
+// so reading it does not give the record again.
 [[nodiscard]] auto convert(const std::string& text, const ImportedMoleculeRecord& record)
     -> ConvertedPdb;
 
