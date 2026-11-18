@@ -225,7 +225,8 @@ END
     REQUIRE(first.has_value());
     CHECK(first->identity.source_name == "water.pdb");
     CHECK(first->identity.record_index == 0);
-    CHECK_FALSE(first->identity.record_id.empty());
+    // Without a HEADER record, the molecule is named by the file.
+    CHECK(first->identity.record_id.display_string() == "water");
     CHECK(first->molecule.atom_count() == 2);
     CHECK(first->molecule.bond_count() == 0);
     CHECK(first->molecule.atom(0).atomic_number() == 8);
@@ -408,6 +409,61 @@ END
     CHECK(record->import_metadata->atoms[1].id == "2");
     REQUIRE(record->import_metadata->atoms[0].structural_labels != nullptr);
     CHECK(record->import_metadata->atoms[0].structural_labels->alternate_location == "B");
+}
+
+TEST_CASE("PDB input is named by the ID code of its HEADER record", "[io][pdb]") {
+    std::istringstream input{
+        R"pdb(HEADER    HYDROLASE                               01-JAN-00   1ABC
+HETATM    1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O
+END
+)pdb"};
+    auto reader = io::PdbReader{input, "0123abcd_upload.pdb"};
+    const auto record = reader.next();
+    REQUIRE(record.has_value());
+    CHECK(record->identity.record_id.display_string() == "1ABC");
+    CHECK(record->identity.source_name == "0123abcd_upload.pdb");
+}
+
+TEST_CASE("PDB input reads one residue of alternative residues at a position", "[io][pdb]") {
+    // SER and PRO are alternatives at A 2 with coincident backbone atoms; GLY at 2A is a neighbor.
+    const auto record = read_first(
+        R"pdb(ATOM      1  N  ASER A   2       0.000   0.000   0.000  0.40 20.00           N
+ATOM      2  CA ASER A   2       1.458   0.000   0.000  0.40 20.00           C
+ATOM      3  CB ASER A   2       1.990   1.430   0.000  0.40 20.00           C
+ATOM      4  N  CPRO A   2       0.000   0.000   0.000  0.60 20.00           N
+ATOM      5  CA CPRO A   2       1.458   0.000   0.000  0.60 20.00           C
+ATOM      6  CD CPRO A   2      -0.700   1.300   0.000  0.60 20.00           C
+ATOM      7  N   GLY A   2A      3.000   0.000   0.000  1.00 20.00           N
+END
+)pdb",
+        {.bonds = io::BondStrategy::templates});
+
+    REQUIRE(record.import_metadata.has_value());
+    const auto& metadata = *record.import_metadata;
+    CHECK(metadata.components ==
+          std::vector<io::SourceComponentInstance>{{"SER", {0, 1, 2}}, {"GLY", {3}}});
+    const auto ids = metadata.atoms |
+                     std::views::transform([](const auto& atom) { return atom.id.value_or(""); }) |
+                     std::ranges::to<std::vector<std::string>>();
+    CHECK(ids == std::vector<std::string>{"1", "2", "3", "7"});
+    CHECK(metadata.atoms[0].structural_labels->alternate_location == "A");
+    // N-CA and CA-CB of SER; the N-CD bond of PRO is omitted with its atoms.
+    CHECK(record.molecule.bond_count() == 2);
+
+    // Residues that repeat a number in another segment or without alternate locations are all
+    // there; the second ligand has its atom at two locations.
+    const auto repeated = read_first(
+        R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00      SEG1 C
+HETATM    2  C1 ALIG A   1       5.000   0.000   0.000  0.50 20.00      SEG2 C
+HETATM    3  C1 BLIG A   1       5.100   0.000   0.000  0.50 20.00      SEG2 C
+HETATM    4  O   HOH A   1      10.000   0.000   0.000  1.00 20.00      SEG2 O
+END
+)pdb");
+    const auto repeated_ids =
+        repeated.import_metadata->atoms |
+        std::views::transform([](const auto& atom) { return atom.id.value_or(""); }) |
+        std::ranges::to<std::vector<std::string>>();
+    CHECK(repeated_ids == std::vector<std::string>{"1", "2", "4"});
 }
 
 TEST_CASE("PDB input reports residue atoms without bonds", "[io][pdb]") {

@@ -14,6 +14,7 @@ import pytest
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 AROMATIC_MOL2 = Path(__file__).parents[1] / "fixtures" / "synthetic" / "mol2" / "aromatic.mol2"
 FIXED_IONS_MMCIF = Path(__file__).parents[1] / "fixtures" / "synthetic" / "cif" / "fixed_ions.cif"
+ANNOTATION_PDB = Path(__file__).parents[1] / "fixtures" / "synthetic" / "pdb" / "annotation.pdb"
 CHARGES_DICTIONARY = (
     Path(__file__).parents[1] / "fixtures" / "dictionaries" / "mmcif_charges_v11.dic"
 )
@@ -180,6 +181,76 @@ def test_write_uses_explicit_format(tmp_path: Path) -> None:
     path = tmp_path / "charges.data"
     chargefw.io.write(path, result, format="mol2")
     assert "@<TRIPOS>MOLECULE" in path.read_text(encoding="utf-8")
+
+
+def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
+    tmp_path: Path,
+) -> None:
+    source = gemmi.cif.read(str(FIXED_IONS_MMCIF))
+    molecules = chargefw.io.read(FIXED_IONS_MMCIF, format="mmcif", selection="polymers-and-ligands")
+    mapping = molecules[0].source_mapping
+    assert mapping is not None
+    selected_ids = [reference.id for reference in mapping.atoms]
+    result = chargefw.calculate(molecules, method="formal")
+    del molecules
+    collect()
+
+    path = tmp_path / "annotated.cif"
+    chargefw.io.annotate(path, result)
+
+    annotated = gemmi.cif.read(str(path))
+    assert len(annotated) == len(source)
+    all_ids = list(source[0].find_values("_atom_site.id"))
+    assert list(annotated[0].find_values("_atom_site.id")) == all_ids
+    charged_ids = [
+        gemmi.cif.as_string(value)
+        for value in annotated[0].find_values("_sb_ncbr_partial_atomic_charges.atom_id")
+    ]
+    assert charged_ids == selected_ids
+    assert 0 < len(charged_ids) < len(all_ids)
+
+    again = chargefw.calculate(
+        chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="formal"
+    )
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(tmp_path / "rejected.cif", again)
+    chargefw.io.annotate(tmp_path / "replaced.cif", again, if_exists="replace")
+    other = chargefw.calculate(
+        chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="dummy"
+    )
+    chargefw.io.annotate(tmp_path / "appended.cif", other, if_exists="append")
+    appended = gemmi.cif.read(str(tmp_path / "appended.cif"))[0]
+    assert [
+        gemmi.cif.as_string(value)
+        for value in appended.find_values("_sb_ncbr_partial_atomic_charges_meta.method")
+    ] == ["formal", "dummy"]
+
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(
+            tmp_path / "rejected.cif", chargefw.calculate(water(), method="formal")
+        )
+    assert not (tmp_path / "rejected.cif").exists()
+
+
+def test_annotate_writes_a_pdb_input_as_mmcif_with_charges_for_the_selection(
+    tmp_path: Path,
+) -> None:
+    polymers = chargefw.calculate(
+        chargefw.io.read(ANNOTATION_PDB, format="pdb", selection="polymers"), method="formal"
+    )
+    path = tmp_path / "annotated.cif"
+    chargefw.io.annotate(path, polymers)
+    block = gemmi.cif.read(str(path)).sole_block()
+    assert len(block.find_values("_sb_ncbr_partial_atomic_charges.atom_id")) == 11
+    assert len(block.find_values("_atom_site.id")) == 16
+
+    # One PDB input is one molecule; a result for it twice has no place in the file.
+    molecule = chargefw.io.read(ANNOTATION_PDB, format="pdb")[0]
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(
+            tmp_path / "twice.cif", chargefw.calculate([molecule, molecule], method="formal")
+        )
+    assert not (tmp_path / "twice.cif").exists()
 
 
 @pytest.mark.parametrize(("selection", "expected_count"), [("all", 2), ("first", 1)])

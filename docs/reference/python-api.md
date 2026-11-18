@@ -21,6 +21,7 @@ attributes as keyword arguments.
 | `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a string |
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
 | `chargefw.io.dumps(result, *, format)` | The same output as a string |
+| `chargefw.io.annotate(path, result, *, if_exists="error")` | Writes the PDB or mmCIF input of a result, as mmCIF, with its charges added; also a list of results |
 | `chargefw.io.rdkit.from_mol(molecule, *, source_name="", bond_conversion="none")` | `Molecule` converted from an RDKit molecule |
 | `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer_index=None, property_name="ChargeFWPartialCharge", if_exists="error")` | Stores charges as RDKit atom properties |
 | `chargefw.io.gemmi.from_document(document, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi mmCIF document |

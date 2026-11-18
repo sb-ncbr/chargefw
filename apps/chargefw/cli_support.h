@@ -50,6 +50,8 @@ struct OutputArguments {
     bool mol2 = false;
     bool mmcif = false;
     bool pqr = false;
+    bool annotate_mmcif = false;
+    std::string if_exists = "error";
 };
 
 struct CalculationRun {
@@ -75,6 +77,9 @@ void print_methods(const std::string& method_id);
 void print_parameter_sets(const std::string& parameter_set_id, const std::string& method_id,
                           bool keys);
 
+// Refuses, before the calculation, records that --annotate-mmcif cannot write.
+void validate_annotation(std::span<const io::ImportedMoleculeRecord> records,
+                         const OutputArguments& arguments);
 [[nodiscard]] auto write_calculation_outputs(const std::string& output_directory,
                                              const std::string& input_path,
                                              const io::ChargeCalculationResult& owned_result,

@@ -2,18 +2,23 @@
 
 #include "bonds.h"
 #include "io/text_encoding.h"
+#include "pdb_conversion.h"
 #include "selection.h"
 #include "structure_import.h"
 
 #include <chargefw/core/bond.h>
 
+#include <gemmi/align.hpp>
 #include <gemmi/pdb.hpp>
 #include <gemmi/polyheur.hpp>
+#include <gemmi/to_mmcif.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
 #include <cstdlib>
+#include <format>
 #include <istream>
 #include <iterator>
 #include <map>
@@ -237,7 +242,11 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
         throw std::runtime_error{"structural input contains no models"};
     }
     ::gemmi::add_entity_types(structure, false);
-    const auto name = structure.name.empty() ? source_name : structure.name;
+    // The ID code of the HEADER record, such as 1CBN; otherwise the file name without .pdb.
+    const auto entry_id = structure.info.find("_entry.id");
+    const auto name = entry_id != structure.info.end() ? entry_id->second
+                      : structure.name.empty()         ? source_name
+                                                       : structure.name;
     auto selected_models =
         gemmi::selection::select_models(structure, options.selection, options.conformers);
     const auto retained_models =
@@ -257,6 +266,8 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
             .source_name = std::move(source_name), .record_index = 0, .record_id = name},
         options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
         MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity);
+    record_->import_metadata->source_text =
+        std::make_shared<const std::string>(std::move(contents));
     if (explicit_bonds.skipped_symmetry_connections > 0) {
         record_->import_warnings.push_back(
             gemmi::bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
@@ -265,6 +276,105 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
 
 auto PdbReader::next() -> std::optional<ImportedMoleculeRecord> {
     return std::exchange(record_, std::nullopt);
+}
+
+namespace {
+
+// The _atom_site.id of each calculated atom of one model of the structure read again. Gemmi
+// writes the sites in the order of its chains, residues, and atoms, which is not always the order
+// of the lines, and numbers them from 1 through all models: next_id is that of the model's first
+// site and is advanced past its last. Each atom is found by the labels the reader matched it by
+// and checked by its element and coordinates.
+[[nodiscard]] auto calculated_site_ids(const ::gemmi::Model& model, std::size_t& next_id,
+                                       const SourceConformerReference& conformer,
+                                       const core::Molecule& molecule,
+                                       const std::size_t conformer_index)
+    -> std::vector<std::string> {
+    struct Site {
+        const ::gemmi::Atom* atom = nullptr;
+        std::size_t id = 0;
+        bool repeated = false;
+    };
+    auto by_labels = std::map<SourceStructuralLabels, Site, StructuralLabelsLess>{};
+    for (const auto& chain : model.chains) {
+        for (const auto& residue : chain.residues) {
+            for (const auto& atom : residue.atoms) {
+                const auto [site, added] =
+                    by_labels.try_emplace(selected_labels({.chain = std::addressof(chain),
+                                                           .residue = std::addressof(residue),
+                                                           .atom = std::addressof(atom)}),
+                                          Site{.atom = std::addressof(atom), .id = next_id});
+                site->second.repeated = site->second.repeated || !added;
+                ++next_id;
+            }
+        }
+    }
+    auto result = std::vector<std::string>{};
+    result.reserve(conformer.sites.size());
+    for (std::size_t index = 0; index < conformer.sites.size(); ++index) {
+        const auto& labels = conformer.sites[index].structural_labels;
+        if (labels == nullptr) {
+            throw std::invalid_argument{"PDB annotation requires the labels of the PDB input"};
+        }
+        auto identity = *labels;
+        identity.author.sequence = normalized_sequence(labels->author.sequence);
+        const auto found = by_labels.find(identity);
+        if (found == by_labels.end()) {
+            throw std::invalid_argument{"PDB source does not match the calculation input"};
+        }
+        const auto& site = found->second;
+        if (site.repeated) {
+            throw std::invalid_argument{std::format(
+                "PDB annotation cannot tell atom {} of residue {} {} {} from another atom with "
+                "the same labels",
+                site.atom->name, identity.author.residue.value_or(""),
+                identity.author.chain.value_or(""), identity.author.sequence.value_or(""))};
+        }
+        const auto& position = molecule.conformer(conformer_index)[index];
+        if (site.atom->element.atomic_number() != molecule.atom(index).atomic_number() ||
+            site.atom->pos.x != position.x || site.atom->pos.y != position.y ||
+            site.atom->pos.z != position.z) {
+            throw std::invalid_argument{"PDB source does not match the calculation input"};
+        }
+        result.push_back(std::to_string(site.id));
+    }
+    return result;
+}
+
+} // namespace
+
+auto gemmi::pdb_conversion::convert(const std::string& text, const ImportedMoleculeRecord& record)
+    -> ConvertedPdb {
+    if (!record.import_metadata.has_value() ||
+        record.import_metadata->format != MolecularSourceFormat::pdb) {
+        throw std::invalid_argument{"PDB annotation requires a molecule read from PDB"};
+    }
+    const auto& metadata = *record.import_metadata;
+    auto structure = ::gemmi::read_pdb_string(text, record.identity.source_name);
+    if (structure.models.size() < metadata.conformers.size()) {
+        throw std::invalid_argument{"PDB source does not match the calculation input"};
+    }
+    ::gemmi::setup_entities(structure);
+    ::gemmi::assign_label_seq_id(structure, false);
+    // The block is named as the molecule, so that reading the file gives the same record ID.
+    structure.name = record.identity.record_id.display_string();
+    if (structure.name.empty()) {
+        structure.name = "structure";
+    }
+
+    auto result = ConvertedPdb{};
+    auto next_id = std::size_t{1};
+    for (std::size_t index = 0; index < metadata.conformers.size(); ++index) {
+        result.atom_site_ids.push_back(calculated_site_ids(
+            structure.models[index], next_id, metadata.conformers[index], record.molecule, index));
+    }
+    result.document = ::gemmi::make_mmcif_document(structure);
+    for (auto& character : result.document.blocks.front().name) {
+        if (std::isgraph(static_cast<unsigned char>(character)) == 0) {
+            character = '_';
+        }
+    }
+    return result;
 }
 
 } // namespace chargefw::io

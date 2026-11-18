@@ -32,6 +32,7 @@ target_sources(chargefw_objects
         gemmi/component_templates.h
         gemmi/component_templates.inc
         gemmi/mmcif_attachment.h
+        gemmi/pdb_conversion.h
         gemmi/mmcif_input.cpp
         gemmi/mmcif_labels.h
         gemmi/mmcif_output.cpp

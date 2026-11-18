@@ -185,7 +185,7 @@ int main() {
 | `chargefw/io/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
 | `chargefw/io/mol2_output.h` | `Mol2Writer` |
 | `chargefw/io/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
-| `chargefw/io/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets |
+| `chargefw/io/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets, or with `annotate()` the PDB or mmCIF input with the charges added |
 | `chargefw/io/json_output.h` | `JsonWriter`, for result JSON; execution metrics are optional |
 
 `MmcifWriter` also writes several charge sets for the same records into one file. Pass pointers to

@@ -1,8 +1,10 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/io/mmcif_input.h>
+#include <chargefw/io/molecule_record.h>
 #include <snitch/snitch.hpp>
 
+#include <ranges>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -10,6 +12,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace io = chargefw::io;
 namespace {
@@ -219,6 +222,45 @@ ALA N CA SING
     const auto alternate_record = alternate_reader.next();
     REQUIRE(alternate_record.has_value());
     CHECK(alternate_record->molecule.atom_count() == 1);
+}
+
+TEST_CASE("mmCIF input reads one residue of alternative residues at a position", "[io][mmcif]") {
+    // SER and PRO are alternatives at A 2 with coincident backbone atoms; GLY at 2A is a neighbor.
+    std::istringstream input{atom_site_header("alternatives") + R"cif(
+ATOM 1 N N A SER A 2 ? 0.000 0.000 0.000 0.4 20.0 0 2 SER A N 1
+ATOM 2 C CA A SER A 2 ? 1.458 0.000 0.000 0.4 20.0 0 2 SER A CA 1
+ATOM 3 C CB A SER A 2 ? 1.990 1.430 0.000 0.4 20.0 0 2 SER A CB 1
+ATOM 4 N N C PRO A 2 ? 0.000 0.000 0.000 0.6 20.0 0 2 PRO A N 1
+ATOM 5 C CA C PRO A 2 ? 1.458 0.000 0.000 0.6 20.0 0 2 PRO A CA 1
+ATOM 6 C CD C PRO A 2 ? -0.700 1.300 0.000 0.6 20.0 0 2 PRO A CD 1
+ATOM 7 N N . GLY A 3 A 3.000 0.000 0.000 1.0 20.0 0 2 GLY A N 1
+#
+)cif"};
+
+    auto reader = io::MmcifReader{input, {}, {.bonds = io::BondStrategy::templates}};
+    const auto record = reader.next();
+    REQUIRE(record.has_value());
+    REQUIRE(record->import_metadata.has_value());
+    const auto& metadata = *record->import_metadata;
+    CHECK(metadata.components ==
+          std::vector<io::SourceComponentInstance>{{"SER", {0, 1, 2}}, {"GLY", {3}}});
+    const auto ids = metadata.atoms |
+                     std::views::transform([](const auto& atom) { return atom.id.value_or(""); }) |
+                     std::ranges::to<std::vector<std::string>>();
+    CHECK(ids == std::vector<std::string>{"1", "2", "3", "7"});
+    // N-CA and CA-CB of SER; the N-CD bond of PRO is omitted with its atoms.
+    CHECK(record->molecule.bond_count() == 2);
+
+    // Residues without sequence numbers are not alternatives of each other.
+    std::istringstream unnumbered{atom_site_header("unnumbered") + R"cif(
+HETATM 1 C C1 . LIG B . ? 0.0 0.0 0.0 1.0 20.0 0 . LIG A C1 1
+HETATM 2 NA NA . NA C . ? 5.0 0.0 0.0 1.0 20.0 0 . NA A NA 1
+#
+)cif"};
+    auto unnumbered_reader = io::MmcifReader{unnumbered};
+    const auto unnumbered_record = unnumbered_reader.next();
+    REQUIRE(unnumbered_record.has_value());
+    CHECK(unnumbered_record->molecule.atom_count() == 2);
 }
 
 TEST_CASE("mmCIF input preserves records, models, selection, and bond strategy", "[io][mmcif]") {

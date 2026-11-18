@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Input
+
+- PDB and mmCIF input reads one residue where the file has alternative residues at one position,
+  such as SER with alternate locations A and B and PRO with C at the same residue number: the first
+  one in the file. ChargeFW read all of them before, and methods that use coordinates were rejected
+  because their backbone atoms coincide.
+- A molecule read from PDB is named by the ID code of the `HEADER` record, such as `1CBN`, as an
+  mmCIF molecule is named by its data block. A file without an ID code is still named by the file
+  name.
+
+### Output
+
+- ChargeFW can write the PDB or mmCIF structure it read with the charges added:
+  `--annotate-mmcif` on the command line, `chargefw.io.annotate()` in Python, and
+  `MmcifWriter::annotate` in C++. The file has the whole structure, such as water, ligands, and
+  biological assemblies, and only the atoms that were calculated get charges. An mmCIF input keeps
+  its categories and `_atom_site.id` values; a PDB input is converted to mmCIF with Gemmi, for
+  viewing the charges and not as input for another calculation. Charges that an mmCIF input already
+  has are an error by default; `--if-exists` or `if_exists` set to `replace` or `append` replaces
+  them or adds the new charge sets after them. `chargefw.io.gemmi.attach_charges()` accepts
+  `if_exists="append"` too. [Charges added to the input
+  structure](https://chargefw.readthedocs.io/en/latest/reference/formats.html#charges-added-to-the-input-structure)
+  describes the file.
+- MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
+  digits that read back as the same value, which could have an exponent, such as `8e-04`.
+
 ## 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor

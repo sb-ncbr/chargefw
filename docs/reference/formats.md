@@ -155,13 +155,14 @@ instead of giving a molecule without bonds.
 
 ## PDB and mmCIF input
 
-ChargeFW reads PDB and mmCIF files with Gemmi. A PDB file is one molecule. In mmCIF, every data
-block with atom coordinates (`_atom_site`) is one molecule, whose ID is the block name; blocks
-without coordinates are skipped. Every mmCIF atom-site row needs a unique ID, which can be any
-string or integer; IDs such as `Csite`, `001`, or integers with more than 64 bits are kept exactly
-as written. ChargeFW does not change the file. Partial charges in it, such as those of an earlier
-ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges`, are not used, and the record gets
-a `partial_charges_ignored` warning.
+ChargeFW reads PDB and mmCIF files with Gemmi. A PDB file is one molecule, whose ID is the ID code
+of the `HEADER` record, such as `1CBN`, or the file name without `.pdb` when the file has no ID
+code. In mmCIF, every data block with atom coordinates (`_atom_site`) is one molecule, whose ID is
+the block name; blocks without coordinates are skipped. Every mmCIF atom-site row needs a unique ID,
+which can be any string or integer; IDs such as `Csite`, `001`, or integers with more than 64 bits
+are kept exactly as written. ChargeFW does not change the file. Partial charges in it, such as those of an earlier
+ChargeFW or ACC calculation in `_sb_ncbr_partial_atomic_charges` and its `_meta` category, are not
+used, and the record gets a `partial_charges_ignored` warning.
 
 The first model gives the atoms of the molecule, in the order of the rows in the file, with their
 elements, formal charges, and names. Every further model must contain the same atoms: the same
@@ -192,8 +193,12 @@ models are then read for these atoms only.
   chain as a polymer, such as a ligand, can then count as part of it; residues Gemmi cannot assign
   are left out.
 
-For each atom name in a residue, only one alternate location is read: the first one in the file. Its
-alternate-location code is kept and written to the output.
+Where a file has alternative residues at one position, such as SER with alternate locations A and B
+followed by PRO with C, only the first is read. Residues are alternatives when they are consecutive
+in a chain, share a residue number and insertion code, and all atoms of the later ones have an
+alternate location. Residues in different PDB segments or mmCIF label chains are never
+alternatives. For each atom name in a residue, only one alternate location is read: the first one in
+the file. Its alternate-location code is kept and written to the output.
 
 ### Connectivity
 
@@ -267,12 +272,12 @@ or without a hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bo
 Result JSON, MOL2, PQR, and mmCIF output, including charges attached to a Gemmi document, name
 ChargeFW and the library version as the program that wrote them.
 
-Result JSON keeps charges at full precision, as do the Python and C++ results. MOL2 and mmCIF files
-write each coordinate with the fewest digits that read back as exactly the same value, and charges
-rounded to four decimal places, so the charges in such a file can differ from the molecule's total
-charge by up to 0.00005 per atom; use result JSON when you need exact values. ChargeFW writes a file
-only when the charges belong to the molecules being written, in the same order; it never reorders
-them.
+Result JSON keeps charges at full precision, as do the Python and C++ results. mmCIF files write
+each coordinate with the fewest digits that read back as exactly the same value, and MOL2 files with
+four decimal places. Both round charges to four decimal places, so the charges in such a file can
+differ from the molecule's total charge by up to 0.00005 per atom; use result JSON when you need
+exact values. ChargeFW writes a file only when the charges belong to the molecules being written, in
+the same order; it never reorders them.
 
 ### MOL2
 
@@ -367,8 +372,41 @@ A bond between residues is also refused when a partner residue has neither an au
 residue number, or when a partner atom has different author and label atom or residue names; mmCIF
 readers such as Gemmi would not find that atom. Nothing is written when ChargeFW refuses a record.
 
-In Python, [`attach_charges()`](../interfaces/python.md#gemmi) instead adds the charges to the original
-mmCIF document that was read, after checking that it still matches.
+### Charges added to the input structure
+
+For molecules read from PDB or mmCIF, ChargeFW can instead write the input structure with the
+charges added: `--annotate-mmcif` on the command line, or
+[`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. Only the atoms that
+were calculated get charge rows. With `selection="polymers"` and `conformers="first"`, for example,
+water, ligands, and later models stay in the file without charges.
+
+For mmCIF input, the output has every data block, category, and atom site of the input, with their
+values and `_atom_site.id` unchanged. Comments and the spacing of the input are not kept. The bond
+categories are those of the input; the bonds ChargeFW added from residue templates are not written.
+
+Reading the output with the same options therefore gives the same molecules, and the same
+calculation gives the same charges. The charges in the file are ignored on input, with a warning.
+
+A PDB input is converted to mmCIF with Gemmi as a whole: all atoms and models, the unit cell and
+symmetry, the sequence, helices and sheets, biological assemblies, and `LINK` and `SSBOND`
+connections. Atom sites are numbered anew in `_atom_site.id`, and keep their PDB chain, residue
+number, insertion code, and names. Remarks, `CONECT` records, and segment names are not kept.
+
+Use the converted file to view or pass on the charges, and keep the PDB file for calculations. The
+converted file has no `CONECT` bonds, so reading it can give a ligand without bonds and other
+charges than the PDB file gives.
+
+Calculate all results of one file from the same input. ChargeFW refuses an mmCIF block that already
+has partial charges unless you ask it to replace them or to append to them. Appending keeps the charge
+sets of the input and gives the new sets the next IDs. It needs charges that follow dictionary 1.1,
+not those of older ChargeFW or ACC files, and refuses a set whose method and parameter set the input
+already has. The sets are those of the input you read, not of a file at the output path: to add to a
+file you wrote, read that file. The `_atom_site.id` of every atom that gets a charge must be a
+positive integer without leading zeros, which the charges dictionary requires; the IDs of the other
+atoms can be any text.
+
+[`attach_charges()`](../interfaces/python.md#gemmi) adds the charges to a Gemmi document that you
+hold, after checking that it still matches what was read.
 
 ### PQR
 

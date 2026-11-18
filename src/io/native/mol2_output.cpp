@@ -116,7 +116,7 @@ auto write_record(std::ostream& output, const ImportedMoleculeRecord& record,
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
         const auto& atom = molecule.atom(atom_index);
         const auto& position = conformer[atom_index];
-        std::println(output, "{} {} {} {} {} {} 1 UNL {:.4f}", atom_index + 1,
+        std::println(output, "{} {} {:.4f} {:.4f} {:.4f} {} 1 UNL {:.4f}", atom_index + 1,
                      atom_name(atom, atom_index), position.x, position.y, position.z,
                      atom_types[atom_index], assignment.charges[atom_index]);
     }

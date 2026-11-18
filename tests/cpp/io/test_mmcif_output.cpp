@@ -15,7 +15,9 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <filesystem>
 #include <format>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -442,6 +444,269 @@ TEST_CASE("mmCIF combines results for one structure read twice", "[io][mmcif]") 
     auto rejected_output = std::ostringstream{};
     CHECK_THROWS_AS(io::MmcifWriter{rejected_output}.write(std::array{&qeq, &other}),
                     std::invalid_argument);
+}
+
+TEST_CASE("mmCIF annotation adds charges for the selected sites to the source structure",
+          "[io][mmcif]") {
+    // Gapped site IDs, an alternate location, water, a second model, and a block without atoms.
+    // Only the charged sites need integer IDs; the water of the second model has a text ID.
+    constexpr auto source = std::string_view{R"(data_notes
+_note.text 'kept'
+data_structure
+_cell.length_a 10.0
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.pdbx_PDB_model_num
+HETATM 10 C C1 . LIG A 1 . 0.0 0.0 0.0 1
+HETATM 20 O O1 A LIG A 1 . 1.2 0.0 0.0 1
+HETATM 21 O O1 B LIG A 1 . 0.0 1.2 0.0 1
+HETATM 30 O O  . HOH B 2 . 5.0 5.0 5.0 1
+HETATM 40 C C1 . LIG A 1 . 0.1 0.0 0.0 2
+HETATM 50 O O1 A LIG A 1 . 1.3 0.0 0.0 2
+HETATM 51 O O1 B LIG A 1 . 0.1 1.2 0.0 2
+HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
+)"};
+    const auto read = [](const std::string_view text) {
+        auto input = std::istringstream{std::string{text}};
+        // The reader is gone before the charges are written.
+        auto record = io::MmcifReader{input,
+                                      "input.cif",
+                                      {.selection = io::RecordSelection::polymers_and_ligands,
+                                       .conformers = io::ConformerSelection::first}}
+                          .next();
+        REQUIRE(record.has_value());
+        return std::move(*record);
+    };
+    const auto charge_set = [](std::string method) {
+        return charges::ChargeSet{
+            std::move(method),
+            {{.target = {.molecule_index = 0}, .charges = charges::AtomicCharges{{0.25, -0.25}}}}};
+    };
+    const auto result = calculation_result({read(source)}, charge_set("qeq"));
+    auto output = std::ostringstream{};
+    io::MmcifWriter{output}.annotate(std::array{&result});
+
+    auto document = gemmi::cif::read_string(output.str());
+    REQUIRE(document.blocks.size() == 2);
+    CHECK(*document.blocks[0].find_value("_note.text") == "'kept'");
+    auto& block = document.blocks[1];
+    CHECK(*block.find_value("_cell.length_a") == "10.0");
+    auto site_ids = std::vector<std::string>{};
+    for (const auto row : block.find("_atom_site.", {"id"})) {
+        site_ids.push_back(row.str(0));
+    }
+    CHECK(site_ids == std::vector<std::string>{"10", "20", "21", "30", "40", "50", "51", "waterO"});
+    auto charged = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row :
+         block.find("_sb_ncbr_partial_atomic_charges.", {"type_id", "atom_id", "charge"})) {
+        CHECK(row.str(0) == "1");
+        charged.emplace_back(row.str(1), row.str(2));
+    }
+    CHECK(charged ==
+          std::vector<std::pair<std::string, std::string>>{{"10", "0.2500"}, {"20", "-0.2500"}});
+
+    // The output is input again: the same molecule, so the same settings give the same charges.
+    const auto reread = read(output.str());
+    CHECK(reread.molecule == result.inputs().front().molecule);
+    CHECK(reread.import_metadata == result.inputs().front().import_metadata);
+
+    const auto again = calculation_result({reread}, charge_set("eem"));
+    auto rejected = std::ostringstream{};
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&again}), std::invalid_argument);
+    auto replaced = std::ostringstream{};
+    io::MmcifWriter{replaced}.annotate(std::array{&again}, io::ExistingCharges::replace);
+    auto replaced_document = gemmi::cif::read_string(replaced.str());
+    auto methods =
+        replaced_document.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.", {"method"});
+    REQUIRE(methods.length() == 1);
+    CHECK(methods[0].str(0) == "eem");
+
+    // Appending keeps the set that is there and continues its IDs; the same method is refused.
+    auto appended = std::ostringstream{};
+    io::MmcifWriter{appended}.annotate(std::array{&again}, io::ExistingCharges::append);
+    auto appended_document = gemmi::cif::read_string(appended.str());
+    auto sets = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row : appended_document.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.",
+                                                           {"id", "method"})) {
+        sets.emplace_back(row.str(0), row.str(1));
+    }
+    CHECK(sets == std::vector<std::pair<std::string, std::string>>{{"1", "qeq"}, {"2", "eem"}});
+    auto set_of_row = std::vector<std::string>{};
+    for (const auto row :
+         appended_document.blocks[1].find("_sb_ncbr_partial_atomic_charges.", {"type_id"})) {
+        set_of_row.push_back(row.str(0));
+    }
+    CHECK(set_of_row == std::vector<std::string>{"1", "1", "2", "2"});
+    const auto repeated = calculation_result({reread}, charge_set("qeq"));
+    CHECK_THROWS_AS(
+        io::MmcifWriter{rejected}.annotate(std::array{&repeated}, io::ExistingCharges::append),
+        std::invalid_argument);
+    // Without charges in the source, appending only adds; charges of dictionary 1.0 are refused.
+    auto first = std::ostringstream{};
+    io::MmcifWriter{first}.annotate(std::array{&result}, io::ExistingCharges::append);
+    CHECK(first.str() == output.str());
+    const auto legacy = calculation_result(
+        {read(std::string{source} + "_sb_ncbr_partial_atomic_charges_meta.id 1\n"
+                                    "_sb_ncbr_partial_atomic_charges_meta.type empirical\n"
+                                    "_sb_ncbr_partial_atomic_charges_meta.method 'qeq/set'\n")},
+        charge_set("eem"));
+    CHECK_THROWS_AS(
+        io::MmcifWriter{rejected}.annotate(std::array{&legacy}, io::ExistingCharges::append),
+        std::invalid_argument);
+
+    // Existing sets may lack the optional parameter set and have any text as ID; the new set
+    // follows the largest number among the IDs.
+    const auto with_charges = [&](const std::string_view declaration,
+                                  const std::string_view set_rows, const std::string_view rows) {
+        return std::format("{}{}loop_\n_sb_ncbr_partial_atomic_charges_meta.id\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.type\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.method\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.software_name\n"
+                           "_sb_ncbr_partial_atomic_charges_meta.software_version\n{}"
+                           "loop_\n_sb_ncbr_partial_atomic_charges.type_id\n"
+                           "_sb_ncbr_partial_atomic_charges.atom_id\n"
+                           "_sb_ncbr_partial_atomic_charges.charge\n{}",
+                           source, declaration, set_rows, rows);
+    };
+    const auto append_to = [&](const std::string& text) {
+        const auto added = calculation_result({read(text)}, charge_set("eem"));
+        auto written = std::ostringstream{};
+        io::MmcifWriter{written}.annotate(std::array{&added}, io::ExistingCharges::append);
+        return written.str();
+    };
+    constexpr auto two_sets = std::string_view{"qm_ref empirical qm other 1\n"
+                                               "2147483647 empirical qeq other 1\n"};
+    auto text_ids = gemmi::cif::read_string(
+        append_to(with_charges("", two_sets, "qm_ref 10 0.1\n2147483647 30 0.2\n")));
+    auto id_rows = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row : text_ids.blocks[1].find("_sb_ncbr_partial_atomic_charges_meta.",
+                                                  {"id", "method", "parameter_set"})) {
+        id_rows.emplace_back(row.str(0), row.str(1));
+        CHECK_FALSE(row.has2(2));
+    }
+    CHECK(id_rows == std::vector<std::pair<std::string, std::string>>{
+                         {"qm_ref", "qm"}, {"2147483647", "qeq"}, {"2147483648", "eem"}});
+
+    // Refused: a charge of an unknown site, two charges of one site in a set, and tables declared
+    // to follow another version of the dictionary.
+    constexpr auto v10 = std::string_view{"_audit_conform.dict_name mmcif_charges_v10.dic\n"};
+    for (const auto& text : {with_charges("", two_sets, "qm_ref 99999 0.1\n"),
+                             with_charges("", two_sets, "qm_ref 10 0.1\nqm_ref 10 0.2\n"),
+                             with_charges(v10, two_sets, "qm_ref 10 0.1\n")}) {
+        CHECK_THROWS_AS(append_to(text), std::invalid_argument);
+    }
+
+    // Equal molecules from inputs that differ elsewhere are not one source, in either order.
+    auto other_source = std::string{source};
+    other_source.replace(other_source.find("10.0"), 4, "20.0");
+    const auto other = calculation_result({read(other_source)}, charge_set("eem"));
+    REQUIRE(other.inputs().front() == result.inputs().front());
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&result, &other}),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&other, &result}),
+                    std::invalid_argument);
+    // Separate reads of the same text are.
+    const auto same = calculation_result({read(source)}, charge_set("eem"));
+    auto combined = std::ostringstream{};
+    CHECK_NOTHROW(io::MmcifWriter{combined}.annotate(std::array{&result, &same}));
+
+    // A declaration of another dictionary as single items stays, without a location.
+    auto declared_source = std::string{source};
+    declared_source.insert(declared_source.find("_cell."),
+                           "_audit_conform.dict_name mmcif_pdbx.dic\n"
+                           "_audit_conform.dict_version 5.0\n");
+    const auto declared = calculation_result({read(declared_source)}, charge_set("eem"));
+    auto declared_output = std::ostringstream{};
+    io::MmcifWriter{declared_output}.annotate(std::array{&declared});
+    auto declared_document = gemmi::cif::read_string(declared_output.str());
+    auto declarations = std::vector<std::pair<std::string, std::string>>{};
+    for (const auto row :
+         declared_document.blocks[1].find("_audit_conform.", {"dict_name", "dict_version"})) {
+        declarations.emplace_back(row.str(0), row.str(1));
+    }
+    CHECK(declarations == std::vector<std::pair<std::string, std::string>>{
+                              {"mmcif_pdbx.dic", "5.0"}, {"mmcif_charges_v11.dic", "1.1"}});
+
+    // A molecule that was not read from mmCIF has no structure to annotate.
+    const auto generated = calculation_result({generated_record()}, formal(2));
+    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&generated}),
+                    std::invalid_argument);
+}
+
+TEST_CASE("PDB annotation puts the charges on the calculated atoms of the converted structure",
+          "[io][mmcif][pdb]") {
+    // The block name, the number of atom sites and, in calculation order, the sites of the charge
+    // rows, after checking that each is the site of its calculated atom.
+    struct Annotated {
+        std::string block_name;
+        std::size_t site_count;
+        std::vector<std::string> charged_ids;
+    };
+    const auto annotate = [](const std::string& text, const io::RecordSelection selection) {
+        auto pdb = std::istringstream{text};
+        auto read = io::PdbReader{pdb, "input.pdb", {.selection = selection}}.next();
+        REQUIRE(read.has_value());
+        const auto atom_count = read->molecule.atom_count();
+        const auto result = calculation_result({std::move(*read)}, formal(atom_count));
+        const auto& molecule = result.inputs().front().molecule;
+        auto output = std::ostringstream{};
+        io::MmcifWriter{output}.annotate(std::array{&result});
+
+        auto document = gemmi::cif::read_string(output.str());
+        auto& block = document.sole_block();
+        auto positions = std::map<std::string, core::Position>{};
+        for (const auto row : block.find("_atom_site.", {"id", "Cartn_x", "Cartn_y", "Cartn_z"})) {
+            positions.emplace(row.str(0), core::Position{std::stod(row[1]), std::stod(row[2]),
+                                                         std::stod(row[3])});
+        }
+        auto charges = block.find("_sb_ncbr_partial_atomic_charges.", {"atom_id"});
+        REQUIRE(charges.length() == atom_count);
+        auto charged_ids = std::vector<std::string>{};
+        for (std::size_t atom = 0; atom < atom_count; ++atom) {
+            charged_ids.push_back(charges[static_cast<int>(atom)].str(0));
+            CHECK(positions.at(charged_ids.back()) == molecule.conformer(0)[atom]);
+        }
+        return Annotated{.block_name = block.name,
+                         .site_count = positions.size(),
+                         .charged_ids = std::move(charged_ids)};
+    };
+
+    // Two alanines, two ligands, and water: the whole structure is written, and the selected atoms
+    // get charges.
+    const auto fixture = [] {
+        auto file = std::ifstream{std::filesystem::path{CHARGEFW_TEST_SOURCE_DIR} / "tests" /
+                                  "fixtures" / "synthetic" / "pdb" / "annotation.pdb"};
+        REQUIRE(file.good());
+        return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+    }();
+    const auto polymers = annotate(fixture, io::RecordSelection::polymers);
+    CHECK(polymers.site_count == 16);
+    CHECK(polymers.charged_ids.size() == 11);
+    // The block is named as the molecule, by the HEADER ID code, not by the file.
+    CHECK(polymers.block_name == "1ANN");
+
+    // Gemmi joins the two parts of the first ligand, so its sites are not in the order of the
+    // lines. The atom that differs from another only in the segment is a site with a charge too.
+    const auto reordered = std::string{
+        R"(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00      SEG1 C
+HETATM    2  O   HOH A   2       5.000   0.000   0.000  1.00 20.00      SEG1 O
+HETATM    3  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00      SEG1 O
+HETATM    4  C1  LIG A   1       0.000   5.000   0.000  1.00 20.00      SEG2 C
+END
+)"};
+    CHECK(annotate(reordered, io::RecordSelection::all).charged_ids ==
+          std::vector<std::string>{"1", "3", "2", "4"});
 }
 
 TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique blocks",
