@@ -14,6 +14,11 @@ struct Block;
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
+#include <memory>
+#include <span>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace chargefw::io::gemmi::bonds {
@@ -28,6 +33,44 @@ enum class ExplicitBondOrders : std::uint8_t {
 [[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
                           std::vector<core::Bond> explicit_bonds,
                           ExplicitBondOrders explicit_orders) -> std::vector<core::Bond>;
+
+// Residues of a model by chain name and sequence ID, in model order, so that each connection
+// partner is found without scanning every chain and residue.
+class ResidueIndex {
+  public:
+    explicit ResidueIndex(const ::gemmi::Model& model) {
+        for (const auto& chain : model.chains) {
+            for (const auto& residue : chain.residues) {
+                residues_[key(chain.name, residue.seqid)].push_back(std::addressof(residue));
+            }
+        }
+    }
+
+    [[nodiscard]] auto find(const std::string_view chain_name, const ::gemmi::SeqId& seqid) const
+        -> std::span<const ::gemmi::Residue* const> {
+        const auto found = residues_.find(key(chain_name, seqid));
+        if (found == residues_.end()) {
+            return {};
+        }
+        return found->second;
+    }
+
+  private:
+    using Key = std::tuple<std::string_view, int, char>;
+
+    // gemmi compares insertion codes ignoring case and treats a blank code as no code.
+    [[nodiscard]] static auto key(const std::string_view chain_name, const ::gemmi::SeqId& seqid)
+        -> Key {
+        return {chain_name, seqid.num.value,
+                static_cast<char>(static_cast<unsigned char>(seqid.icode) | 0x20U)};
+    }
+
+    std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;
+};
+
+// The atom that a connection partner names, as the readers resolve it; null when there is none.
+[[nodiscard]] auto partner_atom(const ResidueIndex& residues, const ::gemmi::AtomAddress& address)
+    -> const ::gemmi::Atom*;
 
 // Bonds stated in the file. Connections to atoms of a symmetry-related copy are not bonds of
 // the molecule; they are counted, not added.

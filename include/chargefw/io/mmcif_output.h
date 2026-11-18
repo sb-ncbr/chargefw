@@ -26,10 +26,11 @@ class MmcifWriter {
   public:
     explicit MmcifWriter(std::ostream& output);
 
-    // Writes the mmCIF input the molecules were read from with their charges added. Only the
-    // calculated atom sites get charge rows, which refer to them by _atom_site.id; every other
-    // category, block, and atom site of the input is kept. The results must be for the same
-    // molecules, read from one mmCIF input.
+    // Writes the structure the molecules were read from with their charges added. Only the
+    // calculated atom sites get charge rows, which refer to them by _atom_site.id. An mmCIF input
+    // keeps every category, block, and atom site; a PDB input is converted to mmCIF as a whole,
+    // and `existing` does not apply. The results must be for the same molecules, read from one
+    // PDB or mmCIF input.
     auto annotate(std::span<const ChargeCalculationResult* const> results,
                   ExistingCharges existing = ExistingCharges::error) const -> void;
 

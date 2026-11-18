@@ -370,21 +370,48 @@ A bond between residues is also refused when a partner residue has neither an au
 residue number, or when a partner atom has different author and label atom or residue names; mmCIF
 readers such as Gemmi would not find that atom. Nothing is written when ChargeFW refuses a record.
 
-#### Charges added to the mmCIF input
+#### Charges added to the input structure
 
-For molecules read from mmCIF, ChargeFW can instead write the input structure with the charges
-added: `--annotate-mmcif` on the command line, or
-[`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. The output has
-every data block, category, and atom site of the input, with their values and `_atom_site.id`
-unchanged. Only the atoms that were calculated get charge rows. With `selection="polymers"` and
-`conformers="first"`, for example, water, ligands, and later models stay in the file without charges.
-Comments and the spacing of the input are not kept.
+For molecules read from PDB or mmCIF, ChargeFW can instead write the input structure with the
+charges added: `--annotate-mmcif` on the command line, or
+[`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. Only the atoms that
+were calculated get charge rows. With `selection="polymers"` and `conformers="first"`, for example,
+water, ligands, and later models stay in the file without charges.
 
-The bond categories are those of the input; the bonds ChargeFW added from residue templates are not
-written. Reading the output with the same options therefore gives the same molecules, and the same
-calculation gives the same charges. The charges in the file are ignored on input, with a warning.
+For mmCIF input, the output has every data block, category, and atom site of the input, with their
+values and `_atom_site.id` unchanged. Comments and the spacing of the input are not kept. The bond
+categories are those of the input; the bonds ChargeFW added from residue templates are not written.
 
-Calculate all results of one file from the same input. ChargeFW refuses a block that already has
+A PDB input is converted to mmCIF with Gemmi as a whole: all atoms and models, the unit cell and
+symmetry, the sequence, helices and sheets, biological assemblies, and `LINK` and `SSBOND`
+connections. Atom sites are numbered anew in `_atom_site.id`, and keep their PDB chain, residue
+number, insertion code, and names. Remarks and other records that Gemmi does not convert are not
+kept.
+
+Connections are written to `_struct_conn` between the atoms that ChargeFW read them for. Each
+`CONECT` bond becomes a covalent connection between the two atoms it names, so a ligand without
+`CONECT` records does not get the bonds of another with the same name. `LINK` and `SSBOND`
+connections keep the distance they report and their symmetry, stated relative to the first atom:
+operators `1655` and `1755` are written as `1_555` and `1_655`. A connection to an atom that is not
+in the file is left out. A connection between calculated atoms states the bond order that was
+calculated with, in `pdbx_value_order`.
+
+ChargeFW refuses a PDB input that mmCIF cannot state:
+
+- a calculated or connected atom that has the same chain, residue, atom name, and alternate location
+  as another and differs only in the segment;
+- `CONECT` records that refer to a serial number that several atoms of the first model have;
+- a `LINK` or `SSBOND` for which ChargeFW cannot state the symmetry of the second atom relative to
+  the first, such as operators `2555` and `3555`; equal operators are a connection within the file;
+  or
+- a result for more than one molecule, since a PDB file is one.
+
+Reading the output with the same options gives the same molecules, and the same calculation gives
+the same charges. The charges in the file are ignored on input, with a warning. For converted PDB
+input this holds for the bond strategy that was used; another strategy can give other bond orders
+than it would for the PDB file.
+
+Calculate all results of one file from the same input. ChargeFW refuses an mmCIF block that already has
 partial charges unless you ask it to replace them or to append to them. Appending keeps the charge
 sets of the input and gives the new sets the next IDs. It needs charges that follow dictionary 1.1,
 not those of older ChargeFW or ACC files, and refuses a set whose method and parameter set the input

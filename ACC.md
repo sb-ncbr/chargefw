@@ -293,11 +293,9 @@ Details that matter:
   one. `attach_charges` does that.
 - With `_chem_comp` kept in an mmCIF from the PDB, Mol* additionally shows modified residues as
   ball-and-stick (120 MSE atoms in 1EK9). ChargeFW2 removes the category, so this is a choice.
-- For a PDB upload, calculating from the Gemmi-converted document loses the `CONECT` bonds (1CBN:
-  678 bonds instead of 680), and `attach_charges` refuses a result read from the PDB file. Until
-  ChargeFW handles this (issue 3 below), ACC has to calculate from the PDB file and write the charge
-  rows into the converted document itself. Match selected atoms to the converted sites and verify
-  identity before taking their IDs; the filtered assignment and unfiltered block need not line up.
+- For a PDB upload, calculate from the PDB file and write the viewer file with
+  `chargefw.io.annotate`, which converts the structure and keeps the `CONECT` bonds; then remove
+  the first model's atom rows without a charge as for mmCIF.
 - `viewer.ts` checks whether the total nonzero charge-row count is divisible by the displayed model's
   atom count. That catches some missing rows but not a charge on the wrong atom. In ACC's viewer
   tests, compare IDs **per charge set**: each displayed site has exactly one charge, including with
@@ -307,7 +305,7 @@ Details that matter:
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; 1 and 4 are resolved, 2 is in progress, 3 is not started.
+In the order proposed to the maintainer; all four are resolved.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of
@@ -318,7 +316,7 @@ In the order proposed to the maintainer; 1 and 4 are resolved, 2 is in progress,
    insertion code, the first is read; 1CBN gives 640 atoms, and SQE+qp is the default.
 2. **mmCIF output that keeps an mmCIF input.** Accepted design and state in
    [Annotating the source structure](#annotating-the-source-structure).
-3. **mmCIF output from PDB input.** Same section; not started.
+3. **mmCIF output from PDB input.** Same section.
 4. **MOL2 coordinates** in fixed notation, without exponents. Resolved after rc5: four decimal places.
 
 Decided against: CCD templates for all ligands (large data for a gap that the files from the PDB do
@@ -371,42 +369,47 @@ comments, so the output is not byte-identical. `_atom_site.id` values that are n
 integers are an error, never renumbered. A record belongs to the block with coordinates at its
 `record_index`; blocks without a record are written unchanged.
 
-**PDB, through the same interface, after qualification.** Keep the PDB text; on output read it
-again with Gemmi, run `setup_entities` and `assign_label_seq_id`, turn `conect_map` into covalent
-`Connection` objects, and call `make_mmcif_document`. Gemmi then writes them as `_struct_conn` rows
-for each instance, next to `LINK` and `SSBOND`, with secondary structure and assemblies.
+**PDB, through the same interface.** The record keeps the PDB text. On output it is read again
+with Gemmi, `setup_entities` and `assign_label_seq_id` run, `conect_map` becomes covalent
+`Connection` objects, and `make_mmcif_document` writes the whole structure: `_struct_conn` rows for
+each instance, next to `LINK` and `SSBOND`, with secondary structure and assemblies.
 
 - Gemmi numbers the output sites in its traversal order, which is not always line order: it joins
-  the parts of a residue that are apart in one chain run. The reader records each selected atom's
-  traversal number.
-- Normalize each `CONECT` pair and deduplicate; a record can list a bond in one direction only.
-  Skip a pair that a `LINK` or `SSBOND` connection already states.
+  the parts of a residue that are apart in one chain run. The calculated atoms are found in the
+  structure read again by the labels the PDB reader matched them by, and checked by element and
+  coordinates.
+- `_struct_conn` is written by ChargeFW, not by Gemmi's `write_struct_conn`, which finds partners
+  and nearest images anew: it can name another atom than the reader used (atoms that differ only
+  in the segment, or a `LINK` without alternate locations) and turn a `LINK` to a symmetry copy
+  into a local one. Partners are the atoms the PDB reader resolves; the symmetry is that of the
+  file relative to the first partner (`reported_sym`), and the reported distance is kept.
+- Each `CONECT` pair is normalized and written once; a pair that a local `LINK` or `SSBOND` states
+  is skipped, a link to a symmetry copy does not replace it.
+- Refused: calculated or connected atoms that differ only in the segment, a `CONECT` to a serial
+  number several atoms have, a link whose second operator cannot be stated relative to the first (`2555` and `3555`; equal
+  operators are local), and a result for more than
+  one PDB record.
 - `_struct_conn.pdbx_value_order` defaults to `sing` in the wwPDB dictionary, so a connection
   without an order is a stated single bond and the mmCIF reader is right to let it override a
-  template. `CONECT` is connectivity only. For selected pairs, write the order the calculation
-  used; Gemmi's `write_struct_conn` has no such column, so add it after conversion. The promise is
-  the same settings, the same charges, not that one converted file reproduces every other bond
-  policy.
-- Omit Gemmi's `_chem_comp` (only `id` and type `.`; it makes Mol* show spacefill) unless the
-  structure has shortened CCD codes, which that category carries in `three_letter_code`.
+  template. `CONECT` is connectivity only. For connections between calculated atoms, the order the
+  calculation used is written. The promise is the same settings, the same charges, not that one
+  converted file reproduces every other bond policy.
+- Gemmi's `_chem_comp` (only `id` and type `.`; it makes Mol* show spacefill) is omitted unless
+  the structure has shortened CCD codes, which that category carries in `three_letter_code`.
 
-A prototype of the conversion without bond orders (2026-11-18, rc5, a PDB made from 1EK9 with
-`CONECT` in one MSE and on one alanine C–O) gave the same atoms and coordinates in all nine
-combinations of three selections and the `hybrid`, `explicit`, and `templates` strategies, and the
-same bonds in six; under `hybrid` the alanine C–O was double from the PDB and single from the
-converted file. Charges were not compared.
-
-**Qualification of PDB:** `read → calculate → annotate → read → calculate` with one
-topology-sensitive method, on a fixture with a one-direction `CONECT`, two ligands of the same
-name with `CONECT` on only one, a `CONECT` on a carbonyl that a template covers, and a selection
-that leaves a ligand uncharged. Compare atom identities, elements, formal charges, coordinates,
-bonds with orders, and charges to solver tolerance. Check an assembly separately: graph and charge
-equality would not detect the loss of 8YAX's assembly operators.
+Qualified on 2026-11-18 with `tests/fixtures/synthetic/pdb/annotation.pdb` (two alanines, two
+ligands of one name with `CONECT` on only one and in one direction, a `CONECT` on a template
+carbonyl, water): for the selections `all` and `polymers` and the strategies `hybrid`, `explicit`,
+and `templates`, the annotated file reads back with the same atoms, coordinates, and bonds with
+orders; MGC charges agree to 1e-12 e. Separate cases cover a link to a symmetry copy with and
+without a local `CONECT`, a `LINK` without alternate locations, and the refusals. On PDB files written by Gemmi from 8YAX and 1EK9, the
+annotated files have the source's 6 and 1 assembly operators and 102 and 34 helices; annotation
+took 0.06 s and 0.02 s, the second with 8,735 `CONECT` pairs. Mol* rendering of these files was not
+checked again.
 
 **Done:** `MmcifWriter::annotate`, `chargefw.io.annotate`, and `--annotate-mmcif` with
-`--if-exists`, with `error`, `replace`, and `append`; `attach_charges` appends too.
-
-**Remaining steps:** PDB.
+`--if-exists` (`error`, `replace`, `append`), for mmCIF and PDB input; `attach_charges` appends
+too.
 
 ## ACC work
 

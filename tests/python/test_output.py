@@ -14,6 +14,7 @@ import pytest
 SCHEMAS = Path(__file__).parents[2] / "schemas"
 AROMATIC_MOL2 = Path(__file__).parents[1] / "fixtures" / "synthetic" / "mol2" / "aromatic.mol2"
 FIXED_IONS_MMCIF = Path(__file__).parents[1] / "fixtures" / "synthetic" / "cif" / "fixed_ions.cif"
+ANNOTATION_PDB = Path(__file__).parents[1] / "fixtures" / "synthetic" / "pdb" / "annotation.pdb"
 CHARGES_DICTIONARY = (
     Path(__file__).parents[1] / "fixtures" / "dictionaries" / "mmcif_charges_v11.dic"
 )
@@ -253,6 +254,38 @@ def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
             tmp_path / "rejected.cif", chargefw.calculate(water(), method="formal")
         )
     assert not (tmp_path / "rejected.cif").exists()
+
+
+def test_annotated_pdb_input_gives_the_same_charges_again(tmp_path: Path) -> None:
+    # MGC charges depend on the bonds and their orders, which here come from residue templates,
+    # CONECT records of one of two equally named ligands, and a CONECT on a template double bond.
+    result = chargefw.calculate(chargefw.io.read(ANNOTATION_PDB, format="pdb"), method="mgc")
+    path = tmp_path / "annotated.cif"
+    chargefw.io.annotate(path, result)
+
+    block = gemmi.cif.read(str(path)).sole_block()
+    charged_ids = list(block.find_values("_sb_ncbr_partial_atomic_charges.atom_id"))
+    assert charged_ids == list(block.find_values("_atom_site.id"))
+    again = chargefw.calculate(chargefw.io.read(path, format="mmcif"), method="mgc")
+    np.testing.assert_allclose(
+        again.assignments[0].values, result.assignments[0].values, rtol=0, atol=1e-12
+    )
+
+    # One PDB input is one molecule; a result for it twice has no place in the file.
+    molecule = chargefw.io.read(ANNOTATION_PDB, format="pdb")[0]
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(
+            tmp_path / "twice.cif", chargefw.calculate([molecule, molecule], method="formal")
+        )
+    assert not (tmp_path / "twice.cif").exists()
+
+    polymers = chargefw.calculate(
+        chargefw.io.read(ANNOTATION_PDB, format="pdb", selection="polymers"), method="mgc"
+    )
+    chargefw.io.annotate(path, polymers)
+    block = gemmi.cif.read(str(path)).sole_block()
+    assert len(block.find_values("_sb_ncbr_partial_atomic_charges.atom_id")) == 11
+    assert len(block.find_values("_atom_site.id")) == 16
 
 
 @pytest.mark.parametrize(("selection", "expected_count"), [("all", 2), ("first", 1)])

@@ -79,10 +79,18 @@ function(expect_annotated_mmcif contents)
     expect_files_absent(annotate_metadata_only
                         "${output_directory}/chargefw_cli_annotate.chargefw.json")
 
+    # A PDB input is converted; an input without a structure cannot be annotated.
     set(pdb_path "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_annotate.pdb")
     file(WRITE "${pdb_path}" "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O  \nEND\n")
-    run_cli(annotate_pdb 2 calculate --method formal --annotate-mmcif
+    file(REMOVE_RECURSE "${output_directory}")
+    run_cli(annotate_pdb 0 calculate --method formal --annotate-mmcif
             "${pdb_path}" "${output_directory}")
+    expect_files_exist(annotate_pdb "${annotated}")
+    set(json_path "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_annotate.json")
+    file(WRITE "${json_path}" "{\"schema_version\": \"1.0\", \"molecules\": [{\"atoms\": [{\"atomic_number\": 8, \"formal_charge\": 0}]}]}\n")
+    run_cli(annotate_json 2 calculate --method formal --annotate-mmcif
+            "${json_path}" "${output_directory}")
+    file(REMOVE "${json_path}")
 
     file(REMOVE "${input_path}" "${pdb_path}")
     file(REMOVE_RECURSE "${output_directory}")

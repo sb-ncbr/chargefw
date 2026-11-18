@@ -162,7 +162,7 @@ void validate_annotation(const std::span<const io::ImportedMoleculeRecord> recor
     }
     for (const auto& record : records) {
         if (!record.import_metadata.has_value() || record.import_metadata->source_text == nullptr) {
-            throw std::runtime_error{"--annotate-mmcif is only supported for mmCIF input"};
+            throw std::runtime_error{"--annotate-mmcif is only supported for PDB and mmCIF input"};
         }
         // The mmCIF reader warns about the charges that the writer would refuse.
         if (arguments.if_exists == "error" &&

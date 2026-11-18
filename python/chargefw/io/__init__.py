@@ -349,9 +349,9 @@ def annotate(
     *,
     if_exists: ExistingCharges = "error",
 ) -> None:
-    """Write the mmCIF input of a result with its charges added.
+    """Write the PDB or mmCIF input of a result, as mmCIF, with its charges added.
 
-    The file has everything the input had; only the atoms that were calculated get charges.
+    The file has the whole structure of the input; only the atoms that were calculated get charges.
     Several results for the same molecules become one charge set each.
     """
 

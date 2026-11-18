@@ -179,8 +179,8 @@ struct MoleculeImportMetadata {
     ImportPolicy policy;
     SourceConnectivity source_connectivity = SourceConnectivity::absent;
     std::vector<SourceComponentInstance> components;
-    // The text of the mmCIF input, shared by the records read from it, so that charges can be
-    // written into the structure it holds (MmcifWriter::annotate). Null for other formats.
+    // The text of the PDB or mmCIF input, shared by the records read from it, so that charges can
+    // be written into the structure it holds (MmcifWriter::annotate). Null for other formats.
     std::shared_ptr<const std::string> source_text = nullptr;
 
     // Leaves out source_text: records read separately from equal input compare equal.

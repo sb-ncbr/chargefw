@@ -4,6 +4,7 @@
 #include "io/gemmi/component_templates.h"
 #include "io/gemmi/mmcif_attachment.h"
 #include "io/gemmi/mmcif_labels.h"
+#include "io/gemmi/pdb_conversion.h"
 #include "io/output_helpers.h"
 #include "io/record_assignments.h"
 
@@ -1007,7 +1008,21 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
             return std::ranges::all_of(result->inputs(), same_source);
         })) {
         throw std::invalid_argument{
-            "mmCIF annotation requires molecules read from one mmCIF input"};
+            "mmCIF annotation requires molecules read from one PDB or mmCIF input"};
+    }
+    if (first_metadata->format == MolecularSourceFormat::pdb) {
+        // A PDB input is one molecule and has no charges; the document is its conversion.
+        if (results.front()->inputs().size() != 1) {
+            throw std::invalid_argument{
+                "mmCIF annotation of PDB input requires results for one molecule"};
+        }
+        auto converted = gemmi::pdb_conversion::convert(*text, results.front()->inputs().front());
+        append_charge_sets(converted.document.blocks.front(), results, 0, converted.atom_site_ids);
+        ::gemmi::cif::write_cif_to_stream(*output_, converted.document);
+        if (!*output_) {
+            throw std::runtime_error{"failed to write mmCIF output"};
+        }
+        return;
     }
     write_charged(*output_, results,
                   ::gemmi::cif::read_memory(text->data(), text->size(), "source"), existing, false);
