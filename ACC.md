@@ -314,7 +314,8 @@ In the order proposed to the maintainer; all four are resolved.
    that uses coordinates is rejected with `invalid_geometry`, "identical coordinates"; the default
    becomes PEOE. ChargeFW2 keeps alternative A and calculates SQE+qp. The choice has to be made for
    the residue position. Resolved after rc5: of consecutive residues with the same number and
-   insertion code, the first is read; 1CBN gives 640 atoms, and SQE+qp is the default.
+   insertion code, the first is read, and the later ones of the same segment and label chain are left out when all
+   their atoms have an alternate location; 1CBN gives 640 atoms, and SQE+qp is the default.
 2. **mmCIF output that keeps an mmCIF input.** Accepted design and state in
    [Annotating the source structure](#annotating-the-source-structure).
 3. **mmCIF output from PDB input.** Same section.

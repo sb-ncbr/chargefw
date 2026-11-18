@@ -1,5 +1,8 @@
 #include "selection.h"
 
+#include <algorithm>
+#include <iterator>
+#include <memory>
 #include <string_view>
 #include <unordered_set>
 
@@ -38,10 +41,21 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
     for (const auto& chain : model.chains) {
         for (const auto& residue : chain.residues) {
             // Of alternative residues at one position, such as SER and PRO at 22 with alternate
-            // locations A and C, read the first. Gemmi groups adjacent residues by sequence number;
-            // residues without one are not alternatives.
-            const auto alternative =
-                residue.seqid.num.has_value() && !chain.is_first_in_group(residue);
+            // locations A and C, read the first. Gemmi groups adjacent residues by sequence number
+            // and insertion code alone, and files also repeat a number for residues that are all
+            // there. A residue is an alternative of the one before it only in the same PDB segment
+            // and mmCIF label chain, and when all its atoms have an alternate location. Residues
+            // without a number are not alternatives.
+            const auto alternative = [&] {
+                if (!residue.seqid.num.has_value() || chain.is_first_in_group(residue)) {
+                    return false;
+                }
+                const auto& previous = *std::prev(std::addressof(residue));
+                return previous.segment == residue.segment &&
+                       previous.subchain == residue.subchain &&
+                       std::ranges::all_of(residue.atoms,
+                                           [](const auto& atom) { return atom.has_altloc(); });
+            }();
             if (alternative || !include_residue(residue, selection)) {
                 continue;
             }

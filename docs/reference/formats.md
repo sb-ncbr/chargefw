@@ -192,10 +192,11 @@ models are then read for these atoms only.
   chain as a polymer, such as a ligand, can then count as part of it; residues Gemmi cannot assign
   are left out.
 
-When consecutive residues in a chain share a residue number and insertion code, only the first is
-read. Files use this for alternative residues, such as SER with alternate locations A and B followed
-by PRO with C. For each atom name in a residue, only one alternate location is read: the first one
-in the file. Its alternate-location code is kept and written to the output.
+Where a file has alternative residues at one position, such as SER with alternate locations A and B
+followed by PRO with C, only the first is read. Residues are alternatives when they are consecutive
+in a chain, share a residue number and insertion code, and all atoms of the later ones have an
+alternate location. Residues in different PDB segments or mmCIF label chains are never alternatives. For each atom name in a residue, only one alternate location is read: the first
+one in the file. Its alternate-location code is kept and written to the output.
 
 ### Connectivity
 

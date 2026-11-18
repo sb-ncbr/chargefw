@@ -435,6 +435,21 @@ END
     CHECK(metadata.atoms[0].structural_labels->alternate_location == "A");
     // N-CA and CA-CB of SER; the N-CD bond of PRO is omitted with its atoms.
     CHECK(record.molecule.bond_count() == 2);
+
+    // Residues that repeat a number in another segment or without alternate locations are all
+    // there; the second ligand has its atom at two locations.
+    const auto repeated = read_first(
+        R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00      SEG1 C
+HETATM    2  C1 ALIG A   1       5.000   0.000   0.000  0.50 20.00      SEG2 C
+HETATM    3  C1 BLIG A   1       5.100   0.000   0.000  0.50 20.00      SEG2 C
+HETATM    4  O   HOH A   1      10.000   0.000   0.000  1.00 20.00      SEG2 O
+END
+)pdb");
+    const auto repeated_ids =
+        repeated.import_metadata->atoms |
+        std::views::transform([](const auto& atom) { return atom.id.value_or(""); }) |
+        std::ranges::to<std::vector<std::string>>();
+    CHECK(repeated_ids == std::vector<std::string>{"1", "2", "4"});
 }
 
 TEST_CASE("PDB input reports residue atoms without bonds", "[io][pdb]") {
