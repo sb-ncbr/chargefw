@@ -299,6 +299,15 @@ auto attach_mmcif(std::string contents, const std::vector<NativeExecutionResult*
     return output.str();
 }
 
+auto annotate_mmcif(const std::vector<NativeExecutionResult*>& native_results, const bool replace)
+    -> std::string {
+    auto output = std::ostringstream{};
+    const auto results = result_pointers(native_results);
+    io::MmcifWriter{output}.annotate(results, replace ? io::ExistingCharges::replace
+                                                      : io::ExistingCharges::error);
+    return output.str();
+}
+
 } // namespace
 
 void bind_io(nb::module_& module) {
@@ -307,6 +316,8 @@ void bind_io(nb::module_& module) {
     module.def("_parse", &parse, nb::arg("contents"), nb::arg("source_name"), nb::arg("format"),
                nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"));
     module.def("_dumps", &dumps, nb::arg("results"), nb::arg("format"),
+               nb::call_guard<nb::gil_scoped_release>());
+    module.def("_annotate_mmcif", &annotate_mmcif, nb::arg("results"), nb::arg("replace"),
                nb::call_guard<nb::gil_scoped_release>());
     module.def("_attach_mmcif", &attach_mmcif, nb::arg("contents"), nb::arg("results"),
                nb::arg("overwrite"), nb::call_guard<nb::gil_scoped_release>());

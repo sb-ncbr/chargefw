@@ -804,9 +804,21 @@ auto write_result_block(::gemmi::cif::Block& block, const ResultSpan results,
 // mmcif_charges_v10.dic in older files, no longer describe the charges and are removed; other
 // dictionaries stay.
 auto ensure_dictionary(::gemmi::cif::Block& block) -> void {
-    auto table =
-        block.find_or_add("_audit_conform.", {"dict_name", "dict_version", "dict_location"});
-    table.ensure_loop();
+    static const auto columns =
+        std::vector<std::string>{"dict_name", "dict_version", "dict_location"};
+    if (auto category = block.find_mmcif_category("_audit_conform."); category.ok()) {
+        // Keep the declarations that are there: add the columns they lack, with unknown values.
+        category.ensure_loop();
+        auto& loop = *category.get_loop();
+        for (const auto& column : columns) {
+            if (const auto tag = "_audit_conform." + column; !loop.has_tag(tag)) {
+                loop.add_columns({tag}, "?");
+            }
+        }
+    } else {
+        block.init_mmcif_loop("_audit_conform.", columns);
+    }
+    auto table = block.find("_audit_conform.", columns);
     for (auto index = static_cast<int>(table.length()); index-- > 0;) {
         if (::gemmi::cif::as_string(table[index][0]).starts_with("mmcif_charges_")) {
             table.remove_row(index);

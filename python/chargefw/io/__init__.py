@@ -42,7 +42,7 @@ _STRUCTURAL_FORMATS = frozenset(("pdb", "mmcif"))
 
 
 def _replace_existing(if_exists: IfExists) -> bool:
-    """Whether attach_charges() may replace charges that are already there."""
+    """Whether charges that are already in the structure may be replaced."""
 
     if not isinstance(if_exists, str):
         raise TypeError("if_exists must be a string")
@@ -332,6 +332,24 @@ def write(
     Path(path).write_text(contents, encoding="utf-8")
 
 
+def annotate(
+    path: str | PathLike[str],
+    result: CalculationResult | Sequence[CalculationResult],
+    *,
+    if_exists: IfExists = "error",
+) -> None:
+    """Write the mmCIF input of a result with its charges added.
+
+    The file has everything the input had; only the atoms that were calculated get charges.
+    Several results for the same molecules become one charge set each.
+    """
+
+    if not isinstance(path, (str, PathLike)):
+        raise TypeError("path must be a string or path-like value")
+    contents = _native_io._annotate_mmcif(_native_results(result), _replace_existing(if_exists))
+    Path(path).write_text(contents, encoding="utf-8")
+
+
 __all__ = [
     "InputFormat",
     "OutputFormat",
@@ -345,4 +363,5 @@ __all__ = [
     "read",
     "dumps",
     "write",
+    "annotate",
 ]

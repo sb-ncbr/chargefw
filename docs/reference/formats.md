@@ -370,8 +370,26 @@ A bond between residues is also refused when a partner residue has neither an au
 residue number, or when a partner atom has different author and label atom or residue names; mmCIF
 readers such as Gemmi would not find that atom. Nothing is written when ChargeFW refuses a record.
 
-In Python, [`attach_charges()`](../interfaces/python.md#gemmi) instead adds the charges to the original
-mmCIF document that was read, after checking that it still matches.
+#### Charges added to the mmCIF input
+
+For molecules read from mmCIF, ChargeFW can instead write the input structure with the charges
+added: [`chargefw.io.annotate()`](../interfaces/python.md#writing-results) in Python. The output has
+every data block, category, and atom site of the input, with their values and `_atom_site.id`
+unchanged. Only the atoms that were calculated get charge rows. With `selection="polymers"` and
+`conformers="first"`, for example, water, ligands, and later models stay in the file without charges.
+Comments and the spacing of the input are not kept.
+
+The bond categories are those of the input; the bonds ChargeFW added from residue templates are not
+written. Reading the output with the same options therefore gives the same molecules, and the same
+calculation gives the same charges. The charges in the file are ignored on input, with a warning.
+
+Calculate all results of one file from the same input. ChargeFW refuses a block that already has
+partial charges unless you ask it to replace them. The `_atom_site.id` of every atom that gets a
+charge must be a positive integer without leading zeros, which the charges dictionary requires; the
+IDs of the other atoms can be any text.
+
+[`attach_charges()`](../interfaces/python.md#gemmi) adds the charges to a Gemmi document that you
+hold, after checking that it still matches what was read.
 
 ### PQR
 

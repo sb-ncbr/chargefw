@@ -340,8 +340,7 @@ stored files. Neither requires changing ChargeFW's dictionary 1.1 writer.
 
 ### Annotating the source structure
 
-Design accepted on 2026-11-18. The native mmCIF step is implemented (`MmcifWriter::annotate`); the
-rest is open.
+Design accepted on 2026-11-18.
 
 **Selection limits the charge rows, not the structure.** If a calculation used sites `4`, `19`, and
 `52`, the output still has every atom, alternate location, water, model, assembly, bond, and block
@@ -405,9 +404,9 @@ that leaves a ligand uncharged. Compare atom identities, elements, formal charge
 bonds with orders, and charges to solver tolerance. Check an assembly separately: graph and charge
 equality would not detect the loss of 8YAX's assembly operators.
 
-**Remaining steps:** `io.annotate` in Python, with the test that it works after the collection is
-released; `--annotate-mmcif` and `--if-exists` on the command line; append; user documentation in
-`docs/reference/formats.md`; PDB.
+**Done:** `MmcifWriter::annotate` and `chargefw.io.annotate`, with `error` and `replace`.
+
+**Remaining steps:** `--annotate-mmcif` and `--if-exists` on the command line; append; PDB.
 
 ## ACC work
 

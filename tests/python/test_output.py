@@ -182,6 +182,68 @@ def test_write_uses_explicit_format(tmp_path: Path) -> None:
     assert "@<TRIPOS>MOLECULE" in path.read_text(encoding="utf-8")
 
 
+def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
+    tmp_path: Path,
+) -> None:
+    source = gemmi.cif.read(str(FIXED_IONS_MMCIF))
+    molecules = chargefw.io.read(FIXED_IONS_MMCIF, format="mmcif", selection="polymers-and-ligands")
+    mapping = molecules[0].source_mapping
+    assert mapping is not None
+    selected_ids = [reference.id for reference in mapping.atoms]
+    result = chargefw.calculate(molecules, method="formal")
+    del molecules
+    collect()
+
+    path = tmp_path / "annotated.cif"
+    chargefw.io.annotate(path, result)
+
+    annotated = gemmi.cif.read(str(path))
+    assert len(annotated) == len(source)
+    all_ids = list(source[0].find_values("_atom_site.id"))
+    assert list(annotated[0].find_values("_atom_site.id")) == all_ids
+    charged_ids = [
+        gemmi.cif.as_string(value)
+        for value in annotated[0].find_values("_sb_ncbr_partial_atomic_charges.atom_id")
+    ]
+    assert charged_ids == selected_ids
+    assert 0 < len(charged_ids) < len(all_ids)
+
+    again = chargefw.calculate(
+        chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="formal"
+    )
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(tmp_path / "rejected.cif", again)
+    chargefw.io.annotate(tmp_path / "replaced.cif", again, if_exists="replace")
+
+    # Another dictionary's declaration stays, whichever columns it has, as does a text site ID of
+    # an atom that gets no charge.
+    text = FIXED_IONS_MMCIF.read_text(encoding="utf-8")
+    text = text.replace(
+        "data_fixed_ions\n",
+        "data_fixed_ions\n_audit_conform.dict_name mmcif_pdbx.dic\n"
+        "_audit_conform.dict_version 5.0\n",
+    ).replace("HETATM 1 O O ", "HETATM waterO O O ")
+    assert "waterO" in text and "mmcif_pdbx.dic" in text
+    declared = chargefw.calculate(
+        chargefw.io.parse(text, format="mmcif", selection="polymers-and-ligands"),
+        method="formal",
+    )
+    chargefw.io.annotate(tmp_path / "declared.cif", declared)
+    declared_block = gemmi.cif.read(str(tmp_path / "declared.cif"))[0]
+    declarations = [
+        [gemmi.cif.as_string(value) for value in row]
+        for row in declared_block.find("_audit_conform.", ["dict_name", "dict_version"])
+    ]
+    assert declarations == [["mmcif_pdbx.dic", "5.0"], ["mmcif_charges_v11.dic", "1.1"]]
+    assert "waterO" in list(declared_block.find_values("_atom_site.id"))
+
+    with pytest.raises(ValueError):
+        chargefw.io.annotate(
+            tmp_path / "rejected.cif", chargefw.calculate(water(), method="formal")
+        )
+    assert not (tmp_path / "rejected.cif").exists()
+
+
 @pytest.mark.parametrize(("selection", "expected_count"), [("all", 2), ("first", 1)])
 def test_mmcif_applies_geometry_independent_charges_to_selected_conformers(
     selection: str, expected_count: int
