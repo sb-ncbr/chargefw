@@ -72,7 +72,7 @@ build = [
 test-requires = ["pytest", "jsonschema"]
 # The tests install the gemmi extra as the installation guide tells users to: on CPython 3.15, pip
 # builds Gemmi from source and needs the build constraint.
-test-extras = ["parameterization"]
+test-extras = ["parameterization", "rdkit"]
 test-command = """\
 python -m pip install --build-constraint {project}/tests/python/build-constraints.txt \
 "chargefw[gemmi]" && pytest {project}/tests/python -q\
