@@ -6,9 +6,12 @@
 #include <chargefw/io/all.h>
 
 #include <chrono>
+#include <cstddef>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -62,6 +65,12 @@ struct CalculationRun {
 };
 
 [[nodiscard]] auto utc_timestamp() -> std::string;
+
+// One line for the warnings of one code about molecules: the molecule when there is one, or the
+// count with the first one as an example. `molecules` is the zero-based indices, in input order.
+[[nodiscard]] auto molecule_warning_text(std::span<const io::ImportedMoleculeRecord> records,
+                                         std::string_view code, std::string_view message,
+                                         const std::set<std::size_t>& molecules) -> std::string;
 
 void add_input_options(CLI::App& command, InputArguments& arguments);
 void add_selection_options(CLI::App& command, SelectionArguments& arguments);

@@ -577,7 +577,14 @@ def _executed_plan(
 _REJECTIONS_IN_MESSAGE = 5
 
 
-def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
+def _describe_molecule(molecules: MoleculeCollection, index: int) -> str:
+    name = molecules[index].name
+    return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+
+
+def _no_executable_plan_message(
+    rejections: tuple[Rejection, ...], molecules: MoleculeCollection
+) -> str:
     """List the first reason of the first rejected candidates; the result holds all of them."""
 
     lines = ["no method and parameter set apply to the molecules:"]
@@ -587,7 +594,10 @@ def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
             candidate += f", parameter set '{rejection.parameter_set.id}'"
         line = f"  {candidate}"
         if rejection.issues:
-            line += f": {rejection.issues[0].message}"
+            issue = rejection.issues[0]
+            if issue.molecule_index is not None:
+                line += f": {_describe_molecule(molecules, issue.molecule_index)}"
+            line += f": {issue.message}"
         if len(rejection.issues) > 1:
             line += f" (and {len(rejection.issues) - 1} more)"
         lines.append(line)
@@ -773,7 +783,7 @@ class CalculationResult:
         if exception_type is None:
             return None
         if self.status == "no_executable_plan":
-            return exception_type(_no_executable_plan_message(self.rejections), self)
+            return exception_type(_no_executable_plan_message(self.rejections, self.molecules), self)
         return exception_type(self.failure_message or self.status, self)
 
 
@@ -792,8 +802,7 @@ def _outcome(
     molecules = result.molecules
 
     def describe(index: int) -> str:
-        name = molecules[index].name
-        return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+        return _describe_molecule(molecules, index)
 
     return None, [
         *issue_warnings(

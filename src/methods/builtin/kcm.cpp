@@ -14,7 +14,7 @@ namespace chargefw::methods::builtin {
 
 auto KCMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result) const -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "KCM");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 }
 
 auto KCMMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {

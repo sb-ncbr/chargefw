@@ -87,9 +87,9 @@ auto find_applicable_methods(const ApplicabilityRequest& request) -> Applicabili
         if (request.parameter_sets.empty()) {
             add_rejected(
                 result, method_index, std::nullopt,
-                {make_issue(PrerequisiteIssueKind::missing_parameters,
-                            "method '" + std::string{method->id()} +
-                                "' requires parameters, but no parameter sets were provided")});
+                {make_issue(
+                    PrerequisiteIssueKind::missing_parameters,
+                    "the method requires parameters, but no parameter sets were provided")});
 
             continue;
         }

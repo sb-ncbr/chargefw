@@ -28,6 +28,15 @@
 - MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
   digits that read back as the same value, which could have an exponent, such as `8e-04`.
 
+### Diagnostics
+
+- The message of a reason why a method or parameter set does not apply, or of an execution warning,
+  gives only the reason, such as `the parameter set has no atom parameter matching atom 1 (...)`.
+  The molecule is in `molecule_index`, and the method and parameter set are those of the rejection;
+  the command line, result JSON, and the message of `NoExecutablePlanError` still name them. Messages
+  about identical or non-finite coordinates say what to check, and with fixed ions they number the
+  atoms as in the input molecule. Parameter entries in messages are numbered from one.
+
 ## 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor

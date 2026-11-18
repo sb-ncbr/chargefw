@@ -39,8 +39,8 @@ void report_diagnostics(const io::ChargeCalculationResult& result,
         report(diagnostic);
     }
 
-    // Warnings about molecules name the molecule and are grouped by code, so that a file of many
-    // records gives one line per kind: the first molecule, or the count with the first example.
+    // Warnings about molecules are grouped by code, so that a file of many records gives one line
+    // per kind.
     struct WarningGroup {
         io::ResultDiagnostic first;
         std::set<std::size_t> molecules;
@@ -68,17 +68,21 @@ void report_diagnostics(const io::ChargeCalculationResult& result,
         }
     }
     for (const auto& [first, molecules] : groups) {
-        const auto molecule_index = *first.molecule_index;
-        const auto example =
-            core::detail::molecule_description(records[molecule_index].molecule, molecule_index) +
-            ": " + first.message;
-        print(first, molecules.size() == 1
-                         ? example
-                         : std::format("{} of {} molecules: {}, for example {}", molecules.size(),
-                                       records.size(), first.code, example));
+        print(first, molecule_warning_text(records, first.code, first.message, molecules));
     }
+    // Errors name their molecule as warnings do; the message itself names only the reason.
     for (const auto& diagnostic : errors) {
-        report(diagnostic);
+        if (!diagnostic.molecule_index.has_value()) {
+            report(diagnostic);
+            continue;
+        }
+        const auto molecule_index = *diagnostic.molecule_index;
+        const auto message =
+            core::detail::molecule_description(records[molecule_index].molecule, molecule_index) +
+            ": " + diagnostic.message;
+        if (reported.emplace(diagnostic.code, message).second) {
+            print(diagnostic, message);
+        }
     }
 }
 
@@ -148,6 +152,18 @@ void write_pqr(const std::filesystem::path& path, const io::ChargeCalculationRes
 }
 
 } // namespace
+
+auto molecule_warning_text(const std::span<const io::ImportedMoleculeRecord> records,
+                           const std::string_view code, const std::string_view message,
+                           const std::set<std::size_t>& molecules) -> std::string {
+    const auto molecule_index = *molecules.begin();
+    const auto example =
+        core::detail::molecule_description(records[molecule_index].molecule, molecule_index) +
+        ": " + std::string{message};
+    return molecules.size() == 1 ? example
+                                 : std::format("{} of {} molecules: {}, for example {}",
+                                               molecules.size(), records.size(), code, example);
+}
 
 auto utc_timestamp() -> std::string {
     // system_clock is UTC; millisecond precision makes %T print three decimal places.

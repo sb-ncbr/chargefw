@@ -60,7 +60,7 @@ auto ABEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisi
                                                           PrerequisiteResult& result) const
     -> void {
     detail::add_element_prerequisite_issues(
-        input, result, "ABEEM requires a positive covalent radius",
+        input, result, "the method requires a positive covalent radius",
         [](const core::Element& element) -> bool { return element.covalent_radius > 0.0; });
 }
 

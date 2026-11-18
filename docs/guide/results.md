@@ -151,12 +151,14 @@ try:
     result = chargefw.calculate(molecule, method="eem", parameter_set="EEM_Baek1991")
 except chargefw.CalculationError as error:
     for rejection in error.result.rejections:
+        # A method can be rejected before its parameter sets are matched.
+        candidate = rejection.parameter_set or rejection.method
         for issue in rejection.issues:
-            print(rejection.method.id, issue.message)
+            print(f"{candidate.id}: {issue.message}")
 ```
 
 ```text
-eem molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom 1 (source name 'Cl1', Cl, formal charge 0)
+EEM_Baek1991: the parameter set has no atom parameter matching atom 1 (source name 'Cl1', Cl, formal charge 0)
 ```
 
 [Choosing a method](methods.md#choosing-a-method) shows how to see the reasons before calculating.

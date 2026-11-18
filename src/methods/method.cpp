@@ -1,12 +1,13 @@
 #include <chargefw/methods/method.h>
 
-#include "core/diagnostic_description.h"
+#include "methods/geometry_issue_messages.h"
 
 #include <chargefw/features/prepared_molecule.h>
 
 #include <exception>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace chargefw::methods {
 namespace {
@@ -16,8 +17,7 @@ auto add_invalid_options_issue(PrerequisiteResult& result, const std::exception&
         PrerequisiteIssue{.kind = PrerequisiteIssueKind::invalid_options, .message = error.what()});
 }
 
-auto add_coordinate_prerequisite_issues(const Method& method,
-                                        const features::PreparedMolecule& prepared,
+auto add_coordinate_prerequisite_issues(const features::PreparedMolecule& prepared,
                                         PrerequisiteResult& result) -> void {
     const auto& molecule = prepared.molecule();
     const auto defects = prepared.geometry_defects();
@@ -26,30 +26,28 @@ auto add_coordinate_prerequisite_issues(const Method& method,
         const auto& coincident = defects[conformer_index].coincident_atoms;
 
         if (nonfinite_atom.has_value()) {
-            result.issues.push_back(PrerequisiteIssue{
-                .kind = PrerequisiteIssueKind::invalid_geometry,
-                .message = "method '" + std::string{method.id()} + "', conformer " +
-                           std::to_string(conformer_index + 1) + ": " +
-                           core::detail::atom_description(molecule, *nonfinite_atom) +
-                           " has non-finite coordinates",
-                .location = {.conformer_index = conformer_index,
-                             .atom_index = nonfinite_atom,
-                             .atom_indices = {*nonfinite_atom}}});
+            auto location = core::IssueLocation{.conformer_index = conformer_index,
+                                                .atom_index = nonfinite_atom,
+                                                .atom_indices = {*nonfinite_atom}};
+            auto message = detail::invalid_geometry_message(molecule, location);
+            result.issues.push_back(
+                PrerequisiteIssue{.kind = PrerequisiteIssueKind::invalid_geometry,
+                                  .message = std::move(message),
+                                  .location = std::move(location)});
             continue;
         }
 
         if (coincident.has_value()) {
-            result.issues.push_back(PrerequisiteIssue{
-                .kind = PrerequisiteIssueKind::invalid_geometry,
-                .message = "method '" + std::string{method.id()} + "', conformer " +
-                           std::to_string(conformer_index + 1) + ": " +
-                           core::detail::atom_description(molecule, coincident->first) + " and " +
-                           core::detail::atom_description(molecule, coincident->second) +
-                           " have identical coordinates",
-                .location = {.conformer_index = conformer_index,
-                             .atom_index = coincident->second,
-                             .other_atom_index = coincident->first,
-                             .atom_indices = {coincident->first, coincident->second}}});
+            auto location =
+                core::IssueLocation{.conformer_index = conformer_index,
+                                    .atom_index = coincident->second,
+                                    .other_atom_index = coincident->first,
+                                    .atom_indices = {coincident->first, coincident->second}};
+            auto message = detail::invalid_geometry_message(molecule, location);
+            result.issues.push_back(
+                PrerequisiteIssue{.kind = PrerequisiteIssueKind::invalid_geometry,
+                                  .message = std::move(message),
+                                  .location = std::move(location)});
         }
     }
 }
@@ -102,18 +100,17 @@ auto Method::check_method_prerequisites(const MethodPrerequisiteInput& input) co
     const auto& molecule = input.prepared_molecule.molecule();
 
     if (method_requirements.coordinates && !molecule.has_coordinates()) {
-        result.issues.push_back(PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_feature,
-                                                  .message = "method '" + std::string{id()} +
-                                                             "' requires coordinates"});
+        result.issues.push_back(PrerequisiteIssue{
+            .kind = PrerequisiteIssueKind::missing_feature,
+            .message = "the method requires coordinates, but the molecule has none"});
     }
     if (method_requirements.coordinates && molecule.has_coordinates()) {
-        add_coordinate_prerequisite_issues(*this, input.prepared_molecule, result);
+        add_coordinate_prerequisite_issues(input.prepared_molecule, result);
     }
     if (method_requirements.bonds && molecule.atom_count() > 1 && molecule.bond_count() == 0) {
         result.issues.push_back(
             PrerequisiteIssue{.kind = PrerequisiteIssueKind::missing_feature,
-                              .message = "method '" + std::string{id()} +
-                                         "' requires bonds, but the molecule has none"});
+                              .message = "the method requires bonds, but the molecule has none"});
     }
 
     add_method_specific_prerequisite_issues(input, result);

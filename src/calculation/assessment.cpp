@@ -5,9 +5,9 @@
 #include "fixed_charge_partition.h"
 #include "input_checks.h"
 
-#include "core/diagnostic_description.h"
 #include "methods/applicable_method_execution.h"
 #include "methods/find_applicable_methods.h"
+#include "methods/geometry_issue_messages.h"
 #include "methods/parameter_issue_messages.h"
 
 #include <chargefw/methods/method.h>
@@ -160,8 +160,7 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
 
 [[nodiscard]] auto remap_fixed_ion_issue(methods::PrerequisiteIssue issue,
                                          const detail::FixedChargePartition& partition,
-                                         const core::MoleculeCollection& original_molecules,
-                                         const parameters::ParameterSet* parameter_set)
+                                         const core::MoleculeCollection& original_molecules)
     -> methods::PrerequisiteIssue {
     if (!issue.molecule_index.has_value()) {
         return issue;
@@ -189,23 +188,17 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
         bond_index = target.active_bond_indices.at(bond_index);
     }
 
-    if (issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed &&
-        parameter_set != nullptr) {
-        // Described again in the original molecule, whose atom numbering the user knows.
-        const auto prefix = core::detail::molecule_description(original_molecule, molecule_index);
+    // Described again in the original molecule, whose atom numbering the user knows.
+    if (issue.kind == methods::PrerequisiteIssueKind::parameter_classification_failed) {
         if (!location.atom_indices.empty()) {
-            issue.message = prefix + ": " +
-                            methods::detail::missing_atom_parameters_message(
-                                original_molecule, parameter_set->id(), location.atom_indices);
+            issue.message = methods::detail::missing_atom_parameters_message(original_molecule,
+                                                                             location.atom_indices);
         } else if (!location.bond_indices.empty()) {
-            issue.message = prefix + ": " +
-                            methods::detail::missing_bond_parameters_message(
-                                original_molecule, parameter_set->id(), location.bond_indices);
+            issue.message = methods::detail::missing_bond_parameters_message(original_molecule,
+                                                                             location.bond_indices);
         }
-    } else if (issue.kind == methods::PrerequisiteIssueKind::invalid_geometry &&
-               !target.sources.empty()) {
-        issue.message = core::detail::molecule_description(original_molecule, molecule_index) +
-                        ": geometry detail uses active-subsystem atom numbering: " + issue.message;
+    } else if (issue.kind == methods::PrerequisiteIssueKind::invalid_geometry) {
+        issue.message = methods::detail::invalid_geometry_message(original_molecule, location);
     }
     return issue;
 }
@@ -293,8 +286,7 @@ auto AssessmentResult::assess_prepared(
                 .policy = std::nullopt,
                 .issues = {methods::PrerequisiteIssue{
                     .kind = methods::PrerequisiteIssueKind::unsupported_fixed_ions,
-                    .message =
-                        "method '" + std::string{method->id()} + "' does not support fixed ions"}},
+                    .message = "the method does not support fixed ions"}},
             });
             continue;
         }
@@ -312,13 +304,10 @@ auto AssessmentResult::assess_prepared(
         auto issues = std::vector<RejectionIssue>{};
         issues.reserve(candidate.issues.size());
         for (const auto& issue : candidate.issues) {
-            const auto* parameter_set = candidate.parameter_set_index.has_value()
-                                            ? &state->parameter_sets[*candidate.parameter_set_index]
-                                            : nullptr;
-            issues.emplace_back(state->fixed_charge_partition != nullptr
-                                    ? remap_fixed_ion_issue(issue, *state->fixed_charge_partition,
-                                                            state->molecules, parameter_set)
-                                    : issue);
+            issues.emplace_back(
+                state->fixed_charge_partition != nullptr
+                    ? remap_fixed_ion_issue(issue, *state->fixed_charge_partition, state->molecules)
+                    : issue);
         }
         rejections.push_back(Rejection{
             .method_id = std::string{applicable_methods[candidate.method_index]->id()},

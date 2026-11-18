@@ -36,7 +36,6 @@ auto add_missing_parameter_issue(ParameterPrerequisiteResult& result, std::strin
 auto check_unknown_parameter_names(const std::string_view section,
                                    const std::span<const std::string_view> known,
                                    const std::vector<std::string_view>& names,
-                                   const parameters::ParameterSet& parameter_set,
                                    ParameterPrerequisiteResult& result) -> void {
     auto unknown = std::vector<std::string_view>{};
     for (const auto name : names) {
@@ -52,10 +51,10 @@ auto check_unknown_parameter_names(const std::string_view section,
     for (const auto name : unknown) {
         listed += (listed.empty() ? "'" : ", '") + std::string{name} + "'";
     }
-    result.issues.push_back(PrerequisiteIssue{
-        .kind = PrerequisiteIssueKind::unknown_parameters,
-        .message = "parameter set '" + std::string{parameter_set.id()} + "' has " +
-                   std::string{section} + " parameters the method does not use: " + listed});
+    result.issues.push_back(
+        PrerequisiteIssue{.kind = PrerequisiteIssueKind::unknown_parameters,
+                          .message = "the parameter set has " + std::string{section} +
+                                     " parameters the method does not use: " + listed});
 }
 
 template <typename Entries>
@@ -76,14 +75,11 @@ auto check_unknown_parameters(const MethodRequirements& requirements,
     for (const auto& parameter : parameter_set.common().parameters()) {
         common.emplace_back(parameter.name);
     }
-    check_unknown_parameter_names("common", requirements.common_parameters, common, parameter_set,
-                                  result);
+    check_unknown_parameter_names("common", requirements.common_parameters, common, result);
     check_unknown_parameter_names("atom", requirements.atom_parameters,
-                                  entry_parameter_names(parameter_set.atom().entries()),
-                                  parameter_set, result);
+                                  entry_parameter_names(parameter_set.atom().entries()), result);
     check_unknown_parameter_names("bond", requirements.bond_parameters,
-                                  entry_parameter_names(parameter_set.bond().entries()),
-                                  parameter_set, result);
+                                  entry_parameter_names(parameter_set.bond().entries()), result);
 }
 
 auto check_common_parameters(const MethodRequirements& requirements,
@@ -91,9 +87,8 @@ auto check_common_parameters(const MethodRequirements& requirements,
                              ParameterPrerequisiteResult& result) -> void {
     for (const auto name : requirements.common_parameters) {
         if (!parameter_set.common().contains(name)) {
-            add_missing_parameter_issue(
-                result, "parameter set '" + std::string{parameter_set.id()} +
-                            "' is missing common parameter '" + std::string{name} + "'");
+            add_missing_parameter_issue(result, "the parameter set is missing common parameter '" +
+                                                    std::string{name} + "'");
         }
     }
 }
@@ -106,8 +101,7 @@ auto check_atom_parameter_names(const MethodRequirements& requirements,
     }
 
     if (parameter_set.atom().empty()) {
-        add_missing_parameter_issue(result, "parameter set '" + std::string{parameter_set.id()} +
-                                                "' has no atom parameter entries");
+        add_missing_parameter_issue(result, "the parameter set has no atom parameter entries");
         return;
     }
 
@@ -115,9 +109,9 @@ auto check_atom_parameter_names(const MethodRequirements& requirements,
         for (const auto name : requirements.atom_parameters) {
             if (!parameter_set.atom().contains(entry_index, name)) {
                 add_missing_parameter_issue(
-                    result, "atom parameter entry " + std::to_string(entry_index) +
-                                " in parameter set '" + std::string{parameter_set.id()} +
-                                "' is missing parameter '" + std::string{name} + "'");
+                    result, "atom parameter entry " + std::to_string(entry_index + 1) +
+                                " of the parameter set is missing parameter '" + std::string{name} +
+                                "'");
             }
         }
     }
@@ -131,8 +125,7 @@ auto check_bond_parameter_names(const MethodRequirements& requirements,
     }
 
     if (parameter_set.bond().empty()) {
-        add_missing_parameter_issue(result, "parameter set '" + std::string{parameter_set.id()} +
-                                                "' has no bond parameter entries");
+        add_missing_parameter_issue(result, "the parameter set has no bond parameter entries");
         return;
     }
 
@@ -140,9 +133,9 @@ auto check_bond_parameter_names(const MethodRequirements& requirements,
         for (const auto name : requirements.bond_parameters) {
             if (!parameter_set.bond().contains(entry_index, name)) {
                 add_missing_parameter_issue(
-                    result, "bond parameter entry " + std::to_string(entry_index) +
-                                " in parameter set '" + std::string{parameter_set.id()} +
-                                "' is missing parameter '" + std::string{name} + "'");
+                    result, "bond parameter entry " + std::to_string(entry_index + 1) +
+                                " of the parameter set is missing parameter '" + std::string{name} +
+                                "'");
             }
         }
     }
@@ -151,8 +144,7 @@ auto check_bond_parameter_names(const MethodRequirements& requirements,
 // One issue for the atoms without parameters and one for the bonds, not one per atom or bond.
 auto add_classification_issues(ParameterPrerequisiteResult& result,
                                const std::vector<parameters::ClassificationIssue>& issues,
-                               const core::Molecule& molecule,
-                               const std::string_view parameter_set_id) -> void {
+                               const core::Molecule& molecule) -> void {
     auto atoms = std::vector<std::size_t>{};
     auto bonds = std::vector<std::size_t>{};
     for (const auto& issue : issues) {
@@ -168,13 +160,13 @@ auto add_classification_issues(ParameterPrerequisiteResult& result,
     if (!atoms.empty()) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::parameter_classification_failed,
-            .message = detail::missing_atom_parameters_message(molecule, parameter_set_id, atoms),
+            .message = detail::missing_atom_parameters_message(molecule, atoms),
             .location = {.atom_index = atoms.front(), .atom_indices = std::move(atoms)}});
     }
     if (!bonds.empty()) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::parameter_classification_failed,
-            .message = detail::missing_bond_parameters_message(molecule, parameter_set_id, bonds),
+            .message = detail::missing_bond_parameters_message(molecule, bonds),
             .location = {.bond_index = bonds.front(), .bond_indices = std::move(bonds)}});
     }
 }
@@ -193,10 +185,8 @@ auto check_molecule_parameters(const Method& method,
     }
 
     if (!parameter_set.method_id().empty() && parameter_set.method_id() != method.id()) {
-        add_missing_parameter_issue(result, "parameter set '" + std::string{parameter_set.id()} +
-                                                "' belongs to method '" +
-                                                std::string{parameter_set.method_id()} +
-                                                "', not '" + std::string{method.id()} + "'");
+        add_missing_parameter_issue(result, "the parameter set belongs to method '" +
+                                                std::string{parameter_set.method_id()} + "'");
         return result;
     }
 
@@ -214,8 +204,8 @@ auto check_molecule_parameters(const Method& method,
             prepared_molecule.topology(), parameter_set, classification_options);
 
         if (!classification) {
-            add_classification_issues(result, classification.issues(), prepared_molecule.molecule(),
-                                      parameter_set.id());
+            add_classification_issues(result, classification.issues(),
+                                      prepared_molecule.molecule());
             return result;
         }
 
@@ -241,8 +231,8 @@ auto check_parameter_prerequisites(const Method& method,
 
         if (!molecule_result) {
             for (const auto& issue : molecule_result.issues) {
-                result.issues.push_back(detail::with_molecule_prefix(
-                    molecules[molecule_index].molecule(), molecule_index, issue));
+                result.issues.push_back(issue);
+                result.issues.back().molecule_index = molecule_index;
             }
 
             continue;

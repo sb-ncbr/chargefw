@@ -292,7 +292,7 @@ with its first reason:
 
 ```text
 no method and parameter set apply to the molecules:
-  method 'peoe': molecule 1 ('1L2Y'): PEOE supports only molecules in which every bonded part has zero total formal charge
+  method 'peoe': molecule 1 ('1L2Y'): the method supports only molecules in which every bonded part has zero total formal charge
 ```
 
 The exception's `result` holds the complete result, with every reason; it can still be written as
@@ -306,8 +306,10 @@ except chargefw.CalculationError as error:
     raise
 ```
 
-The `molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero;
-the numbers in its message count from one.
+The message of a reason does not name the molecule, method, or parameter set: the molecule is the one
+at `molecule_index`, and the method and parameter set are those of the rejection. The
+`molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero; the
+numbers in its message count from one.
 
 ## Writing results
 

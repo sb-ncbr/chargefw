@@ -77,7 +77,7 @@ struct Charge2Shells {
 auto Charge2Method::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                             PrerequisiteResult& result) const
     -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "Charge2");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 }
 
 auto Charge2Method::calculate(const CalculationInput& input) const -> charges::AtomicCharges {

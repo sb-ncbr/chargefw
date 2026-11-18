@@ -39,7 +39,7 @@ namespace {
 auto SQEMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result) const -> void {
     detail::add_component_neutrality_prerequisite_issue(
-        input, result, "SQE", "it moves charge only along bonds, starting from zero charges");
+        input, result, "it moves charge only along bonds, starting from zero charges");
 }
 
 auto sqe_core::estimate(const TargetSize& target, const bool initial_charges) -> ResourceEstimate {

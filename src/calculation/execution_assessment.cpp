@@ -45,8 +45,7 @@ has_expensive_full_complexity(const methods::ResourceRequirements& resources) no
 }
 
 // One issue for every molecule with more atoms than `threshold`; none without a threshold.
-[[nodiscard]] auto threshold_issues(const methods::Method& method,
-                                    const features::PreparedMoleculeCollection& molecules,
+[[nodiscard]] auto threshold_issues(const features::PreparedMoleculeCollection& molecules,
                                     const std::optional<std::size_t> threshold,
                                     const std::string_view execution, const std::string_view limit)
     -> std::vector<ExecutionIssue> {
@@ -58,9 +57,8 @@ has_expensive_full_complexity(const methods::ResourceRequirements& resources) no
         if (molecules[molecule_index].molecule().atom_count() > *threshold) {
             issues.push_back(ExecutionIssue{
                 .kind = ExecutionIssueKind::resource_threshold_exceeded,
-                .message = "method '" + std::string{method.id()} + "' " + std::string{execution} +
-                           " execution exceeds the " + std::string{limit} + " threshold of " +
-                           std::to_string(*threshold) + " atoms",
+                .message = std::string{execution} + " execution exceeds the " + std::string{limit} +
+                           " threshold of " + std::to_string(*threshold) + " atoms",
                 .molecule_index = molecule_index});
         }
     }
@@ -84,10 +82,10 @@ auto assess_execution(const methods::Method& method,
     const auto& resources = requirements.resources;
 
     if (mode == ExecutionMode::full) {
-        return available(has_expensive_full_complexity(resources)
-                             ? threshold_issues(method, molecules, resource_policy.cutoff_threshold,
-                                                "full", "cutoff")
-                             : std::vector<ExecutionIssue>{});
+        return available(
+            has_expensive_full_complexity(resources)
+                ? threshold_issues(molecules, resource_policy.cutoff_threshold, "full", "cutoff")
+                : std::vector<ExecutionIssue>{});
     }
 
     const auto cutoff = mode == ExecutionMode::cutoff;
@@ -95,10 +93,9 @@ auto assess_execution(const methods::Method& method,
         (cutoff ? resources.supports_cutoff : resources.supports_cover) &&
         resources.reduced_charge_policy != methods::ReducedChargePolicy::unsupported;
     if (supported && requirements.coordinates) {
-        return available(cutoff
-                             ? threshold_issues(method, molecules, resource_policy.cover_threshold,
-                                                "cutoff", "cover")
-                             : std::vector<ExecutionIssue>{});
+        return available(
+            cutoff ? threshold_issues(molecules, resource_policy.cover_threshold, "cutoff", "cover")
+                   : std::vector<ExecutionIssue>{});
     }
 
     const auto mode_name = std::string{to_string(mode)};
@@ -106,11 +103,10 @@ auto assess_execution(const methods::Method& method,
                             ? " because it does not require coordinates for the radius-based " +
                                   mode_name + " approximation"
                             : "";
-    return ExecutionAssessment{
-        .availability = ExecutionAvailability::unsupported,
-        .issues = {{.kind = ExecutionIssueKind::unsupported_execution_mode,
-                    .message = "method '" + std::string{method.id()} + "' does not support " +
-                               mode_name + " execution" + reason}}};
+    return ExecutionAssessment{.availability = ExecutionAvailability::unsupported,
+                               .issues = {{.kind = ExecutionIssueKind::unsupported_execution_mode,
+                                           .message = "the method does not support " + mode_name +
+                                                      " execution" + reason}}};
 }
 
 } // namespace detail

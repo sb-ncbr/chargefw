@@ -12,7 +12,7 @@ namespace chargefw::methods::builtin {
 
 auto DENRMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "DENR");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 }
 
 auto DENRMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {

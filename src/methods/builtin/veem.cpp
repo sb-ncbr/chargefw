@@ -13,7 +13,7 @@ namespace chargefw::methods::builtin {
 auto VEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
     detail::add_element_prerequisite_issues(
-        input, result, "VEEM requires valence electrons and electronegativity",
+        input, result, "the method requires valence electrons and electronegativity",
         [](const core::Element& element) -> bool {
             return element.valence_electron_count().has_value() && element.electronegativity != 0.0;
         });
@@ -21,8 +21,9 @@ auto VEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisit
     if (core::total_formal_charge(input.prepared_molecule.molecule()) != 0) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::unsupported_molecule,
-            .message = "VEEM supports only neutral molecules because its valence-electron equation "
-                       "conserves zero total charge"});
+            .message =
+                "the method supports only neutral molecules because its valence-electron equation "
+                "conserves zero total charge"});
     }
 }
 

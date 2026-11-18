@@ -204,7 +204,6 @@ TEST_CASE("applicability pairs methods with compatible parameter sets",
           methods::PrerequisiteIssueKind::parameter_classification_failed);
     CHECK(result.rejected[0].issues[0].molecule_index == 1);
     CHECK(result.rejected[0].issues[0].location.atom_index == 0);
-    CHECK(result.rejected[0].issues[0].message.contains("water-only-parameters"));
 }
 
 TEST_CASE("applicability refuses methods that declare only common parameters",

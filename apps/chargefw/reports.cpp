@@ -1,4 +1,5 @@
 #include "cli_support.h"
+#include "core/diagnostic_description.h"
 
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/methods/method_registry.h>
@@ -187,6 +188,7 @@ void print_applicability(const calculation::AssessmentResult& assessment,
                      format_bytes(estimate.memory_bytes), estimate.operations);
     }
     std::println("rejected alternatives: {}", assessment.rejections().size());
+    const auto& molecules = assessment.molecules();
     for (const auto& rejected : assessment.rejections()) {
         std::print("rejected method={}", rejected.method_id);
         if (rejected.parameter_set_id.has_value()) {
@@ -196,7 +198,17 @@ void print_applicability(const calculation::AssessmentResult& assessment,
             std::print(" execution={}", calculation::to_string(rejected.policy->mode()));
         }
         for (const auto& issue : rejected.issues) {
-            std::visit([](const auto& value) { std::print("; {}", value.message); }, issue);
+            std::visit(
+                [&](const auto& value) {
+                    std::print("; ");
+                    if (value.molecule_index.has_value()) {
+                        std::print("{}: ",
+                                   core::detail::molecule_description(
+                                       molecules[*value.molecule_index], *value.molecule_index));
+                    }
+                    std::print("{}", value.message);
+                },
+                issue);
         }
         std::println();
     }

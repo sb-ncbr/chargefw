@@ -20,10 +20,10 @@ namespace {
 
 auto GDACMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "GDAC");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 
     detail::add_element_prerequisite_issues(
-        input, result, "GDAC requires a positive van der Waals radius",
+        input, result, "the method requires a positive van der Waals radius",
         [](const core::Element& element) -> bool { return element.van_der_waals_radius > 0.0; });
 }
 
