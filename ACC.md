@@ -386,13 +386,16 @@ connections. This is the conversion ChargeFW2 did, without removing `_chem_comp`
   the file read back to the same molecule, was written and withdrawn on 2026-11-18: it needed its
   own `_struct_conn` writer and refusals for segments, repeated serial numbers, and symmetry
   operators.
-- Gemmi's `_chem_comp` (only `id` and type `.`) is written. It makes Mol* show spacefill, so ACC
-  removes it, as ChargeFW2 did.
+- Gemmi's `_chem_comp` (only `id` and type `.`) is written. With it, Mol* shows no cartoon
+  (spacefill in the earlier tests, ball-and-stick for 1CBN), so ACC removes it, as ChargeFW2 did.
 
 Checked on 2026-11-18 with `tests/fixtures/synthetic/pdb/annotation.pdb` (two alanines, two
 ligands, water) for the selections `all` and `polymers`, and with a residue in two parts and atoms
-that differ only in the segment: every charge row names the site of its calculated atom. Mol*
-rendering of the converted files was not checked again.
+that differ only in the segment: every charge row names the site of its calculated atom. On 1CBN
+from the PDB and from the mmCIF, `--annotate-mmcif` charges the same 640 of 777 sites with the same
+charges, and the files read as 637 polymer and 3 ligand atoms with 3 disulfides. Prepared as ACC
+would (uncharged atom rows and `_chem_comp` removed), both look the same in Mol* 4.5.0, with
+cartoon; the PDB file with `_chem_comp` kept shows ball-and-stick.
 
 **Done:** `MmcifWriter::annotate`, `chargefw.io.annotate`, and `--annotate-mmcif` with
 `--if-exists` (`error`, `replace`, `append`), for mmCIF and PDB input; `attach_charges` appends
