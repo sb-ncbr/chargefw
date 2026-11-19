@@ -7,10 +7,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 
-import numpy as np
-from numpy.typing import NDArray
-
-from ._arrays import as_integer, index_array
+from ._arrays import as_integer
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
 from ._charges import ChargeAssignment
@@ -21,6 +18,7 @@ from ._errors import (
     NoExecutablePlanError,
     NumericalFailureError,
 )
+from ._issues import Issue, location_arguments
 from ._methods import (
     ExecutionIssue,
     Method,
@@ -58,18 +56,11 @@ from ._warnings import (
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class InputIssue:
+class InputIssue(Issue):
     """A caution about an input molecule, such as hydrogens that were probably not added."""
 
     kind: InputIssueKind
-    message: str
     molecule_index: int
-    conformer_index: int | None = None
-    atom_index: int | None = None
-    # For atoms_too_close, the other atom of the closest pair, which the message names too.
-    other_atom_index: int | None = None
-    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
-    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -78,27 +69,18 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             kind=issue["kind"],
             message=issue["message"],
             molecule_index=issue["molecule_index"],
-            conformer_index=issue["conformer_index"],
-            atom_index=issue["atom_index"],
-            other_atom_index=issue["other_atom_index"],
-            atom_indices=index_array(issue["atom_indices"]),
+            **location_arguments(issue),
         )
         for issue in payload
     )
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class ChargeIssue:
+class ChargeIssue(Issue):
     """A caution about calculated charges: they exist, but are probably wrong."""
 
     kind: ChargeIssueKind
-    message: str
     molecule_index: int
-    conformer_index: int | None
-    atom_index: int | None
-    other_atom_index: int | None = None
-    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
-    atom_indices: NDArray[np.int64]
 
 
 def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]:
@@ -107,10 +89,7 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
             kind=issue["kind"],
             message=issue["message"],
             molecule_index=issue["molecule_index"],
-            conformer_index=issue["conformer_index"],
-            atom_index=issue["atom_index"],
-            other_atom_index=issue["other_atom_index"],
-            atom_indices=index_array(issue["atom_indices"]),
+            **location_arguments(issue),
         )
         for issue in payload
     )
@@ -475,12 +454,7 @@ def _prerequisite_issue(value: PrerequisiteIssuePayload) -> PrerequisiteIssue:
         kind=value["kind"],
         message=value["message"],
         molecule_index=value["molecule_index"],
-        atom_index=value["atom_index"],
-        other_atom_index=value["other_atom_index"],
-        bond_index=value["bond_index"],
-        conformer_index=value["conformer_index"],
-        atom_indices=index_array(value["atom_indices"]),
-        bond_indices=index_array(value["bond_indices"]),
+        **location_arguments(value),
     )
 
 
@@ -489,6 +463,7 @@ def _execution_issue(value: ExecutionIssuePayload) -> ExecutionIssue:
         kind=value["kind"],
         message=value["message"],
         molecule_index=value["molecule_index"],
+        **location_arguments(value),
     )
 
 
@@ -789,7 +764,9 @@ class CalculationResult:
         if exception_type is None:
             return None
         if self.status == "no_executable_plan":
-            return exception_type(_no_executable_plan_message(self.rejections, self.molecules), self)
+            return exception_type(
+                _no_executable_plan_message(self.rejections, self.molecules), self
+            )
         return exception_type(self.failure_message or self.status, self)
 
 

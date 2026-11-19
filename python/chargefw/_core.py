@@ -20,6 +20,7 @@ from ._arrays import (
     index_array,
 )
 from ._chargefw import core as _native_core
+from ._issues import Issue
 from ._public import set_public_module
 from ._types import ImportIssueKind
 from ._types import PortableId as _PortableId
@@ -124,16 +125,12 @@ class SourceMapping:
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class ImportIssue:
+class ImportIssue(Issue):
     """A caution that a file reader attached to an imported molecule."""
 
     kind: ImportIssueKind
-    message: str
+    # The line in the file, counted from one.
     line: int | None = None
-    # Every atom and bond the issue concerns, in index order, such as the aromatic bonds read as
-    # single bonds.
-    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
-    bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 class Molecule:

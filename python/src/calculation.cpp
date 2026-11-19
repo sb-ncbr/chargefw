@@ -1,6 +1,7 @@
 #include "calculation.h"
 
 #include "bindings.h"
+#include "issue_payload.h"
 #include "native_execution_result.h"
 #include "native_input_metadata.h"
 #include "native_parameter_catalog.h"
@@ -93,20 +94,14 @@ auto method_options(const nb::dict& options) -> methods::MethodOptions {
     return result;
 }
 
-// An issue with its location, as the Python issue types read it. Prerequisite, input, and charge
-// issues share the shape; each Python type keeps the fields it has.
+// An issue with its location, as the Python issue types read it; every issue type has the same
+// fields.
 template <typename Issue> auto issue_payload(const Issue& issue) -> nb::dict {
     auto result = nb::dict{};
     result["kind"] = std::string{to_string(issue.kind)};
     result["message"] = issue.message;
     result["molecule_index"] = issue.molecule_index;
-    const auto& location = issue.location;
-    result["conformer_index"] = location.conformer_index;
-    result["atom_index"] = location.atom_index;
-    result["other_atom_index"] = location.other_atom_index;
-    result["bond_index"] = location.bond_index;
-    result["atom_indices"] = location.atom_indices;
-    result["bond_indices"] = location.bond_indices;
+    add_issue_location(result, issue.location);
     return result;
 }
 
@@ -115,14 +110,6 @@ template <typename Issue> auto issue_payloads(const std::span<const Issue> issue
     for (const auto& issue : issues) {
         result.append(issue_payload(issue));
     }
-    return result;
-}
-
-auto execution_issue(const calculation::ExecutionIssue& issue) -> nb::dict {
-    auto result = nb::dict{};
-    result["kind"] = std::string{calculation::to_string(issue.kind)};
-    result["message"] = issue.message;
-    result["molecule_index"] = issue.molecule_index;
     return result;
 }
 
@@ -149,7 +136,7 @@ auto effective_calculation(const calculation::EffectiveCalculation& effective) -
     result["execution_policy"] = execution_policy(effective.execution_policy);
     auto issues = nb::list{};
     for (const auto& issue : effective.warnings) {
-        issues.append(execution_issue(issue));
+        issues.append(issue_payload(issue));
     }
     result["execution_issues"] = std::move(issues);
     if (effective.fixed_ions.has_value()) {
@@ -183,7 +170,7 @@ auto rejection(const calculation::Rejection& rejected) -> nb::dict {
         if (const auto* prerequisite = std::get_if<methods::PrerequisiteIssue>(&issue)) {
             prerequisite_issues.append(issue_payload(*prerequisite));
         } else {
-            execution_issues.append(execution_issue(std::get<calculation::ExecutionIssue>(issue)));
+            execution_issues.append(issue_payload(std::get<calculation::ExecutionIssue>(issue)));
         }
     }
     result["prerequisite_issues"] = std::move(prerequisite_issues);
@@ -299,7 +286,7 @@ auto execution_plan(const calculation::ExecutionPlan& plan) -> nb::dict {
     result["execution_policy"] = execution_policy(plan.policy());
     auto warnings = nb::list{};
     for (const auto& warning : plan.warnings()) {
-        warnings.append(execution_issue(warning));
+        warnings.append(issue_payload(warning));
     }
     result["warnings"] = std::move(warnings);
     return result;

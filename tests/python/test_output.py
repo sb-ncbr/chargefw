@@ -342,6 +342,7 @@ def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
     assert manual.import_warnings == ()
     # The warning lists the aromatic bond, here the first, as Python and result JSON give it.
     aromatic = imported_molecule.import_warnings[1]
+    assert aromatic.bond_index == 0
     assert aromatic.bond_indices.tolist() == [0]
     assert not aromatic.bond_indices.flags.writeable
     result = chargefw.calculate([manual, imported_molecule], method="formal")

@@ -30,6 +30,11 @@
 
 ### Diagnostics
 
+- Every issue type has the same location attributes: `conformer_index`, `atom_index`,
+  `other_atom_index`, `bond_index`, `atom_indices`, and `bond_indices`. In Python, `ImportIssue` and
+  `ExecutionIssue` get those they lacked, and `InputIssue` and `ChargeIssue` get `bond_index` and
+  `bond_indices`; in C++, `calculation::ExecutionIssue` gets a `location`. Breaking change: like the
+  other issue types, `ExecutionIssue` no longer compares equal by value.
 - Breaking change: in C++, `parameters::ClassificationIssue` gives its atom or bond in `location`,
   as `atom_index` or `bond_index`, in place of `object_index`, as other issues give theirs. Its
   message no longer names the parameter set; the exception of `classify_parameters()` still does.

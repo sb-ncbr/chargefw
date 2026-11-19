@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "issue_payload.h"
 #include "native_execution_result.h"
 #include "native_input_metadata.h"
 
@@ -175,10 +176,12 @@ auto as_python(const MoleculePayload& payload) -> nb::dict {
     result["record_id"] = portable_id(payload.identity.record_id);
     nb::list import_warnings;
     for (const auto& issue : payload.import_warnings) {
-        import_warnings.append(nb::make_tuple(
-            std::string{io::to_string(issue.kind)}, issue.message,
-            issue.line.has_value() ? nb::cast(*issue.line) : nb::none(),
-            nb::cast(issue.location.atom_indices), nb::cast(issue.location.bond_indices)));
+        auto encoded = nb::dict{};
+        encoded["kind"] = std::string{io::to_string(issue.kind)};
+        encoded["message"] = issue.message;
+        encoded["line"] = issue.line;
+        add_issue_location(encoded, issue.location);
+        import_warnings.append(std::move(encoded));
     }
     result["import_warnings"] = import_warnings;
     result["native_input_metadata"] = payload.native_input_metadata;

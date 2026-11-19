@@ -15,6 +15,7 @@ from ._types import (
     ExecutionIssueKind,
     ExecutionMode,
     ExecutionStatus,
+    ImportIssueKind,
     InputIssueKind,
     MethodOptionType,
     MethodOptionValue,
@@ -35,34 +36,37 @@ class CalculationProgressPayload(TypedDict):
     elapsed_seconds: float
 
 
-class PrerequisiteIssuePayload(TypedDict):
-    kind: PrerequisiteIssueKind
-    message: str
-    molecule_index: int | None
+class IssueLocationPayload(TypedDict):
+    conformer_index: int | None
     atom_index: int | None
     other_atom_index: int | None
     bond_index: int | None
-    conformer_index: int | None
     atom_indices: list[int]
     bond_indices: list[int]
 
 
-class ExecutionIssuePayload(TypedDict):
+class PrerequisiteIssuePayload(IssueLocationPayload):
+    kind: PrerequisiteIssueKind
+    message: str
+    molecule_index: int | None
+
+
+class ExecutionIssuePayload(IssueLocationPayload):
     kind: ExecutionIssueKind
     message: str
     molecule_index: int | None
 
 
-class InputIssuePayload(TypedDict):
+class InputIssuePayload(IssueLocationPayload):
     kind: InputIssueKind
     message: str
     molecule_index: int
-    conformer_index: int | None
-    atom_index: int | None
-    other_atom_index: int | None
-    bond_index: int | None
-    atom_indices: list[int]
-    bond_indices: list[int]
+
+
+class ImportIssuePayload(IssueLocationPayload):
+    kind: ImportIssueKind
+    message: str
+    line: int | None
 
 
 class ExecutionPolicyPayload(TypedDict):
@@ -115,16 +119,10 @@ class ChargeSetPayload(TypedDict):
     assignments: list[ChargeAssignmentPayload]
 
 
-class ChargeIssuePayload(TypedDict):
+class ChargeIssuePayload(IssueLocationPayload):
     kind: ChargeIssueKind
     message: str
     molecule_index: int
-    conformer_index: int | None
-    atom_index: int | None
-    other_atom_index: int | None
-    bond_index: int | None
-    atom_indices: list[int]
-    bond_indices: list[int]
 
 
 class CalculationMetricsPayload(TypedDict):

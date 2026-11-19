@@ -24,6 +24,7 @@ from .._core import (
     SourceStructuralLabels,
 )
 from .._errors import ParseError
+from .._issues import location_arguments
 from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 
 if TYPE_CHECKING:
@@ -156,13 +157,12 @@ def _molecule(payload: _native_io.MoleculePayload) -> Molecule:
         "_import_warnings",
         tuple(
             ImportIssue(
-                kind=kind,
-                message=message,
-                line=line,
-                atom_indices=index_array(atoms),
-                bond_indices=index_array(bonds),
+                kind=issue["kind"],
+                message=issue["message"],
+                line=issue["line"],
+                **location_arguments(issue),
             )
-            for kind, message, line, atoms, bonds in payload["import_warnings"]
+            for issue in payload["import_warnings"]
         ),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
