@@ -94,17 +94,6 @@ auto method_options(const nb::dict& options) -> methods::MethodOptions {
     return result;
 }
 
-// An issue with its location, as the Python issue types read it; every issue type has the same
-// fields.
-template <typename Issue> auto issue_payload(const Issue& issue) -> nb::dict {
-    auto result = nb::dict{};
-    result["kind"] = std::string{to_string(issue.kind)};
-    result["message"] = issue.message;
-    result["molecule_index"] = issue.molecule_index;
-    add_issue_location(result, issue.location);
-    return result;
-}
-
 template <typename Issue> auto issue_payloads(const std::span<const Issue> issues) -> nb::list {
     auto result = nb::list{};
     for (const auto& issue : issues) {
@@ -188,11 +177,8 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
     result["rejections"] = std::move(rejections);
     result["input_warnings"] = issue_payloads(std::span{value.input_warnings});
     result["charge_warnings"] = issue_payloads(std::span{value.charge_warnings});
-    // The text of the failure, with its molecule and conformer, as the package reads it.
-    result["failure_message"] =
-        value.failure.has_value()
-            ? nb::cast(std::string{calculation::CalculationFailed{*value.failure}.what()})
-            : nb::none();
+    result["failure"] =
+        value.failure.has_value() ? nb::cast(issue_payload(*value.failure)) : nb::none();
     auto metrics = nb::dict{};
     metrics["applicability_seconds"] = value.metrics.applicability_seconds;
     metrics["computation_seconds"] = value.metrics.computation_seconds;

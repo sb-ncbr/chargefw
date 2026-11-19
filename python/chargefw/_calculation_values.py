@@ -26,6 +26,7 @@ from ._methods import (
 )
 from ._parameters import ParameterSet
 from ._payloads import (
+    CalculationFailurePayload,
     CalculationProgressPayload,
     ChargeIssuePayload,
     EffectiveCalculationPayload,
@@ -41,6 +42,7 @@ from ._types import (
     ChargeIssueKind,
     ExecutionMode,
     ExecutionStatus,
+    FailureKind,
     InputIssueKind,
     MethodOptionValue,
     ParameterMatching,
@@ -93,6 +95,42 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
         )
         for issue in payload
     )
+
+
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
+class CalculationFailure(Issue):
+    """Why a calculation gave no charges: the reason a method gave for one molecule.
+
+    ``conformer_index`` is the conformer; with cutoff or cover execution, ``atom_index`` is the atom
+    whose fragment failed, and ``None`` when the whole molecule failed.
+    """
+
+    kind: FailureKind
+    molecule_index: int
+
+
+def _calculation_failure(payload: CalculationFailurePayload | None) -> CalculationFailure | None:
+    if payload is None:
+        return None
+    return CalculationFailure(
+        kind=payload["kind"],
+        message=payload["message"],
+        molecule_index=payload["molecule_index"],
+        **location_arguments(payload),
+    )
+
+
+def failure_text(
+    failure: CalculationFailure, molecules: MoleculeCollection, mode: ExecutionMode
+) -> str:
+    """The failure with the molecule, conformer, and fragment its message does not name."""
+
+    where = _describe_molecule(molecules, failure.molecule_index)
+    if failure.conformer_index is not None:
+        where += f", conformer {failure.conformer_index + 1}"
+    if failure.atom_index is not None:
+        where += f", {mode} fragment around atom {failure.atom_index + 1}"
+    return f"{where}: {failure.message}"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -602,7 +640,7 @@ class CalculationResult:
         "_input_warnings",
         "_charge_warnings",
         "_plan",
-        "_failure_message",
+        "_failure",
         "_timings",
     )
 
@@ -616,7 +654,7 @@ class CalculationResult:
     _input_warnings: tuple[InputIssue, ...]
     _charge_warnings: tuple[ChargeIssue, ...]
     _plan: ExecutedPlan | None
-    _failure_message: str | None
+    _failure: CalculationFailure | None
     _timings: CalculationTimings
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -667,7 +705,7 @@ class CalculationResult:
         result._plan = _executed_plan(
             payload["effective"], methods, parameter_sets, molecules, requested
         )
-        result._failure_message = payload["failure_message"]
+        result._failure = _calculation_failure(payload["failure"])
         result._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],
             computation_seconds=payload["metrics"]["computation_seconds"],
@@ -747,8 +785,11 @@ class CalculationResult:
         return self._charge_warnings
 
     @property
-    def failure_message(self) -> str | None:
-        return self._failure_message
+    def failure(self) -> CalculationFailure | None:
+        """Why the calculation gave no charges; ``None`` unless the status is
+        ``"numerical_failure"``."""
+
+        return self._failure
 
     @property
     def timings(self) -> CalculationTimings:
@@ -767,7 +808,11 @@ class CalculationResult:
             return exception_type(
                 _no_executable_plan_message(self.rejections, self.molecules), self
             )
-        return exception_type(self.failure_message or self.status, self)
+        if self._failure is not None and self._plan is not None:
+            return exception_type(
+                failure_text(self._failure, self.molecules, self._plan.execution.mode), self
+            )
+        return exception_type(self.status, self)
 
 
 def _outcome(

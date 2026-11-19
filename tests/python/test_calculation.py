@@ -1004,11 +1004,11 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert executed.parameter_set == parameter_set
 
 
-def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
+def write_eem_set(path: Any, set_id: str, oxygen_a: float, kappa: float = 0.5) -> Any:
     path.write_text(
         f"""{{
   "metadata": {{"id": "{set_id}", "method": "eem", "name": "Water EEM"}},
-  "common": {{"names": ["kappa"], "values": [0.5]}},
+  "common": {{"names": ["kappa"], "values": [{kappa}]}},
   "atom": {{
     "names": ["A", "B"],
     "data": [
@@ -1020,6 +1020,54 @@ def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
 """
     )
     return path
+
+
+def test_numerical_failure_gives_its_molecule_and_conformer(tmp_path: Any) -> None:
+    # With kappa 0.5 and B 1, the EEM equations of two atoms 0.5 Å apart are singular: the second
+    # conformer fails, the first does not.
+    singular = chargefw.read_parameter_set(
+        write_eem_set(tmp_path / "singular.json", "singular", 3.0)
+    )
+    pair = chargefw.Molecule(
+        [1, 8],
+        coordinates=[[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]],
+        name="pair",
+    )
+    with pytest.raises(chargefw.NumericalFailureError) as context:
+        chargefw.calculate(pair, method="eem", parameter_set=singular, threads=1)
+
+    result = context.value.result
+    assert result.status == "numerical_failure" and result.assignments == ()
+    failure = result.failure
+    assert failure is not None
+    assert (failure.kind, failure.molecule_index, failure.conformer_index, failure.atom_index) == (
+        "no_solution",
+        0,
+        1,
+        None,
+    )
+    # The message gives the reason only; the error adds the molecule and the conformer once.
+    assert "conformer" not in failure.message
+    text = str(context.value)
+    assert text.startswith("molecule 1 ('pair'), conformer 2: ")
+    assert text.count("conformer") == 1 and text.endswith(failure.message)
+
+
+def test_numerical_failure_in_a_fragment_names_its_atom(tmp_path: Any) -> None:
+    # A negative kappa fails every fragment; with one thread, the first fails first.
+    invalid = chargefw.read_parameter_set(
+        write_eem_set(tmp_path / "invalid.json", "invalid", 3.0, kappa=-0.5)
+    )
+    with pytest.raises(chargefw.NumericalFailureError) as context:
+        chargefw.calculate(
+            water(), method="eem", parameter_set=invalid, execution="cutoff", radius=8.0, threads=1
+        )
+
+    failure = context.value.result.failure
+    assert failure is not None and failure.kind == "invalid_parameter_value"
+    assert (failure.conformer_index, failure.atom_index) == (0, 0)
+    assert failure.atom_indices.tolist() == [0]
+    assert str(context.value).startswith("molecule 1, conformer 1, cutoff fragment around atom 1: ")
 
 
 def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> None:

@@ -40,6 +40,11 @@
   any other exception from a method is reported as an internal error instead of a numerical failure.
   `parameterization::normal_equations()` throws `calculation::CalculationFailed` for a failed
   calculation and `NonFiniteNormalEquations` for sums that are not finite.
+- Breaking change: in Python, `CalculationResult.failure`, a `CalculationFailure` with the kind, the
+  reason, the molecule, the conformer, and the failed fragment's atom, replaces `failure_message`. For
+  calculation failures, the messages of `NumericalFailureError` and
+  `chargefw.parameterization.EvaluationError` name the molecule and, when present, the conformer once,
+  before the reason.
 - Every issue type has the same location attributes: `conformer_index`, `atom_index`,
   `other_atom_index`, `bond_index`, `atom_indices`, and `bond_indices`. In Python, `ImportIssue` and
   `ExecutionIssue` get those they lacked, and `InputIssue` and `ChargeIssue` get `bond_index` and

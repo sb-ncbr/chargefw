@@ -9,6 +9,7 @@ from threading import Lock
 
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._calculation_values import (
+    CalculationFailure,
     CalculationObserver,
     CalculationProgress,
     CalculationResult,
@@ -55,6 +56,7 @@ __all__ = [
     "Execution",
     "InputIssue",
     "ChargeIssue",
+    "CalculationFailure",
     "Plan",
     "Rejection",
     "RequestedCalculation",
@@ -80,6 +82,7 @@ set_public_module(
     CalculationResult,
     InputIssue,
     ChargeIssue,
+    CalculationFailure,
     Plan,
     Rejection,
     ResourceEstimate,

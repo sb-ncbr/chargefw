@@ -224,7 +224,7 @@ result = chargefw.calculate(
 | `rejections` | Rejected methods and parameter sets with reasons |
 | `input_warnings` | Cautions about the input molecules, such as [missing hydrogens](../guide/input.md) |
 | `charge_warnings` | Cautions about the calculated charges, such as [charges far from the formal charges](../guide/results.md#charges-that-are-probably-wrong) |
-| `failure_message` | Text of a numerical failure; otherwise `None` |
+| `failure` | Why a numerical failure gave no charges, a `CalculationFailure`; otherwise `None` |
 | `timings` | Time spent selecting and calculating |
 
 A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` array in atom order, and
@@ -294,6 +294,16 @@ with its first reason:
 no method and parameter set apply to the molecules:
   method 'peoe': molecule 1 ('1L2Y'): the method supports only molecules in which every bonded part has zero total formal charge
 ```
+
+The message of `NumericalFailureError` names the molecule, the conformer, and with cutoff or cover
+execution the atom whose fragment failed, then the reason:
+
+```text
+molecule 1 ('pair'), conformer 2: the calculation gave charges that are not finite numbers, for example because its equations have no unique solution; check the geometry or use another parameter set
+```
+
+`error.result.failure` gives the same as fields: its `kind`, such as `"no_solution"`, the reason in
+`message`, `molecule_index`, `conformer_index`, and `atom_index`.
 
 The exception's `result` holds the complete result, with every reason; it can still be written as
 result JSON:

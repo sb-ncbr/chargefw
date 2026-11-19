@@ -15,6 +15,7 @@ from ._types import (
     ExecutionIssueKind,
     ExecutionMode,
     ExecutionStatus,
+    FailureKind,
     ImportIssueKind,
     InputIssueKind,
     MethodOptionType,
@@ -125,6 +126,12 @@ class ChargeIssuePayload(IssueLocationPayload):
     molecule_index: int
 
 
+class CalculationFailurePayload(IssueLocationPayload):
+    kind: FailureKind
+    message: str
+    molecule_index: int
+
+
 class CalculationMetricsPayload(TypedDict):
     applicability_seconds: float
     computation_seconds: float
@@ -135,7 +142,7 @@ class ExecutionResultPayload(TypedDict):
     rejections: list[RejectionPayload]
     input_warnings: list[InputIssuePayload]
     charge_warnings: list[ChargeIssuePayload]
-    failure_message: str | None
+    failure: CalculationFailurePayload | None
     metrics: CalculationMetricsPayload
     effective: EffectiveCalculationPayload | None
     charges: ChargeSetPayload | None

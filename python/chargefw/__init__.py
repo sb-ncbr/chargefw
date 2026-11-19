@@ -6,6 +6,7 @@ from . import _cpu as _cpu  # Checks the CPU before the extension is loaded.
 from . import io as io
 from ._calculation import (
     Assessment,
+    CalculationFailure,
     CalculationObserver,
     CalculationProgress,
     CalculationResult,
@@ -102,6 +103,7 @@ __all__ = [
     "ExecutionIssue",
     "InputIssue",
     "ChargeIssue",
+    "CalculationFailure",
     "ChargeFWWarning",
     "InputWarning",
     "ChargeWarning",

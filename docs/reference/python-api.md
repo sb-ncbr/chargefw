@@ -151,7 +151,7 @@ array of the indices of its atoms in the molecule.
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
 | `charge_warnings` | Tuple of `ChargeIssue`: cautions about the calculated charges |
-| `failure_message` | Text of a numerical failure; otherwise `None` |
+| `failure` | `CalculationFailure` of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
 
 (selecting-an-assignment)=
@@ -325,6 +325,14 @@ A caution about calculated charges: ChargeFW returns them, but they are probably
 charges are more than 6 e away from the formal charges of their atoms. `atom_index` is the atom
 furthest from its formal charge, and `atom_indices` every affected atom. `conformer_index` is `None`
 for methods that do not use coordinates.
+
+### CalculationFailure
+
+Why a calculation gave no charges: the reason the method gave for one molecule, in
+`CalculationResult.failure`. `kind` is `"no_solution"`, `"not_converged"`, or
+`"invalid_parameter_value"`; [When a calculation fails](../guide/results.md#when-a-calculation-fails)
+explains them. `conformer_index` is the conformer. With cutoff or cover execution, `atom_index` is the
+atom whose fragment failed, and `None` when the whole molecule failed.
 
 ### ChargeFWWarning, InputWarning, and ChargeWarning
 
