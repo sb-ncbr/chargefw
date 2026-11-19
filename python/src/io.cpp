@@ -18,6 +18,7 @@
 #include <chargefw/io/mol2_output.h>
 #include <chargefw/io/mol_input.h>
 #include <chargefw/io/molecule_record.h>
+#include <chargefw/io/parse_error.h>
 #include <chargefw/io/pdb_input.h>
 #include <chargefw/io/pqr_output.h>
 #include <chargefw/io/sdf_input.h>
@@ -33,6 +34,7 @@
 
 #include <array>
 #include <cstddef>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -314,6 +316,21 @@ auto annotate_mmcif(const std::vector<NativeExecutionResult*>& native_results,
 } // namespace
 
 void bind_io(nb::module_& module) {
+    // Input a reader cannot read becomes chargefw.ParseError, with where it is as attributes.
+    nb::register_exception_translator([](const std::exception_ptr& error, void* /*unused*/) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const io::ParseError& parse_error) {
+            const auto& location = parse_error.location();
+            const auto type = nb::module_::import_("chargefw._errors").attr("ParseError");
+            const auto instance =
+                type(parse_error.what(), nb::arg("reason") = parse_error.reason(),
+                     nb::arg("source_name") = location.source_name, nb::arg("line") = location.line,
+                     nb::arg("record_index") = location.record_index,
+                     nb::arg("record_id") = portable_id(location.record_id));
+            PyErr_SetObject(type.ptr(), instance.ptr());
+        }
+    });
     [[maybe_unused]] const auto native_input_metadata =
         nb::class_<NativeInputMetadata>(module, "_NativeInputMetadata");
     module.def("_parse", &parse, nb::arg("contents"), nb::arg("source_name"), nb::arg("format"),

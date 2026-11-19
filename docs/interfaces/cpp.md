@@ -362,7 +362,10 @@ Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors
 index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
 `operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
 throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
-molecule cannot hold, such as atomic number 0. A valid assessment reports methods that do not apply
+molecule cannot hold, such as atomic number 0. Where a reader knows where it stopped, it throws
+`io::ParseError`, a `std::runtime_error`, for both: the MOL, SDF, and MOL2 readers, and the PDB and
+mmCIF readers for text that is not ASCII. Its `reason()` says why, and its `location()` gives the
+source name, the line counted from one, and the record index counted from zero and record ID. A valid assessment reports methods that do not apply
 as rejections, and `default_plan()` is null when none applies; it has no status. `calculate()`
 reports failures and cancellation through the `ExecutionStatus`. A method that cannot calculate
 throws a `methods::MethodFailure` with its kind and reason, and `calculate()` reports it as

@@ -2,6 +2,7 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/io/mol2_input.h>
 #include <chargefw/io/mol_input.h>
+#include <chargefw/io/parse_error.h>
 #include <chargefw/io/sdf_input.h>
 #include <exception>
 #include <filesystem>
@@ -366,8 +367,21 @@ TEST_CASE("native reader diagnostics use file lines across records", "[io][nativ
         REQUIRE(second.has_value());
         REQUIRE(second->import_warnings.size() == 1);
         CHECK(second->import_warnings[0].line == 13);
-        CHECK_THROWS_MATCHES(sdf_reader.next(), std::runtime_error,
-                             snitch::matchers::with_what_contains{"input.sdf:24: record 3"});
+        // The error gives where as fields too, and the reason without them.
+        const auto error = [&]() -> std::optional<io::ParseError> {
+            try {
+                static_cast<void>(sdf_reader.next());
+            } catch (const io::ParseError& caught) {
+                return caught;
+            }
+            return std::nullopt;
+        }();
+        REQUIRE(error.has_value());
+        CHECK(std::string_view{error->what()}.starts_with("input.sdf:24: record 3 ('broken'): "));
+        CHECK(error->location().source_name == "input.sdf");
+        CHECK(error->location().line == 24);
+        CHECK(error->location().record_index == 2);
+        CHECK_FALSE(error->reason().contains("input.sdf"));
 
         const std::string mol2_record{"@<TRIPOS>MOLECULE\nligand\n1 0\n@<TRIPOS>ATOM\n"
                                       "1 C1 0 0 0 C.3 1 LIG 0.2\n@<TRIPOS>BOND\n"};

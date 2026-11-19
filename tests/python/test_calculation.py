@@ -1120,8 +1120,12 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
-    with pytest.raises(chargefw.ParseError, match="no-such-method"):
+    with pytest.raises(chargefw.ParseError, match="no-such-method") as unknown:
         chargefw.read_parameter_set(unknown_method)
+    # The path is in the source name, not in the reason.
+    assert unknown.value.source_name == str(unknown_method)
+    assert "no-such-method" in unknown.value.reason
+    assert str(unknown_method) not in unknown.value.reason
 
     with pytest.raises(FileNotFoundError):
         chargefw.read_parameter_set(tmp_path / "missing.json")

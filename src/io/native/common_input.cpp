@@ -2,6 +2,8 @@
 
 #include "io/text_encoding.h"
 
+#include <chargefw/io/parse_error.h>
+
 #include <gemmi/atof.hpp>
 
 #include <charconv>
@@ -12,17 +14,20 @@
 namespace chargefw::io::native::common_input {
 
 auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::size_t line) -> void {
-    const auto context =
-        (identity.source_name.empty() ? "line " : identity.source_name + ":") +
-        std::to_string(line) + ": record " + std::to_string(identity.record_index + 1) +
-        (identity.record_id.empty() ? "" : " ('" + identity.record_id.display_string() + "')") +
-        ": ";
+    // Text the reader cannot read and values a molecule cannot hold are both input it cannot
+    // read; other exceptions pass unchanged.
+    const auto location = ParseLocation{.source_name = identity.source_name,
+                                        .line = line,
+                                        .record_index = identity.record_index,
+                                        .record_id = identity.record_id};
     try {
         throw;
+    } catch (const ParseError&) {
+        throw;
     } catch (const std::invalid_argument& error) {
-        throw std::invalid_argument{context + error.what()};
+        throw ParseError{error.what(), location};
     } catch (const std::runtime_error& error) {
-        throw std::runtime_error{context + error.what()};
+        throw ParseError{error.what(), location};
     }
 }
 

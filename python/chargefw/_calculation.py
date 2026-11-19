@@ -135,9 +135,11 @@ def _parameter_set_from_catalog(
     result = ParameterSet._create(descriptor, native)
     if result._method_id not in methods:
         where = f" in {source!r}" if source else ""
+        missing = f"is for method {result._method_id!r}, which ChargeFW does not have"
         raise ParseError(
-            f"parameter set {result.id!r}{where} is for method {result._method_id!r}, "
-            "which ChargeFW does not have"
+            f"parameter set {result.id!r}{where} {missing}",
+            reason=f"parameter set {result.id!r} {missing}",
+            source_name=source or "",
         )
     result._link(methods[result._method_id])
     return result
@@ -179,11 +181,11 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
         try:
             text = file.read()
         except UnicodeDecodeError as error:
-            raise ParseError(f"{source}: {error}") from None
+            raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
     try:
         native = _native_parameters._parse_parameter_set_catalog(text)
     except ValueError as error:
-        raise ParseError(f"{source}: {error}") from None
+        raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
     result = _parameter_set_from_catalog(native, source)
     _check_custom_parameter_id(result.id, source)
     return result

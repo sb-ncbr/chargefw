@@ -214,10 +214,30 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
         with pytest.raises(chargefw.ParseError):
             chargefw.io.parse(contents, format=cast(Any, format_name))
 
+    # Where the reader knows it, the error gives where as attributes, and the reason without it.
+    with pytest.raises(chargefw.ParseError) as located:
+        chargefw.io.parse(unknown_element, format="sdf", source_name="input.sdf")
+    error = located.value
+    assert (error.source_name, error.line, error.record_index, error.record_id) == (
+        "input.sdf",
+        5,
+        0,
+        "x",
+    )
+    assert "Xx" in error.reason and "input.sdf" not in error.reason
+    assert str(error).startswith("input.sdf:5: record 1 ('x'): ")
+
+    # A reader that gives no location still leaves the source known.
+    with pytest.raises(chargefw.ParseError) as unlocated:
+        chargefw.io.parse("data_x\nloop_\n", format="mmcif", source_name="input.cif")
+    assert unlocated.value.source_name == "input.cif" and unlocated.value.line is None
+
     latin1 = tmp_path / "latin1.sdf"
     latin1.write_bytes(b"\xe9\n")
-    with pytest.raises(chargefw.ParseError):
+    with pytest.raises(chargefw.ParseError) as undecodable:
         chargefw.io.read(latin1, format="sdf")
+    assert undecodable.value.source_name == str(latin1)
+    assert str(latin1) not in undecodable.value.reason
     with pytest.raises(FileNotFoundError):
         chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
 

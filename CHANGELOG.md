@@ -30,6 +30,12 @@
 
 ### Diagnostics
 
+- Input that ChargeFW cannot read gives the reason and, where the reader knows them, the line and
+  record as fields: `reason`, `source_name`, `line`, `record_index`, and `record_id` of
+  `chargefw.ParseError` in Python, and `io::ParseError` in C++. This covers MOL, SDF, and MOL2 files,
+  and text that is not ASCII in PDB and mmCIF files. Breaking change: in C++, these readers throw
+  `io::ParseError`, a `std::runtime_error`, also for values a molecule cannot hold, which were
+  `std::invalid_argument`.
 - Breaking change: in result JSON, an invalid method option is the diagnostic code
   `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`.
 - The messages of `atoms_too_close`, `charge_out_of_range`, and `invalid_geometry` no longer start

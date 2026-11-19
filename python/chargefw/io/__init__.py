@@ -238,8 +238,11 @@ def _parse(
         payloads = _native_io._parse(
             contents, source_name, format, selection, bond_strategy, conformers
         )
+    except ParseError:
+        raise
     except (RuntimeError, ValueError, IndexError) as error:
-        raise ParseError(str(error)) from None
+        # The reader gave no location; the source is still known.
+        raise ParseError(str(error), source_name=source_name) from None
     return _collection(payloads, source_name)
 
 
@@ -282,7 +285,9 @@ def read(
     try:
         contents = source_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as error:
-        raise ParseError(f"{source_path}: {error}") from None
+        raise ParseError(
+            f"{source_path}: {error}", reason=str(error), source_name=str(source_path)
+        ) from None
     collection = _parse(
         contents,
         format,
