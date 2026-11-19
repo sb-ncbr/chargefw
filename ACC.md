@@ -66,7 +66,7 @@ Behavior of ChargeFW2 that ACC inherits:
 - `read_hetatm=False` drops every `HETATM` record, modified residues of the polymer included.
   `ignore_water=True` drops residues named `HOH`.
 - Bonds of structures come from residue templates only: `amino_acids.txt` and `other_residues.txt`, a
-  23 MB copy of the bonds of the whole Chemical Component Dictionary (CCD), matched by residue and
+  23 MB copy of the bonds and bond orders of the whole Chemical Component Dictionary (CCD), matched by residue and
   atom names. Bonds in the file (`CONECT`, `_chem_comp_bond`) are ignored. Backbone bonds join `C` of
   residue number *n* to `N` of residue number *n* + 1.
 - Structures above 20,000 atoms get only the methods that support a cutoff, which then run with a
@@ -112,8 +112,9 @@ Follow-up on 2026-11-18, with the rc5 wheel:
   `selection="polymers", conformers="first"`. Both gave 9,918 atoms including 15 seleniums, the same
   ordered atom names and elements, and the same 10,041 bonded pairs. **Bond counts alone hide a
   difference:** 15 C–O bonds are single in the PDB read and double in the mmCIF read. The deposited
-  PDB lists each MSE carbonyl connection once in each direction. This is not evidence of dropped
-  `CONECT` records; do not add an MSE bond-order override in ACC. Charges were not compared here.
+  PDB supplies the MSE carbonyl pairs through `CONECT`, but not their orders. ChargeFW reads them as
+  single; the mmCIF supplies double bonds. ChargeFW2's MSE template specifies `C O 2` when MSE is
+  retained. Do not add an MSE bond-order override in ACC. Charges were not compared here.
 
 Malformed records and numerical failure paths were not exercised in the migration comparison.
 
@@ -231,8 +232,8 @@ most 0.09 e.
 - Bonds of ligands and modified residues come from the file. A PDB file without `CONECT` leaves them
   unbonded with an `unbonded_residue_atoms` warning, and the calculation still runs: in 2HU4 converted
   to PDB, each ligand atom keeps its formal charge, the amine nitrogen +1.000 e. The PDB file of 1CBN
-  from the PDB does have `CONECT` records for its ligand, so the gap concerns PDB files written by
-  tools that drop them.
+  from the PDB does have `CONECT` records for its ligand. Those records preserve connectivity, not
+  bond orders: even a fully connected ligand can lose double bonds without an unbonded-atom warning.
 - The same warning names stray hydrogens that preparation tools leave in the input. In 8YAX, `H1` of
   LEU A 1195 is 1.08 Å from the carbonyl carbon of the previous residue and 2.69 Å from its own
   nitrogen. ChargeFW is right to report them. It makes no peptide bond across a chain gap; this was
@@ -334,8 +335,10 @@ In the order proposed to the maintainer; all are resolved after rc5 and wait for
    name, so an ACC upload would be named `<sha256>_<name>`. Resolved after rc5: the ID code of the
    `HEADER` record names it, as in ChargeFW2, and the block of the annotated file.
 
-Decided against: CCD templates for all ligands (large data for a gap that the files from the PDB do
-not have); sanitized names, TXT output, and per-molecule files (ACC's conventions); calculating
+Decided against bundling CCD templates for all ligands to recover missing connectivity. That decision
+did not address bond orders for pairs present in PDB `CONECT` records.
+
+Also decided against: sanitized names, TXT output, and per-molecule files (ACC's conventions); calculating
 bond-based methods on charged molecules; leaving out molecules that fail; selection by `HETATM` flag.
 
 Open questions for ChargeFW:
