@@ -368,15 +368,16 @@ throw `std::runtime_error` for input they cannot parse, and `std::invalid_argume
 molecule cannot hold, such as atomic number 0. Where a reader knows where it stopped, it throws
 `io::ParseError`, a `std::runtime_error`, for both: the MOL, SDF, and MOL2 readers, and the PDB and
 mmCIF readers for text that is not ASCII. Its `reason()` says why, and its `location()` gives the
-source name, the line counted from one, and the record index counted from zero and record ID. A valid assessment reports methods that do not apply
-as rejections, and `default_plan()` is null when none applies; it has no status. `calculate()`
-reports failures and cancellation through the `ExecutionStatus`. A method that cannot calculate
-throws a `methods::MethodFailure` with its kind and reason, and `calculate()` reports it as
+source name, the line counted from one, and, from the MOL, SDF, and MOL2 readers, the record index
+counted from zero and record ID. A valid assessment reports methods that do not apply as rejections,
+and `default_plan()` is null when none applies; it has no status. `calculate()` reports failures and
+cancellation through the `ExecutionStatus`. A method that cannot calculate throws a
+`methods::MethodFailure` with its kind and reason, and `calculate()` reports it as
 `numerical_failure`. Charges that are not finite numbers, such as those of singular equations, are
 `no_solution` there too; if you call `Method::calculate()` yourself, they reach you as
-`charges::NonFiniteCharges`, a `std::invalid_argument`. Any other exception from a method is an error
-in ChargeFW and reaches the caller of `calculate()` as `std::logic_error`; `std::bad_alloc` when
-memory runs out reaches it unchanged.
+`charges::NonFiniteCharges`, a `std::invalid_argument`. Any other exception from a method is an
+error in ChargeFW and reaches the caller of `calculate()` as `std::logic_error`; `std::bad_alloc`
+when memory runs out reaches it unchanged.
 
 ## Fixed ions
 

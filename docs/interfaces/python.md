@@ -279,10 +279,11 @@ and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own e
 `chargefw.ChargeFWError`.
 
 Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
-`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a `ValueError`.
-Its `reason` says why. For MOL, SDF, and MOL2 files, and for text that is not ASCII in PDB and mmCIF
-files, `line` is the line of the file, counted from one, and `record_index` and `record_id` give the
-record; otherwise they are `None`.
+`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a
+`ValueError`. Its `reason` says why. For MOL, SDF, and MOL2 files, `line` is the line of the file,
+counted from one, and `record_index` and `record_id` give the record. For text that is not ASCII in
+PDB and mmCIF files, and for a file that `chargefw.io.read()` cannot read as UTF-8, only `line` is
+given. Fields that are not given are `None`.
 
 A calculation that fails raises a `chargefw.CalculationError`:
 
