@@ -85,8 +85,14 @@ cannot use it as it is.
 ChargeFW then takes bonds from its residue templates for the 20 standard amino acids, the nucleotides
 A, C, G, U, DA, DC, DG, and DT, and water, under their PDB residue names, together with the bonds
 recorded in the file. For other residues, the file must contain their bonds: mmCIF `_chem_comp_bond`
-rows or PDB `CONECT` records. mmCIF files downloaded from the PDB and files written by Hydride contain
-them. When an atom of a residue with two or more atoms gets no bond at all, ChargeFW warns with
+rows or PDB `CONECT` records.
+
+When bond orders matter for a ligand or modified residue, use the original mmCIF file with bond
+orders in `_chem_comp_bond.value_order`. A PDB `CONECT` record identifies the bonded atoms, but
+ChargeFW treats the bond as single unless a residue template supplies its order. Converting the PDB
+file to mmCIF does not recover missing orders.
+
+When an atom of a residue with two or more atoms gets no bond at all, ChargeFW warns with
 `unbonded_residue_atoms` and names the first such residues; add the missing bonds to the file before
 you use a method or parameter set that depends on bonds.
 
