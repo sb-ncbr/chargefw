@@ -27,17 +27,21 @@
 namespace chargefw::io {
 namespace {
 
-// Code, message, and conformer of the diagnostics already appended; a molecule can have one per
-// atom. Messages do not name the conformer, so equal messages of two conformers are both kept.
-using SeenDiagnostics = std::set<std::tuple<std::string, std::string, std::optional<std::size_t>>>;
-
-auto append_unique(std::vector<ResultDiagnostic>& diagnostics, SeenDiagnostics& seen,
-                   ResultDiagnostic diagnostic) -> void {
-    if (seen.emplace(diagnostic.code, diagnostic.message, diagnostic.location.conformer_index)
-            .second) {
-        diagnostics.push_back(std::move(diagnostic));
+// Orders diagnostics so that two are equivalent when they have the same code, message, and
+// location. Messages do not name the conformer or every atom, so equal messages at different
+// locations are different findings.
+struct SameFinding {
+    [[nodiscard]] static auto key(const ResultDiagnostic& diagnostic) {
+        const auto& location = diagnostic.location;
+        return std::tie(diagnostic.code, diagnostic.message, location.conformer_index,
+                        location.atom_index, location.other_atom_index, location.bond_index,
+                        location.atom_indices, location.bond_indices);
     }
-}
+    [[nodiscard]] auto operator()(const ResultDiagnostic& left, const ResultDiagnostic& right) const
+        -> bool {
+        return key(left) < key(right);
+    }
+};
 
 auto validate_import_metadata(const std::span<const ImportedMoleculeRecord> records) -> void {
     for (const auto& record : records) {
@@ -508,13 +512,14 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     }
     const auto* execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
-    auto seen = SeenDiagnostics{};
     const auto with_residues = [&] {
         for (auto& diagnostic : diagnostics) {
             diagnostic.message += residue_clause(records[molecule_index], diagnostic.location);
         }
         return std::move(diagnostics);
     };
+    // Each warning is one finding, so two with the same text, such as for different atoms of a
+    // result built by the caller, are both kept.
     for (const auto& issue : records[molecule_index].import_warnings) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
@@ -523,10 +528,8 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.molecule_index = molecule_index;
         imported.line = issue.line;
         imported.location = issue.location;
-        append_unique(diagnostics, seen, std::move(imported));
+        diagnostics.push_back(std::move(imported));
     }
-    // Each warning is one finding, so two with the same text, such as for different atoms of a
-    // result built by the caller, are both kept.
     const auto append_warnings = [&]<typename Issue>(const std::vector<Issue>& warnings) {
         for (const auto& issue :
              std::ranges::equal_range(warnings, molecule_index, {}, &Issue::molecule_index)) {
@@ -542,11 +545,11 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         for (const auto& issue :
              std::ranges::equal_range(plan_warnings(*execution), std::optional{molecule_index}, {},
                                       &calculation::ExecutionIssue::molecule_index)) {
-            append_unique(diagnostics, seen, issue_diagnostic(issue));
+            diagnostics.push_back(issue_diagnostic(issue));
         }
     }
     if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
-        append_unique(diagnostics, seen, *diagnostic);
+        diagnostics.push_back(*diagnostic);
     }
     if (result.status() != ResultStatus::no_executable_plan) {
         auto described = with_residues();
@@ -561,6 +564,8 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
     std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,
                        std::back_inserter(positions));
+    // A candidate rejected in two execution modes can give the same issue twice; it is kept once.
+    auto seen = std::set<ResultDiagnostic, SameFinding>{};
     for (const auto& [rejection_index, issue_index] : positions) {
         const auto& rejected = execution->rejections[rejection_index];
         const auto& issue_value = rejected.issues[issue_index];
@@ -572,7 +577,9 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
             [](const auto& issue) { return issue_diagnostic(issue, DiagnosticSeverity::error); },
             issue_value);
         diagnostic.message = candidate + ": " + diagnostic.message;
-        append_unique(diagnostics, seen, std::move(diagnostic));
+        if (seen.insert(diagnostic).second) {
+            diagnostics.push_back(std::move(diagnostic));
+        }
     }
     return with_residues();
 }
