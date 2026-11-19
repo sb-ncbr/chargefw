@@ -65,6 +65,8 @@ reader stopped as fields.
     as a numerical failure. `parameterization::normal_equations()` throws
     `calculation::CalculationFailed` for a failed calculation and `NonFiniteNormalEquations` for sums
     that are not finite.
+- SMP/QEq rejects a non-positive `second` parameter also for a single atom, as
+  `invalid_parameter_value`.
 - Breaking change: in result JSON, an invalid method option has the diagnostic code
   `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`. The code of
   every diagnostic that comes from an issue is now the name of the issue's kind.

@@ -127,7 +127,7 @@ auto prepare_reduced_charge_context(
             molecule, source.topology(), std::move(context.reference_charges),
             core::total_formal_charge(molecule));
         // Finite values can overflow in their sums; that fails the whole target, before any
-        // fragment.
+        // fragment. A fragment checks its own sum.
         if (!std::ranges::all_of(context.reference_charges,
                                  [](const double value) { return std::isfinite(value); })) {
             throw methods::detail::non_finite_charges_failure();
@@ -180,6 +180,9 @@ auto calculate_fragment_charges(const methods::ApplicableMethod& selected,
     const features::PreparedMolecule prepared_fragment{fragment.molecule()};
     const features::ConformerFeatures geometry{fragment.molecule(), 0};
     const auto target_charge = fragment_target_charge(charge_context, fragment);
+    if (!std::isfinite(target_charge)) {
+        throw methods::detail::non_finite_charges_failure();
+    }
 
     auto projected_classification = parameters::ParameterClassification{};
     if (source_classification != nullptr) {

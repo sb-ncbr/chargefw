@@ -1,6 +1,7 @@
 #include "methods/builtin/smpqeq.h"
 #include "methods/atom_parameter_values.h"
 #include "methods/builtin/charge_constraint.h"
+#include "methods/method_call.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/methods/method_failure.h>
@@ -91,6 +92,9 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
         }
 
         b = solve_charge_constrained(A, b, input.target_charge());
+        if (!b.allFinite()) {
+            throw methods::detail::non_finite_charges_failure();
+        }
 
         if ((b.head(n) - previous_charges).cwiseAbs().maxCoeff() <= convergence_tolerance) {
             return charges::AtomicCharges{std::vector<double>{b.data(), b.data() + n}};
