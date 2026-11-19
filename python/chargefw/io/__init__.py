@@ -285,8 +285,13 @@ def read(
     try:
         contents = source_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as error:
+        # The error gives the offset of the byte in the file.
+        line = source_path.read_bytes().count(b"\n", 0, error.start) + 1
         raise ParseError(
-            f"{source_path}: {error}", reason=str(error), source_name=str(source_path)
+            f"{source_path}:{line}: {error}",
+            reason=str(error),
+            source_name=str(source_path),
+            line=line,
         ) from None
     collection = _parse(
         contents,

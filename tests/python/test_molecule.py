@@ -233,10 +233,10 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
     assert unlocated.value.source_name == "input.cif" and unlocated.value.line is None
 
     latin1 = tmp_path / "latin1.sdf"
-    latin1.write_bytes(b"\xe9\n")
+    latin1.write_bytes(b"title\n\xe9\n")
     with pytest.raises(chargefw.ParseError) as undecodable:
         chargefw.io.read(latin1, format="sdf")
-    assert undecodable.value.source_name == str(latin1)
+    assert (undecodable.value.source_name, undecodable.value.line) == (str(latin1), 2)
     assert str(latin1) not in undecodable.value.reason
     with pytest.raises(FileNotFoundError):
         chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
