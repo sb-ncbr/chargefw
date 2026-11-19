@@ -316,8 +316,9 @@ except chargefw.CalculationError as error:
     raise
 ```
 
-The message of a reason does not name the molecule, method, or parameter set: the molecule is the one
-at `molecule_index`, and the method and parameter set are those of the rejection. The
+The message of a reason does not name the molecule, conformer, method, or parameter set: the molecule
+and the conformer are those at `molecule_index` and `conformer_index`, and the method and parameter
+set are those of the rejection. The
 `molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero; the
 numbers in its message count from one.
 

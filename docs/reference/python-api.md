@@ -266,7 +266,7 @@ ChargeFW reports problems as issues. Every issue type has these attributes:
 | Attribute | Content |
 | --- | --- |
 | `kind` | Code of the issue, such as `"atoms_too_close"`; each type lists its codes below |
-| `message` | The reason, such as `the parameter set has no atom parameter matching atom 1 (...)`; it does not name the molecule, method, or parameter set, and its numbers count from one |
+| `message` | The reason, such as `the parameter set has no atom parameter matching atom 1 (...)`; it does not name the molecule, conformer, method, or parameter set, and its numbers count from one |
 | `conformer_index` | Index of the conformer the issue concerns; `None` when it concerns the whole molecule |
 | `atom_index`, `bond_index` | Index of the atom and of the bond the message names; `None` when it names none |
 | `other_atom_index` | The other atom of a pair the message names, such as two atoms too close, whether or not they are bonded; otherwise `None` |

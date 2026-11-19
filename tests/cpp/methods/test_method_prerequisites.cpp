@@ -116,7 +116,6 @@ TEST_CASE("coordinate requirements reject coincident atoms in every conformer",
         CHECK(issue.location.other_atom_index == 0);
         CHECK(issue.location.atom_indices == std::vector<std::size_t>{0, 1});
         CHECK(issue.location.conformer_index == conformer_index);
-        CHECK(issue.message.contains("conformer " + std::to_string(conformer_index + 1)));
     }
     CHECK(result.issues[0].message.contains("atom 1 (H, formal charge 0)"));
 }

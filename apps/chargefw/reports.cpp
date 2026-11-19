@@ -202,9 +202,13 @@ void print_applicability(const calculation::AssessmentResult& assessment,
                 [&](const auto& value) {
                     std::print("; ");
                     if (value.molecule_index.has_value()) {
-                        std::print("{}: ",
+                        std::print("{}",
                                    core::detail::molecule_description(
                                        molecules[*value.molecule_index], *value.molecule_index));
+                        if (value.location.conformer_index.has_value()) {
+                            std::print(", conformer {}", *value.location.conformer_index + 1);
+                        }
+                        std::print(": ");
                     }
                     std::print("{}", value.message);
                 },

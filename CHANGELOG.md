@@ -30,6 +30,9 @@
 
 ### Diagnostics
 
+- The messages of `atoms_too_close`, `charge_out_of_range`, and `invalid_geometry` no longer start
+  with the conformer, such as `conformer 2: `; `conformer_index` gives it, and the command line and
+  Python warnings and errors name it after the molecule, such as `molecule 1 ('1CRN'), conformer 2: `.
 - A calculation that fails reports the molecule, the conformer, and with cutoff or cover execution the
   atom whose fragment failed as fields, and one of the kinds `no_solution`, `not_converged`, and
   `invalid_parameter_value`, with a reason that says what to do. Breaking change: in result JSON, the

@@ -470,7 +470,8 @@ is their sum. Failed and cancelled records have no assignments.
 
 A diagnostic has a `severity`, a `code`, such as `atoms_too_close`, and a `message`. It can give the
 molecule, atom, bond, and conformer it concerns, counted from zero, and the `line` of the file,
-counted from one. A diagnostic about several atoms or bonds lists all of them in `atom_indices` or
+counted from one. The message gives the reason; it names atoms but not the molecule or the
+conformer, which `molecule_index` and `conformer_index` give. A diagnostic about several atoms or bonds lists all of them in `atom_indices` or
 `bond_indices`; `atom_index` and `bond_index` are the ones its message names, and `other_atom_index`
 the other atom of a pair it names, such as two atoms too close, whether or not they are bonded. A viewer can select
 the listed atoms and bonds to show where the problem is. For PDB and mmCIF input, the message also

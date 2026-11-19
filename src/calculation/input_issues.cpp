@@ -88,9 +88,9 @@ auto add_close_atom_issues(const std::span<const InputIssue> assessment_warnings
                                   close->distance);
             result.push_back(InputIssue{
                 .kind = InputIssueKind::atoms_too_close,
-                .message = std::format("conformer {}: {}; check the coordinates, because charges "
-                                       "calculated from them may be wrong",
-                                       conformer + 1, finding),
+                .message = std::format("{}; check the coordinates, because charges calculated "
+                                       "from them may be wrong",
+                                       finding),
                 .molecule_index = index,
                 .location = {.conformer_index = conformer,
                              .atom_index = second,

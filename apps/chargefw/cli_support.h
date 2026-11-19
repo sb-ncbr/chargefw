@@ -66,11 +66,20 @@ struct CalculationRun {
 
 [[nodiscard]] auto utc_timestamp() -> std::string;
 
+// Where an issue is, for people: the molecule, and the conformer when the issue has one. Messages
+// name neither.
+[[nodiscard]] auto issue_place(std::span<const io::ImportedMoleculeRecord> records,
+                               std::size_t molecule_index,
+                               std::optional<std::size_t> conformer_index) -> std::string;
+
 // One line for the warnings of one code about molecules: the molecule when there is one, or the
-// count with the first one as an example. `molecules` is the zero-based indices, in input order.
+// count with the first one as an example. `molecules` is the zero-based indices, in input order;
+// `conformer_index` is that of the first one's warning.
 [[nodiscard]] auto molecule_warning_text(std::span<const io::ImportedMoleculeRecord> records,
                                          std::string_view code, std::string_view message,
-                                         const std::set<std::size_t>& molecules) -> std::string;
+                                         const std::set<std::size_t>& molecules,
+                                         std::optional<std::size_t> conformer_index = std::nullopt)
+    -> std::string;
 
 void add_input_options(CLI::App& command, InputArguments& arguments);
 void add_selection_options(CLI::App& command, SelectionArguments& arguments);

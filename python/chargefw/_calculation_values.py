@@ -53,6 +53,7 @@ from ._warnings import (
     ChargeFWWarning,
     ChargeWarning,
     InputWarning,
+    issue_place,
     issue_warnings,
 )
 
@@ -125,9 +126,9 @@ def failure_text(
 ) -> str:
     """The failure with the molecule, conformer, and fragment its message does not name."""
 
-    where = _describe_molecule(molecules, failure.molecule_index)
-    if failure.conformer_index is not None:
-        where += f", conformer {failure.conformer_index + 1}"
+    where = issue_place(
+        _describe_molecule(molecules, failure.molecule_index), failure.conformer_index
+    )
     if failure.atom_index is not None:
         where += f", {mode} fragment around atom {failure.atom_index + 1}"
     return f"{where}: {failure.message}"
@@ -615,7 +616,8 @@ def _no_executable_plan_message(
         if rejection.issues:
             issue = rejection.issues[0]
             if issue.molecule_index is not None:
-                line += f": {_describe_molecule(molecules, issue.molecule_index)}"
+                molecule = _describe_molecule(molecules, issue.molecule_index)
+                line += f": {issue_place(molecule, issue.conformer_index)}"
             line += f": {issue.message}"
         if len(rejection.issues) > 1:
             line += f" (and {len(rejection.issues) - 1} more)"

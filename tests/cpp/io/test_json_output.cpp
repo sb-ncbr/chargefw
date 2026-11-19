@@ -485,6 +485,40 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
     CHECK(geometry->at("atom_indices") == nlohmann::json::array({0, 2}));
 }
 
+TEST_CASE("JSON diagnostics keep equal messages of different conformers", "[io][json]") {
+    // The same coincident pair in both conformers: the messages are equal, the conformers are not.
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    auto rejection = calculation::Rejection{.method_id = "eem", .parameter_set_id = "test"};
+    for (const std::size_t conformer_index : {0, 1}) {
+        rejection.issues.emplace_back(
+            methods::PrerequisiteIssue{.kind = methods::PrerequisiteIssueKind::invalid_geometry,
+                                       .message = "identical coordinates",
+                                       .molecule_index = 0,
+                                       .location = {.conformer_index = conformer_index,
+                                                    .atom_index = 1,
+                                                    .other_atom_index = 0,
+                                                    .atom_indices = {0, 1}}});
+    }
+    execution.rejections.push_back(std::move(rejection));
+    const auto result = io::make_charge_calculation_result(
+        {{.molecule = core::Molecule{std::vector{core::Atom{8}, core::Atom{1}}},
+          .identity = {.source_name = "water.sdf", .record_index = 0}}},
+        {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+
+    auto conformers = std::vector<std::size_t>{};
+    for (const auto& diagnostic : document.at("results").at(0).at("diagnostics")) {
+        if (diagnostic.at("code") == "invalid_geometry") {
+            conformers.push_back(diagnostic.at("conformer_index"));
+        }
+    }
+    CHECK(conformers == std::vector<std::size_t>{0, 1});
+}
+
 TEST_CASE("JSON output files a numerical failure under the molecule that failed", "[io][json]") {
     auto execution = calculation::ExecutionResult{
         .status = calculation::ExecutionStatus::numerical_failure,

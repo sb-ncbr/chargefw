@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -49,12 +50,14 @@ namespace {
     throw std::logic_error{"unknown prerequisite issue kind"};
 }
 
-// Code and message of the diagnostics already appended; a molecule can have one per atom.
-using SeenDiagnostics = std::set<std::pair<std::string, std::string>>;
+// Code, message, and conformer of the diagnostics already appended; a molecule can have one per
+// atom. Messages do not name the conformer, so equal messages of two conformers are both kept.
+using SeenDiagnostics = std::set<std::tuple<std::string, std::string, std::optional<std::size_t>>>;
 
 auto append_unique(std::vector<ResultDiagnostic>& diagnostics, SeenDiagnostics& seen,
                    ResultDiagnostic diagnostic) -> void {
-    if (seen.emplace(diagnostic.code, diagnostic.message).second) {
+    if (seen.emplace(diagnostic.code, diagnostic.message, diagnostic.location.conformer_index)
+            .second) {
         diagnostics.push_back(std::move(diagnostic));
     }
 }

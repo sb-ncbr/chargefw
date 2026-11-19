@@ -750,8 +750,12 @@ def test_close_atoms_are_reported_with_their_atom() -> None:
         coordinates=[[0.0, 0.0, 0.0], [0.3, 0.0, 0.0], [-0.24, 0.93, 0.0]],
     )
     assert chargefw.assess(molecule, method="eqeq").input_warnings == ()
-    with pytest.warns(chargefw.InputWarning, match=r"\(atoms_too_close; "):
+    with pytest.warns(chargefw.InputWarning, match=r"\(atoms_too_close; ") as caught:
         result = chargefw.calculate(molecule, method="eqeq")
+    # The message gives the reason only; the warning adds the molecule and the conformer once.
+    assert "conformer" not in result.input_warnings[0].message
+    text = str(caught[0].message)
+    assert text.startswith("molecule 1, conformer 1: ") and text.count("conformer") == 1
 
     assert [
         (
