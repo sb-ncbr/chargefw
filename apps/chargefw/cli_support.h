@@ -66,12 +66,6 @@ struct CalculationRun {
 
 [[nodiscard]] auto utc_timestamp() -> std::string;
 
-// Where an issue is, for people: the molecule, and the conformer when the issue has one. Messages
-// name neither.
-[[nodiscard]] auto issue_place(std::span<const io::ImportedMoleculeRecord> records,
-                               std::size_t molecule_index,
-                               std::optional<std::size_t> conformer_index) -> std::string;
-
 // One line for the warnings of one code about molecules: the molecule when there is one, or the
 // count with the first one as an example. `molecules` is the zero-based indices, in input order;
 // `conformer_index` is that of the first one's warning.

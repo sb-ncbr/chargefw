@@ -1,6 +1,7 @@
 add_library(chargefw_test_support
         support/test_calculation.h
         support/test_charge_results.h
+        support/test_exceptions.h
         support/test_methods.h
         support/test_molecules.cpp
         support/test_molecules.h

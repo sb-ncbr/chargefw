@@ -476,7 +476,8 @@ conformer, which `molecule_index` and `conformer_index` give. A diagnostic about
 the other atom of a pair it names, such as two atoms too close, whether or not they are bonded. A viewer can select
 the listed atoms and bonds to show where the problem is. For PDB and mmCIF input, the message also
 names the residue of each atom it mentions, as PDB files and viewers do, for example
-`atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages.
+`atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages after the molecule
+and the conformer.
 
 When the calculation fails numerically, every record has the status `numerical_failure` and no
 assignments, and only the record of the molecule that failed has an error diagnostic. Its `code` is

@@ -79,7 +79,8 @@ ChargeFW calculates charges also when it finds a problem with the input or with 
 reports the problem as a warning. Read the warnings: some of them mean that the charges are probably
 wrong.
 
-On the command line, each warning is printed on standard error with the molecule it concerns;
+On the command line, each warning is printed on standard error with the molecule and conformer it
+concerns;
 warnings alone do not change the exit status:
 
 ```console

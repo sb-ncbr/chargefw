@@ -16,7 +16,7 @@ from ._payloads import IssueLocationPayload
 class Issue:
     """A kind, the reason, and where in a molecule the issue is; each issue type narrows ``kind``.
 
-    The message names neither the molecule nor the method or parameter set.
+    The message names neither the molecule nor the conformer, nor the method or parameter set.
     """
 
     kind: str

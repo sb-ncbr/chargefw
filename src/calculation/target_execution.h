@@ -3,6 +3,7 @@
 #include "calculation/calculation_cancelled.h"
 #include "calculation/fragment_failure.h"
 #include "calculation/parallel_for.h"
+#include "core/diagnostic_description.h"
 #include "methods/applicable_method_execution.h"
 #include "methods/method_applicability.h"
 
@@ -39,13 +40,10 @@ enum class ParallelizationLevel : std::uint8_t {
                                                       const features::PreparedMolecule& molecule,
                                                       const CalculationTarget& target,
                                                       const std::exception& error) -> std::string {
-    auto message = "method '" + std::string{selected.method->id()} + "', molecule " +
-                   std::to_string(target.molecule_index + 1) + " ('" +
-                   std::string{molecule.molecule().name()} + "')";
-    if (target.conformer_index.has_value()) {
-        message += ", conformer " + std::to_string(*target.conformer_index + 1);
-    }
-    return message + " failed: " + error.what();
+    return "method '" + std::string{selected.method->id()} + "', " +
+           core::detail::issue_place(molecule.molecule(), target.molecule_index,
+                                     target.conformer_index) +
+           " failed: " + error.what();
 }
 
 // The failure of a method for a target; `atom_index` is the atom whose fragment failed.

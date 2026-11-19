@@ -125,10 +125,6 @@ auto execution_input_warnings(const detail::AssessmentState& state, const method
                                          state.fixed_charge_partition.get());
 }
 
-} // namespace
-
-namespace {
-
 // The failure with its target, for the text of the exception.
 [[nodiscard]] auto describe_failure(const CalculationFailure& failure) -> std::string {
     auto text = "molecule " + std::to_string(failure.molecule_index + 1);

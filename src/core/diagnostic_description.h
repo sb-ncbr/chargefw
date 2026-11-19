@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -54,6 +55,18 @@ namespace chargefw::core::detail {
         description += " ('" + std::string{molecule.name()} + "')";
     }
     return description;
+}
+
+// Where an issue is, for people: the molecule, and the conformer when the issue has one. Issue
+// messages name neither, so every text that shows an issue starts with this.
+[[nodiscard]] inline auto issue_place(const Molecule& molecule, const std::size_t molecule_index,
+                                      const std::optional<std::size_t> conformer_index)
+    -> std::string {
+    auto place = molecule_description(molecule, molecule_index);
+    if (conformer_index.has_value()) {
+        place += ", conformer " + std::to_string(*conformer_index + 1);
+    }
+    return place;
 }
 
 // The atoms per element, most frequent first, such as "C: 2860, O: 797".

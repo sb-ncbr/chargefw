@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/core/bond.h>
 #include <chargefw/io/conformer_selection.h>
 #include <chargefw/io/molecule_record.h>
@@ -662,15 +664,10 @@ TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
         std::istringstream input{text};
         static_cast<void>(io::PdbReader{input, {}, {}});
     };
-    const auto location = [&]() -> std::optional<io::ParseLocation> {
-        try {
-            read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O"));
-        } catch (const io::ParseError& error) {
-            return error.location();
-        }
-        return std::nullopt;
-    }();
-    REQUIRE(location.has_value());
+    const auto error = chargefw::test::thrown<io::ParseError>(
+        [&] { read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O")); });
+    REQUIRE(error.has_value());
+    const auto* location = &error->location();
     CHECK(location->line == 2);
     CHECK_FALSE(location->record_index.has_value());
 }

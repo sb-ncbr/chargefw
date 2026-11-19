@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include <algorithm>
 #include <chargefw/core/bond.h>
 #include <chargefw/io/mol2_input.h>
@@ -368,14 +370,8 @@ TEST_CASE("native reader diagnostics use file lines across records", "[io][nativ
         REQUIRE(second->import_warnings.size() == 1);
         CHECK(second->import_warnings[0].line == 13);
         // The error gives where as fields too, and the reason without them.
-        const auto error = [&]() -> std::optional<io::ParseError> {
-            try {
-                static_cast<void>(sdf_reader.next());
-            } catch (const io::ParseError& caught) {
-                return caught;
-            }
-            return std::nullopt;
-        }();
+        const auto error =
+            chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(sdf_reader.next()); });
         REQUIRE(error.has_value());
         CHECK(std::string_view{error->what()}.starts_with("input.sdf:24: record 3 ('broken'): "));
         CHECK(error->location().source_name == "input.sdf");

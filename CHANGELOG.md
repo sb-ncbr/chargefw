@@ -30,49 +30,50 @@
 
 ### Diagnostics
 
+Warnings, reasons for rejections, and failures now give the same information in the same way: a
+code, a reason, and where the problem is as fields. Parse errors give their reason and where the
+reader stopped as fields.
+
+- The message of an issue gives only the reason, such as `the parameter set has no atom parameter
+  matching atom 1 (...)`. It no longer names the molecule, the conformer, the method, or the parameter
+  set: `molecule_index`, `conformer_index`, and the rejection give them, and the command line and
+  Python warnings and errors still name them, such as `molecule 1 ('1CRN'), conformer 2: `. In result
+  JSON, the `message` of a diagnostic no longer names the molecule or the conformer; that of a
+  rejection still starts with its method and parameter set. Messages about identical or non-finite
+  coordinates say what to check, and with fixed ions they number the atoms as in the input molecule.
+  Parameter entries in messages are numbered from one. The messages of import warnings no longer end
+  with a period.
+- Every issue type has the same location fields: `conformer_index`, `atom_index`, `other_atom_index`,
+  `bond_index`, `atom_indices`, and `bond_indices`. `other_atom_index` is new in result JSON and
+  Python: the other atom of a pair the message names, such as two atoms too close, whether or not
+  they are bonded. In Python, `ImportIssue`, `ExecutionIssue`, `InputIssue`, and `ChargeIssue` get the
+  fields they lacked; in C++, `calculation::ExecutionIssue` gets a `location`. Breaking changes:
+  Python `ExecutionIssue` no longer compares equal by value, like the other issue types, and C++
+  `parameters::ClassificationIssue` gives its atom or bond in `location` in place of `object_index`.
+- A calculation that fails reports why and where as fields: one of the kinds `no_solution`,
+  `not_converged`, and `invalid_parameter_value`, a reason that says what to do, the molecule, the
+  conformer, and with cutoff or cover execution the atom whose fragment failed. Breaking changes:
+  - Result JSON: the failure is one error diagnostic in the record of the molecule that failed, with
+    the kind as its `code`. It was a `numerical_failure` diagnostic in every record and in the
+    document. To find failed records, read the record `status`, which stays `numerical_failure`.
+  - Python: `CalculationResult.failure`, a `CalculationFailure`, replaces `failure_message`. For a
+    failed calculation, the messages of `NumericalFailureError` and
+    `chargefw.parameterization.EvaluationError` name the molecule and, when present, the conformer
+    once, before the reason.
+  - C++: `ExecutionResult::failure` replaces `failure_message`. Methods throw
+    `methods::MethodFailure`; any other exception from a method is reported as an internal error, not
+    as a numerical failure. `parameterization::normal_equations()` throws
+    `calculation::CalculationFailed` for a failed calculation and `NonFiniteNormalEquations` for sums
+    that are not finite.
+- Breaking change: in result JSON, an invalid method option has the diagnostic code
+  `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`. The code of
+  every diagnostic that comes from an issue is now the name of the issue's kind.
 - Input that ChargeFW cannot read gives the reason and, where the reader knows them, the line and
   record as fields: `reason`, `source_name`, `line`, `record_index`, and `record_id` of
-  `chargefw.ParseError` in Python, and `io::ParseError` in C++. This covers MOL, SDF, and MOL2 files,
-  and text that is not ASCII in PDB and mmCIF files. Breaking change: in C++, these readers throw
-  `io::ParseError`, a `std::runtime_error`, also for values a molecule cannot hold, which were
-  `std::invalid_argument`.
-- Breaking change: in result JSON, an invalid method option is the diagnostic code
-  `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`.
-- The messages of `atoms_too_close`, `charge_out_of_range`, and `invalid_geometry` no longer start
-  with the conformer, such as `conformer 2: `; `conformer_index` gives it, and the command line and
-  Python warnings and errors name it after the molecule, such as `molecule 1 ('1CRN'), conformer 2: `.
-- A calculation that fails reports the molecule, the conformer, and with cutoff or cover execution the
-  atom whose fragment failed as fields, and one of the kinds `no_solution`, `not_converged`, and
-  `invalid_parameter_value`, with a reason that says what to do. Breaking change: in result JSON, the
-  failure is an error diagnostic of the failed molecule's record, with the kind as its `code`, not a
-  `numerical_failure` diagnostic of every record and the document; read the record `status`, which
-  stays `numerical_failure`, to find failed records. Breaking change: in C++,
-  `ExecutionResult::failure` replaces `failure_message`; methods throw `methods::MethodFailure`, and
-  any other exception from a method is reported as an internal error instead of a numerical failure.
-  `parameterization::normal_equations()` throws `calculation::CalculationFailed` for a failed
-  calculation and `NonFiniteNormalEquations` for sums that are not finite.
-- Breaking change: in Python, `CalculationResult.failure`, a `CalculationFailure` with the kind, the
-  reason, the molecule, the conformer, and the failed fragment's atom, replaces `failure_message`. For
-  calculation failures, the messages of `NumericalFailureError` and
-  `chargefw.parameterization.EvaluationError` name the molecule and, when present, the conformer once,
-  before the reason.
-- Every issue type has the same location attributes: `conformer_index`, `atom_index`,
-  `other_atom_index`, `bond_index`, `atom_indices`, and `bond_indices`. In Python, `ImportIssue` and
-  `ExecutionIssue` get those they lacked, and `InputIssue` and `ChargeIssue` get `bond_index` and
-  `bond_indices`; in C++, `calculation::ExecutionIssue` gets a `location`. Breaking change: like the
-  other issue types, `ExecutionIssue` no longer compares equal by value.
-- Breaking change: in C++, `parameters::ClassificationIssue` gives its atom or bond in `location`,
-  as `atom_index` or `bond_index`, in place of `object_index`, as other issues give theirs. Its
-  message no longer names the parameter set; the exception of `classify_parameters()` still does.
-- Diagnostics about a pair of atoms, such as `atoms_too_close` and atoms at the same position, give
-  the other atom the message names as `other_atom_index`, whether or not the two are bonded: in
-  result JSON and in Python `InputIssue`, `PrerequisiteIssue`, and `ChargeIssue`.
-- The message of a reason why a method or parameter set does not apply, or of an execution warning,
-  gives only the reason, such as `the parameter set has no atom parameter matching atom 1 (...)`.
-  The molecule is in `molecule_index`, and the method and parameter set are those of the rejection;
-  the command line, result JSON, and the message of `NoExecutablePlanError` still name them. Messages
-  about identical or non-finite coordinates say what to check, and with fixed ions they number the
-  atoms as in the input molecule. Parameter entries in messages are numbered from one.
+  `chargefw.ParseError` in Python, and `io::ParseError` in C++. The line and record are known for
+  MOL, SDF, and MOL2 files, and the line for text that is not ASCII in PDB and mmCIF files. Breaking
+  change: in C++, these readers throw `io::ParseError`, a `std::runtime_error`, also for values a molecule cannot
+  hold, which were `std::invalid_argument`.
 
 ## 3.0.0rc5
 

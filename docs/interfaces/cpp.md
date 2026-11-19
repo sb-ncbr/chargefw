@@ -339,8 +339,11 @@ with cutoff or cover execution the atom whose fragment failed, numbered as in th
 Issues give where they are in a `core::IssueLocation`: an optional conformer index, the atom and bond
 index the message names, the other atom of a pair it names, such as two atoms too close, and
 `atom_indices` and `bond_indices` with every atom and bond the issue concerns.
-`methods::PrerequisiteIssue`, `calculation::InputIssue`, `calculation::ChargeIssue`,
-`io::ImportIssue`, and `io::ResultDiagnostic` hold one in `location`.
+`methods::PrerequisiteIssue`, `calculation::ExecutionIssue`, `calculation::InputIssue`,
+`calculation::ChargeIssue`, `calculation::CalculationFailure`, `parameters::ClassificationIssue`,
+`io::ImportIssue`, and `io::ResultDiagnostic` hold one in `location`. The `message` of an issue gives
+the reason and may name atoms and bonds, numbered from one. It does not name the molecule or the
+conformer; add them from the indices when you show the issue.
 
 An `InputIssue` is a caution about an input molecule, such as [missing hydrogens](../guide/input.md),
 with its kind, a message, the molecule index, and its location.

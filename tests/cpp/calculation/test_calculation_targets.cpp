@@ -1,3 +1,4 @@
+#include "support/test_exceptions.h"
 #include "support/test_methods.h"
 
 #include "calculation/target_execution.h"
@@ -111,16 +112,12 @@ TEST_CASE("calculation targets report method failures with their conformer",
             }));
     };
 
-    const auto failure = [&]() -> std::optional<calculation::CalculationFailure> {
-        try {
-            calculate(std::make_exception_ptr(
-                methods::MethodFailure{methods::FailureKind::not_converged, "did not converge"}));
-        } catch (const calculation::CalculationFailed& error) {
-            return error.failure();
-        }
-        return std::nullopt;
-    }();
-    REQUIRE(failure.has_value());
+    const auto failed = chargefw::test::thrown<calculation::CalculationFailed>([&] {
+        calculate(std::make_exception_ptr(
+            methods::MethodFailure{methods::FailureKind::not_converged, "did not converge"}));
+    });
+    REQUIRE(failed.has_value());
+    const auto* failure = &failed->failure();
     CHECK(failure->kind == methods::FailureKind::not_converged);
     CHECK(failure->message == "did not converge");
     CHECK(failure->molecule_index == 0);

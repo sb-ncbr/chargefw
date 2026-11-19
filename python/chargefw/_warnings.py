@@ -70,7 +70,7 @@ def issue_warnings(
         first_index, first = found[0]
         # The message names neither the molecule nor the conformer.
         example = f"{issue_place(describe(first_index), first.conformer_index)}: "
-        example += first.message.rstrip(".")
+        example += first.message
         affected = len({index for index, _ in found})
         if affected == 1:
             text = f"{example} ({kind}; see {attribute})"

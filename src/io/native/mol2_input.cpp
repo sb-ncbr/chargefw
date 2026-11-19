@@ -312,7 +312,7 @@ struct FormalCharge {
             issues.push_back(ImportIssue{
                 .kind = ImportIssueKind::partial_charges_ignored,
                 .message = "MOL2 partial charges were ignored; they are not formal charges and "
-                           "were not used for calculation.",
+                           "were not used for calculation",
                 .line = partial_charge_line});
         }
         if (!aromatic_bonds.empty()) {

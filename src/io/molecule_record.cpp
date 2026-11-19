@@ -78,8 +78,8 @@ auto aromatic_bonds_issue(std::vector<std::size_t> bonds) -> ImportIssue {
         .message = std::to_string(count) +
                    (count == 1 ? " aromatic bond was" : " aromatic bonds were") +
                    " read as single bonds; methods that use bond orders then give other charges "
-                   "than for the Kekulé structure. Write the file with Kekulé bonds to avoid "
-                   "this.",
+                   "than for the Kekulé structure; write the file with Kekulé bonds to avoid "
+                   "this",
         .line = std::nullopt,
         .location = {.bond_index = first, .bond_indices = std::move(bonds)}};
 }

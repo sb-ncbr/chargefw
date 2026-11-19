@@ -5,6 +5,7 @@
 #include "calculation/reduced_execution.h"
 #include "features/topology_helpers.h"
 #include "support/test_calculation.h"
+#include "support/test_exceptions.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -770,15 +771,9 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
         // hydrogen after the fixed ion.
         method.failure = std::make_exception_ptr(
             methods::MethodFailure{methods::FailureKind::no_solution, "deliberate failure"});
-        const auto failure = [&]() -> std::optional<calculation::CalculationFailure> {
-            try {
-                calculate();
-            } catch (const calculation::CalculationFailed& error) {
-                return error.failure();
-            }
-            return std::nullopt;
-        }();
-        REQUIRE(failure.has_value());
+        const auto failed = chargefw::test::thrown<calculation::CalculationFailed>(calculate);
+        REQUIRE(failed.has_value());
+        const auto* failure = &failed->failure();
         CHECK(failure->kind == methods::FailureKind::no_solution);
         CHECK(failure->message == "deliberate failure");
         CHECK(failure->molecule_index == 0);

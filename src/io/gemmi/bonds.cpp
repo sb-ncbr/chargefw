@@ -430,7 +430,7 @@ auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
                        .message = std::to_string(count) +
                                   (count == 1 ? " bond to an atom of a symmetry-related copy was"
                                               : " bonds to atoms of symmetry-related copies were") +
-                                  " ignored; only the atoms in the file are calculated.",
+                                  " ignored; only the atoms in the file are calculated",
                        .line = std::nullopt};
 }
 

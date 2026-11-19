@@ -6,7 +6,9 @@
 
 namespace chargefw::core {
 
-// Where in a molecule an issue is, in zero-based indices. The molecule itself is identified by
+// Where in a molecule an issue is, in zero-based indices. The message of an issue gives the reason
+// and may name atoms and bonds, numbered from one; it names neither the molecule nor the conformer,
+// which interfaces add from the indices. The molecule itself is identified by
 // the issue, because some issues always have one and others need not.
 struct IssueLocation {
     std::optional<std::size_t> conformer_index = std::nullopt;

@@ -84,15 +84,14 @@ void report_diagnostics(const io::ChargeCalculationResult& result,
             continue;
         }
         const auto molecule_index = *diagnostic.molecule_index;
-        auto where = issue_place(records, molecule_index, diagnostic.location.conformer_index);
+        auto where = core::detail::issue_place(records[molecule_index].molecule, molecule_index,
+                                               diagnostic.location.conformer_index);
         // The message of a failure does not name its fragment either.
-        if (is_failure(diagnostic)) {
-            if (diagnostic.location.atom_index.has_value()) {
-                where += std::format(
-                    ", {} fragment around atom {}",
-                    calculation::to_string(execution->effective->execution_policy.mode()),
-                    *diagnostic.location.atom_index + 1);
-            }
+        if (is_failure(diagnostic) && diagnostic.location.atom_index.has_value()) {
+            where +=
+                std::format(", {} fragment around atom {}",
+                            calculation::to_string(execution->effective->execution_policy.mode()),
+                            *diagnostic.location.atom_index + 1);
         }
         const auto message = where + ": " + diagnostic.message;
         if (reported.emplace(diagnostic.code, message).second) {
@@ -168,23 +167,14 @@ void write_pqr(const std::filesystem::path& path, const io::ChargeCalculationRes
 
 } // namespace
 
-auto issue_place(const std::span<const io::ImportedMoleculeRecord> records,
-                 const std::size_t molecule_index, const std::optional<std::size_t> conformer_index)
-    -> std::string {
-    auto place =
-        core::detail::molecule_description(records[molecule_index].molecule, molecule_index);
-    if (conformer_index.has_value()) {
-        place += ", conformer " + std::to_string(*conformer_index + 1);
-    }
-    return place;
-}
-
 auto molecule_warning_text(const std::span<const io::ImportedMoleculeRecord> records,
                            const std::string_view code, const std::string_view message,
                            const std::set<std::size_t>& molecules,
                            const std::optional<std::size_t> conformer_index) -> std::string {
-    const auto example =
-        issue_place(records, *molecules.begin(), conformer_index) + ": " + std::string{message};
+    const auto molecule_index = *molecules.begin();
+    const auto example = core::detail::issue_place(records[molecule_index].molecule, molecule_index,
+                                                   conformer_index) +
+                         ": " + std::string{message};
     return molecules.size() == 1 ? example
                                  : std::format("{} of {} molecules: {}, for example {}",
                                                molecules.size(), records.size(), code, example);

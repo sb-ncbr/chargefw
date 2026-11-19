@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/io/mmcif_input.h>
@@ -552,15 +554,10 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
 TEST_CASE("mmCIF input rejects non-ASCII text", "[io][mmcif]") {
     std::istringstream input{"# structure\n# \xe5\x88\x86\xe5\xad\x90\n" + atom_site_header("x") +
                              "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"};
-    const auto location = [&]() -> std::optional<io::ParseLocation> {
-        try {
-            static_cast<void>(io::MmcifReader{input});
-        } catch (const io::ParseError& error) {
-            return error.location();
-        }
-        return std::nullopt;
-    }();
-    REQUIRE(location.has_value());
+    const auto error =
+        chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(io::MmcifReader{input}); });
+    REQUIRE(error.has_value());
+    const auto* location = &error->location();
     CHECK(location->line == 2);
     CHECK_FALSE(location->record_index.has_value());
 }

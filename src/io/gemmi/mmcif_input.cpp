@@ -236,7 +236,7 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             record.import_warnings.push_back(ImportIssue{
                 .kind = ImportIssueKind::partial_charges_ignored,
                 .message = "mmCIF partial charges were ignored; they are not formal charges and "
-                           "were not used for calculation.",
+                           "were not used for calculation",
                 .line = std::nullopt});
         }
         return record;
