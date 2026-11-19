@@ -209,8 +209,8 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
         auto explicit_bonds = gemmi::bonds::ExplicitBonds{};
         if (options_.bonds == BondStrategy::explicit_bonds ||
             options_.bonds == BondStrategy::hybrid) {
-            explicit_bonds =
-                gemmi::bonds::explicit_mmcif(structure, block, selected_models.front());
+            explicit_bonds = gemmi::bonds::explicit_mmcif(structure, block, selected_models.front(),
+                                                          options_.bonds);
         }
         const auto current_record_index = record_index_++;
         auto record = gemmi::structure_import::make_record(
