@@ -297,9 +297,10 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         affected[bonds[index].second_atom_index()] = true;
     }
 
-    auto message = std::format("PDB CONECT gives connectivity but not bond orders: {} "
-                               "intra-residue {} read as single, for example in ",
-                               indices.size(), indices.size() == 1 ? "bond was" : "bonds were");
+    auto message =
+        std::format("PDB CONECT gives connectivity but not bond orders: ChargeFW read {} "
+                    "intra-residue {} non-hydrogen atoms as single, for example in ",
+                    indices.size(), indices.size() == 1 ? "bond between" : "bonds between");
     constexpr std::size_t example_limit = 3;
     std::size_t examples = 0;
     for (const auto& component : metadata.components) {

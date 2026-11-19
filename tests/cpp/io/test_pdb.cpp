@@ -497,7 +497,8 @@ TEST_CASE("PDB input reports missing residue bonds and bond orders", "[io][pdb]"
         R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
 HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O
 HETATM    3  C2  LIG A   1       0.000   1.400   0.000  1.00 20.00           C
-HETATM    4 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
+HETATM    4  H1  LIG A   1      -1.000   0.000   0.000  1.00 20.00           H
+HETATM    5 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
 )pdb";
     const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
         auto codes = std::vector<std::string>{};
@@ -513,13 +514,15 @@ HETATM    4 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     const auto unbonded = read_first(atoms + "END\n", {.bonds = Strategy::hybrid});
     REQUIRE(unbonded.import_warnings.size() == 1);
     CHECK(unbonded.import_warnings[0].location.atom_index == 0);
-    CHECK(unbonded.import_warnings[0].location.atom_indices == std::vector<std::size_t>{0, 1, 2});
+    CHECK(unbonded.import_warnings[0].location.atom_indices ==
+          std::vector<std::size_t>{0, 1, 2, 3});
     CHECK(read_codes("", Strategy::none).empty());
 
-    // Two intra-ligand bonds, one listed both ways, plus a link to the ion and a missing serial.
-    const std::string connectivity = "CONECT    1    4    2    3   99\nCONECT    2    1\n";
+    // Two bonds between ligand heavy atoms, one listed both ways, plus a bond to hydrogen, a link
+    // to the ion, and a missing serial. The hydrogen bond is single for certain and not reported.
+    const std::string connectivity = "CONECT    1    5    2    3    4   99\nCONECT    2    1\n";
     const auto bonded = read_first(atoms + connectivity + "END\n", {.bonds = Strategy::hybrid});
-    REQUIRE(bonded.molecule.bond_count() == 3);
+    REQUIRE(bonded.molecule.bond_count() == 4);
     REQUIRE(bonded.import_warnings.size() == 1);
     const auto& issue = bonded.import_warnings.front();
     CHECK(io::to_string(issue.kind) == "bond_orders_unknown");

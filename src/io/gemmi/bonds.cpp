@@ -369,7 +369,12 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
             const auto second = model.atom_index_by_serial(partner);
             if (second.has_value()) {
                 const auto index = result.add(*first, *second, core::BondOrder::SINGLE);
-                if (index && model.sites()[*first].residue == model.sites()[*second].residue) {
+                const auto& first_site = model.sites()[*first];
+                const auto& second_site = model.sites()[*second];
+                // A bond to hydrogen can only be single, so its order is known.
+                if (index && first_site.residue == second_site.residue &&
+                    !first_site.atom->element.is_hydrogen() &&
+                    !second_site.atom->element.is_hydrogen()) {
                     unknown.push_back(*index);
                 }
             }

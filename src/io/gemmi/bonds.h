@@ -41,7 +41,8 @@ struct ExplicitBonds {
     // Indices in bonds of the aromatic bonds, read as single bonds. The record keeps explicit bonds
     // first and in this order, so these are its bond indices too.
     std::vector<std::size_t> aromatic_bonds = {};
-    // Intra-residue pairs stated in PDB CONECT. Assignment removes template-covered pairs and
+    // Intra-residue pairs of non-hydrogen atoms stated in PDB CONECT. Assignment removes
+    // template-covered pairs and
     // maps these explicit bond indices to the retained topology.
     std::vector<std::size_t> unknown_order_indices = {};
 };
