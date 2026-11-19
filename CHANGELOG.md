@@ -30,6 +30,8 @@
 
 ### Diagnostics
 
+- Breaking change: in result JSON, an invalid method option is the diagnostic code
+  `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`.
 - The messages of `atoms_too_close`, `charge_out_of_range`, and `invalid_geometry` no longer start
   with the conformer, such as `conformer 2: `; `conformer_index` gives it, and the command line and
   Python warnings and errors name it after the molecule, such as `molecule 1 ('1CRN'), conformer 2: `.

@@ -485,6 +485,28 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
     CHECK(geometry->at("atom_indices") == nlohmann::json::array({0, 2}));
 }
 
+TEST_CASE("JSON diagnostic codes are the names of the issue kinds", "[io][json]") {
+    // As in Python and C++: invalid_options, not a name of its own.
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    execution.rejections.push_back({.method_id = "peoe",
+                                    .issues = {methods::PrerequisiteIssue{
+                                        .kind = methods::PrerequisiteIssueKind::invalid_options,
+                                        .message = "option 'iters' must be positive"}}});
+    const auto result = io::make_charge_calculation_result(
+        {{.molecule = core::Molecule{std::vector{core::Atom{8}}},
+          .identity = {.source_name = "oxygen.sdf", .record_index = 0}}},
+        {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+    const auto& diagnostics = document.at("results").at(0).at("diagnostics");
+    CHECK(std::ranges::any_of(diagnostics, [](const auto& diagnostic) {
+        return diagnostic.at("code") == "invalid_options";
+    }));
+}
+
 TEST_CASE("JSON diagnostics keep equal messages of different conformers", "[io][json]") {
     // The same coincident pair in both conformers: the messages are equal, the conformers are not.
     auto execution =

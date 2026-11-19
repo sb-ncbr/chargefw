@@ -27,29 +27,6 @@
 namespace chargefw::io {
 namespace {
 
-// The code of an issue in result JSON: the name of its kind, except invalid_method_options.
-[[nodiscard]] auto diagnostic_code(const methods::PrerequisiteIssueKind kind) -> std::string_view {
-    switch (kind) {
-    case methods::PrerequisiteIssueKind::invalid_options:
-        return "invalid_method_options";
-    case methods::PrerequisiteIssueKind::missing_feature:
-        return "missing_feature";
-    case methods::PrerequisiteIssueKind::invalid_geometry:
-        return "invalid_geometry";
-    case methods::PrerequisiteIssueKind::unsupported_molecule:
-        return "unsupported_molecule";
-    case methods::PrerequisiteIssueKind::missing_parameters:
-        return "missing_parameters";
-    case methods::PrerequisiteIssueKind::unknown_parameters:
-        return "unknown_parameters";
-    case methods::PrerequisiteIssueKind::parameter_classification_failed:
-        return "parameter_classification_failed";
-    case methods::PrerequisiteIssueKind::unsupported_fixed_ions:
-        return "unsupported_fixed_ions";
-    }
-    throw std::logic_error{"unknown prerequisite issue kind"};
-}
-
 // Code, message, and conformer of the diagnostics already appended; a molecule can have one per
 // atom. Messages do not name the conformer, so equal messages of two conformers are both kept.
 using SeenDiagnostics = std::set<std::tuple<std::string, std::string, std::optional<std::size_t>>>;
@@ -166,22 +143,15 @@ auto validate_warnings(const std::span<const ImportedMoleculeRecord> records,
     validate_warnings(records, std::span{execution.charge_warnings}, "charge");
 }
 
-[[nodiscard]] auto diagnostic_code(const methods::FailureKind kind) -> std::string_view {
-    return methods::to_string(kind);
-}
-
-template <typename Kind> [[nodiscard]] auto diagnostic_code(const Kind kind) -> std::string_view {
-    return calculation::to_string(kind);
-}
-
-// Every issue type has the same fields, so each becomes a diagnostic alike.
+// Every issue type has the same fields, so each becomes a diagnostic alike. The code is the name of
+// the kind; to_string() is found in the namespace of the kind.
 template <typename Issue>
 [[nodiscard]] auto issue_diagnostic(const Issue& issue,
                                     const DiagnosticSeverity severity = DiagnosticSeverity::warning)
     -> ResultDiagnostic {
     auto diagnostic = ResultDiagnostic{};
     diagnostic.severity = severity;
-    diagnostic.code = diagnostic_code(issue.kind);
+    diagnostic.code = to_string(issue.kind);
     diagnostic.message = issue.message;
     diagnostic.molecule_index = issue.molecule_index;
     diagnostic.location = issue.location;
