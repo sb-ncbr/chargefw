@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chargefw/core/issue_location.h>
 #include <chargefw/parameters/classification/parameter_classification.h>
 
 #include <cstddef>
@@ -15,10 +16,12 @@ enum class ClassificationIssueKind : std::uint8_t {
     missing_bond_parameter,
 };
 
+// An atom or bond of the classified molecule that no entry matches. The message names it but not
+// the parameter set; `location` has its atom_index or bond_index.
 struct ClassificationIssue {
     ClassificationIssueKind kind;
-    std::size_t object_index = 0;
     std::string message;
+    core::IssueLocation location = {};
 };
 
 // Strict matching uses only entries for an atom's or bond's own type; permissive matching then

@@ -30,6 +30,9 @@
 
 ### Diagnostics
 
+- Breaking change: in C++, `parameters::ClassificationIssue` gives its atom or bond in `location`,
+  as `atom_index` or `bond_index`, in place of `object_index`, as other issues give theirs. Its
+  message no longer names the parameter set; the exception of `classify_parameters()` still does.
 - Diagnostics about a pair of atoms, such as `atoms_too_close` and atoms at the same position, give
   the other atom the message names as `other_atom_index`, whether or not the two are bonded: in
   result JSON and in Python `InputIssue`, `PrerequisiteIssue`, and `ChargeIssue`.

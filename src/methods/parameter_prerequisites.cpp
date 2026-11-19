@@ -150,10 +150,10 @@ auto add_classification_issues(ParameterPrerequisiteResult& result,
     for (const auto& issue : issues) {
         switch (issue.kind) {
         case parameters::ClassificationIssueKind::missing_atom_parameter:
-            atoms.push_back(issue.object_index);
+            atoms.push_back(*issue.location.atom_index);
             break;
         case parameters::ClassificationIssueKind::missing_bond_parameter:
-            bonds.push_back(issue.object_index);
+            bonds.push_back(*issue.location.bond_index);
             break;
         }
     }
