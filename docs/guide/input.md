@@ -88,9 +88,9 @@ recorded in the file. For other residues, the file must contain their bonds: mmC
 rows or PDB `CONECT` records.
 
 When bond orders matter for a ligand or modified residue, use the original mmCIF file with bond
-orders in `_chem_comp_bond.value_order`. A PDB `CONECT` record identifies the bonded atoms, but
-ChargeFW treats the bond as single unless a residue template supplies its order. Converting the PDB
-file to mmCIF does not recover missing orders.
+orders in `_chem_comp_bond.value_order`. If PDB input gives a
+[`bond_orders_unknown` warning](../reference/formats.md#connectivity), converting that file to
+mmCIF does not recover the missing orders.
 
 When an atom of a residue with two or more atoms gets no bond at all, ChargeFW warns with
 `unbonded_residue_atoms` and names the first such residues; add the missing bonds to the file before

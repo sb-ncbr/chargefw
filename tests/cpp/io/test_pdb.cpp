@@ -373,16 +373,36 @@ END
     }
 
     {
-        // CONECT carries no order, so hybrid keeps the template's carbonyl double bond.
+        // The ligand pair comes first in CONECT but follows the template carbonyl in hybrid.
         const auto carbonyl_input =
-            R"pdb(ATOM      1  C   ALA A   1       0.000   0.000   0.000  1.00 20.00           C
-ATOM      2  O   ALA A   1       1.230   0.000   0.000  1.00 20.00           O
+            R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
+HETATM    2  O1  LIG A   1       6.230   0.000   0.000  1.00 20.00           O
+ATOM      3  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
+ATOM      4  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
 CONECT    1    2
+CONECT    3    4
 END
 )pdb";
         const auto record = read_first(carbonyl_input, {.bonds = io::BondStrategy::hybrid});
-        REQUIRE(record.molecule.bond_count() == 1);
+        REQUIRE(record.molecule.bond_count() == 2);
         CHECK(record.molecule.bond(0).order() == chargefw::core::BondOrder::DOUBLE);
+        REQUIRE(record.import_warnings.size() == 1);
+        const auto& warning = record.import_warnings.front();
+        CHECK(warning.kind == io::ImportIssueKind::bond_orders_unknown);
+        REQUIRE(warning.location.bond_indices == std::vector<std::size_t>{1});
+        const auto& ligand = record.molecule.bond(1);
+        CHECK(ligand.first_atom_index() == 0);
+        CHECK(ligand.second_atom_index() == 1);
+
+        const auto explicit_record =
+            read_first(carbonyl_input, {.bonds = io::BondStrategy::explicit_bonds});
+        REQUIRE(explicit_record.molecule.bond_count() == 2);
+        CHECK(explicit_record.molecule.bond(0).first_atom_index() == 0);
+        CHECK(explicit_record.molecule.bond(1).order() == chargefw::core::BondOrder::SINGLE);
+        REQUIRE(explicit_record.import_warnings.size() == 1);
+        CHECK(explicit_record.import_warnings[0].kind == io::ImportIssueKind::bond_orders_unknown);
+        CHECK(explicit_record.import_warnings[0].location.bond_indices ==
+              std::vector<std::size_t>{0, 1});
     }
 }
 
@@ -470,13 +490,14 @@ END
     CHECK(repeated_ids == std::vector<std::string>{"1", "2", "4"});
 }
 
-TEST_CASE("PDB input reports residue atoms without bonds", "[io][pdb]") {
+TEST_CASE("PDB input reports missing residue bonds and bond orders", "[io][pdb]") {
     using Strategy = io::BondStrategy;
     // A ligand without a template, and a single-atom ion that is unbonded by design.
     const std::string atoms =
         R"pdb(HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
 HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O
-HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
+HETATM    3  C2  LIG A   1       0.000   1.400   0.000  1.00 20.00           C
+HETATM    4 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
 )pdb";
     const auto read_codes = [&atoms](const std::string& connectivity, const Strategy strategy) {
         auto codes = std::vector<std::string>{};
@@ -492,9 +513,28 @@ HETATM    3 NA    NA A   2       5.000   0.000   0.000  1.00 20.00          NA
     const auto unbonded = read_first(atoms + "END\n", {.bonds = Strategy::hybrid});
     REQUIRE(unbonded.import_warnings.size() == 1);
     CHECK(unbonded.import_warnings[0].location.atom_index == 0);
-    CHECK(unbonded.import_warnings[0].location.atom_indices == std::vector<std::size_t>{0, 1});
-    CHECK(read_codes("CONECT    1    2\n", Strategy::hybrid).empty());
+    CHECK(unbonded.import_warnings[0].location.atom_indices == std::vector<std::size_t>{0, 1, 2});
     CHECK(read_codes("", Strategy::none).empty());
+
+    // Two intra-ligand bonds, one listed both ways, plus a link to the ion and a missing serial.
+    const std::string connectivity = "CONECT    1    4    2    3   99\nCONECT    2    1\n";
+    const auto bonded = read_first(atoms + connectivity + "END\n", {.bonds = Strategy::hybrid});
+    REQUIRE(bonded.molecule.bond_count() == 3);
+    REQUIRE(bonded.import_warnings.size() == 1);
+    const auto& issue = bonded.import_warnings.front();
+    CHECK(io::to_string(issue.kind) == "bond_orders_unknown");
+    REQUIRE(issue.location.bond_indices.size() == 2);
+    CHECK(issue.location.bond_indices[0] < issue.location.bond_indices[1]);
+    for (const auto index : issue.location.bond_indices) {
+        REQUIRE(index < bonded.molecule.bond_count());
+        const auto& bond = bonded.molecule.bond(index);
+        CHECK(bond.first_atom_index() < 3);
+        CHECK(bond.second_atom_index() < 3);
+        CHECK(bond.order() == chargefw::core::BondOrder::SINGLE);
+    }
+    CHECK(read_codes(connectivity, Strategy::none).empty());
+    CHECK(read_codes(connectivity, Strategy::templates) ==
+          std::vector<std::string>{"unbonded_residue_atoms"});
 }
 
 TEST_CASE("PDB explicit connections retain address wildcard behavior", "[io][pdb]") {

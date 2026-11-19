@@ -24,7 +24,9 @@ class ChargeWarning(ChargeFWWarning):
 
 
 # Kinds that can make the charges wrong. Other kinds are only recorded.
-IMPORT_WARNING_KINDS = frozenset({"unbonded_residue_atoms", "symmetry_connections_ignored"})
+IMPORT_WARNING_KINDS = frozenset(
+    {"unbonded_residue_atoms", "symmetry_connections_ignored", "bond_orders_unknown"}
+)
 INPUT_WARNING_KINDS = frozenset({"hydrogens_missing", "atoms_too_close"})
 CHARGE_WARNING_KINDS = frozenset({"charge_out_of_range"})
 

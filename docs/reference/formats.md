@@ -213,6 +213,11 @@ the file. Its alternate-location code is kept and written to the output.
 - `hybrid`, the default: both. Where both give a bond, the mmCIF bond order is used; PDB `CONECT`
   records only add bonds that the templates do not have.
 
+When a bond within a PDB residue comes only from `CONECT`, ChargeFW reads it as single and reports
+`bond_orders_unknown` once per record. Under `hybrid`, a bond covered by a template does not count;
+under `explicit`, every such `CONECT` bond counts. The warning does not mean that every reported bond should
+be double or triple, only that its order was not supplied.
+
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
 

@@ -205,6 +205,7 @@ ALA N CA SING
     REQUIRE(explicit_record.has_value());
     REQUIRE(explicit_record->molecule.bond_count() == 1);
     CHECK(explicit_record->molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
+    CHECK(explicit_record->import_warnings.empty());
 
     std::istringstream fallback{make_input("ATOM 1 N . . . A 1 ? 0 0 0 1 20 0 9 ALA A N 1\n"
                                            "ATOM 2 C . . . A 1 ? 1 0 0 1 20 0 9 ALA A CA 1")};

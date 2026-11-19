@@ -366,7 +366,8 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
 
     path = tmp_path / "water.pdb"
     path.write_text(PDB_TEXT, encoding="utf-8")
-    file_molecule = chargefw_io.read(path, format="pdb", bonds="explicit")[0]
+    with pytest.warns(chargefw.InputWarning, match="bond_orders_unknown"):
+        file_molecule = chargefw_io.read(path, format="pdb", bonds="explicit")[0]
     np.testing.assert_array_equal(file_molecule.atomic_numbers, text_molecule.atomic_numbers)
     np.testing.assert_array_equal(file_molecule.coordinates, text_molecule.coordinates)
 
