@@ -126,6 +126,12 @@ auto prepare_reduced_charge_context(
         context.reference_charges = methods::detail::component_normalized_charges(
             molecule, source.topology(), std::move(context.reference_charges),
             core::total_formal_charge(molecule));
+        // Finite values can overflow in their sums; that fails the whole target, before any
+        // fragment.
+        if (!std::ranges::all_of(context.reference_charges,
+                                 [](const double value) { return std::isfinite(value); })) {
+            throw methods::detail::non_finite_charges_failure();
+        }
         context.fragments_start_from_references = true;
         break;
     }
@@ -203,7 +209,7 @@ auto calculate_fragment_charges(const methods::ApplicableMethod& selected,
                                                          : nullptr,
                                           fixed_sources,
                                           references};
-    const auto charges = selected.method->calculate(input);
+    const auto charges = methods::detail::calculate_charges(*selected.method, input);
     if (charges.size() != fragment.molecule().atom_count()) {
         throw std::runtime_error{"method '" + std::string{selected.method->id()} + "' produced " +
                                  std::to_string(charges.size()) + " fragment charges for " +

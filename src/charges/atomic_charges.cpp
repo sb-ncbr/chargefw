@@ -11,7 +11,7 @@ namespace {
 auto validate_charges(std::span<const double> values) -> void {
     for (const auto value : values) {
         if (!std::isfinite(value)) {
-            throw std::invalid_argument{"atomic charges must be finite"};
+            throw NonFiniteCharges{"atomic charges must be finite"};
         }
     }
 }

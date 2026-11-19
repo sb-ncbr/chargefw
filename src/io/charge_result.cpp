@@ -163,6 +163,10 @@ auto validate_warnings(const std::span<const ImportedMoleculeRecord> records,
     validate_warnings(records, std::span{execution.charge_warnings}, "charge");
 }
 
+[[nodiscard]] auto diagnostic_code(const methods::FailureKind kind) -> std::string_view {
+    return methods::to_string(kind);
+}
+
 template <typename Kind> [[nodiscard]] auto diagnostic_code(const Kind kind) -> std::string_view {
     return calculation::to_string(kind);
 }
@@ -273,6 +277,18 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     }
 }
 
+auto validate_failure(const std::span<const ImportedMoleculeRecord> records,
+                      const calculation::ExecutionResult& execution) -> void {
+    const auto failed = execution.status == calculation::ExecutionStatus::numerical_failure;
+    if (failed != execution.failure.has_value()) {
+        throw std::invalid_argument{
+            "a calculation result has a failure exactly when it failed numerically"};
+    }
+    if (failed && execution.failure->molecule_index >= records.size()) {
+        throw std::invalid_argument{"calculation failure molecule index is outside the input"};
+    }
+}
+
 [[nodiscard]] auto status_diagnostic(const ChargeCalculationResult& result)
     -> std::optional<ResultDiagnostic> {
     const auto make = [](const DiagnosticSeverity severity, std::string code, std::string message) {
@@ -281,10 +297,6 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
         diagnostic.code = std::move(code);
         diagnostic.message = std::move(message);
         return diagnostic;
-    };
-    const auto* execution = result.execution();
-    const auto failure_message = [execution](std::string fallback) {
-        return execution->failure_message.value_or(std::move(fallback));
     };
     switch (result.status()) {
     case ResultStatus::success:
@@ -297,8 +309,9 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
         return make(DiagnosticSeverity::error, "no_executable_plan",
                     "No executable method and parameter-set plan was found.");
     case ResultStatus::numerical_failure:
-        return make(DiagnosticSeverity::error, "numerical_failure",
-                    failure_message("Calculation failed numerically."));
+        // The failure is a diagnostic of the molecule that failed; the status of every record
+        // shows that the calculation failed.
+        return std::nullopt;
     case ResultStatus::cancelled:
         return make(DiagnosticSeverity::info, "calculation_cancelled",
                     "Calculation was cancelled before completion.");
@@ -316,6 +329,7 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     validate_assignments(inputs, execution);
     validate_warnings(inputs, execution);
     validate_plan_warnings(inputs, execution);
+    validate_failure(inputs, execution);
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
@@ -562,7 +576,14 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         append_unique(diagnostics, seen, *diagnostic);
     }
     if (result.status() != ResultStatus::no_executable_plan) {
-        return with_residues();
+        auto described = with_residues();
+        // The message of a failure names no atom, so it gets no residue clause; its atom is that of
+        // the failed fragment.
+        if (execution != nullptr && execution->failure.has_value() &&
+            execution->failure->molecule_index == molecule_index) {
+            described.push_back(issue_diagnostic(*execution->failure, DiagnosticSeverity::error));
+        }
+        return described;
     }
     auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
     std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,

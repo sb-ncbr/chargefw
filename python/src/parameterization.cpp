@@ -88,7 +88,9 @@ class NativeEvaluator {
         auto payload = nb::dict{};
         payload["status"] = std::string{calculation::to_string(result.status)};
         payload["failure_message"] =
-            result.failure_message.has_value() ? nb::cast(*result.failure_message) : nb::none();
+            result.failure.has_value()
+                ? nb::cast(std::string{calculation::CalculationFailed{*result.failure}.what()})
+                : nb::none();
         if (!result.charges.has_value()) {
             payload["charges"] = nb::none();
             payload["assignment_sizes"] = nb::none();
@@ -128,11 +130,10 @@ class NativeEvaluator {
                     std::span{references.data(), references.size()},
                     std::span{weights.data(), weights.size()},
                     max_threads.value_or(state_->max_threads_));
-            } catch (const std::invalid_argument&) {
-                throw;
-            } catch (const std::logic_error& error) {
+            } catch (const calculation::CalculationFailed& error) {
                 failure_message = error.what();
-            } catch (const std::runtime_error& error) {
+            } catch (const parameterization::NonFiniteNormalEquations& error) {
+                // The fit rejects these values, as it rejects those of a failed calculation.
                 failure_message = error.what();
             }
         }

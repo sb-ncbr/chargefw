@@ -3,6 +3,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/methods/method_failure.h>
 
 #include <Eigen/Core>
 
@@ -39,8 +40,7 @@ constexpr auto hydrogen_electron_affinity = -2.0;
 
 } // namespace
 
-auto eqeq_core::calculate(const CalculationInput& input, const std::string_view method_name)
-    -> std::vector<double> {
+auto eqeq_core::calculate(const CalculationInput& input) -> std::vector<double> {
     const auto& molecule = input.molecule();
     const auto& geometry = input.geometry();
 
@@ -69,7 +69,9 @@ auto eqeq_core::calculate(const CalculationInput& input, const std::string_view 
     }
 
     if ((hardness.array() <= 0.0).any()) {
-        throw std::logic_error{std::string{method_name} + " hardness must be positive"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "an element of the molecule has no positive hardness in the element "
+                            "data; use another method"};
     }
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
@@ -95,7 +97,7 @@ auto eqeq_core::calculate(const CalculationInput& input, const std::string_view 
 }
 
 auto EQeqMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
-    return charges::AtomicCharges{eqeq_core::calculate(input, "EQeq")};
+    return charges::AtomicCharges{eqeq_core::calculate(input)};
 }
 
 auto EQeqMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const

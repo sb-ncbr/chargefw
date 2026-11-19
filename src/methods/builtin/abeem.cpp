@@ -6,6 +6,7 @@
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/core/position.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -79,7 +80,8 @@ auto ABEEMMethod::calculate(const CalculationInput& input) const -> charges::Ato
     const auto k = parameters.common("k");
 
     if (k <= 0.0) {
-        throw std::logic_error{"ABEEM common parameter 'k' must be positive"};
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "common parameter 'k' must be positive; use another parameter set"};
     }
 
     const auto atom_a = parameters.atom("a");

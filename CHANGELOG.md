@@ -30,6 +30,16 @@
 
 ### Diagnostics
 
+- A calculation that fails reports the molecule, the conformer, and with cutoff or cover execution the
+  atom whose fragment failed as fields, and one of the kinds `no_solution`, `not_converged`, and
+  `invalid_parameter_value`, with a reason that says what to do. Breaking change: in result JSON, the
+  failure is an error diagnostic of the failed molecule's record, with the kind as its `code`, not a
+  `numerical_failure` diagnostic of every record and the document; read the record `status`, which
+  stays `numerical_failure`, to find failed records. Breaking change: in C++,
+  `ExecutionResult::failure` replaces `failure_message`; methods throw `methods::MethodFailure`, and
+  any other exception from a method is reported as an internal error instead of a numerical failure.
+  `parameterization::normal_equations()` throws `calculation::CalculationFailed` for a failed
+  calculation and `NonFiniteNormalEquations` for sums that are not finite.
 - Every issue type has the same location attributes: `conformer_index`, `atom_index`,
   `other_atom_index`, `bond_index`, `atom_indices`, and `bond_indices`. In Python, `ImportIssue` and
   `ExecutionIssue` get those they lacked, and `InputIssue` and `ChargeIssue` get `bond_index` and

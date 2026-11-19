@@ -1,10 +1,12 @@
 #pragma once
 
 #include "calculation/calculation_cancelled.h"
+#include "calculation/fragment_failure.h"
 #include "calculation/parallel_for.h"
 #include "methods/applicable_method_execution.h"
 #include "methods/method_applicability.h"
 
+#include <chargefw/calculation/calculation.h>
 #include <chargefw/charges/charge_set.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
@@ -14,6 +16,7 @@
 #include <cstdint>
 #include <exception>
 #include <memory>
+#include <new>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -43,6 +46,22 @@ enum class ParallelizationLevel : std::uint8_t {
         message += ", conformer " + std::to_string(*target.conformer_index + 1);
     }
     return message + " failed: " + error.what();
+}
+
+// The failure of a method for a target; `atom_index` is the atom whose fragment failed.
+[[nodiscard]] inline auto target_failure(const CalculationTarget& target,
+                                         const methods::MethodFailure& error,
+                                         const std::optional<std::size_t> atom_index = std::nullopt)
+    -> CalculationFailed {
+    auto location = core::IssueLocation{.conformer_index = target.conformer_index};
+    if (atom_index.has_value()) {
+        location.atom_index = atom_index;
+        location.atom_indices = {*atom_index};
+    }
+    return CalculationFailed{CalculationFailure{.kind = error.kind(),
+                                                .message = error.what(),
+                                                .molecule_index = target.molecule_index,
+                                                .location = std::move(location)}};
 }
 
 [[nodiscard]] inline auto
@@ -111,15 +130,15 @@ execute_calculation_targets(const methods::ApplicableMethod& selected,
                                             fragment_max_threads, target_ctx)};
         } catch (const CalculationCancelled&) {
             throw;
-        } catch (const std::invalid_argument& error) {
-            throw std::invalid_argument{
-                make_target_failure_message(selected, molecule, target, error)};
-        } catch (const std::logic_error& error) {
+        } catch (const FragmentFailure& error) {
+            throw target_failure(target, error, error.atom_index());
+        } catch (const methods::MethodFailure& error) {
+            throw target_failure(target, error);
+        } catch (const std::bad_alloc&) {
+            throw;
+        } catch (const std::exception& error) {
+            // Anything else a calculation throws is an error in ChargeFW.
             throw std::logic_error{make_target_failure_message(selected, molecule, target, error)};
-        } catch (const std::runtime_error& error) {
-            // Other exceptions, such as std::bad_alloc, pass unchanged.
-            throw std::runtime_error{
-                make_target_failure_message(selected, molecule, target, error)};
         }
 
         emit_target_event(CalculationPhase::target_finished, target_ctx);

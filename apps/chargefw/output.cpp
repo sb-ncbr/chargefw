@@ -71,15 +71,33 @@ void report_diagnostics(const io::ChargeCalculationResult& result,
         print(first, molecule_warning_text(records, first.code, first.message, molecules));
     }
     // Errors name their molecule as warnings do; the message itself names only the reason.
+    const auto* execution = result.execution();
+    const auto is_failure = [execution](const io::ResultDiagnostic& diagnostic) {
+        return execution != nullptr && execution->failure.has_value() &&
+               diagnostic.molecule_index == execution->failure->molecule_index &&
+               diagnostic.code == methods::to_string(execution->failure->kind);
+    };
     for (const auto& diagnostic : errors) {
         if (!diagnostic.molecule_index.has_value()) {
             report(diagnostic);
             continue;
         }
         const auto molecule_index = *diagnostic.molecule_index;
-        const auto message =
-            core::detail::molecule_description(records[molecule_index].molecule, molecule_index) +
-            ": " + diagnostic.message;
+        auto where =
+            core::detail::molecule_description(records[molecule_index].molecule, molecule_index);
+        // The message of a failure names neither the conformer nor the fragment.
+        if (is_failure(diagnostic)) {
+            if (diagnostic.location.conformer_index.has_value()) {
+                where += ", conformer " + std::to_string(*diagnostic.location.conformer_index + 1);
+            }
+            if (diagnostic.location.atom_index.has_value()) {
+                where += std::format(
+                    ", {} fragment around atom {}",
+                    calculation::to_string(execution->effective->execution_policy.mode()),
+                    *diagnostic.location.atom_index + 1);
+            }
+        }
+        const auto message = where + ": " + diagnostic.message;
         if (reported.emplace(diagnostic.code, message).second) {
             print(diagnostic, message);
         }

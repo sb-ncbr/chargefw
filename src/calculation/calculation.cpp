@@ -127,6 +127,29 @@ auto execution_input_warnings(const detail::AssessmentState& state, const method
 
 } // namespace
 
+namespace {
+
+// The failure with its target, for the text of the exception.
+[[nodiscard]] auto describe_failure(const CalculationFailure& failure) -> std::string {
+    auto text = "molecule " + std::to_string(failure.molecule_index + 1);
+    if (failure.location.conformer_index.has_value()) {
+        text += ", conformer " + std::to_string(*failure.location.conformer_index + 1);
+    }
+    if (failure.location.atom_index.has_value()) {
+        text += ", fragment around atom " + std::to_string(*failure.location.atom_index + 1);
+    }
+    return text + ": " + failure.message;
+}
+
+} // namespace
+
+CalculationFailed::CalculationFailed(CalculationFailure failure)
+    : std::runtime_error{describe_failure(failure)}, failure_{std::move(failure)} {}
+
+auto CalculationFailed::failure() const noexcept -> const CalculationFailure& {
+    return failure_;
+}
+
 auto to_string(const ExecutionStatus value) -> std::string_view {
     switch (value) {
     case ExecutionStatus::success:
@@ -192,7 +215,7 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
     const auto computation_started = std::chrono::steady_clock::now();
     auto status = ExecutionStatus::success;
     auto calculated_charges = std::optional<charges::ChargeSet>{};
-    auto failure_message = std::optional<std::string>{};
+    auto failure = std::optional<CalculationFailure>{};
 
     try {
         auto result = calculate_request(CalculationRequest{.molecules = state.prepared_molecules,
@@ -208,17 +231,12 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
         calculated_charges.emplace(std::move(result.charges));
     } catch (const CalculationCancelled&) {
         status = ExecutionStatus::cancelled;
-    } catch (const std::invalid_argument&) {
-        throw;
-    } catch (const std::logic_error& error) {
-        // Methods report invalid parameter values and degenerate equations as logic errors.
+    } catch (const CalculationFailed& error) {
         status = ExecutionStatus::numerical_failure;
-        failure_message = error.what();
-    } catch (const std::runtime_error& error) {
-        status = ExecutionStatus::numerical_failure;
-        failure_message = error.what();
+        failure = error.failure();
     }
-    // Anything else, such as std::bad_alloc, is not a failure of the calculation and propagates.
+    // Anything else, such as an error in ChargeFW or std::bad_alloc, is not a failure of the
+    // calculation and propagates.
 
     auto charge_warnings = calculated_charges.has_value()
                                ? detail::find_charge_issues(state.molecules, *calculated_charges,
@@ -233,7 +251,7 @@ auto ExecutionPlan::execute(const parameters::ParameterSet* candidate,
                            .charges = std::move(calculated_charges),
                            .rejections = state.rejections,
                            .effective = effective,
-                           .failure_message = std::move(failure_message),
+                           .failure = std::move(failure),
                            .metrics = {.applicability_seconds = state.applicability_seconds,
                                        .computation_seconds = computation_seconds},
                            .input_warnings = std::move(input_warnings),
@@ -260,7 +278,7 @@ auto calculate(const AssessmentResult& assessment, const std::size_t max_threads
                                .charges = std::nullopt,
                                .rejections = state.rejections,
                                .effective = std::nullopt,
-                               .failure_message = std::nullopt,
+                               .failure = std::nullopt,
                                .metrics = {.applicability_seconds = state.applicability_seconds},
                                .input_warnings = state.input_warnings,
                                .charge_warnings = {}};

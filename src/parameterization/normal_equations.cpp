@@ -12,6 +12,7 @@
 #include "methods/applicable_method_execution.h"
 #include "methods/linear_algebra/dense_product.h"
 #include "methods/method_applicability.h"
+#include "methods/method_call.h"
 
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/core/molecule.h>
@@ -26,8 +27,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <exception>
 #include <limits>
 #include <memory>
+#include <new>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -115,9 +118,9 @@ struct TargetTerms {
     -> std::unique_ptr<detail::LinearizedCharges> {
     try {
         return derivatives.linearize(input);
-    } catch (const std::invalid_argument& error) {
-        // As in ordinary calculation: invalid values for this target are a numerical failure.
-        throw std::runtime_error{error.what()};
+    } catch (const charges::NonFiniteCharges&) {
+        // As in ordinary calculation.
+        throw methods::detail::non_finite_charges_failure();
     }
 }
 
@@ -340,14 +343,17 @@ auto normal_equations(const calculation::ExecutionPlan& plan,
                     partition == nullptr ? nullptr : &partition->targets.at(target.molecule_index),
                     table, slot_count, references.subspan(offsets[target_index], rows),
                     weights.subspan(offsets[target_index], rows));
-            } catch (const std::invalid_argument& error) {
-                throw std::invalid_argument{calculation::detail::make_target_failure_message(
+            } catch (const methods::MethodFailure& error) {
+                throw calculation::detail::target_failure(target, error);
+            } catch (const NonFiniteNormalEquations& error) {
+                // Named with its target; only the sum over all targets has none.
+                throw NonFiniteNormalEquations{calculation::detail::make_target_failure_message(
                     selected, molecule, target, error)};
-            } catch (const std::logic_error& error) {
+            } catch (const std::bad_alloc&) {
+                throw;
+            } catch (const std::exception& error) {
+                // As in ordinary calculation, anything else is an error in ChargeFW.
                 throw std::logic_error{calculation::detail::make_target_failure_message(
-                    selected, molecule, target, error)};
-            } catch (const std::runtime_error& error) {
-                throw std::runtime_error{calculation::detail::make_target_failure_message(
                     selected, molecule, target, error)};
             }
         });

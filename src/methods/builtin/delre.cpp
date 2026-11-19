@@ -4,6 +4,7 @@
 
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -85,7 +86,8 @@ auto DelReMethod::calculate(const CalculationInput& input) const -> charges::Ato
         const auto denominator = 2.0 * eps[bond_index];
 
         if (denominator == 0.0) {
-            throw std::logic_error{"DelRe bond parameter 'eps' must be non-zero"};
+            throw MethodFailure{FailureKind::invalid_parameter_value,
+                                "bond parameter 'eps' must not be zero; use another parameter set"};
         }
 
         const auto first_index = static_cast<Eigen::Index>(first_atom_index);

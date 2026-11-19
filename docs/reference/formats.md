@@ -477,6 +477,12 @@ the listed atoms and bonds to show where the problem is. For PDB and mmCIF input
 names the residue of each atom it mentions, as PDB files and viewers do, for example
 `atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages.
 
+When the calculation fails numerically, every record has the status `numerical_failure` and no
+assignments, and only the record of the molecule that failed has an error diagnostic. Its `code` is
+the kind of failure, such as `no_solution`; its `message` gives only the reason; and its
+`conformer_index` and, with cutoff or cover execution, `atom_index` say where. [When a calculation
+fails](../guide/results.md#when-a-calculation-fails) lists the kinds.
+
 For a molecule read from a file, `input.import` records the format, the reading options (`policy`),
 and whether the file contained bonds (`source_connectivity`); failed and cancelled records keep it
 too. Molecules built in code have no `input.import`, and their atom IDs are listed once, in

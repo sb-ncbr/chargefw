@@ -131,12 +131,20 @@ charge is set.
 ## When a calculation fails
 
 A calculation fails without charges when no method and parameter set apply to your molecules, when the
-calculation does not converge, or when it is cancelled. With SQE, SQE+q0, and SQE+qp, it also fails
-when the equations for the split charges cannot be factorized as positive definite. This happens when
-the parameter set gives the molecule no single energy minimum at its geometry, and can also happen
-through rounding when it comes close to that. With cutoff and cover execution, each fragment's
-equations are checked, not those of the whole molecule. Check the geometry, or use another parameter
-set. The command line still writes the result JSON, with the reasons, and exits with a
+method cannot calculate the charges of one of them, or when it is cancelled. When the method cannot
+calculate, ChargeFW reports the molecule, the conformer, and the reason, with one of these kinds:
+
+| Kind | Meaning | What to do |
+| --- | --- | --- |
+| `no_solution` | The calculation could not produce a stable, finite solution | Check the geometry, or use another parameter set |
+| `not_converged` | An iterative method did not converge | Use another method |
+| `invalid_parameter_value` | A parameter value is outside the range the method accepts | Use another parameter set |
+
+With SQE, SQE+q0, and SQE+qp, `no_solution` means that the parameter set gives the molecule no single
+energy minimum at its geometry, or comes so close to that that rounding decides. With cutoff and cover
+execution, each fragment is calculated on its own, and the failure names the atom whose fragment
+failed. The whole calculation fails, also for the other molecules. The command line still writes the
+result JSON, with the reasons, and exits with a
 [status](../interfaces/cli.md#exit-statuses) other than 0. Python raises a `chargefw.CalculationError`;
 its `result` attribute holds the same information. Here the parameter set has no values for chlorine
 in chlorobenzene:

@@ -4,6 +4,7 @@
 #include "calculation/target_execution.h"
 #include "calculation/target_input.h"
 #include "methods/applicable_method_execution.h"
+#include "methods/method_call.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/methods/calculation_input.h>
@@ -32,16 +33,6 @@ auto validate_calculated_charges(const methods::Method& method,
     }
 }
 
-[[nodiscard]] auto calculate_method(const methods::Method& method,
-                                    const methods::CalculationInput& input)
-    -> charges::AtomicCharges {
-    try {
-        return method.calculate(input);
-    } catch (const std::invalid_argument& error) {
-        throw std::runtime_error{error.what()};
-    }
-}
-
 [[nodiscard]] auto calculate_target(const methods::ApplicableMethod& selected,
                                     const features::PreparedMolecule& molecule,
                                     const parameters::ParameterClassification* classification,
@@ -51,7 +42,7 @@ auto validate_calculated_charges(const methods::Method& method,
     return detail::with_target_input(
         selected, molecule, classification, conformer_index, partition_target,
         [&](const methods::CalculationInput& input) {
-            auto atomic_charges = calculate_method(*selected.method, input);
+            auto atomic_charges = methods::detail::calculate_charges(*selected.method, input);
             validate_calculated_charges(*selected.method, molecule, atomic_charges);
             return atomic_charges;
         });

@@ -400,6 +400,13 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[i
           StatusCase{calculation::ExecutionStatus::cancelled, "cancelled", false}}) {
         CAPTURE(test_case.expected_status, test_case.with_fixed_ions);
         auto execution = calculation::ExecutionResult{.status = test_case.status};
+        if (test_case.status == calculation::ExecutionStatus::numerical_failure) {
+            execution.failure =
+                calculation::CalculationFailure{.kind = methods::FailureKind::no_solution,
+                                                .message = "no solution",
+                                                .molecule_index = 0,
+                                                .location = {}};
+        }
         if (test_case.with_fixed_ions) {
             execution.effective = full_effective(
                 "eem", std::nullopt,
@@ -476,6 +483,46 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
     CHECK(geometry->at("atom_index") == 2);
     CHECK(geometry->at("other_atom_index") == 0);
     CHECK(geometry->at("atom_indices") == nlohmann::json::array({0, 2}));
+}
+
+TEST_CASE("JSON output files a numerical failure under the molecule that failed", "[io][json]") {
+    auto execution = calculation::ExecutionResult{
+        .status = calculation::ExecutionStatus::numerical_failure,
+        .failure = calculation::CalculationFailure{
+            .kind = methods::FailureKind::no_solution,
+            .message = "no stable solution",
+            .molecule_index = 1,
+            .location = {.conformer_index = 0, .atom_index = 1, .atom_indices = {1}}}};
+    auto records = std::vector<io::ImportedMoleculeRecord>{};
+    for (std::size_t index = 0; index < 2; ++index) {
+        records.push_back({.molecule = core::Molecule{std::vector{core::Atom{8}, core::Atom{1}}},
+                           .identity = {.source_name = "two.sdf", .record_index = index}});
+    }
+    const auto result =
+        io::make_charge_calculation_result(std::move(records), {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+
+    // Both records failed, but only the second has the failure, and the document does not repeat
+    // it.
+    const auto& results = document.at("results");
+    for (const auto& record : results) {
+        CHECK(record.at("status") == "numerical_failure");
+        CHECK_FALSE(record.contains("assignments"));
+    }
+    CHECK(results.at(0).at("diagnostics").empty());
+    REQUIRE(results.at(1).at("diagnostics").size() == 1);
+    const auto& failure = results.at(1).at("diagnostics").at(0);
+    CHECK(failure.at("severity") == "error");
+    CHECK(failure.at("code") == "no_solution");
+    CHECK(failure.at("message") == "no stable solution");
+    CHECK(failure.at("molecule_index") == 1);
+    CHECK(failure.at("conformer_index") == 0);
+    CHECK(failure.at("atom_index") == 1);
+    CHECK(failure.at("atom_indices") == nlohmann::json::array({1}));
+    CHECK(document.at("diagnostics").empty());
 }
 
 TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[io][json]") {

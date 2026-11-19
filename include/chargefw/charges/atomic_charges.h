@@ -2,9 +2,16 @@
 
 #include <cstddef>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 namespace chargefw::charges {
+
+// Thrown by AtomicCharges for values that are not finite numbers.
+class NonFiniteCharges : public std::invalid_argument {
+  public:
+    using std::invalid_argument::invalid_argument;
+};
 
 class AtomicCharges {
   public:

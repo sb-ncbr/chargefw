@@ -188,7 +188,11 @@ auto execution_result(const calculation::ExecutionResult& value) -> nb::dict {
     result["rejections"] = std::move(rejections);
     result["input_warnings"] = issue_payloads(std::span{value.input_warnings});
     result["charge_warnings"] = issue_payloads(std::span{value.charge_warnings});
-    result["failure_message"] = value.failure_message;
+    // The text of the failure, with its molecule and conformer, as the package reads it.
+    result["failure_message"] =
+        value.failure.has_value()
+            ? nb::cast(std::string{calculation::CalculationFailed{*value.failure}.what()})
+            : nb::none();
     auto metrics = nb::dict{};
     metrics["applicability_seconds"] = value.metrics.applicability_seconds;
     metrics["computation_seconds"] = value.metrics.computation_seconds;

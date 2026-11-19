@@ -238,9 +238,10 @@ TEST_CASE("calculation facade reports singular solver failures with target conte
     REQUIRE(result.effective.has_value());
     CHECK(result.effective->method_id == "eem");
     CHECK(result.effective->parameter_set_id == std::optional<std::string>{"singular-eem"});
-    REQUIRE(result.failure_message.has_value());
-    CHECK(
-        result.failure_message->contains("method 'eem', molecule 1 ('singular-eem'), conformer 1"));
+    REQUIRE(result.failure.has_value());
+    CHECK(result.failure->kind == methods::FailureKind::no_solution);
+    CHECK(result.failure->molecule_index == 0);
+    CHECK(result.failure->location == core::IssueLocation{.conformer_index = 0});
 }
 
 TEST_CASE("fixed-charge EEM retains provenance on numerical failure",
@@ -295,10 +296,49 @@ TEST_CASE("SQE fails on split-charge systems that are not positive definite",
         REQUIRE(result.effective.has_value());
         CHECK(result.effective->method_id == "sqe");
         CHECK(result.effective->parameter_set_id == std::optional<std::string>{"test-sqe"});
-        REQUIRE(result.failure_message.has_value());
-        CHECK(result.failure_message->contains("method 'sqe', molecule 1 ('" +
-                                               std::string{test_case.molecule.name()} +
-                                               "'), conformer 1"));
+        REQUIRE(result.failure.has_value());
+        CHECK(result.failure->kind == methods::FailureKind::no_solution);
+        CHECK(result.failure->molecule_index == 0);
+        CHECK(result.failure->location == core::IssueLocation{.conformer_index = 0});
+    }
+}
+
+TEST_CASE("per-atom parameters are checked also for a single atom", "[calculation][calculation]") {
+    // A neutral hydrogen alone, where the parameter enters only the diagonal of the equations.
+    const auto hydrogen = core::Molecule{
+        std::vector{core::Atom{1}}, {}, {core::Conformer{{core::Position{}}}}, "hydrogen"};
+    const auto key = chargefw::test::plain_atom_key(1);
+    struct Case {
+        std::string_view method_id;
+        parameters::CommonParameters common;
+        std::vector<parameters::NamedParameter> atom;
+    };
+    const auto cases =
+        std::array{Case{.method_id = "sfkeem",
+                        .common = parameters::CommonParameters{{{.name = "sigma", .value = 1.0}}},
+                        .atom = {{.name = "A", .value = 1.0}, {.name = "B", .value = -1.0}}},
+                   Case{.method_id = "smpqeq",
+                        .common = {},
+                        .atom = {{.name = "first", .value = 1.0},
+                                 {.name = "second", .value = -1.0},
+                                 {.name = "third", .value = 1.0},
+                                 {.name = "fourth", .value = 0.1}}}};
+    for (const auto& test_case : cases) {
+        CAPTURE(test_case.method_id);
+        const auto result = calculate_application(calculation::AssessmentRequest{
+            .molecules = core::MoleculeCollection{std::vector{hydrogen}},
+            .parameter_sets = {parameters::ParameterSet{
+                parameters::ParameterSetMetadata{.id = "negative",
+                                                 .method_id = std::string{test_case.method_id},
+                                                 .name = "Negative"},
+                test_case.common,
+                parameters::AtomParameters{{{.key = key, .parameters = test_case.atom}}}}},
+            .method_id = std::string{test_case.method_id},
+            .parameter_set_id = "negative"});
+
+        CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
+        REQUIRE(result.failure.has_value());
+        CHECK(result.failure->kind == methods::FailureKind::invalid_parameter_value);
     }
 }
 

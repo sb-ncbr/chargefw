@@ -5,6 +5,7 @@ target_sources(chargefw_objects
         assessment_access.h
         assessment_state.h
         calculation_cancelled.h
+        fragment_failure.h
         calculation_request.h
         charge_issues.cpp
         cover_execution.cpp

@@ -3,10 +3,12 @@
 #include "methods/builtin/charge_constraint.h"
 
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
@@ -17,11 +19,6 @@ namespace {
 
 [[nodiscard]] auto interaction(const double sigma, const double distance, const double b_i,
                                const double b_j) -> double {
-
-    if (b_i <= 0.0 || b_j <= 0.0) {
-        throw std::logic_error{"SFKEEM atom parameter 'B' must be positive"};
-    }
-
     return 2.0 * std::sqrt(b_i * b_j) / std::cosh(sigma * distance);
 }
 
@@ -41,12 +38,18 @@ auto SFKEEMMethod::calculate(const CalculationInput& input) const -> charges::At
     const auto sigma = parameters.common("sigma");
 
     if (sigma <= 0.0) {
-        throw std::logic_error{"SFKEEM common parameter 'sigma' must be positive"};
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "common parameter 'sigma' must be positive; use another parameter set"};
     }
 
     const auto a = parameters.atom("A");
     // The pair loop below reads B O(n^2) times; resolve it once per atom.
     const auto b_parameter = methods::detail::atom_parameter_values(parameters, "B", atom_count);
+    // Checked for every atom, also one without a pair, where B enters only the diagonal.
+    if (std::ranges::any_of(b_parameter, [](const double value) { return value <= 0.0; })) {
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "atom parameter 'B' must be positive; use another parameter set"};
+    }
 
     const auto n = static_cast<Eigen::Index>(atom_count);
 

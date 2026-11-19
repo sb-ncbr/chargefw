@@ -6,6 +6,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <cmath>
@@ -43,12 +44,13 @@ auto EQeqCMethod::calculate(const CalculationInput& input) const -> charges::Ato
     const auto alpha = parameters.common("alpha");
 
     if (alpha <= 0.0) {
-        throw std::logic_error{"EQeq+C common parameter 'alpha' must be positive"};
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "common parameter 'alpha' must be positive; use another parameter set"};
     }
 
     // The pair loop below reads Dz O(n^2) times; resolve it once per atom.
     const auto dz = methods::detail::atom_parameter_values(parameters, "Dz", atom_count);
-    auto values = eqeq_core::calculate(input, "EQeq+C");
+    auto values = eqeq_core::calculate(input);
 
     const auto& table = core::periodic_table();
 

@@ -4,6 +4,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/methods/method_failure.h>
 
 #include <stdexcept>
 #include <vector>
@@ -48,13 +49,15 @@ auto VEEMMethod::calculate(const CalculationInput& input) const -> charges::Atom
     }
 
     if (denominator == 0.0) {
-        throw std::logic_error{"VEEM calculation has zero valence-electron denominator"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "the atoms have no valence electrons in total; use another method"};
     }
 
     const auto equalized_electronegativity = numerator / denominator;
 
     if (equalized_electronegativity == 0.0) {
-        throw std::logic_error{"VEEM calculation has zero equalized electronegativity"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "the equalized electronegativity is zero; use another method"};
     }
 
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {

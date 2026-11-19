@@ -8,6 +8,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -151,9 +152,10 @@ auto sqe_core::solve(System& system) -> void {
     // system (indefinite, semidefinite, or nearly singular to working precision) is rejected
     // rather than solved. The calling execution adds the molecule, conformer, and fragment.
     if (!linear_algebra::cholesky_in_place(system.split_matrix)) {
-        throw std::runtime_error{
-            "SQE split-charge system could not be factorized as positive definite; no charges were "
-            "returned. Check the geometry or use another parameter set"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "the split-charge equations have no stable solution for this structure "
+                            "(their matrix is not positive definite); check the geometry or use "
+                            "another parameter set"};
     }
     system.split_charges = system.split_rhs;
     linear_algebra::cholesky_solve_in_place(system.split_matrix, system.split_charges);

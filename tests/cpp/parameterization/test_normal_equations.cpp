@@ -339,8 +339,25 @@ TEST_CASE("Normal equations reject what they cannot calculate", "[calculation][d
             references, weights),
         std::invalid_argument);
 
-    // Weights so large that the weighted sums overflow.
-    CHECK_THROWS_AS(parameterization::normal_equations(plan, candidate, references,
-                                                       std::vector<double>(8, 1e200)),
-                    std::runtime_error);
+    // Weights so large that each target's weighted sums overflow: the charges exist, the fit's sums
+    // do not, and the error names the first target.
+    CHECK_THROWS_MATCHES(parameterization::normal_equations(plan, candidate, references,
+                                                            std::vector<double>(8, 1e200), 1),
+                         parameterization::NonFiniteNormalEquations,
+                         snitch::matchers::with_what_contains{"molecule 1"});
+
+    // A calculation that fails, as calculate() reports it: the split-charge matrix of a strongly
+    // negative kappa is not positive definite. Plain SQE takes the neutral water only.
+    const auto failing =
+        assess(core::MoleculeCollection{std::vector{core::Molecule{sqe_molecules()[0]}}},
+               chargefw::test::make_sqe_ho_parameters("sqe", {.kappa = -50.0}));
+    const auto& failing_plan = *failing.default_plan();
+    CHECK_THROWS_AS(parameterization::normal_equations(
+                        failing_plan,
+                        parameterization::with_parameter_values(
+                            *failing_plan.parameter_set(),
+                            parameterization::parameter_values(*failing_plan.parameter_set()),
+                            {.id = "candidate"}),
+                        std::vector<double>(6, 0.0), std::vector<double>(6, 1.0)),
+                    calculation::CalculationFailed);
 }

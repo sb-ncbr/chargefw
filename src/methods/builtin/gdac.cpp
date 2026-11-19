@@ -2,6 +2,7 @@
 
 #include "methods/builtin/prerequisite_helpers.h"
 
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <cmath>
@@ -67,7 +68,9 @@ auto GDACMethod::calculate(const CalculationInput& input) const -> charges::Atom
             const auto denominator = parameter_a[lower_atom_index] + parameter_b[lower_atom_index];
 
             if (denominator == 0.0) {
-                throw std::logic_error{"GDAC denominator is zero"};
+                throw MethodFailure{FailureKind::invalid_parameter_value,
+                                    "atom parameters 'A' and 'B' of an atom sum to zero; use "
+                                    "another parameter set"};
             }
 
             const auto radius_sum = vdw_radius(lower_atom) + vdw_radius(higher_atom);

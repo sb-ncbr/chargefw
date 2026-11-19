@@ -3,10 +3,12 @@
 #include "methods/builtin/charge_constraint.h"
 
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
@@ -21,11 +23,6 @@ constexpr auto convergence_tolerance = 1.0e-10;
 
 [[nodiscard]] auto interaction(const double distance, const double second_i, const double second_j)
     -> double {
-
-    if (second_i <= 0.0 || second_j <= 0.0) {
-        throw std::logic_error{"SMP/QEq atom parameter 'second' must be positive"};
-    }
-
     const auto gamma = 2.0 * std::sqrt(second_i * second_j);
     const auto scaled_distance = distance / coulomb;
 
@@ -54,6 +51,11 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
     const auto first = parameters.atom("first");
     // The pair loop below reads second O(n^2) times; resolve it once per atom.
     const auto second = methods::detail::atom_parameter_values(parameters, "second", atom_count);
+    // Checked for every atom, also one without a pair, where it enters only the diagonal.
+    if (std::ranges::any_of(second, [](const double value) { return value <= 0.0; })) {
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "atom parameter 'second' must be positive; use another parameter set"};
+    }
     const auto third = parameters.atom("third");
     const auto fourth = parameters.atom("fourth");
 
@@ -97,7 +99,8 @@ auto SMPQEqMethod::calculate(const CalculationInput& input) const -> charges::At
         previous_charges = b.head(n);
     }
 
-    throw std::runtime_error{"SMP/QEq self-consistent solve did not converge"};
+    throw MethodFailure{FailureKind::not_converged,
+                        "the self-consistent solution did not converge; use another method"};
 }
 
 auto SMPQEqMethod::estimate(const TargetSize& target, const MethodOptions& /*options*/) const

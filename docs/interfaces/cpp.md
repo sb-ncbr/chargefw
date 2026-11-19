@@ -109,7 +109,9 @@ int main() {
     auto assessment = calculation::assess(std::move(request));
     auto result = calculation::calculate(assessment);
     if (!result.calculated()) {
-        std::cerr << result.failure_message.value_or("calculation failed") << '\n';
+        if (result.failure.has_value()) {
+            std::cerr << result.failure->message << '\n';
+        }
         return 1;
     }
 
@@ -164,7 +166,9 @@ int main() {
     auto assessment = calculation::assess(std::move(request));
     auto execution = calculation::calculate(assessment);
     if (!execution.calculated()) {
-        std::cerr << execution.failure_message.value_or("calculation failed") << '\n';
+        if (execution.failure.has_value()) {
+            std::cerr << execution.failure->message << '\n';
+        }
         return 1;
     }
 
@@ -322,9 +326,15 @@ estimates](../guide/large-structures.md#threads-and-estimates) explains them.
 ## Results and errors
 
 `calculation::ExecutionResult` has an `ExecutionStatus`, an optional `charges::ChargeSet`, the
-rejections, the model that was used in `effective`, an optional failure message, the time spent on
-assessment and calculation, and the `input_warnings`. The status is `success`, `no_executable_plan`,
-`numerical_failure`, or `cancelled`; failed and cancelled results contain no charges.
+rejections, the model that was used in `effective`, the `failure` of a calculation that failed, the
+time spent on assessment and calculation, and the `input_warnings`. The status is `success`,
+`no_executable_plan`, `numerical_failure`, or `cancelled`; failed and cancelled results contain no
+charges.
+
+`failure` is set exactly when the status is `numerical_failure`. A `calculation::CalculationFailure`
+has its `methods::FailureKind` ([When a calculation fails](../guide/results.md#when-a-calculation-fails)
+lists the kinds), the reason in `message`, the molecule index, and its location: the conformer, and
+with cutoff or cover execution the atom whose fragment failed, numbered as in the input molecule.
 
 Issues give where they are in a `core::IssueLocation`: an optional conformer index, the atom and bond
 index the message names, the other atom of a pair it names, such as two atoms too close, and
@@ -354,10 +364,13 @@ index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::ou
 throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
 molecule cannot hold, such as atomic number 0. A valid assessment reports methods that do not apply
 as rejections, and `default_plan()` is null when none applies; it has no status. `calculate()`
-reports failures and cancellation through the `ExecutionStatus`. A `std::logic_error` or
-`std::runtime_error` from a method, such as an invalid parameter value or a solver that does not
-converge, becomes `numerical_failure`. Other exceptions, such as `std::bad_alloc` when memory runs
-out, are not caught and reach the caller.
+reports failures and cancellation through the `ExecutionStatus`. A method that cannot calculate
+throws a `methods::MethodFailure` with its kind and reason, and `calculate()` reports it as
+`numerical_failure`. Charges that are not finite numbers, such as those of singular equations, are
+`no_solution` there too; if you call `Method::calculate()` yourself, they reach you as
+`charges::NonFiniteCharges`, a `std::invalid_argument`. Any other exception from a method is an error
+in ChargeFW and reaches the caller of `calculate()` as `std::logic_error`; `std::bad_alloc` when
+memory runs out reaches it unchanged.
 
 ## Fixed ions
 
@@ -460,8 +473,10 @@ charges of each assignment in atom order, fixed ions included. A weight of 0 lea
 ions keep their prescribed charges, so they change only the sum of squares. The plan must use full
 execution, and the method must have exact derivatives, as `has_exact_derivatives(method)` reports:
 EEM, SQE, SQE+q0, and SQE+qp. The result is the same for any number of threads. Invalid arguments
-throw `std::invalid_argument`; a calculation that fails throws `std::runtime_error` or
-`std::logic_error` naming the molecule.
+throw `std::invalid_argument`. A calculation that fails throws `calculation::CalculationFailed`, whose
+`failure()` is the `CalculationFailure` that `calculate()` would report. When the charges exist but the
+sums or derivatives are not finite numbers, for example with very large weights,
+`NonFiniteNormalEquations` is thrown; a fit cannot use these values.
 
 `entry_counts(plan)`, declared in `<chargefw/parameterization/parameter_entries.h>`, counts
 the calculated atoms and bonds that each entry of the plan's set matches; fixed ions are not counted. A

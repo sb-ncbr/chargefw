@@ -346,6 +346,18 @@ TEST_CASE("result assembly validates assignment dimensions targets and scope", "
     invalid_cases.push_back(
         {.status = calculation::ExecutionStatus::numerical_failure,
          .charges = formal({{.target = {.molecule_index = 0}, .charges = pair_charges}})});
+    // A failure exactly when the calculation failed numerically, for a molecule of the input.
+    const auto failure = [](const std::size_t molecule_index) {
+        return calculation::CalculationFailure{.kind = methods::FailureKind::no_solution,
+                                               .message = "no solution",
+                                               .molecule_index = molecule_index,
+                                               .location = {}};
+    };
+    invalid_cases.push_back({.status = calculation::ExecutionStatus::numerical_failure});
+    invalid_cases.push_back(
+        {.status = calculation::ExecutionStatus::cancelled, .failure = failure(0)});
+    invalid_cases.push_back(
+        {.status = calculation::ExecutionStatus::numerical_failure, .failure = failure(2)});
 
     for (std::size_t index = 0; index < invalid_cases.size(); ++index) {
         CAPTURE(index);

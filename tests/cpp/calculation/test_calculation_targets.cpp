@@ -7,6 +7,7 @@
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/molecule_collection.h>
+#include <chargefw/core/position.h>
 #include <chargefw/features/prepared_molecule_collection.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_metadata.h>
@@ -14,9 +15,11 @@
 #include <chargefw/methods/method_requirements.h>
 
 #include <cstddef>
+#include <exception>
 #include <optional>
 #include <snitch/snitch.hpp>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 namespace calculation = chargefw::calculation;
@@ -80,4 +83,52 @@ TEST_CASE("calculation targets distribute worker budget across parallelization l
                                  requested_threads, target_count, requested_threads);
         }
     }
+}
+
+TEST_CASE("calculation targets report method failures with their conformer",
+          "[calculation][calculation-targets]") {
+    const auto conformer = core::Conformer{{core::Position{}}};
+    const auto molecules = core::MoleculeCollection{std::vector{
+        core::Molecule{std::vector{core::Atom{6}}, {}, {conformer, conformer}, "pair"}}};
+    const features::PreparedMoleculeCollection prepared{molecules};
+    const chargefw::test::StubMethod method{"target-execution"};
+    const methods::ApplicableMethod selected{.method = &method, .parameter_set = nullptr};
+    // Fails on the second conformer only, with the given exception.
+    const auto calculate = [&](const std::exception_ptr& error) {
+        static_cast<void>(calculation::detail::execute_calculation_targets(
+            selected, prepared, calculation::ExecutionMode::full, true,
+            calculation::detail::ParallelizationLevel::targets, 1,
+            calculation::default_calculation_observer(),
+            [&](const features::PreparedMolecule& molecule,
+                const chargefw::parameters::ParameterClassification*,
+                const std::optional<std::size_t> conformer_index, const std::size_t,
+                const calculation::detail::ProgressContext&) {
+                if (conformer_index == 1) {
+                    std::rethrow_exception(error);
+                }
+                return charges::AtomicCharges{
+                    std::vector<double>(molecule.molecule().atom_count(), 0.0)};
+            }));
+    };
+
+    const auto failure = [&]() -> std::optional<calculation::CalculationFailure> {
+        try {
+            calculate(std::make_exception_ptr(
+                methods::MethodFailure{methods::FailureKind::not_converged, "did not converge"}));
+        } catch (const calculation::CalculationFailed& error) {
+            return error.failure();
+        }
+        return std::nullopt;
+    }();
+    REQUIRE(failure.has_value());
+    CHECK(failure->kind == methods::FailureKind::not_converged);
+    CHECK(failure->message == "did not converge");
+    CHECK(failure->molecule_index == 0);
+    CHECK(failure->location == core::IssueLocation{.conformer_index = 1});
+
+    // Anything else is an error in ChargeFW.
+    CHECK_THROWS_AS(calculate(std::make_exception_ptr(std::runtime_error{"unexpected"})),
+                    std::logic_error);
+    CHECK_THROWS_AS(calculate(std::make_exception_ptr(std::invalid_argument{"unexpected"})),
+                    std::logic_error);
 }
