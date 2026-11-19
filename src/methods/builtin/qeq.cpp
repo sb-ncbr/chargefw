@@ -3,6 +3,7 @@
 #include "methods/builtin/charge_constraint.h"
 
 #include <chargefw/core/molecule.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -79,7 +80,9 @@ auto QEqMethod::calculate(const CalculationInput& input) const -> charges::Atomi
 
     for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
         if (hardness[atom_index] <= 0.0) {
-            throw std::logic_error{"QEq atom parameter 'hardness' must be positive"};
+            throw MethodFailure{FailureKind::invalid_parameter_value,
+                                "atom parameter 'hardness' must be positive; use another "
+                                "parameter set"};
         }
     }
 

@@ -1,8 +1,12 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/core/bond.h>
 #include <chargefw/io/conformer_selection.h>
 #include <chargefw/io/molecule_record.h>
+#include <chargefw/io/parse_error.h>
 #include <chargefw/io/pdb_input.h>
 #include <chargefw/io/structure_options.h>
+#include <optional>
 #include <snitch/snitch.hpp>
 
 #include <algorithm>
@@ -660,7 +664,10 @@ TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
         std::istringstream input{text};
         static_cast<void>(io::PdbReader{input, {}, {}});
     };
-    CHECK_THROWS_MATCHES(read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O")),
-                         std::runtime_error,
-                         snitch::matchers::with_what_contains{"line 2 contains a non-ASCII"});
+    const auto error = chargefw::test::thrown<io::ParseError>(
+        [&] { read("HEADER    TEST\nREMARK   1 Caf\xe9\n" + pdb_residue("HOH", "O")); });
+    REQUIRE(error.has_value());
+    const auto* location = &error->location();
+    CHECK(location->line == 2);
+    CHECK_FALSE(location->record_index.has_value());
 }

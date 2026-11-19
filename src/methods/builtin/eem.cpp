@@ -6,6 +6,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -46,7 +47,8 @@ auto eem_core::build_system(const CalculationInput& input) -> System {
 
     const auto kappa = parameters.common("kappa");
     if (kappa <= 0.0) {
-        throw std::logic_error{"EEM common parameter 'kappa' must be positive"};
+        throw MethodFailure{FailureKind::invalid_parameter_value,
+                            "common parameter 'kappa' must be positive; use another parameter set"};
     }
     const auto source_potential = fixed_source_potential(input, kappa);
 

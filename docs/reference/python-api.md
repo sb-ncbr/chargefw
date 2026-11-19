@@ -81,15 +81,6 @@ of atoms.
 like a tuple; a slice is a `MoleculeCollection` with the same `name`, and `molecules` returns the
 tuple.
 
-### ImportIssue
-
-| Attribute | Content |
-| --- | --- |
-| `kind` | Kind of caution, such as `"partial_charges_ignored"` or `"coordinates_2d_ignored"`; the same code appears in result JSON |
-| `message` | Description |
-| `line` | Line in the file, or `None` |
-| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of the atoms and bonds the caution concerns, such as the atoms of `"unbonded_residue_atoms"` and the bonds of `"aromatic_bonds_converted"`; empty for cautions about the file |
-
 ### SourceMapping
 
 How the atoms and conformers of a molecule correspond to its file. See
@@ -160,7 +151,7 @@ array of the indices of its atoms in the molecule.
 | `rejections` | Tuple of `Rejection`: methods and parameter sets that were not used, with reasons |
 | `input_warnings` | Tuple of `InputIssue`: cautions about the input molecules |
 | `charge_warnings` | Tuple of `ChargeIssue`: cautions about the calculated charges |
-| `failure_message` | Text of a numerical failure; otherwise `None` |
+| `failure` | `CalculationFailure` of a numerical failure; otherwise `None` |
 | `timings` | `CalculationTimings` |
 
 (selecting-an-assignment)=
@@ -268,16 +259,33 @@ of residue names.
 | `execution` | `Execution` that was rejected; `None` when the method or parameter set was rejected before an execution mode was considered |
 | `issues` | Tuple of `PrerequisiteIssue` and `ExecutionIssue`: the reasons |
 
-### PrerequisiteIssue
+## Issues
 
-A reason why a method or parameter set does not apply to the molecules.
+ChargeFW reports problems as issues. Every issue type has these attributes:
 
 | Attribute | Content |
 | --- | --- |
-| `kind` | One of the kinds below |
-| `message` | Description, such as `molecule 1: parameter set 'EEM_Baek1991' has no atom parameter matching atom 1 (...)`; numbers in messages count from one |
-| `molecule_index`, `atom_index`, `bond_index`, `conformer_index` | Where the problem is; `None` where it does not apply |
-| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of every atom and bond the problem concerns; `atom_index` and `bond_index` are the ones the message names |
+| `kind` | Code of the issue, such as `"atoms_too_close"`; each type lists its codes below |
+| `message` | The reason, such as `the parameter set has no atom parameter matching atom 1 (...)`; it does not name the molecule, conformer, method, or parameter set, and its numbers count from one |
+| `conformer_index` | Index of the conformer the issue concerns; `None` when it concerns the whole molecule |
+| `atom_index`, `bond_index` | Index of the atom and of the bond the message names; `None` when it names none |
+| `other_atom_index` | The other atom of a pair the message names, such as two atoms too close, whether or not they are bonded; otherwise `None` |
+| `atom_indices`, `bond_indices` | Read-only NumPy `int64` arrays of every atom and bond the issue concerns, in index order; empty when it concerns none |
+
+The indices count from zero. Each type adds where the issue belongs: `molecule_index`, the index of
+the input molecule, or for `ImportIssue` the `line` of the file.
+
+### ImportIssue
+
+A caution that a file reader attached to a molecule, in `Molecule.import_warnings`. `line` is the line
+in the file, counted from one, or `None`. `kind` is, for example, `"partial_charges_ignored"` or
+`"coordinates_2d_ignored"`; `atom_indices` lists, for example, the atoms of `"unbonded_residue_atoms"`,
+and `bond_indices` the bonds of `"aromatic_bonds_converted"`.
+
+### PrerequisiteIssue
+
+A reason why a method or parameter set does not apply to the molecules. `molecule_index` is `None`
+when the reason concerns no single molecule.
 
 | Kind | Meaning |
 | --- | --- |
@@ -293,22 +301,19 @@ A reason why a method or parameter set does not apply to the molecules.
 ### ExecutionIssue
 
 A reason why an execution mode was not used, or a warning about the one that was. `kind` is
-`"resource_threshold_exceeded"` or `"unsupported_execution_mode"`; it also has a `message` and a
-`molecule_index` (or `None`).
+`"resource_threshold_exceeded"` or `"unsupported_execution_mode"`. `molecule_index` is `None` when the
+reason concerns no single molecule; the other location attributes are empty, because both kinds
+concern whole molecules.
 
 ### InputIssue
 
 A caution about an input molecule, such as hydrogens that were probably not added; ChargeFW still
-calculates.
+calculates. See [Preparing input](../guide/input.md).
 
-| Attribute | Content |
+| Kind | Meaning |
 | --- | --- |
-| `kind` | `"hydrogens_missing"`: the molecule contains carbon but no hydrogen atoms; `"atoms_too_close"`: atoms of a conformer overlap. See [Preparing input](../guide/input.md) |
-| `message` | Description |
-| `molecule_index` | Index of the input molecule |
-| `conformer_index` | Index of the conformer the caution concerns; `None` when it concerns the whole molecule |
-| `atom_index` | Index of an atom the caution points to, for `"atoms_too_close"` the second atom of the closest pair; otherwise `None` |
-| `atom_indices` | Read-only NumPy `int64` array of every atom the caution concerns, for `"atoms_too_close"` each atom of a close pair; empty for cautions about the whole molecule |
+| `hydrogens_missing` | The molecule contains carbon but no hydrogen atoms |
+| `atoms_too_close` | Atoms of a conformer overlap: `atom_index` and `other_atom_index` are the closest pair, and `atom_indices` every atom of a close pair |
 
 `"atoms_too_close"` appears only in the results of methods that use coordinates, not in
 `Assessment.input_warnings`.
@@ -316,16 +321,18 @@ calculates.
 ### ChargeIssue
 
 A caution about calculated charges: ChargeFW returns them, but they are probably wrong; see
-[Results](../guide/results.md#charges-that-are-probably-wrong).
+[Results](../guide/results.md#charges-that-are-probably-wrong). `kind` is `"charge_out_of_range"`:
+charges are more than 6 e away from the formal charges of their atoms. `atom_index` is the atom
+furthest from its formal charge, and `atom_indices` every affected atom. `conformer_index` is `None`
+for methods that do not use coordinates.
 
-| Attribute | Content |
-| --- | --- |
-| `kind` | `"charge_out_of_range"`: charges are more than 6 e away from the formal charges of their atoms |
-| `message` | Description |
-| `molecule_index` | Index of the input molecule |
-| `conformer_index` | Index of the conformer of the charges; `None` for methods that do not use coordinates |
-| `atom_index` | Index of the atom the message names, the one furthest from its formal charge |
-| `atom_indices` | Read-only NumPy `int64` array of every affected atom, in atom order |
+### CalculationFailure
+
+Why a calculation gave no charges: the reason the method gave for one molecule, in
+`CalculationResult.failure`. `kind` is `"no_solution"`, `"not_converged"`, or
+`"invalid_parameter_value"`; [When a calculation fails](../guide/results.md#when-a-calculation-fails)
+explains them. `conformer_index` is the conformer. With cutoff or cover execution, `atom_index` is the
+atom whose fragment failed, and `None` when the whole molecule failed.
 
 ### ChargeFWWarning, InputWarning, and ChargeWarning
 
@@ -497,7 +504,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | Exception | Raised when |
 | --- | --- |
 | `chargefw.ChargeFWError` | Base class of the others below |
-| `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError` |
+| `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError`. `reason` says why; `source_name` names the source, or is empty. `line` (from one), `record_index` (from zero), and `record_id`, the record's identifier in the file, say where, or are `None` when the reader does not know |
 | `chargefw.CalculationError` | Base class of the three below; `error.result` holds the `CalculationResult` |
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |

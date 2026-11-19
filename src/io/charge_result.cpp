@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -26,38 +27,21 @@
 namespace chargefw::io {
 namespace {
 
-[[nodiscard]] auto prerequisite_code(const methods::PrerequisiteIssueKind kind)
-    -> std::string_view {
-    switch (kind) {
-    case methods::PrerequisiteIssueKind::invalid_options:
-        return "invalid_method_options";
-    case methods::PrerequisiteIssueKind::missing_feature:
-        return "missing_feature";
-    case methods::PrerequisiteIssueKind::invalid_geometry:
-        return "invalid_geometry";
-    case methods::PrerequisiteIssueKind::unsupported_molecule:
-        return "unsupported_molecule";
-    case methods::PrerequisiteIssueKind::missing_parameters:
-        return "missing_parameters";
-    case methods::PrerequisiteIssueKind::unknown_parameters:
-        return "unknown_parameters";
-    case methods::PrerequisiteIssueKind::parameter_classification_failed:
-        return "parameter_classification_failed";
-    case methods::PrerequisiteIssueKind::unsupported_fixed_ions:
-        return "unsupported_fixed_ions";
+// Orders diagnostics so that two are equivalent when they have the same code, message, and
+// location. Messages do not name the conformer or every atom, so equal messages at different
+// locations are different findings.
+struct SameFinding {
+    [[nodiscard]] static auto key(const ResultDiagnostic& diagnostic) {
+        const auto& location = diagnostic.location;
+        return std::tie(diagnostic.code, diagnostic.message, location.conformer_index,
+                        location.atom_index, location.other_atom_index, location.bond_index,
+                        location.atom_indices, location.bond_indices);
     }
-    throw std::logic_error{"unknown prerequisite issue kind"};
-}
-
-// Code and message of the diagnostics already appended; a molecule can have one per atom.
-using SeenDiagnostics = std::set<std::pair<std::string, std::string>>;
-
-auto append_unique(std::vector<ResultDiagnostic>& diagnostics, SeenDiagnostics& seen,
-                   ResultDiagnostic diagnostic) -> void {
-    if (seen.emplace(diagnostic.code, diagnostic.message).second) {
-        diagnostics.push_back(std::move(diagnostic));
+    [[nodiscard]] auto operator()(const ResultDiagnostic& left, const ResultDiagnostic& right) const
+        -> bool {
+        return key(left) < key(right);
     }
-}
+};
 
 auto validate_import_metadata(const std::span<const ImportedMoleculeRecord> records) -> void {
     for (const auto& record : records) {
@@ -140,16 +124,6 @@ auto validate_plan_warnings(const std::span<const ImportedMoleculeRecord> record
     }
 }
 
-[[nodiscard]] auto plan_warning_diagnostic(const calculation::ExecutionIssue& issue)
-    -> ResultDiagnostic {
-    auto diagnostic = ResultDiagnostic{};
-    diagnostic.severity = DiagnosticSeverity::warning;
-    diagnostic.code = calculation::to_string(issue.kind);
-    diagnostic.message = issue.message;
-    diagnostic.molecule_index = issue.molecule_index;
-    return diagnostic;
-}
-
 // Input and charge warnings become record diagnostics alike. A record finds its own warnings by
 // binary search, so they must be in molecule order.
 template <typename Issue>
@@ -173,11 +147,15 @@ auto validate_warnings(const std::span<const ImportedMoleculeRecord> records,
     validate_warnings(records, std::span{execution.charge_warnings}, "charge");
 }
 
+// Every issue type has the same fields, so each becomes a diagnostic alike. The code is the name of
+// the kind; to_string() is found in the namespace of the kind.
 template <typename Issue>
-[[nodiscard]] auto warning_diagnostic(const Issue& issue) -> ResultDiagnostic {
+[[nodiscard]] auto issue_diagnostic(const Issue& issue,
+                                    const DiagnosticSeverity severity = DiagnosticSeverity::warning)
+    -> ResultDiagnostic {
     auto diagnostic = ResultDiagnostic{};
-    diagnostic.severity = DiagnosticSeverity::warning;
-    diagnostic.code = calculation::to_string(issue.kind);
+    diagnostic.severity = severity;
+    diagnostic.code = to_string(issue.kind);
     diagnostic.message = issue.message;
     diagnostic.molecule_index = issue.molecule_index;
     diagnostic.location = issue.location;
@@ -276,6 +254,18 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
     }
 }
 
+auto validate_failure(const std::span<const ImportedMoleculeRecord> records,
+                      const calculation::ExecutionResult& execution) -> void {
+    const auto failed = execution.status == calculation::ExecutionStatus::numerical_failure;
+    if (failed != execution.failure.has_value()) {
+        throw std::invalid_argument{
+            "a calculation result has a failure exactly when it failed numerically"};
+    }
+    if (failed && execution.failure->molecule_index >= records.size()) {
+        throw std::invalid_argument{"calculation failure molecule index is outside the input"};
+    }
+}
+
 [[nodiscard]] auto status_diagnostic(const ChargeCalculationResult& result)
     -> std::optional<ResultDiagnostic> {
     const auto make = [](const DiagnosticSeverity severity, std::string code, std::string message) {
@@ -284,10 +274,6 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
         diagnostic.code = std::move(code);
         diagnostic.message = std::move(message);
         return diagnostic;
-    };
-    const auto* execution = result.execution();
-    const auto failure_message = [execution](std::string fallback) {
-        return execution->failure_message.value_or(std::move(fallback));
     };
     switch (result.status()) {
     case ResultStatus::success:
@@ -300,21 +286,14 @@ auto validate_assignments(const std::span<const ImportedMoleculeRecord> records,
         return make(DiagnosticSeverity::error, "no_executable_plan",
                     "No executable method and parameter-set plan was found.");
     case ResultStatus::numerical_failure:
-        return make(DiagnosticSeverity::error, "numerical_failure",
-                    failure_message("Calculation failed numerically."));
+        // The failure is a diagnostic of the molecule that failed; the status of every record
+        // shows that the calculation failed.
+        return std::nullopt;
     case ResultStatus::cancelled:
         return make(DiagnosticSeverity::info, "calculation_cancelled",
                     "Calculation was cancelled before completion.");
     }
     throw std::logic_error{"unknown result status"};
-}
-
-[[nodiscard]] auto issue_molecule_index(const calculation::RejectionIssue& issue_value)
-    -> std::optional<std::size_t> {
-    if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
-        return issue->molecule_index;
-    }
-    return std::get<calculation::ExecutionIssue>(issue_value).molecule_index;
 }
 
 } // namespace
@@ -327,6 +306,7 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
     validate_assignments(inputs, execution);
     validate_warnings(inputs, execution);
     validate_plan_warnings(inputs, execution);
+    validate_failure(inputs, execution);
     auto result = ChargeCalculationResult{};
     result.inputs_ = std::move(inputs);
     result.requested_ = std::move(requested);
@@ -340,7 +320,8 @@ auto make_charge_calculation_result(std::vector<ImportedMoleculeRecord> inputs,
             const auto& issues = rejections[rejection_index].issues;
             for (std::size_t issue_index = 0; issue_index < issues.size(); ++issue_index) {
                 const auto position = std::pair{rejection_index, issue_index};
-                const auto molecule_index = issue_molecule_index(issues[issue_index]);
+                const auto molecule_index = std::visit(
+                    [](const auto& issue) { return issue.molecule_index; }, issues[issue_index]);
                 if (!molecule_index.has_value()) {
                     result.shared_issues_.push_back(position);
                 } else if (*molecule_index < result.molecule_issues_.size()) {
@@ -447,7 +428,7 @@ auto charge_result_diagnostics(const ChargeCalculationResult& result)
         for (const auto& issue :
              std::ranges::equal_range(plan_warnings(*execution), std::optional<std::size_t>{}, {},
                                       &calculation::ExecutionIssue::molecule_index)) {
-            diagnostics.push_back(plan_warning_diagnostic(issue));
+            diagnostics.push_back(issue_diagnostic(issue));
         }
     }
     if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
@@ -531,13 +512,14 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
     }
     const auto* execution = result.execution();
     auto diagnostics = std::vector<ResultDiagnostic>{};
-    auto seen = SeenDiagnostics{};
     const auto with_residues = [&] {
         for (auto& diagnostic : diagnostics) {
             diagnostic.message += residue_clause(records[molecule_index], diagnostic.location);
         }
         return std::move(diagnostics);
     };
+    // Each warning is one finding, so two with the same text, such as for different atoms of a
+    // result built by the caller, are both kept.
     for (const auto& issue : records[molecule_index].import_warnings) {
         auto imported = ResultDiagnostic{};
         imported.severity = DiagnosticSeverity::warning;
@@ -546,14 +528,12 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         imported.molecule_index = molecule_index;
         imported.line = issue.line;
         imported.location = issue.location;
-        append_unique(diagnostics, seen, std::move(imported));
+        diagnostics.push_back(std::move(imported));
     }
-    // Each warning is one finding, so two with the same text, such as for different atoms of a
-    // result built by the caller, are both kept.
     const auto append_warnings = [&]<typename Issue>(const std::vector<Issue>& warnings) {
         for (const auto& issue :
              std::ranges::equal_range(warnings, molecule_index, {}, &Issue::molecule_index)) {
-            diagnostics.push_back(warning_diagnostic(issue));
+            diagnostics.push_back(issue_diagnostic(issue));
         }
     };
     // A request that failed has no execution result, so only its status follows.
@@ -565,18 +545,27 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         for (const auto& issue :
              std::ranges::equal_range(plan_warnings(*execution), std::optional{molecule_index}, {},
                                       &calculation::ExecutionIssue::molecule_index)) {
-            append_unique(diagnostics, seen, plan_warning_diagnostic(issue));
+            diagnostics.push_back(issue_diagnostic(issue));
         }
     }
     if (const auto diagnostic = status_diagnostic(result); diagnostic.has_value()) {
-        append_unique(diagnostics, seen, *diagnostic);
+        diagnostics.push_back(*diagnostic);
     }
     if (result.status() != ResultStatus::no_executable_plan) {
-        return with_residues();
+        auto described = with_residues();
+        // The message of a failure names no atom, so it gets no residue clause; its atom is that of
+        // the failed fragment.
+        if (execution != nullptr && execution->failure.has_value() &&
+            execution->failure->molecule_index == molecule_index) {
+            described.push_back(issue_diagnostic(*execution->failure, DiagnosticSeverity::error));
+        }
+        return described;
     }
     auto positions = std::vector<ChargeCalculationResult::IssuePosition>{};
     std::ranges::merge(result.molecule_issues_[molecule_index], result.shared_issues_,
                        std::back_inserter(positions));
+    // A candidate rejected in two execution modes can give the same issue twice; it is kept once.
+    auto seen = std::set<ResultDiagnostic, SameFinding>{};
     for (const auto& [rejection_index, issue_index] : positions) {
         const auto& rejected = execution->rejections[rejection_index];
         const auto& issue_value = rejected.issues[issue_index];
@@ -584,22 +573,12 @@ auto charge_record_diagnostics(const ChargeCalculationResult& result,
         if (rejected.parameter_set_id.has_value()) {
             candidate += ", parameter set '" + *rejected.parameter_set_id + "'";
         }
-        if (const auto* issue = std::get_if<methods::PrerequisiteIssue>(&issue_value)) {
-            auto diagnostic = ResultDiagnostic{};
-            diagnostic.severity = DiagnosticSeverity::error;
-            diagnostic.code = prerequisite_code(issue->kind);
-            diagnostic.message = candidate + ": " + issue->message;
-            diagnostic.molecule_index = issue->molecule_index;
-            diagnostic.location = issue->location;
-            append_unique(diagnostics, seen, std::move(diagnostic));
-        } else {
-            const auto& execution_issue = std::get<calculation::ExecutionIssue>(issue_value);
-            auto diagnostic = ResultDiagnostic{};
-            diagnostic.severity = DiagnosticSeverity::error;
-            diagnostic.code = calculation::to_string(execution_issue.kind);
-            diagnostic.message = candidate + ": " + execution_issue.message;
-            diagnostic.molecule_index = execution_issue.molecule_index;
-            append_unique(diagnostics, seen, std::move(diagnostic));
+        auto diagnostic = std::visit(
+            [](const auto& issue) { return issue_diagnostic(issue, DiagnosticSeverity::error); },
+            issue_value);
+        diagnostic.message = candidate + ": " + diagnostic.message;
+        if (seen.insert(diagnostic).second) {
+            diagnostics.push_back(std::move(diagnostic));
         }
     }
     return with_residues();

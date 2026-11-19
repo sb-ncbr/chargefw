@@ -16,7 +16,7 @@ auto MPEOEMethod::add_method_specific_prerequisite_issues(const MethodPrerequisi
                                                           PrerequisiteResult& result) const
     -> void {
     if (!detail::uses_formal_initial_charges(input.method_options)) {
-        detail::add_component_neutrality_prerequisite_issue(input, result, "MPEOE");
+        detail::add_component_neutrality_prerequisite_issue(input, result);
     }
 }
 

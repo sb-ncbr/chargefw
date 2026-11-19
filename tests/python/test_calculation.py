@@ -750,13 +750,23 @@ def test_close_atoms_are_reported_with_their_atom() -> None:
         coordinates=[[0.0, 0.0, 0.0], [0.3, 0.0, 0.0], [-0.24, 0.93, 0.0]],
     )
     assert chargefw.assess(molecule, method="eqeq").input_warnings == ()
-    with pytest.warns(chargefw.InputWarning, match=r"\(atoms_too_close; "):
+    with pytest.warns(chargefw.InputWarning, match=r"\(atoms_too_close; ") as caught:
         result = chargefw.calculate(molecule, method="eqeq")
+    # The message gives the reason only; the warning adds the molecule and the conformer once.
+    assert "conformer" not in result.input_warnings[0].message
+    text = str(caught[0].message)
+    assert text.startswith("molecule 1, conformer 1: ") and text.count("conformer") == 1
 
     assert [
-        (issue.kind, issue.molecule_index, issue.conformer_index, issue.atom_index)
+        (
+            issue.kind,
+            issue.molecule_index,
+            issue.conformer_index,
+            issue.atom_index,
+            issue.other_atom_index,
+        )
         for issue in result.input_warnings
-    ] == [("atoms_too_close", 0, 0, 1)]
+    ] == [("atoms_too_close", 0, 0, 1, 0)]
     assert result.input_warnings[0].atom_indices.tolist() == [0, 1]
 
 
@@ -815,7 +825,8 @@ def test_no_plan_result_and_typed_exception() -> None:
     assert result.assignments == ()
     assert result.rejections
     assert result.rejections[0].issues[0].kind == "missing_feature"
-    assert result.rejections[0].issues[0].message in str(context.value)
+    # The message names the molecule, which the issue gives only as an index.
+    assert f"molecule 1: {result.rejections[0].issues[0].message}" in str(context.value)
 
 
 def test_nonfinite_coordinates_are_assessed_per_method() -> None:
@@ -997,11 +1008,11 @@ def test_catalogs_and_descriptors_are_immutable_values() -> None:
     assert executed.parameter_set == parameter_set
 
 
-def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
+def write_eem_set(path: Any, set_id: str, oxygen_a: float, kappa: float = 0.5) -> Any:
     path.write_text(
         f"""{{
   "metadata": {{"id": "{set_id}", "method": "eem", "name": "Water EEM"}},
-  "common": {{"names": ["kappa"], "values": [0.5]}},
+  "common": {{"names": ["kappa"], "values": [{kappa}]}},
   "atom": {{
     "names": ["A", "B"],
     "data": [
@@ -1013,6 +1024,56 @@ def write_eem_set(path: Any, set_id: str, oxygen_a: float) -> Any:
 """
     )
     return path
+
+
+def test_numerical_failure_gives_its_molecule_and_conformer(tmp_path: Any) -> None:
+    # With kappa 0.5 and B 1, the EEM equations of two atoms 0.5 Å apart are singular: the second
+    # conformer fails, the first does not.
+    singular = chargefw.read_parameter_set(
+        write_eem_set(tmp_path / "singular.json", "singular", 3.0)
+    )
+    # The first molecule succeeds, so the failure is of the second.
+    valid = chargefw.Molecule([1, 8], coordinates=[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], name="valid")
+    pair = chargefw.Molecule(
+        [1, 8],
+        coordinates=[[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]],
+        name="pair",
+    )
+    with pytest.raises(chargefw.NumericalFailureError) as context:
+        chargefw.calculate([valid, pair], method="eem", parameter_set=singular, threads=1)
+
+    result = context.value.result
+    assert result.status == "numerical_failure" and result.assignments == ()
+    failure = result.failure
+    assert failure is not None
+    assert (failure.kind, failure.molecule_index, failure.conformer_index, failure.atom_index) == (
+        "no_solution",
+        1,
+        1,
+        None,
+    )
+    # The message gives the reason only; the error adds the molecule and the conformer once.
+    assert "conformer" not in failure.message
+    text = str(context.value)
+    assert text.startswith("molecule 2 ('pair'), conformer 2: ")
+    assert text.count("conformer") == 1 and text.endswith(failure.message)
+
+
+def test_numerical_failure_in_a_fragment_names_its_atom(tmp_path: Any) -> None:
+    # A negative kappa fails every fragment; with one thread, the first fails first.
+    invalid = chargefw.read_parameter_set(
+        write_eem_set(tmp_path / "invalid.json", "invalid", 3.0, kappa=-0.5)
+    )
+    with pytest.raises(chargefw.NumericalFailureError) as context:
+        chargefw.calculate(
+            water(), method="eem", parameter_set=invalid, execution="cutoff", radius=8.0, threads=1
+        )
+
+    failure = context.value.result.failure
+    assert failure is not None and failure.kind == "invalid_parameter_value"
+    assert (failure.conformer_index, failure.atom_index) == (0, 0)
+    assert failure.atom_indices.tolist() == [0]
+    assert str(context.value).startswith("molecule 1, conformer 1, cutoff fragment around atom 1: ")
 
 
 def test_parameter_set_read_from_file_is_used_and_reported(tmp_path: Any) -> None:
@@ -1061,8 +1122,12 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
-    with pytest.raises(chargefw.ParseError, match="no-such-method"):
+    with pytest.raises(chargefw.ParseError, match="no-such-method") as unknown:
         chargefw.read_parameter_set(unknown_method)
+    # The path is in the source name, not in the reason.
+    assert unknown.value.source_name == str(unknown_method)
+    assert "no-such-method" in unknown.value.reason
+    assert str(unknown_method) not in unknown.value.reason
 
     with pytest.raises(FileNotFoundError):
         chargefw.read_parameter_set(tmp_path / "missing.json")

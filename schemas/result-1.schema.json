@@ -219,6 +219,7 @@
         "message": { "type": "string", "description": "Human-readable diagnostic explanation." },
         "molecule_index": { "type": "integer", "minimum": 0 },
         "atom_index": { "type": "integer", "minimum": 0 },
+        "other_atom_index": { "type": "integer", "minimum": 0, "description": "The other atom of a pair its message names, such as two atoms too close, whether or not they are bonded." },
         "bond_index": { "type": "integer", "minimum": 0 },
         "conformer_index": { "type": "integer", "minimum": 0 },
         "line": { "type": "integer", "minimum": 1, "description": "One-based source line number." },

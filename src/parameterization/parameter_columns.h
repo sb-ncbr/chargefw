@@ -2,6 +2,8 @@
 
 #include "parameterization/method_derivatives.h"
 
+#include <chargefw/parameterization/normal_equations.h>
+
 #include <Eigen/Core>
 
 #include <algorithm>
@@ -18,7 +20,7 @@ namespace chargefw::parameterization::detail {
 inline auto require_finite(const std::span<const double> values, const std::string_view message)
     -> void {
     if (!std::ranges::all_of(values, [](const double value) { return std::isfinite(value); })) {
-        throw std::runtime_error{std::string{message}};
+        throw NonFiniteNormalEquations{std::string{message}};
     }
 }
 

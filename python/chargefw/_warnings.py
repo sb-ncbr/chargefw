@@ -36,6 +36,15 @@ class _Issue(Protocol):
     @property
     def message(self) -> str: ...
 
+    @property
+    def conformer_index(self) -> int | None: ...
+
+
+def issue_place(molecule: str, conformer_index: int | None) -> str:
+    """Where an issue is, for people: the described molecule, and its conformer if it has one."""
+
+    return molecule if conformer_index is None else f"{molecule}, conformer {conformer_index + 1}"
+
 
 def issue_warnings(
     issues: Iterable[tuple[int, _Issue]],
@@ -59,7 +68,9 @@ def issue_warnings(
     result = []
     for kind, found in by_kind.items():
         first_index, first = found[0]
-        example = f"{describe(first_index)}: {first.message.rstrip('.')}"
+        # The message names neither the molecule nor the conformer.
+        example = f"{issue_place(describe(first_index), first.conformer_index)}: "
+        example += first.message
         affected = len({index for index, _ in found})
         if affected == 1:
             text = f"{example} ({kind}; see {attribute})"

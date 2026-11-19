@@ -22,7 +22,6 @@ namespace chargefw::methods::builtin::detail {
 // to the message as an explanation.
 inline auto add_component_neutrality_prerequisite_issue(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result,
-                                                        const std::string_view method_name,
                                                         const std::string_view reason = {})
     -> void {
     const auto& molecule = input.prepared_molecule.molecule();
@@ -37,10 +36,10 @@ inline auto add_component_neutrality_prerequisite_issue(const MethodPrerequisite
         if (formal_charge != 0) {
             result.issues.push_back(PrerequisiteIssue{
                 .kind = PrerequisiteIssueKind::unsupported_molecule,
-                .message = std::string{method_name} +
-                           " supports only molecules in which every bonded part has zero total "
-                           "formal charge" +
-                           (reason.empty() ? std::string{} : " because " + std::string{reason})});
+                .message =
+                    "the method supports only molecules in which every bonded part has zero total "
+                    "formal charge" +
+                    (reason.empty() ? std::string{} : " because " + std::string{reason})});
             return;
         }
     }

@@ -2,6 +2,7 @@
 
 #include "methods/builtin/prerequisite_helpers.h"
 
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <cmath>
@@ -20,10 +21,10 @@ namespace {
 
 auto GDACMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "GDAC");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 
     detail::add_element_prerequisite_issues(
-        input, result, "GDAC requires a positive van der Waals radius",
+        input, result, "the method requires a positive van der Waals radius",
         [](const core::Element& element) -> bool { return element.van_der_waals_radius > 0.0; });
 }
 
@@ -67,7 +68,9 @@ auto GDACMethod::calculate(const CalculationInput& input) const -> charges::Atom
             const auto denominator = parameter_a[lower_atom_index] + parameter_b[lower_atom_index];
 
             if (denominator == 0.0) {
-                throw std::logic_error{"GDAC denominator is zero"};
+                throw MethodFailure{FailureKind::invalid_parameter_value,
+                                    "atom parameters 'A' and 'B' of an atom sum to zero; use "
+                                    "another parameter set"};
             }
 
             const auto radius_sum = vdw_radius(lower_atom) + vdw_radius(higher_atom);

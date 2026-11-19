@@ -1,6 +1,6 @@
 from typing import Literal, TypedDict
 
-from .._types import ImportIssueKind
+from .._payloads import ImportIssuePayload
 from .calculation import _NativeExecutionResult
 
 class _NativeInputMetadata: ...
@@ -49,7 +49,7 @@ class MoleculePayload(TypedDict):
     record_index: int
     record_id: str | int | None
     import_metadata: ImportMetadataPayload | None
-    import_warnings: list[tuple[ImportIssueKind, str, int | None, list[int], list[int]]]
+    import_warnings: list[ImportIssuePayload]
     native_input_metadata: _NativeInputMetadata
 
 def _parse(

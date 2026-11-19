@@ -7,10 +7,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 
-import numpy as np
-from numpy.typing import NDArray
-
-from ._arrays import as_integer, index_array
+from ._arrays import as_integer
 from ._calculation_options import FixedAtomCharge, RequestedCalculation
 from ._chargefw import calculation as _native_calculation
 from ._charges import ChargeAssignment
@@ -21,6 +18,7 @@ from ._errors import (
     NoExecutablePlanError,
     NumericalFailureError,
 )
+from ._issues import Issue, location_arguments
 from ._methods import (
     ExecutionIssue,
     Method,
@@ -28,6 +26,7 @@ from ._methods import (
 )
 from ._parameters import ParameterSet
 from ._payloads import (
+    CalculationFailurePayload,
     CalculationProgressPayload,
     ChargeIssuePayload,
     EffectiveCalculationPayload,
@@ -43,6 +42,7 @@ from ._types import (
     ChargeIssueKind,
     ExecutionMode,
     ExecutionStatus,
+    FailureKind,
     InputIssueKind,
     MethodOptionValue,
     ParameterMatching,
@@ -53,21 +53,17 @@ from ._warnings import (
     ChargeFWWarning,
     ChargeWarning,
     InputWarning,
+    issue_place,
     issue_warnings,
 )
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class InputIssue:
+class InputIssue(Issue):
     """A caution about an input molecule, such as hydrogens that were probably not added."""
 
     kind: InputIssueKind
-    message: str
     molecule_index: int
-    conformer_index: int | None = None
-    atom_index: int | None = None
-    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
-    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
 def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
@@ -76,25 +72,18 @@ def _input_issues(payload: list[InputIssuePayload]) -> tuple[InputIssue, ...]:
             kind=issue["kind"],
             message=issue["message"],
             molecule_index=issue["molecule_index"],
-            conformer_index=issue["conformer_index"],
-            atom_index=issue["atom_index"],
-            atom_indices=index_array(issue["atom_indices"]),
+            **location_arguments(issue),
         )
         for issue in payload
     )
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class ChargeIssue:
+class ChargeIssue(Issue):
     """A caution about calculated charges: they exist, but are probably wrong."""
 
     kind: ChargeIssueKind
-    message: str
     molecule_index: int
-    conformer_index: int | None
-    atom_index: int | None
-    # Every atom the issue concerns, in atom order; atom_index is the one the message names.
-    atom_indices: NDArray[np.int64]
 
 
 def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]:
@@ -103,12 +92,46 @@ def _charge_issues(payload: list[ChargeIssuePayload]) -> tuple[ChargeIssue, ...]
             kind=issue["kind"],
             message=issue["message"],
             molecule_index=issue["molecule_index"],
-            conformer_index=issue["conformer_index"],
-            atom_index=issue["atom_index"],
-            atom_indices=index_array(issue["atom_indices"]),
+            **location_arguments(issue),
         )
         for issue in payload
     )
+
+
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
+class CalculationFailure(Issue):
+    """Why a calculation gave no charges: the reason a method gave for one molecule.
+
+    ``conformer_index`` is the conformer; with cutoff or cover execution, ``atom_index`` is the atom
+    whose fragment failed, and ``None`` when the whole molecule failed.
+    """
+
+    kind: FailureKind
+    molecule_index: int
+
+
+def _calculation_failure(payload: CalculationFailurePayload | None) -> CalculationFailure | None:
+    if payload is None:
+        return None
+    return CalculationFailure(
+        kind=payload["kind"],
+        message=payload["message"],
+        molecule_index=payload["molecule_index"],
+        **location_arguments(payload),
+    )
+
+
+def failure_text(
+    failure: CalculationFailure, molecules: MoleculeCollection, mode: ExecutionMode
+) -> str:
+    """The failure with the molecule, conformer, and fragment its message does not name."""
+
+    where = issue_place(
+        _describe_molecule(molecules, failure.molecule_index), failure.conformer_index
+    )
+    if failure.atom_index is not None:
+        where += f", {mode} fragment around atom {failure.atom_index + 1}"
+    return f"{where}: {failure.message}"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -470,11 +493,7 @@ def _prerequisite_issue(value: PrerequisiteIssuePayload) -> PrerequisiteIssue:
         kind=value["kind"],
         message=value["message"],
         molecule_index=value["molecule_index"],
-        atom_index=value["atom_index"],
-        bond_index=value["bond_index"],
-        conformer_index=value["conformer_index"],
-        atom_indices=index_array(value["atom_indices"]),
-        bond_indices=index_array(value["bond_indices"]),
+        **location_arguments(value),
     )
 
 
@@ -483,6 +502,7 @@ def _execution_issue(value: ExecutionIssuePayload) -> ExecutionIssue:
         kind=value["kind"],
         message=value["message"],
         molecule_index=value["molecule_index"],
+        **location_arguments(value),
     )
 
 
@@ -577,7 +597,14 @@ def _executed_plan(
 _REJECTIONS_IN_MESSAGE = 5
 
 
-def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
+def _describe_molecule(molecules: MoleculeCollection, index: int) -> str:
+    name = molecules[index].name
+    return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+
+
+def _no_executable_plan_message(
+    rejections: tuple[Rejection, ...], molecules: MoleculeCollection
+) -> str:
     """List the first reason of the first rejected candidates; the result holds all of them."""
 
     lines = ["no method and parameter set apply to the molecules:"]
@@ -587,7 +614,11 @@ def _no_executable_plan_message(rejections: tuple[Rejection, ...]) -> str:
             candidate += f", parameter set '{rejection.parameter_set.id}'"
         line = f"  {candidate}"
         if rejection.issues:
-            line += f": {rejection.issues[0].message}"
+            issue = rejection.issues[0]
+            if issue.molecule_index is not None:
+                molecule = _describe_molecule(molecules, issue.molecule_index)
+                line += f": {issue_place(molecule, issue.conformer_index)}"
+            line += f": {issue.message}"
         if len(rejection.issues) > 1:
             line += f" (and {len(rejection.issues) - 1} more)"
         lines.append(line)
@@ -611,7 +642,7 @@ class CalculationResult:
         "_input_warnings",
         "_charge_warnings",
         "_plan",
-        "_failure_message",
+        "_failure",
         "_timings",
     )
 
@@ -625,7 +656,7 @@ class CalculationResult:
     _input_warnings: tuple[InputIssue, ...]
     _charge_warnings: tuple[ChargeIssue, ...]
     _plan: ExecutedPlan | None
-    _failure_message: str | None
+    _failure: CalculationFailure | None
     _timings: CalculationTimings
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -676,7 +707,7 @@ class CalculationResult:
         result._plan = _executed_plan(
             payload["effective"], methods, parameter_sets, molecules, requested
         )
-        result._failure_message = payload["failure_message"]
+        result._failure = _calculation_failure(payload["failure"])
         result._timings = CalculationTimings(
             applicability_seconds=payload["metrics"]["applicability_seconds"],
             computation_seconds=payload["metrics"]["computation_seconds"],
@@ -756,8 +787,11 @@ class CalculationResult:
         return self._charge_warnings
 
     @property
-    def failure_message(self) -> str | None:
-        return self._failure_message
+    def failure(self) -> CalculationFailure | None:
+        """Why the calculation gave no charges; ``None`` unless the status is
+        ``"numerical_failure"``."""
+
+        return self._failure
 
     @property
     def timings(self) -> CalculationTimings:
@@ -773,8 +807,14 @@ class CalculationResult:
         if exception_type is None:
             return None
         if self.status == "no_executable_plan":
-            return exception_type(_no_executable_plan_message(self.rejections), self)
-        return exception_type(self.failure_message or self.status, self)
+            return exception_type(
+                _no_executable_plan_message(self.rejections, self.molecules), self
+            )
+        if self._failure is not None and self._plan is not None:
+            return exception_type(
+                failure_text(self._failure, self.molecules, self._plan.execution.mode), self
+            )
+        return exception_type(self.status, self)
 
 
 def _outcome(
@@ -792,8 +832,7 @@ def _outcome(
     molecules = result.molecules
 
     def describe(index: int) -> str:
-        name = molecules[index].name
-        return f"molecule {index + 1}" + (f" ({name!r})" if name else "")
+        return _describe_molecule(molecules, index)
 
     return None, [
         *issue_warnings(

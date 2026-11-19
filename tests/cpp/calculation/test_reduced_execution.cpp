@@ -5,6 +5,7 @@
 #include "calculation/reduced_execution.h"
 #include "features/topology_helpers.h"
 #include "support/test_calculation.h"
+#include "support/test_exceptions.h"
 #include "support/test_methods.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -455,10 +456,29 @@ TEST_CASE("SQE reduced execution fails when a fragment system is not positive de
         CHECK_FALSE(result.charges.has_value());
         REQUIRE(result.effective.has_value());
         CHECK(result.effective->method_id == "sqe");
-        REQUIRE(result.failure_message.has_value());
-        CHECK(result.failure_message->contains(mode == calculation::ExecutionSelectionMode::cutoff
-                                                   ? "cutoff fragment around"
-                                                   : "cover fragment around"));
+        REQUIRE(result.failure.has_value());
+        CHECK(result.failure->kind == methods::FailureKind::no_solution);
+        CHECK(result.failure->location.atom_index.has_value());
+    }
+}
+
+TEST_CASE("reduced SQE+qp fails for the whole target when its reference charges overflow",
+          "[calculation][reduced-execution][sqe]") {
+    // The q0 values are finite, but their sum over the water overflows before any fragment.
+    for (const auto mode : {calculation::ExecutionSelectionMode::cutoff,
+                            calculation::ExecutionSelectionMode::cover}) {
+        CAPTURE(mode);
+        const auto result = calculate_application(calculation::AssessmentRequest{
+            .molecules = core::MoleculeCollection{std::vector{chargefw::test::make_water()}},
+            .parameter_sets = {chargefw::test::make_sqe_ho_parameters(
+                "sqeqp", {.hydrogen_q0 = 1e308, .oxygen_q0 = 1e308})},
+            .method_id = "sqeqp",
+            .execution = calculation::ExecutionSelection{mode, 8.0}});
+
+        CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
+        REQUIRE(result.failure.has_value());
+        CHECK(result.failure->kind == methods::FailureKind::no_solution);
+        CHECK(result.failure->location == core::IssueLocation{.conformer_index = 0});
     }
 }
 
@@ -747,18 +767,30 @@ TEST_CASE("fixed-charge cutoff and cover diagnostics map active centers to origi
                     &partition));
             }
         };
+        // A method failure names the atom of the failed fragment as in the input molecule: the
+        // hydrogen after the fixed ion.
+        method.failure = std::make_exception_ptr(
+            methods::MethodFailure{methods::FailureKind::no_solution, "deliberate failure"});
+        const auto failed = chargefw::test::thrown<calculation::CalculationFailed>(calculate);
+        REQUIRE(failed.has_value());
+        const auto* failure = &failed->failure();
+        CHECK(failure->kind == methods::FailureKind::no_solution);
+        CHECK(failure->message == "deliberate failure");
+        CHECK(failure->molecule_index == 0);
+        CHECK(failure->location ==
+              core::IssueLocation{.conformer_index = 0, .atom_index = 1, .atom_indices = {1}});
+
+        // Anything else is an error in ChargeFW, described with the fragment.
         const auto expected = mode == calculation::ExecutionMode::cutoff
                                   ? "cutoff fragment around source atom 2 failed"
                                   : "cover fragment around source atom 2 failed";
-        method.failure = std::make_exception_ptr(std::runtime_error{"deliberate fragment failure"});
-        CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
-                             snitch::matchers::with_what_contains{expected});
-        method.failure = std::make_exception_ptr(std::invalid_argument{"invalid fragment input"});
-        CHECK_THROWS_MATCHES(calculate(), std::runtime_error,
-                             snitch::matchers::with_what_contains{expected});
-        method.failure = std::make_exception_ptr(std::logic_error{"fragment invariant failure"});
-        CHECK_THROWS_MATCHES(calculate(), std::logic_error,
-                             snitch::matchers::with_what_contains{expected});
+        for (const auto& error : {std::make_exception_ptr(std::runtime_error{"runtime"}),
+                                  std::make_exception_ptr(std::invalid_argument{"input"}),
+                                  std::make_exception_ptr(std::logic_error{"invariant"})}) {
+            method.failure = error;
+            CHECK_THROWS_MATCHES(calculate(), std::logic_error,
+                                 snitch::matchers::with_what_contains{expected});
+        }
         method.failure = std::make_exception_ptr(std::bad_alloc{});
         CHECK_THROWS_AS(calculate(), std::bad_alloc);
     }

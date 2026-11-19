@@ -1,7 +1,9 @@
 #pragma once
 
 #include "calculation/fixed_charge_partition.h"
+#include "calculation/fragment_failure.h"
 #include "methods/method_applicability.h"
+#include "methods/method_call.h"
 
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/observer.h>
@@ -17,10 +19,12 @@
 
 #include <cstddef>
 #include <exception>
+#include <new>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace chargefw::calculation::detail {
@@ -59,23 +63,34 @@ template <typename CalculateFragment>
 auto with_fragment_failure_context(const std::string_view label, const std::size_t atom_index,
                                    const FixedChargePartitionTarget* partition_target,
                                    CalculateFragment&& calculate_fragment) -> void {
-    const auto failure_message = [&](const std::exception& error) {
-        const auto original_atom_index = partition_target == nullptr
-                                             ? atom_index
-                                             : partition_target->active_atom_indices.at(atom_index);
-        return std::string{label} + " fragment around source atom " +
-               std::to_string(original_atom_index + 1) + " failed: " + error.what();
+    const auto original_atom_index = [&] {
+        return partition_target == nullptr ? atom_index
+                                           : partition_target->active_atom_indices.at(atom_index);
     };
-    // Method input failures are calculation failures; other logic errors retain their kind.
-    // Exceptions outside these categories, such as std::bad_alloc, pass unchanged.
+    const auto failure_message = [&](const std::exception& error) {
+        return std::string{label} + " fragment around source atom " +
+               std::to_string(original_atom_index() + 1) + " failed: " + error.what();
+    };
+    // A method failure keeps its kind and gets the atom; anything else is an error in ChargeFW,
+    // described with the fragment. std::bad_alloc passes unchanged.
     try {
         calculate_fragment();
-    } catch (const std::invalid_argument& error) {
-        throw std::runtime_error{failure_message(error)};
-    } catch (const std::runtime_error& error) {
-        throw std::runtime_error{failure_message(error)};
-    } catch (const std::logic_error& error) {
+    } catch (const methods::MethodFailure& error) {
+        throw FragmentFailure{error, original_atom_index()};
+    } catch (const std::bad_alloc&) {
+        throw;
+    } catch (const std::exception& error) {
         throw std::logic_error{failure_message(error)};
+    }
+}
+
+// The charges of a target assembled from its fragments; values that are not finite numbers are a
+// failure of the whole target.
+[[nodiscard]] inline auto assembled_charges(std::vector<double> values) -> charges::AtomicCharges {
+    try {
+        return charges::AtomicCharges{std::move(values)};
+    } catch (const charges::NonFiniteCharges&) {
+        throw methods::detail::non_finite_charges_failure();
     }
 }
 

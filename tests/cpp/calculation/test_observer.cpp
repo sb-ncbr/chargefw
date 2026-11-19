@@ -427,12 +427,15 @@ TEST_CASE("solver failures finish observation with a numerical result in every m
 
         CHECK(result.status == calculation::ExecutionStatus::numerical_failure);
         CHECK_FALSE(result.calculated());
-        REQUIRE(result.failure_message.has_value());
-        CHECK(result.failure_message->contains("method 'qeq', molecule 1 ('water'), conformer 1"));
-        if (mode != calculation::ExecutionMode::full) {
-            CHECK(result.failure_message->contains(std::string{calculation::to_string(mode)} +
-                                                   " fragment around source atom 1 failed"));
-        }
+        REQUIRE(result.failure.has_value());
+        CHECK(result.failure->kind == chargefw::methods::FailureKind::invalid_parameter_value);
+        CHECK(result.failure->molecule_index == 0);
+        // Reduced execution names the atom whose fragment failed, here the first.
+        CHECK(result.failure->location ==
+              (mode == calculation::ExecutionMode::full
+                   ? chargefw::core::IssueLocation{.conformer_index = 0}
+                   : chargefw::core::IssueLocation{
+                         .conformer_index = 0, .atom_index = 0, .atom_indices = {0}}));
 
         const auto events = observer.events();
         assert_computation_boundary(events, mode);

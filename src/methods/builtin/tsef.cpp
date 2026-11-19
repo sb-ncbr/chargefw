@@ -39,7 +39,7 @@ auto TSEFMethod::add_method_specific_prerequisite_issues(const MethodPrerequisit
     if (!features::is_connected(input.prepared_molecule.topology())) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::unsupported_molecule,
-            .message = "TSEF requires all atoms to be joined by bonds into one bonded part"});
+            .message = "the method requires all atoms to be joined by bonds into one bonded part"});
     }
 }
 

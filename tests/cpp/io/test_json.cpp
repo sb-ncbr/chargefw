@@ -1,5 +1,8 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/core/bond.h>
 #include <chargefw/io/json_input.h>
+#include <chargefw/io/parse_error.h>
 #include <snitch/snitch.hpp>
 
 #include <array>
@@ -72,19 +75,27 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[io][j
   "schema_version": "1.0",
   "molecules": [
     {
+      "id": "valid",
+      "atoms": [{ "atomic_number": 1, "formal_charge": 0 }]
+    },
+    {
       "id": "invalid",
       "atoms": [{ "atomic_number": 6, "formal_charge": 0 }],
       "bonds": [{ "atoms": [0, 1], "order": 1 }]
-    },
-    {
-      "id": "valid",
-      "atoms": [{ "atomic_number": 1, "formal_charge": 0 }]
     }
   ]
 }
 )json"};
-        auto reader = io::JsonReader{input};
-        CHECK_THROWS_AS(reader.next(), std::exception);
+        auto reader = io::JsonReader{input, "input.json"};
+        CHECK(reader.next().has_value());
+        // The error gives the record; JSON has no lines.
+        const auto error =
+            chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(reader.next()); });
+        REQUIRE(error.has_value());
+        CHECK(error->location().source_name == "input.json");
+        CHECK(error->location().record_index == 1);
+        CHECK(error->location().record_id == "invalid");
+        CHECK_FALSE(error->location().line.has_value());
     }
 
     {

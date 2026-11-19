@@ -635,7 +635,7 @@ TEST_CASE("fixed-charge parameter rejections use original atom indices and descr
     CHECK(issue.location.atom_indices == std::vector<std::size_t>{2});
 }
 
-TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numbering",
+TEST_CASE("fixed-charge geometry diagnostics use original atom numbering",
           "[calculation][fixed-ions]") {
     const auto assessment = calculation::assess(calculation::AssessmentRequest{
         .molecules = core::MoleculeCollection{std::vector{
@@ -652,7 +652,9 @@ TEST_CASE("fixed-charge geometry diagnostics label active-subsystem atom numberi
     CHECK(issue.kind == methods::PrerequisiteIssueKind::invalid_geometry);
     CHECK(issue.location.atom_index == 2);
     CHECK(issue.location.other_atom_index == 0);
-    CHECK(issue.message.contains("active-subsystem atom numbering"));
+    // Described with the original atoms 1 and 3, not those of the molecule without the ion.
+    CHECK(issue.message.contains("atom 1 ("));
+    CHECK(issue.message.contains("atom 3 ("));
 }
 
 TEST_CASE("fixed ion sources are validated", "[calculation][fixed-ions]") {

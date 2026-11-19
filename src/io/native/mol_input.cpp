@@ -345,7 +345,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
                         .message =
                             "V3000 bond order " + std::to_string(order) +
                             " was ignored because it is not represented in charge calculations; "
-                            "the imported graph omits this bond.",
+                            "the imported graph omits this bond",
                         .line = bond_line});
                 }
                 continue;

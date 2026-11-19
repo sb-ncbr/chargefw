@@ -24,6 +24,7 @@ from .._core import (
     SourceStructuralLabels,
 )
 from .._errors import ParseError
+from .._issues import location_arguments
 from .._warnings import IMPORT_WARNING_KINDS, ChargeFWWarning, InputWarning, issue_warnings
 
 if TYPE_CHECKING:
@@ -156,13 +157,12 @@ def _molecule(payload: _native_io.MoleculePayload) -> Molecule:
         "_import_warnings",
         tuple(
             ImportIssue(
-                kind=kind,
-                message=message,
-                line=line,
-                atom_indices=index_array(atoms),
-                bond_indices=index_array(bonds),
+                kind=issue["kind"],
+                message=issue["message"],
+                line=issue["line"],
+                **location_arguments(issue),
             )
-            for kind, message, line, atoms, bonds in payload["import_warnings"]
+            for issue in payload["import_warnings"]
         ),
     )
     object.__setattr__(result, "_native_input_metadata", payload["native_input_metadata"])
@@ -238,8 +238,11 @@ def _parse(
         payloads = _native_io._parse(
             contents, source_name, format, selection, bond_strategy, conformers
         )
+    except ParseError:
+        raise
     except (RuntimeError, ValueError, IndexError) as error:
-        raise ParseError(str(error)) from None
+        # The reader gave no location; the source is still known.
+        raise ParseError(str(error), source_name=source_name) from None
     return _collection(payloads, source_name)
 
 
@@ -279,10 +282,19 @@ def read(
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
+    data = source_path.read_bytes()
     try:
-        contents = source_path.read_text(encoding="utf-8")
+        # Lines end with LF, CRLF, or CR, as when reading text in Python.
+        contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     except UnicodeDecodeError as error:
-        raise ParseError(f"{source_path}: {error}") from None
+        before = data[: error.start].replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        line = before.count(b"\n") + 1
+        raise ParseError(
+            f"{source_path}:{line}: {error}",
+            reason=str(error),
+            source_name=str(source_path),
+            line=line,
+        ) from None
     collection = _parse(
         contents,
         format,

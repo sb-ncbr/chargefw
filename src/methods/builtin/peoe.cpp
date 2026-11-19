@@ -15,7 +15,7 @@ namespace chargefw::methods::builtin {
 auto PEOEMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
     if (!detail::uses_formal_initial_charges(input.method_options)) {
-        detail::add_component_neutrality_prerequisite_issue(input, result, "PEOE");
+        detail::add_component_neutrality_prerequisite_issue(input, result);
     }
 }
 

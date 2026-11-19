@@ -1,4 +1,5 @@
 #include <chargefw/io/mmcif_input.h>
+#include <chargefw/io/parse_error.h>
 
 #include "bonds.h"
 #include "io/imported_records.h"
@@ -170,8 +171,8 @@ MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
         throw std::runtime_error{"failed to read mmCIF input"};
     }
     if (const auto line = io::detail::first_non_ascii_line(text)) {
-        throw std::runtime_error{"line " + std::to_string(*line) +
-                                 " contains a non-ASCII character; mmCIF files must be ASCII text"};
+        throw ParseError{"non-ASCII character; mmCIF files must be ASCII text",
+                         {.source_name = source_, .line = *line}};
     }
     document_ = ::gemmi::cif::read_memory(text.data(), text.size(), source_.c_str());
     text_ = std::make_shared<const std::string>(std::move(text));
@@ -235,7 +236,7 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
             record.import_warnings.push_back(ImportIssue{
                 .kind = ImportIssueKind::partial_charges_ignored,
                 .message = "mmCIF partial charges were ignored; they are not formal charges and "
-                           "were not used for calculation.",
+                           "were not used for calculation",
                 .line = std::nullopt});
         }
         return record;

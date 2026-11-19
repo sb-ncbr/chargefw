@@ -213,10 +213,9 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
             if (!match) {
                 issues.push_back(ClassificationIssue{
                     .kind = ClassificationIssueKind::missing_atom_parameter,
-                    .object_index = atom_index,
-                    .message = "parameter set '" + std::string{parameters.id()} +
-                               "' has no atom parameter matching " +
-                               core::detail::atom_description(molecule, atom_index)});
+                    .message = "no atom parameter matches " +
+                               core::detail::atom_description(molecule, atom_index),
+                    .location = {.atom_index = atom_index, .atom_indices = {atom_index}}});
                 continue;
             }
 
@@ -237,10 +236,9 @@ auto try_classify_parameters(const features::TopologyFeatures& topology,
             if (!match) {
                 issues.push_back(ClassificationIssue{
                     .kind = ClassificationIssueKind::missing_bond_parameter,
-                    .object_index = bond_index,
-                    .message = "parameter set '" + std::string{parameters.id()} +
-                               "' has no bond parameter matching " +
-                               core::detail::bond_description(molecule, bond_index)});
+                    .message = "no bond parameter matches " +
+                               core::detail::bond_description(molecule, bond_index),
+                    .location = {.bond_index = bond_index, .bond_indices = {bond_index}}});
                 continue;
             }
 
@@ -266,7 +264,8 @@ auto classify_parameters(const features::TopologyFeatures& topology, const Param
     const auto result = try_classify_parameters(topology, parameters, options);
 
     if (!result) {
-        throw std::invalid_argument{result.issues().front().message};
+        throw std::invalid_argument{"parameter set '" + std::string{parameters.id()} +
+                                    "': " + result.issues().front().message};
     }
 
     return result.classification();

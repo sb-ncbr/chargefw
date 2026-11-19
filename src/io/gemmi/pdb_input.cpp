@@ -1,3 +1,4 @@
+#include <chargefw/io/parse_error.h>
 #include <chargefw/io/pdb_input.h>
 
 #include "bonds.h"
@@ -233,8 +234,8 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
         throw std::runtime_error{"failed to read PDB input"};
     }
     if (const auto line = io::detail::first_non_ascii_line(contents)) {
-        throw std::runtime_error{"line " + std::to_string(*line) +
-                                 " contains a non-ASCII character; PDB files must be ASCII text"};
+        throw ParseError{"non-ASCII character; PDB files must be ASCII text",
+                         {.source_name = source_name, .line = *line}};
     }
 
     auto structure = ::gemmi::read_pdb_string(contents, source_name);

@@ -19,7 +19,30 @@ class ChargeFWError(Exception):
 
 
 class ParseError(ChargeFWError, ValueError):
-    """Molecular input or a parameter-set file cannot be read."""
+    """Molecular input or a parameter-set file cannot be read.
+
+    ``reason`` is why, without where ChargeFW knows. ``source_name`` names the source, or is empty.
+    Where the reader knows them, ``line`` is the line of the source, counted from one,
+    ``record_index`` the record, counted from zero, and ``record_id`` the record's identifier in the
+    source, such as its title; otherwise they are ``None``.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str | None = None,
+        source_name: str = "",
+        line: int | None = None,
+        record_index: int | None = None,
+        record_id: str | int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = message if reason is None else reason
+        self.source_name = source_name
+        self.line = line
+        self.record_index = record_index
+        self.record_id = record_id
 
 
 class CalculationError(ChargeFWError):

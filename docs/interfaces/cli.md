@@ -200,7 +200,7 @@ publications.
 | `1` | Not enough memory, or an unexpected internal error; no result JSON is written |
 | `2` | Invalid input or options |
 | `3` | No executable plan for the molecules and the requested settings |
-| `4` | The calculation failed, for example did not converge or met an invalid parameter value |
+| `4` | The calculation failed for one of the molecules, for example did not converge or met an invalid parameter value |
 | `5` | The calculation was cancelled |
 | `6` | An output file could not be written: the result JSON, MOL2, mmCIF, or PQR |
 

@@ -3,6 +3,7 @@
 
 #include "methods/builtin/prerequisite_helpers.h"
 
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/parameters/models/parameter_view.h>
 
 #include <Eigen/Core>
@@ -14,7 +15,7 @@ namespace chargefw::methods::builtin {
 
 auto KCMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result) const -> void {
-    detail::add_component_neutrality_prerequisite_issue(input, result, "KCM");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 }
 
 auto KCMMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {
@@ -44,7 +45,9 @@ auto KCMMethod::calculate(const CalculationInput& input) const -> charges::Atomi
         const auto eta = hardness[i] + hardness[j];
 
         if (eta == 0.0) {
-            throw std::logic_error{"KCM bond hardness denominator must be non-zero"};
+            throw MethodFailure{FailureKind::invalid_parameter_value,
+                                "atom parameters 'hardness' of two bonded atoms sum to zero; use "
+                                "another parameter set"};
         }
 
         const auto w = 1.0 / eta;

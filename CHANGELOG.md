@@ -28,6 +28,56 @@
 - MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
   digits that read back as the same value, which could have an exponent, such as `8e-04`.
 
+### Diagnostics
+
+Warnings, reasons for rejections, and failures now give the same information in the same way: a
+code, a reason, and where the problem is as fields. Parse errors give their reason and where the
+reader stopped as fields.
+
+- The message of an issue gives only the reason, such as `the parameter set has no atom parameter
+  matching atom 1 (...)`. It no longer names the molecule, the conformer, the method, or the parameter
+  set: `molecule_index`, `conformer_index`, and the rejection give them, and the command line and
+  Python warnings and errors still name them, such as `molecule 1 ('1CRN'), conformer 2: `. In result
+  JSON, the `message` of a diagnostic no longer names the molecule or the conformer; that of a
+  rejection still starts with its method and parameter set. Messages about identical or non-finite
+  coordinates say what to check, and with fixed ions they number the atoms as in the input molecule.
+  Parameter entries in messages are numbered from one. The messages of import warnings no longer end
+  with a period.
+- Every issue type has the same location fields: `conformer_index`, `atom_index`, `other_atom_index`,
+  `bond_index`, `atom_indices`, and `bond_indices`. `other_atom_index` is new in result JSON and
+  Python: the other atom of a pair the message names, such as two atoms too close, whether or not
+  they are bonded. In Python, `ImportIssue`, `ExecutionIssue`, `InputIssue`, and `ChargeIssue` get the
+  fields they lacked; in C++, `calculation::ExecutionIssue` gets a `location`. Breaking changes:
+  Python `ExecutionIssue` no longer compares equal by value, like the other issue types, and C++
+  `parameters::ClassificationIssue` gives its atom or bond in `location` in place of `object_index`.
+- A calculation that fails reports why and where as fields: one of the kinds `no_solution`,
+  `not_converged`, and `invalid_parameter_value`, a reason that says what to do, the molecule, the
+  conformer, and with cutoff or cover execution the atom whose fragment failed. Breaking changes:
+  - Result JSON: the failure is one error diagnostic in the record of the molecule that failed, with
+    the kind as its `code`. It was a `numerical_failure` diagnostic in every record and in the
+    document. To find failed records, read the record `status`, which stays `numerical_failure`.
+  - Python: `CalculationResult.failure`, a `CalculationFailure`, replaces `failure_message`. For a
+    failed calculation, the messages of `NumericalFailureError` and
+    `chargefw.parameterization.EvaluationError` name the molecule and, when present, the conformer
+    once, before the reason.
+  - C++: `ExecutionResult::failure` replaces `failure_message`. Methods throw
+    `methods::MethodFailure`; any other exception from a method is reported as an internal error, not
+    as a numerical failure. `parameterization::normal_equations()` throws
+    `calculation::CalculationFailed` for a failed calculation and `NonFiniteNormalEquations` for sums
+    that are not finite.
+- SMP/QEq rejects a non-positive `second` parameter also for a single atom, as
+  `invalid_parameter_value`.
+- Breaking change: in result JSON, an invalid method option has the diagnostic code
+  `invalid_options`, the name of the kind in Python and C++, not `invalid_method_options`. The code of
+  every diagnostic that comes from an issue is now the name of the issue's kind.
+- Input that ChargeFW cannot read gives the reason and, where the reader knows them, the line and
+  record as fields: `reason`, `source_name`, `line`, `record_index`, and `record_id` of
+  `chargefw.ParseError` in Python, and `io::ParseError` in C++. The line and record are known for
+  MOL, SDF, and MOL2 files, the record for molecule JSON, and the line for text that is not ASCII in
+  PDB and mmCIF files and for a file that `chargefw.io.read()` cannot read as UTF-8. Breaking
+  change: in C++, these readers throw `io::ParseError`, a `std::runtime_error`, also for values a
+  molecule cannot hold, which were `std::invalid_argument`.
+
 ## 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor

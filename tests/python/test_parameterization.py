@@ -171,7 +171,14 @@ def test_native_normal_equations_match_the_jacobian() -> None:
     # A failing calculation is a status; malformed arguments raise.
     failed = native._normal_equations(np.array([0.0, 2.0, 1.0, 3.0, 1.0]), references, weights)
     assert failed["status"] == "numerical_failure" and failed["charges"] is None
-    assert failed["failure_message"] is not None and "kappa" in failed["failure_message"]
+    failure = failed["failure"]
+    assert failure is not None and failure["kind"] == "invalid_parameter_value"
+    assert failure["molecule_index"] == 0 and "kappa" in failure["message"]
+    assert failed["non_finite_message"] is None
+    # Finite charges whose weighted sums overflow fail without a failed calculation.
+    overflow = native._normal_equations(EEM_WATER_VALUES, references, np.full(3, 1e300))
+    assert overflow["status"] == "numerical_failure" and overflow["failure"] is None
+    assert overflow["non_finite_message"] is not None
     with pytest.raises(ValueError):
         native._normal_equations(EEM_WATER_VALUES, references[:2], weights)
 

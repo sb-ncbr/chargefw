@@ -146,7 +146,9 @@ TEST_CASE("parameter classifier uses permissive bond-order fallback only when re
     CHECK_FALSE(exact);
     REQUIRE(exact.issues().size() == 3);
     CHECK(exact.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
+    CHECK(exact.issues()[0].location == core::IssueLocation{.atom_index = 0, .atom_indices = {0}});
     CHECK(exact.issues()[2].kind == parameters::ClassificationIssueKind::missing_bond_parameter);
+    CHECK(exact.issues()[2].location == core::IssueLocation{.bond_index = 0, .bond_indices = {0}});
 
     const auto permissive = parameters::try_classify_parameters(
         features::TopologyFeatures{carbonyl}, parameter_set,
@@ -229,5 +231,5 @@ TEST_CASE("parameter classifier reports missing entries with source indices",
     CHECK_FALSE(result);
     REQUIRE(result.issues().size() == 1);
     CHECK(result.issues()[0].kind == parameters::ClassificationIssueKind::missing_atom_parameter);
-    CHECK(result.issues()[0].object_index == 0);
+    CHECK(result.issues()[0].location.atom_index == 0);
 }

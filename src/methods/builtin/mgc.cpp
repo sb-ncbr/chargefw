@@ -15,10 +15,10 @@ namespace chargefw::methods::builtin {
 auto MGCMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                         PrerequisiteResult& result) const -> void {
     detail::add_element_prerequisite_issues(
-        input, result, "MGC requires a positive element electronegativity",
+        input, result, "the method requires a positive element electronegativity",
         [](const core::Element& element) -> bool { return element.electronegativity > 0.0; });
 
-    detail::add_component_neutrality_prerequisite_issue(input, result, "MGC");
+    detail::add_component_neutrality_prerequisite_issue(input, result);
 }
 
 auto MGCMethod::calculate(const CalculationInput& input) const -> charges::AtomicCharges {

@@ -473,3 +473,14 @@ A new kind follows these rules:
   fixing the input or choosing another method. A kind that only notes data ChargeFW did not need,
   something the user requested, or a problem ChargeFW already refuses with a reason stays in its
   attribute.
+
+Failures are not issues, and each layer adds only what it knows. A method throws
+`methods::MethodFailure` with the kind and a reason that says what to do; it does not know which
+molecule or conformer it was given. Reduced execution adds the source atom of a fragment that
+failed, and target execution adds the molecule and conformer, giving
+`calculation::CalculationFailed` with a `CalculationFailure`. Charges that are not finite numbers
+become `no_solution` where they appear; `std::bad_alloc` passes unchanged, and any other exception
+from a method is an error in ChargeFW, rethrown as `std::logic_error` with the target or fragment.
+Readers likewise give the reason and, where they have them, the line and record in `io::ParseError`.
+The command line and Python put the molecule and conformer in front of the reason for people; the
+reason never repeats them.

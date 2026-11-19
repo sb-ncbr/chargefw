@@ -1,11 +1,13 @@
 #pragma once
 
 #include <chargefw/calculation/assessment.h>
+#include <chargefw/calculation/calculation.h>
 #include <chargefw/methods/method.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 namespace chargefw::parameterization {
@@ -25,6 +27,13 @@ struct NormalEquations {
     std::vector<double> gradient;
 };
 
+// Thrown by normal_equations() when the charges were calculated but the sums or derivatives of
+// the fit are not finite numbers, so that the fit cannot use these parameter values.
+class NonFiniteNormalEquations : public std::runtime_error {
+  public:
+    using std::runtime_error::runtime_error;
+};
+
 // Whether normal_equations() has exact derivatives for `method`: EEM, SQE, SQE+q0, and SQE+qp.
 [[nodiscard]] auto has_exact_derivatives(const methods::Method& method) -> bool;
 
@@ -36,10 +45,9 @@ struct NormalEquations {
 //
 // Throws std::invalid_argument for a candidate that calculation::calculate(plan, candidate) would
 // reject, a plan without full execution, a method without exact derivatives, or malformed
-// references or weights. A failing calculation, or one whose contribution is not finite, throws
-// std::runtime_error or std::logic_error naming the molecule and conformer: the failures
-// ExecutionResult reports as numerical_failure. Finite contributions whose sum is not finite throw
-// std::runtime_error without naming a molecule.
+// references or weights. A calculation that fails for a target throws
+// calculation::CalculationFailed with the failure ExecutionResult reports for numerical_failure.
+// Derivatives or sums that are not finite numbers throw NonFiniteNormalEquations.
 [[nodiscard]] auto normal_equations(const calculation::ExecutionPlan& plan,
                                     const parameters::ParameterSet& candidate,
                                     std::span<const double> references,

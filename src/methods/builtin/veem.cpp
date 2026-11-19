@@ -4,6 +4,7 @@
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/methods/method_failure.h>
 
 #include <stdexcept>
 #include <vector>
@@ -13,7 +14,7 @@ namespace chargefw::methods::builtin {
 auto VEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisiteInput& input,
                                                          PrerequisiteResult& result) const -> void {
     detail::add_element_prerequisite_issues(
-        input, result, "VEEM requires valence electrons and electronegativity",
+        input, result, "the method requires valence electrons and electronegativity",
         [](const core::Element& element) -> bool {
             return element.valence_electron_count().has_value() && element.electronegativity != 0.0;
         });
@@ -21,8 +22,9 @@ auto VEEMMethod::add_method_specific_prerequisite_issues(const MethodPrerequisit
     if (core::total_formal_charge(input.prepared_molecule.molecule()) != 0) {
         result.issues.push_back(PrerequisiteIssue{
             .kind = PrerequisiteIssueKind::unsupported_molecule,
-            .message = "VEEM supports only neutral molecules because its valence-electron equation "
-                       "conserves zero total charge"});
+            .message =
+                "the method supports only neutral molecules because its valence-electron equation "
+                "conserves zero total charge"});
     }
 }
 
@@ -47,13 +49,15 @@ auto VEEMMethod::calculate(const CalculationInput& input) const -> charges::Atom
     }
 
     if (denominator == 0.0) {
-        throw std::logic_error{"VEEM calculation has zero valence-electron denominator"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "the atoms have no valence electrons in total; use another method"};
     }
 
     const auto equalized_electronegativity = numerator / denominator;
 
     if (equalized_electronegativity == 0.0) {
-        throw std::logic_error{"VEEM calculation has zero equalized electronegativity"};
+        throw MethodFailure{FailureKind::no_solution,
+                            "the equalized electronegativity is zero; use another method"};
     }
 
     for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {

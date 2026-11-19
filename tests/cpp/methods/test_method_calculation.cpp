@@ -215,7 +215,9 @@ TEST_CASE("method calculation dispatches parameterized and geometry-dependent ta
                                                 .classifications = {}};
         static_cast<void>(calculation::calculate({.molecules = prepared, .selected = invalid}));
     };
-    CHECK_THROWS_AS(wrong_charge_count_call(), std::runtime_error);
+    // A method that breaks its contract, or a classification that does not fit the parameter set,
+    // is an error in ChargeFW, not a failure of the calculation.
+    CHECK_THROWS_AS(wrong_charge_count_call(), std::logic_error);
 
     const auto invalid_classification_call = [&] {
         const methods::ApplicableMethod invalid{
@@ -229,7 +231,7 @@ TEST_CASE("method calculation dispatches parameterized and geometry-dependent ta
                     parameters::AtomParameterClassification{std::vector<std::size_t>{2, 3}}}}};
         static_cast<void>(calculation::calculate({.molecules = prepared, .selected = invalid}));
     };
-    CHECK_THROWS_AS(invalid_classification_call(), std::invalid_argument);
+    CHECK_THROWS_AS(invalid_classification_call(), std::logic_error);
 
     const GeometryMethod geometry_method;
 

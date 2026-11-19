@@ -279,7 +279,7 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
     for (std::size_t index = 0; index < examples.size(); ++index) {
         message += (index == 0 ? "" : ", ") + examples[index];
     }
-    message += ": neither the bonds read from the file nor the residue templates cover them.";
+    message += ": neither the bonds read from the file nor the residue templates cover them";
     return ImportIssue{
         .kind = ImportIssueKind::unbonded_residue_atoms,
         .message = std::move(message),

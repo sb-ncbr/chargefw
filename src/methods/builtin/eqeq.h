@@ -9,8 +9,7 @@ namespace chargefw::methods::builtin {
 
 namespace eqeq_core {
 
-[[nodiscard]] auto calculate(const CalculationInput& input, std::string_view method_name)
-    -> std::vector<double>;
+[[nodiscard]] auto calculate(const CalculationInput& input) -> std::vector<double>;
 
 } // namespace eqeq_core
 

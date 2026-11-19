@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-import numpy as np
-from numpy.typing import NDArray
-
-from ._arrays import index_array
 from ._catalog import _Catalog
 from ._chargefw import methods as _native_methods
+from ._issues import Issue
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._payloads import MethodDescriptorPayload
 from ._public import set_public_module
@@ -22,23 +19,14 @@ from ._types import (
 
 
 @dataclass(frozen=True, slots=True, eq=False, kw_only=True)
-class PrerequisiteIssue:
+class PrerequisiteIssue(Issue):
     kind: PrerequisiteIssueKind
-    message: str
     molecule_index: int | None = None
-    atom_index: int | None = None
-    bond_index: int | None = None
-    conformer_index: int | None = None
-    # Every atom and bond the issue concerns, in index order; atom_index and bond_index are the
-    # ones the message names.
-    atom_indices: NDArray[np.int64] = field(default_factory=index_array)
-    bond_indices: NDArray[np.int64] = field(default_factory=index_array)
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ExecutionIssue:
+@dataclass(frozen=True, slots=True, eq=False, kw_only=True)
+class ExecutionIssue(Issue):
     kind: ExecutionIssueKind
-    message: str
     molecule_index: int | None = None
 
 

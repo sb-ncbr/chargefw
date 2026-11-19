@@ -4,12 +4,15 @@
 #include <chargefw/calculation/charge_issues.h>
 #include <chargefw/calculation/observer.h>
 #include <chargefw/charges/charge_set.h>
+#include <chargefw/core/issue_location.h>
+#include <chargefw/methods/method_failure.h>
 #include <chargefw/methods/method_requirements.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,6 +34,31 @@ struct EffectiveCalculation {
     std::optional<FixedIons> fixed_ions{};
 };
 
+// Why a calculation gave no charges: the reason a method gave for one of its targets. The message
+// gives only the reason and what to do; it names neither the molecule nor the conformer nor the
+// fragment.
+struct CalculationFailure {
+    methods::FailureKind kind;
+    std::string message;
+    std::size_t molecule_index;
+    // The conformer of the target, for methods that use coordinates. With cutoff or cover
+    // execution, atom_index and atom_indices give the atom whose fragment failed, numbered as in
+    // the input molecule; a failure of the whole target has none.
+    core::IssueLocation location;
+};
+
+// Thrown by parameterization::normal_equations() for a failure that calculate() reports in its
+// result.
+class CalculationFailed : public std::runtime_error {
+  public:
+    explicit CalculationFailed(CalculationFailure failure);
+
+    [[nodiscard]] auto failure() const noexcept -> const CalculationFailure&;
+
+  private:
+    CalculationFailure failure_;
+};
+
 enum class ExecutionStatus : std::uint8_t {
     success,
     no_executable_plan,
@@ -46,7 +74,8 @@ struct ExecutionResult {
     std::optional<charges::ChargeSet> charges;
     std::vector<Rejection> rejections;
     std::optional<EffectiveCalculation> effective;
-    std::optional<std::string> failure_message;
+    // Present exactly when status is numerical_failure.
+    std::optional<CalculationFailure> failure;
     CalculationMetrics metrics;
     // The input issues of the assessment, in molecule order.
     std::vector<InputIssue> input_warnings;

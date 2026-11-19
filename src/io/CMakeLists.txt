@@ -18,6 +18,7 @@ target_sources(chargefw_objects
         native/sdf_input.cpp
         conformer_selection.cpp
         molecule_record.cpp
+        parse_error.cpp
         fixed_ions.cpp
         fixed_ions.h
         imported_records.h
@@ -45,6 +46,7 @@ target_sources(chargefw_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/molecule_record.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/io/parse_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/charge_result.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/conformer_selection.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/all.h

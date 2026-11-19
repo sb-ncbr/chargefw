@@ -14,6 +14,7 @@
 #include <new>
 #include <optional>
 #include <print>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -241,12 +242,33 @@ auto run(std::span<char*> arguments) -> int {
                 return chargefw::calculation::calculate(assessment, max_threads,
                                                         interruptible_observer);
             }
-            // Warned before a possibly long calculation, and not again with the diagnostics.
+            // Warned before a possibly long calculation, and not again with the diagnostics. As
+            // there, warnings about molecules give one line per code.
+            auto molecules_by_code = std::vector<
+                std::pair<const chargefw::calculation::ExecutionIssue*, std::set<std::size_t>>>{};
             for (const auto& warning : plan->warnings()) {
                 const auto code = std::string{chargefw::calculation::to_string(warning.kind)};
-                if (run.reported.emplace(code, warning.message).second) {
-                    std::println(std::cerr, "Warning: {}", warning.message);
+                const auto first_report = run.reported.emplace(code, warning.message).second;
+                if (!warning.molecule_index.has_value()) {
+                    if (first_report) {
+                        std::println(std::cerr, "Warning: {}", warning.message);
+                    }
+                    continue;
                 }
+                const auto group =
+                    std::ranges::find(molecules_by_code, warning.kind,
+                                      [](const auto& value) { return value.first->kind; });
+                if (group == molecules_by_code.end()) {
+                    molecules_by_code.push_back({&warning, {*warning.molecule_index}});
+                } else {
+                    group->second.insert(*warning.molecule_index);
+                }
+            }
+            for (const auto& [first, molecules] : molecules_by_code) {
+                std::println(std::cerr, "Warning: {}",
+                             chargefw::cli::molecule_warning_text(
+                                 records, chargefw::calculation::to_string(first->kind),
+                                 first->message, molecules));
             }
             return chargefw::calculation::calculate(*plan, max_threads, interruptible_observer);
         } catch (const std::invalid_argument& error) {

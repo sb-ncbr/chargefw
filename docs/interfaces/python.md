@@ -224,7 +224,7 @@ result = chargefw.calculate(
 | `rejections` | Rejected methods and parameter sets with reasons |
 | `input_warnings` | Cautions about the input molecules, such as [missing hydrogens](../guide/input.md) |
 | `charge_warnings` | Cautions about the calculated charges, such as [charges far from the formal charges](../guide/results.md#charges-that-are-probably-wrong) |
-| `failure_message` | Text of a numerical failure; otherwise `None` |
+| `failure` | Why a numerical failure gave no charges, a `CalculationFailure`; otherwise `None` |
 | `timings` | Time spent selecting and calculating |
 
 A `ChargeAssignment` has the charges in `values`, a read-only NumPy `float64` array in atom order, and
@@ -279,7 +279,12 @@ and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own e
 `chargefw.ChargeFWError`.
 
 Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
-`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a `ValueError`.
+`chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a
+`ValueError`. Its `reason` says why. For MOL, SDF, and MOL2 files, `line` is the line of the file,
+counted from one, and `record_index` and `record_id` give the record. For molecule JSON, only
+`record_index` and `record_id` are given. For text that is not ASCII in PDB and mmCIF files, and for
+a file that `chargefw.io.read()` cannot read as UTF-8, only `line` is given. Fields that are not
+given are `None`.
 
 A calculation that fails raises a `chargefw.CalculationError`:
 
@@ -292,8 +297,18 @@ with its first reason:
 
 ```text
 no method and parameter set apply to the molecules:
-  method 'peoe': molecule 1 ('1L2Y'): PEOE supports only molecules in which every bonded part has zero total formal charge
+  method 'peoe': molecule 1 ('1L2Y'): the method supports only molecules in which every bonded part has zero total formal charge
 ```
+
+The message of `NumericalFailureError` names the molecule, the conformer, and with cutoff or cover
+execution the atom whose fragment failed, then the reason:
+
+```text
+molecule 1 ('pair'), conformer 2: the calculation gave charges that are not finite numbers, for example because its equations have no unique solution; check the geometry or use another parameter set
+```
+
+`error.result.failure` gives the same as fields: its `kind`, such as `"no_solution"`, the reason in
+`message`, `molecule_index`, `conformer_index`, and `atom_index`.
 
 The exception's `result` holds the complete result, with every reason; it can still be written as
 result JSON:
@@ -306,8 +321,11 @@ except chargefw.CalculationError as error:
     raise
 ```
 
-The `molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero;
-the numbers in its message count from one.
+The message of a reason does not name the molecule, conformer, method, or parameter set: the molecule
+and the conformer are those at `molecule_index` and `conformer_index`, and the method and parameter
+set are those of the rejection. The
+`molecule_index`, `atom_index`, `bond_index`, and `conformer_index` of a reason count from zero; the
+numbers in its message count from one.
 
 ## Writing results
 

@@ -46,7 +46,7 @@ namespace {
         });
 
     detail::enforce_conserved_charges(values, charge_context);
-    return charges::AtomicCharges{std::move(values)};
+    return detail::assembled_charges(std::move(values));
 }
 
 } // namespace

@@ -1,8 +1,6 @@
 #include <chargefw/methods/method.h>
 #include <chargefw/methods/method_prerequisites.h>
 
-#include "methods/parameter_issue_messages.h"
-
 #include <stdexcept>
 
 namespace chargefw::methods {
@@ -39,8 +37,8 @@ auto check_method_prerequisites(const Method& method,
             {.prepared_molecule = molecules[molecule_index], .method_options = method_options});
 
         for (const auto& issue : molecule_result.issues) {
-            result.issues.push_back(detail::with_molecule_prefix(
-                molecules[molecule_index].molecule(), molecule_index, issue));
+            result.issues.push_back(issue);
+            result.issues.back().molecule_index = molecule_index;
         }
     }
 

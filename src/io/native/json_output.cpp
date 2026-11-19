@@ -53,6 +53,7 @@ constexpr auto metric_scale = 1000.0;
         const auto& location = diagnostic.location;
         add_index("molecule_index", diagnostic.molecule_index);
         add_index("atom_index", location.atom_index);
+        add_index("other_atom_index", location.other_atom_index);
         add_index("bond_index", location.bond_index);
         add_index("conformer_index", location.conformer_index);
         add_index("line", diagnostic.line);

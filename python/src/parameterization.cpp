@@ -1,5 +1,6 @@
 #include "bindings.h"
 #include "calculation.h"
+#include "issue_payload.h"
 #include "native_parameter_catalog.h"
 #include "numpy_values.h"
 
@@ -73,8 +74,7 @@ class NativeEvaluator {
 
     // Charges of every assignment, concatenated in assignment order, for candidate values in
     // layout order. Only the status, the charges with the size and molecule of each assignment, and
-    // the failure message are returned: a fit evaluates many candidates and needs no other result
-    // data.
+    // the failure are returned: a fit evaluates many candidates and needs no other result data.
     [[nodiscard]] auto calculate_values(const value_array& values,
                                         const std::optional<std::size_t> max_threads) const
         -> nb::dict {
@@ -87,8 +87,8 @@ class NativeEvaluator {
 
         auto payload = nb::dict{};
         payload["status"] = std::string{calculation::to_string(result.status)};
-        payload["failure_message"] =
-            result.failure_message.has_value() ? nb::cast(*result.failure_message) : nb::none();
+        payload["failure"] =
+            result.failure.has_value() ? nb::cast(issue_payload(*result.failure)) : nb::none();
         if (!result.charges.has_value()) {
             payload["charges"] = nb::none();
             payload["assignment_sizes"] = nb::none();
@@ -112,14 +112,16 @@ class NativeEvaluator {
 
     // The normal equations of a least-squares fit at candidate values in layout order
     // (parameterization::normal_equations); "gauss_newton" is flattened row by row. A failing
-    // calculation is reported in "status" and "failure_message", as by calculate_values().
+    // calculation is reported in "status" and "failure", as by calculate_values(); sums that are
+    // not finite, in "status" and "non_finite_message".
     [[nodiscard]] auto normal_equations(const value_array& values, const value_array& references,
                                         const value_array& weights,
                                         const std::optional<std::size_t> max_threads) const
         -> nb::dict {
         auto candidate_values = std::vector<double>(values.data(), values.data() + values.size());
         auto result = std::optional<parameterization::NormalEquations>{};
-        auto failure_message = std::optional<std::string>{};
+        auto failure = std::optional<calculation::CalculationFailure>{};
+        auto non_finite_message = std::optional<std::string>{};
         {
             nb::gil_scoped_release release;
             try {
@@ -128,19 +130,19 @@ class NativeEvaluator {
                     std::span{references.data(), references.size()},
                     std::span{weights.data(), weights.size()},
                     max_threads.value_or(state_->max_threads_));
-            } catch (const std::invalid_argument&) {
-                throw;
-            } catch (const std::logic_error& error) {
-                failure_message = error.what();
-            } catch (const std::runtime_error& error) {
-                failure_message = error.what();
+            } catch (const calculation::CalculationFailed& error) {
+                failure = error.failure();
+            } catch (const parameterization::NonFiniteNormalEquations& error) {
+                // The fit rejects these values, as it rejects those of a failed calculation.
+                non_finite_message = error.what();
             }
         }
 
         auto payload = nb::dict{};
         payload["status"] = result.has_value() ? "success" : "numerical_failure";
-        payload["failure_message"] =
-            failure_message.has_value() ? nb::cast(*failure_message) : nb::none();
+        payload["failure"] = failure.has_value() ? nb::cast(issue_payload(*failure)) : nb::none();
+        payload["non_finite_message"] =
+            non_finite_message.has_value() ? nb::cast(*non_finite_message) : nb::none();
         if (!result.has_value()) {
             payload["charges"] = nb::none();
             payload["sum_of_squares"] = nb::none();

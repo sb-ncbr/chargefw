@@ -76,12 +76,9 @@ auto find_charge_issues(const core::MoleculeCollection& molecules,
                               atoms.size(), charge_deviation_limit, atom);
         result.push_back(ChargeIssue{
             .kind = ChargeIssueKind::charge_out_of_range,
-            .message =
-                std::format("{}{}; the charges are probably wrong, so check the input or "
-                            "use another method or parameter set",
-                            conformer.has_value() ? std::format("conformer {}: ", *conformer + 1)
-                                                  : std::string{},
-                            finding),
+            .message = std::format("{}; the charges are probably wrong, so check the input or use "
+                                   "another method or parameter set",
+                                   finding),
             .molecule_index = molecule_index,
             .location = {.conformer_index = conformer,
                          .atom_index = furthest,

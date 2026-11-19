@@ -1,7 +1,11 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/io/mmcif_input.h>
 #include <chargefw/io/molecule_record.h>
+#include <chargefw/io/parse_error.h>
+#include <optional>
 #include <snitch/snitch.hpp>
 
 #include <ranges>
@@ -550,6 +554,10 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
 TEST_CASE("mmCIF input rejects non-ASCII text", "[io][mmcif]") {
     std::istringstream input{"# structure\n# \xe5\x88\x86\xe5\xad\x90\n" + atom_site_header("x") +
                              "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"};
-    CHECK_THROWS_MATCHES(io::MmcifReader{input}, std::runtime_error,
-                         snitch::matchers::with_what_contains{"line 2 contains a non-ASCII"});
+    const auto error =
+        chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(io::MmcifReader{input}); });
+    REQUIRE(error.has_value());
+    const auto* location = &error->location();
+    CHECK(location->line == 2);
+    CHECK_FALSE(location->record_index.has_value());
 }

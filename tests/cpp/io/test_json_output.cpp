@@ -400,6 +400,13 @@ TEST_CASE("JSON output serializes unsuccessful results without assignments", "[i
           StatusCase{calculation::ExecutionStatus::cancelled, "cancelled", false}}) {
         CAPTURE(test_case.expected_status, test_case.with_fixed_ions);
         auto execution = calculation::ExecutionResult{.status = test_case.status};
+        if (test_case.status == calculation::ExecutionStatus::numerical_failure) {
+            execution.failure =
+                calculation::CalculationFailure{.kind = methods::FailureKind::no_solution,
+                                                .message = "no solution",
+                                                .molecule_index = 0,
+                                                .location = {}};
+        }
         if (test_case.with_fixed_ions) {
             execution.effective = full_effective(
                 "eem", std::nullopt,
@@ -442,6 +449,16 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
              .message = "no bond parameters",
              .molecule_index = 0,
              .location = {.bond_index = 1, .bond_indices = {0, 1}}}}});
+    execution.rejections.push_back({.method_id = "eem",
+                                    .parameter_set_id = "test",
+                                    .issues = {methods::PrerequisiteIssue{
+                                        .kind = methods::PrerequisiteIssueKind::invalid_geometry,
+                                        .message = "identical coordinates",
+                                        .molecule_index = 0,
+                                        .location = {.conformer_index = 0,
+                                                     .atom_index = 2,
+                                                     .other_atom_index = 0,
+                                                     .atom_indices = {0, 2}}}}});
     const auto result = io::make_charge_calculation_result(
         {{.molecule = core::Molecule{std::vector{core::Atom{6}, core::Atom{6}, core::Atom{6}},
                                      std::vector{core::Bond{0, 1}, core::Bond{1, 2}}},
@@ -459,6 +476,113 @@ TEST_CASE("JSON diagnostics list every atom and bond of their issue", "[io][json
     CHECK(rejection->at("bond_index") == 1);
     CHECK(rejection->at("bond_indices") == nlohmann::json::array({0, 1}));
     CHECK_FALSE(rejection->contains("atom_indices"));
+
+    const auto geometry = std::ranges::find(diagnostics, "invalid_geometry",
+                                            [](const auto& value) { return value.at("code"); });
+    REQUIRE(geometry != diagnostics.end());
+    CHECK(geometry->at("atom_index") == 2);
+    CHECK(geometry->at("other_atom_index") == 0);
+    CHECK(geometry->at("atom_indices") == nlohmann::json::array({0, 2}));
+}
+
+TEST_CASE("JSON diagnostic codes are the names of the issue kinds", "[io][json]") {
+    // As in Python and C++: invalid_options, not a name of its own.
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    execution.rejections.push_back({.method_id = "peoe",
+                                    .issues = {methods::PrerequisiteIssue{
+                                        .kind = methods::PrerequisiteIssueKind::invalid_options,
+                                        .message = "option 'iters' must be positive"}}});
+    const auto result = io::make_charge_calculation_result(
+        {{.molecule = core::Molecule{std::vector{core::Atom{8}}},
+          .identity = {.source_name = "oxygen.sdf", .record_index = 0}}},
+        {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+    const auto& diagnostics = document.at("results").at(0).at("diagnostics");
+    CHECK(std::ranges::any_of(diagnostics, [](const auto& diagnostic) {
+        return diagnostic.at("code") == "invalid_options";
+    }));
+}
+
+TEST_CASE("JSON diagnostics keep equal messages at different locations", "[io][json]") {
+    // The messages are equal; the conformers or atoms are not. The candidate is rejected in two
+    // execution modes with the same first issue, which is kept once.
+    const auto coincident = [](const std::size_t conformer_index, const std::size_t atom_index) {
+        return methods::PrerequisiteIssue{.kind = methods::PrerequisiteIssueKind::invalid_geometry,
+                                          .message = "identical coordinates",
+                                          .molecule_index = 0,
+                                          .location = {.conformer_index = conformer_index,
+                                                       .atom_index = atom_index,
+                                                       .other_atom_index = 0,
+                                                       .atom_indices = {0, atom_index}}};
+    };
+    auto execution =
+        calculation::ExecutionResult{.status = calculation::ExecutionStatus::no_executable_plan};
+    execution.rejections.push_back(
+        {.method_id = "eem",
+         .parameter_set_id = "test",
+         .issues = {coincident(0, 1), coincident(1, 1), coincident(1, 2)}});
+    execution.rejections.push_back(
+        {.method_id = "eem", .parameter_set_id = "test", .issues = {coincident(0, 1)}});
+    const auto result = io::make_charge_calculation_result(
+        {{.molecule = core::Molecule{std::vector{core::Atom{8}, core::Atom{1}, core::Atom{1}}},
+          .identity = {.source_name = "water.sdf", .record_index = 0}}},
+        {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+
+    auto locations = std::vector<std::pair<std::size_t, std::size_t>>{};
+    for (const auto& diagnostic : document.at("results").at(0).at("diagnostics")) {
+        if (diagnostic.at("code") == "invalid_geometry") {
+            locations.emplace_back(diagnostic.at("conformer_index"), diagnostic.at("atom_index"));
+        }
+    }
+    CHECK(locations == std::vector<std::pair<std::size_t, std::size_t>>{{0, 1}, {1, 1}, {1, 2}});
+}
+
+TEST_CASE("JSON output files a numerical failure under the molecule that failed", "[io][json]") {
+    auto execution = calculation::ExecutionResult{
+        .status = calculation::ExecutionStatus::numerical_failure,
+        .failure = calculation::CalculationFailure{
+            .kind = methods::FailureKind::no_solution,
+            .message = "no stable solution",
+            .molecule_index = 1,
+            .location = {.conformer_index = 0, .atom_index = 1, .atom_indices = {1}}}};
+    auto records = std::vector<io::ImportedMoleculeRecord>{};
+    for (std::size_t index = 0; index < 2; ++index) {
+        records.push_back({.molecule = core::Molecule{std::vector{core::Atom{8}, core::Atom{1}}},
+                           .identity = {.source_name = "two.sdf", .record_index = index}});
+    }
+    const auto result =
+        io::make_charge_calculation_result(std::move(records), {}, std::move(execution));
+
+    auto output = std::ostringstream{};
+    io::JsonWriter{output}.write(result);
+    const auto document = nlohmann::json::parse(output.str());
+
+    // Both records failed, but only the second has the failure, and the document does not repeat
+    // it.
+    const auto& results = document.at("results");
+    for (const auto& record : results) {
+        CHECK(record.at("status") == "numerical_failure");
+        CHECK_FALSE(record.contains("assignments"));
+    }
+    CHECK(results.at(0).at("diagnostics").empty());
+    REQUIRE(results.at(1).at("diagnostics").size() == 1);
+    const auto& failure = results.at(1).at("diagnostics").at(0);
+    CHECK(failure.at("severity") == "error");
+    CHECK(failure.at("code") == "no_solution");
+    CHECK(failure.at("message") == "no stable solution");
+    CHECK(failure.at("molecule_index") == 1);
+    CHECK(failure.at("conformer_index") == 0);
+    CHECK(failure.at("atom_index") == 1);
+    CHECK(failure.at("atom_indices") == nlohmann::json::array({1}));
+    CHECK(document.at("diagnostics").empty());
 }
 
 TEST_CASE("JSON output serializes caller atom IDs for a manual record", "[io][json]") {

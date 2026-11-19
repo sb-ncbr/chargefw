@@ -470,11 +470,20 @@ is their sum. Failed and cancelled records have no assignments.
 
 A diagnostic has a `severity`, a `code`, such as `atoms_too_close`, and a `message`. It can give the
 molecule, atom, bond, and conformer it concerns, counted from zero, and the `line` of the file,
-counted from one. A diagnostic about several atoms or bonds lists all of them in `atom_indices` or
-`bond_indices`; `atom_index` and `bond_index` are the ones its message names. A viewer can select
+counted from one. The message gives the reason; it names atoms but not the molecule or the
+conformer, which `molecule_index` and `conformer_index` give. A diagnostic about several atoms or bonds lists all of them in `atom_indices` or
+`bond_indices`; `atom_index` and `bond_index` are the ones its message names, and `other_atom_index`
+the other atom of a pair it names, such as two atoms too close, whether or not they are bonded. A viewer can select
 the listed atoms and bonds to show where the problem is. For PDB and mmCIF input, the message also
 names the residue of each atom it mentions, as PDB files and viewers do, for example
-`atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages.
+`atoms 3707 and 3708 are in PRO D 58`. The command line prints the same messages after the molecule
+and the conformer.
+
+When the calculation fails numerically, every record has the status `numerical_failure` and no
+assignments, and only the record of the molecule that failed has an error diagnostic. Its `code` is
+the kind of failure, such as `no_solution`; its `message` gives only the reason; and its
+`conformer_index` and, with cutoff or cover execution, `atom_index` say where. [When a calculation
+fails](../guide/results.md#when-a-calculation-fails) lists the kinds.
 
 For a molecule read from a file, `input.import` records the format, the reading options (`policy`),
 and whether the file contained bonds (`source_connectivity`); failed and cancelled records keep it
