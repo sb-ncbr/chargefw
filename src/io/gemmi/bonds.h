@@ -25,9 +25,13 @@ enum class ExplicitBondOrders : std::uint8_t {
     from_source,
 };
 
+// On input, unknown_order_indices lists ascending indices into explicit_bonds (PDB only).
+// On return, it lists the corresponding bonds still lacking orders, indexed in the result.
 [[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
                           std::vector<core::Bond> explicit_bonds,
-                          ExplicitBondOrders explicit_orders) -> std::vector<core::Bond>;
+                          ExplicitBondOrders explicit_orders,
+                          std::vector<std::size_t>& unknown_order_indices)
+    -> std::vector<core::Bond>;
 
 // Bonds stated in the file. Connections to atoms of a symmetry-related copy are not bonds of
 // the molecule; they are counted, not added.
@@ -37,6 +41,10 @@ struct ExplicitBonds {
     // Indices in bonds of the aromatic bonds, read as single bonds. The record keeps explicit bonds
     // first and in this order, so these are its bond indices too.
     std::vector<std::size_t> aromatic_bonds = {};
+    // Intra-residue pairs of non-hydrogen atoms stated in PDB CONECT. Assignment removes
+    // template-covered pairs and
+    // maps these explicit bond indices to the retained topology.
+    std::vector<std::size_t> unknown_order_indices = {};
 };
 
 [[nodiscard]] auto explicit_pdb(const ::gemmi::Structure& structure,

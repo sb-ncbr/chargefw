@@ -66,6 +66,8 @@ auto to_string(const ImportIssueKind value) -> std::string_view {
         return "symmetry_connections_ignored";
     case ImportIssueKind::unbonded_residue_atoms:
         return "unbonded_residue_atoms";
+    case ImportIssueKind::bond_orders_unknown:
+        return "bond_orders_unknown";
     }
     throw std::invalid_argument{"unknown import issue kind"};
 }

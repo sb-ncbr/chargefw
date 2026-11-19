@@ -105,6 +105,7 @@ script runs; every warning is recorded in `molecule.import_warnings`, `result.in
 | `atoms_too_close` | Atoms of a conformer overlap, which makes the charges of methods that use coordinates wrong ([Preparing input](input.md)) | Check the coordinates of the named atoms | `InputWarning` |
 | `hydrogens_missing` | The molecule contains carbon but no hydrogen atoms | Check whether hydrogens are missing; add them if needed | `InputWarning` |
 | `unbonded_residue_atoms` | Atoms of a residue in a PDB or mmCIF file have no bonds | Add their bonds to the file | `InputWarning` |
+| `bond_orders_unknown` | Bonds between non-hydrogen atoms within a PDB residue were read as single because only `CONECT` supplied them | Use mmCIF with bond orders or, for a ligand-only calculation, SDF or MOL2 with bond orders | `InputWarning` |
 | `symmetry_connections_ignored` | Bonds to symmetry copies of atoms in a crystal structure were left out | If the copies belong to your molecule, build them before calculating | `InputWarning` |
 | `aromatic_bonds_converted` | Aromatic bonds were read as single bonds, which changes the charges of methods that use bond orders | Write the file with Kekulé bonds |  |
 | `coordinates_2d_ignored` | A 2D drawing was read without coordinates | For methods that use coordinates, generate 3D coordinates |  |

@@ -4,6 +4,8 @@
 
 ### Input
 
+- PDB input reports `bond_orders_unknown` when bonds between non-hydrogen atoms within a residue are
+  read as single because only `CONECT` supplied them. The warning does not change bond orders or calculated charges.
 - PDB and mmCIF input reads one residue where the file has alternative residues at one position,
   such as SER with alternate locations A and B and PRO with C at the same residue number: the first
   one in the file. ChargeFW read all of them before, and methods that use coordinates were rejected

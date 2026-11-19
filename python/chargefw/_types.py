@@ -29,6 +29,7 @@ type ImportIssueKind = Literal[
     "aromatic_bonds_converted",
     "symmetry_connections_ignored",
     "unbonded_residue_atoms",
+    "bond_orders_unknown",
 ]
 type PrerequisiteIssueKind = Literal[
     "invalid_options",

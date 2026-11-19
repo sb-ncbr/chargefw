@@ -1,6 +1,7 @@
 """Molecular format input and Gemmi conversion checks."""
 
 import json
+import warnings
 from collections.abc import Sequence
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -333,6 +334,19 @@ def test_object_conversion_reports_missing_optional_dependency(
         chargefw.io.gemmi.from_structure(cast(Any, object()))
 
 
+def test_pdb_conect_bond_between_heavy_atoms_warns_of_unknown_order() -> None:
+    ligand = (
+        "HETATM    1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C\n"
+        "HETATM    2  O1  LIG A   1       1.200   0.000   0.000  1.00 20.00           O\n"
+        "CONECT    1    2\n"
+        "END\n"
+    )
+    with pytest.warns(chargefw.InputWarning, match=r"\(bond_orders_unknown; "):
+        molecule = chargefw_io.parse(ligand, format="pdb")[0]
+    assert molecule.bonds.tolist() == [[0, 1, 1]]
+    assert [issue.kind for issue in molecule.import_warnings] == ["bond_orders_unknown"]
+
+
 def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
     text_collection = chargefw_io.parse(
         PDB_TEXT,
@@ -366,7 +380,10 @@ def test_pdb_text_file_and_structure_preserve_mapping(tmp_path: Path) -> None:
 
     path = tmp_path / "water.pdb"
     path.write_text(PDB_TEXT, encoding="utf-8")
-    file_molecule = chargefw_io.read(path, format="pdb", bonds="explicit")[0]
+    # The only CONECT bond is to hydrogen, so its order is known and nothing is reported.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", chargefw.InputWarning)
+        file_molecule = chargefw_io.read(path, format="pdb", bonds="explicit")[0]
     np.testing.assert_array_equal(file_molecule.atomic_numbers, text_molecule.atomic_numbers)
     np.testing.assert_array_equal(file_molecule.coordinates, text_molecule.coordinates)
 

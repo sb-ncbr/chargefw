@@ -210,6 +210,7 @@ enum class ImportIssueKind : std::uint8_t {
     aromatic_bonds_converted,
     symmetry_connections_ignored,
     unbonded_residue_atoms,
+    bond_orders_unknown,
 };
 
 // The code of the kind in result JSON, such as "partial_charges_ignored".

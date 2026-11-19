@@ -34,14 +34,16 @@ struct SourceOrder {
 
 class BondAccumulator {
   public:
-    void add(const std::size_t first, const std::size_t second, const core::BondOrder order) {
-        add(first, second, SourceOrder{.order = order});
+    auto add(const std::size_t first, const std::size_t second, const core::BondOrder order)
+        -> std::optional<std::size_t> {
+        return add(first, second, SourceOrder{.order = order});
     }
 
-    // The first order given for a pair is kept.
-    void add(const std::size_t first, const std::size_t second, const SourceOrder order) {
+    // The first order given for a pair is kept. Return an index only for a newly inserted bond.
+    auto add(const std::size_t first, const std::size_t second, const SourceOrder order)
+        -> std::optional<std::size_t> {
         if (first == second) {
-            return;
+            return std::nullopt;
         }
 
         const auto key =
@@ -51,7 +53,9 @@ class BondAccumulator {
             if (order.aromatic) {
                 aromatic_bonds_.push_back(bonds_.size() - 1);
             }
+            return bonds_.size() - 1;
         }
+        return std::nullopt;
     }
 
     [[nodiscard]] auto aromatic_bonds() const -> const std::vector<std::size_t>& {
@@ -353,6 +357,7 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
 
     BondAccumulator result;
     const auto skipped = add_structure_connections(result, structure, model);
+    auto unknown = std::vector<std::size_t>{};
 
     for (const auto& [serial, partners] : structure.conect_map) {
         const auto first = model.atom_index_by_serial(serial);
@@ -363,12 +368,22 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
         for (const auto partner : partners) {
             const auto second = model.atom_index_by_serial(partner);
             if (second.has_value()) {
-                result.add(*first, *second, core::BondOrder::SINGLE);
+                const auto index = result.add(*first, *second, core::BondOrder::SINGLE);
+                const auto& first_site = model.sites()[*first];
+                const auto& second_site = model.sites()[*second];
+                // A bond to hydrogen can only be single, so its order is known.
+                if (index && first_site.residue == second_site.residue &&
+                    !first_site.atom->element.is_hydrogen() &&
+                    !second_site.atom->element.is_hydrogen()) {
+                    unknown.push_back(*index);
+                }
             }
         }
     }
 
-    return {.bonds = result.take(), .skipped_symmetry_connections = skipped};
+    return {.bonds = result.take(),
+            .skipped_symmetry_connections = skipped,
+            .unknown_order_indices = std::move(unknown)};
 }
 
 auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
@@ -435,12 +450,17 @@ auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
 }
 
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
-            std::vector<core::Bond> explicit_bonds, const ExplicitBondOrders explicit_orders)
-    -> std::vector<core::Bond> {
+            std::vector<core::Bond> explicit_bonds, const ExplicitBondOrders explicit_orders,
+            std::vector<std::size_t>& unknown_order_indices) -> std::vector<core::Bond> {
+    if (explicit_orders == ExplicitBondOrders::from_source && !unknown_order_indices.empty()) {
+        throw std::logic_error{"unknown-order indices require connectivity-only input"};
+    }
     switch (strategy) {
     case BondStrategy::none:
+        unknown_order_indices.clear();
         return {};
     case BondStrategy::templates:
+        unknown_order_indices.clear();
         return assign_template_bonds(model);
     case BondStrategy::explicit_bonds:
         return explicit_bonds;
@@ -457,9 +477,20 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
         for (const auto& bond : first) {
             bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
         }
-        for (const auto& bond : second) {
-            bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
+        auto retained_unknown = std::vector<std::size_t>{};
+        auto unknown = unknown_order_indices.begin();
+        for (std::size_t i = 0; i < second.size(); ++i) {
+            const auto& bond = second[i];
+            const auto index =
+                bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
+            if (unknown != unknown_order_indices.end() && *unknown == i) {
+                if (index) {
+                    retained_unknown.push_back(*index);
+                }
+                ++unknown;
+            }
         }
+        unknown_order_indices = std::move(retained_unknown);
 
         return bonds.take();
     }

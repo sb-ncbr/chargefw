@@ -207,7 +207,7 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
 // Names a residue as "MSE A 1" and its listed atoms as "(SE, CE)". The residue and atom names are
 // the label-first names that templates and component bonds are matched by.
 [[nodiscard]] auto describe_residue(const SourceComponentInstance& component,
-                                    const std::span<const std::size_t> unbonded,
+                                    const std::span<const std::size_t> listed_atoms,
                                     const std::span<const SourceAtomReference> atoms)
     -> std::string {
     constexpr std::size_t listed_atom_limit = 4;
@@ -221,13 +221,14 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
                   labels->insertion_code.value_or(""))
             : component.component_id;
     result += " (";
-    for (std::size_t index = 0; index < unbonded.size() && index < listed_atom_limit; ++index) {
+    for (std::size_t index = 0; index < listed_atoms.size() && index < listed_atom_limit; ++index) {
         if (index > 0) {
             result += ", ";
         }
-        result += detail::canonical_atom_name(atoms[unbonded[index]].structural_labels.get(), "?");
+        result +=
+            detail::canonical_atom_name(atoms[listed_atoms[index]].structural_labels.get(), "?");
     }
-    result += unbonded.size() > listed_atom_limit ? ", ...)" : ")";
+    result += listed_atoms.size() > listed_atom_limit ? ", ...)" : ")";
     return result;
 }
 
@@ -287,6 +288,41 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
         .location = {.atom_index = named_atom, .atom_indices = std::move(all_unbonded)}};
 }
 
+[[nodiscard]] auto bond_orders_unknown(std::vector<std::size_t> indices,
+                                       const std::span<const core::Bond> bonds,
+                                       const MoleculeImportMetadata& metadata) -> ImportIssue {
+    auto affected = std::vector<bool>(metadata.atoms.size());
+    for (const auto index : indices) {
+        affected[bonds[index].first_atom_index()] = true;
+        affected[bonds[index].second_atom_index()] = true;
+    }
+
+    auto message =
+        std::format("PDB CONECT gives connectivity but not bond orders: ChargeFW read {} "
+                    "intra-residue {} non-hydrogen atoms as single, for example in ",
+                    indices.size(), indices.size() == 1 ? "bond between" : "bonds between");
+    constexpr std::size_t example_limit = 3;
+    std::size_t examples = 0;
+    for (const auto& component : metadata.components) {
+        auto atoms = std::vector<std::size_t>{};
+        std::ranges::copy_if(component.atom_indices, std::back_inserter(atoms),
+                             [&](const auto index) { return affected[index]; });
+        if (!atoms.empty()) {
+            if (examples > 0) {
+                message += ", ";
+            }
+            message += describe_residue(component, atoms, metadata.atoms);
+            if (++examples == example_limit) {
+                break;
+            }
+        }
+    }
+    return {.kind = ImportIssueKind::bond_orders_unknown,
+            .message = std::move(message),
+            .line = std::nullopt,
+            .location = {.bond_indices = std::move(indices)}};
+}
+
 } // namespace
 
 auto make_record(const ::gemmi::Structure& structure,
@@ -295,7 +331,8 @@ auto make_record(const ::gemmi::Structure& structure,
                  const BondStrategy bond_strategy, const ConformerSelection conformer_selection,
                  std::vector<core::Bond> explicit_bonds, std::string name,
                  const MolecularSourceFormat format, std::vector<SourceModelMapping> source_models,
-                 const SourceConnectivity source_connectivity) -> ImportedMoleculeRecord {
+                 const SourceConnectivity source_connectivity,
+                 std::vector<std::size_t> unknown_order_indices) -> ImportedMoleculeRecord {
     if (structure.models.empty()) {
         throw std::runtime_error{"structural input contains no models"};
     }
@@ -349,10 +386,10 @@ auto make_record(const ::gemmi::Structure& structure,
         format == MolecularSourceFormat::pdb
             ? ::chargefw::io::gemmi::bonds::ExplicitBondOrders::connectivity_only
             : ::chargefw::io::gemmi::bonds::ExplicitBondOrders::from_source;
-    auto bonds =
-        remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                        selected_model, bond_strategy, std::move(explicit_bonds), explicit_orders),
-                    source_orders.front());
+    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
+                                 selected_model, bond_strategy, std::move(explicit_bonds),
+                                 explicit_orders, unknown_order_indices),
+                             source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};
@@ -373,6 +410,9 @@ auto make_record(const ::gemmi::Structure& structure,
     };
 
     auto issues = std::vector<ImportIssue>{};
+    if (!unknown_order_indices.empty()) {
+        issues.push_back(bond_orders_unknown(std::move(unknown_order_indices), bonds, metadata));
+    }
     if (bond_strategy != BondStrategy::none) {
         if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms)) {
             issues.push_back(std::move(*diagnostic));
