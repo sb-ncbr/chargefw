@@ -1,6 +1,9 @@
 include(FetchContent)
 
 function(chargefw_setup_dependencies)
+    # Eigen and oneTBB set deprecated CMake policies. Their deprecation warnings are for their
+    # maintainers; this function scope keeps them on for the project's own CMake code.
+    set(CMAKE_WARN_DEPRECATED OFF)
     set(CHARGEFW_TBB_FETCHED OFF PARENT_SCOPE)
     set(CHARGEFW_GEMMI_FETCHED OFF PARENT_SCOPE)
 

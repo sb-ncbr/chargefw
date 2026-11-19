@@ -19,7 +19,7 @@ struct Block;
 namespace chargefw::io::gemmi::bonds {
 
 // Whether explicit bonds carry source bond orders (mmCIF component bonds) or only connectivity
-// (PDB CONECT). The hybrid strategy lets source orders override template orders for the same pair.
+// (PDB CONECT). The hybrid strategy puts bonds with source orders before the template bonds.
 enum class ExplicitBondOrders : std::uint8_t {
     connectivity_only,
     from_source,
@@ -51,7 +51,8 @@ struct ExplicitBonds {
                                 const selection::SelectedModel& model) -> ExplicitBonds;
 
 [[nodiscard]] auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
-                                  const selection::SelectedModel& model) -> ExplicitBonds;
+                                  const selection::SelectedModel& model, BondStrategy strategy)
+    -> ExplicitBonds;
 
 // The record warning for skipped connections to symmetry copies.
 [[nodiscard]] auto symmetry_connections_issue(std::size_t count) -> ImportIssue;

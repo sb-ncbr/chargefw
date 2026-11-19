@@ -235,7 +235,7 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
     }
     if (const auto line = io::detail::first_non_ascii_line(contents)) {
         throw ParseError{"non-ASCII character; PDB files must be ASCII text",
-                         {.source_name = source_name, .line = *line}};
+                         {.source_name = source_name, .line = line}};
     }
 
     auto structure = ::gemmi::read_pdb_string(contents, source_name);

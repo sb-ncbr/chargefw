@@ -4,6 +4,10 @@
 
 ### Input
 
+- Under `hybrid`, mmCIF input takes the order of a bond that a residue's template has from the
+  template, so each HIS or ARG gets the bonds that fit its hydrogens and formal charges. Previously
+  the `_chem_comp_bond` rows, which are the same for every residue with one name, gave the order.
+  This can change calculated charges and which parameter sets apply.
 - PDB input reports `bond_orders_unknown` when bonds between non-hydrogen atoms within a residue are
   read as single because only `CONECT` supplied them. The warning does not change bond orders or calculated charges.
 - PDB and mmCIF input reads one residue where the file has alternative residues at one position,

@@ -271,15 +271,30 @@ void add_sequential_bonds(BondAccumulator& bonds,
     return std::nullopt;
 }
 
-void add_component_bonds(BondAccumulator& result, const detail::ComponentView component,
-                         const auto& bonds) {
-    for (const auto& bond : bonds) {
-        const auto first = component.find_atom(bond.first);
-        const auto second = component.find_atom(bond.second);
-        if (first.has_value() && second.has_value()) {
-            result.add(*first, *second, bond.order);
-        }
+void add_component_bond(BondAccumulator& result, const detail::ComponentView component,
+                        const auto& bond, const auto order) {
+    const auto first = component.find_atom(bond.first);
+    const auto second = component.find_atom(bond.second);
+    if (first.has_value() && second.has_value()) {
+        result.add(*first, *second, order);
     }
+}
+
+[[nodiscard]] auto
+residue_protonation(const component_templates::ComponentTemplate& component_template,
+                    const detail::ComponentView component, const selection::SelectedModel& model)
+    -> std::span<const component_templates::BondTemplate> {
+    return component_templates::protonation_bonds(
+        component_template,
+        [&](const std::string_view name) -> std::optional<component_templates::MotifAtom> {
+            const auto index = component.find_atom(name);
+            if (!index.has_value()) {
+                return std::nullopt;
+            }
+            const auto& source = *model.atoms()[*index];
+            return component_templates::MotifAtom{.atomic_number = source.element.atomic_number(),
+                                                  .formal_charge = source.charge};
+        });
 }
 
 [[nodiscard]] auto assign_template_bonds(const selection::SelectedModel& model)
@@ -296,19 +311,12 @@ void add_component_bonds(BondAccumulator& result, const detail::ComponentView co
         }
 
         // These orders go in first, so the accumulator ignores the template's for the same pairs.
-        const auto atom =
-            [&](const std::string_view name) -> std::optional<component_templates::MotifAtom> {
-            const auto index = component.find_atom(name);
-            if (!index.has_value()) {
-                return std::nullopt;
-            }
-            const auto& source = *model.atoms()[*index];
-            return component_templates::MotifAtom{.atomic_number = source.element.atomic_number(),
-                                                  .formal_charge = source.charge};
-        };
-        add_component_bonds(result, component,
-                            component_templates::protonation_bonds(*component_template, atom));
-        add_component_bonds(result, component, component_template->bonds);
+        for (const auto& bond : residue_protonation(*component_template, component, model)) {
+            add_component_bond(result, component, bond, bond.order);
+        }
+        for (const auto& bond : component_template->bonds) {
+            add_component_bond(result, component, bond, bond.order);
+        }
         // Only an amino acid that the templates do not link to a previous residue is an N-terminus,
         // as add_sequential_bonds() decides below. Hydride also names H1 a hydrogen on the carboxyl
         // carbon of a C-terminal residue without OXT.
@@ -387,7 +395,8 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
 }
 
 auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
-                    const selection::SelectedModel& model) -> ExplicitBonds {
+                    const selection::SelectedModel& model, const BondStrategy strategy)
+    -> ExplicitBonds {
     if (structure.models.empty()) {
         return {};
     }
@@ -418,8 +427,25 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
     for (const auto& residue : residues) {
         const auto component = residue.component();
         const auto found = component_bonds.find(std::string{component.name});
-        if (found != component_bonds.end()) {
-            add_component_bonds(result, component, found->second);
+        if (found == component_bonds.end()) {
+            continue;
+        }
+        // The rows describe a component, so they cannot follow the protonation of one residue.
+        // Under hybrid, a bond that the residue's template has takes the template's order.
+        const auto* const component_template =
+            strategy == BondStrategy::hybrid ? component_templates::find(component.name) : nullptr;
+        const auto protonation = component_template != nullptr
+                                     ? residue_protonation(*component_template, component, model)
+                                     : std::span<const component_templates::BondTemplate>{};
+        for (const auto& bond : found->second) {
+            auto order = bond.order;
+            if (component_template != nullptr) {
+                if (const auto known = component_templates::bond_order(
+                        *component_template, protonation, bond.first, bond.second)) {
+                    order = SourceOrder{.order = *known};
+                }
+            }
+            add_component_bond(result, component, bond, order);
         }
     }
 
@@ -465,8 +491,10 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
     case BondStrategy::explicit_bonds:
         return explicit_bonds;
     case BondStrategy::hybrid: {
-        // The first source to define a pair sets its order. Source orders take precedence over
-        // templates; connectivity-only records (PDB CONECT) only add pairs templates do not cover.
+        // The first source to define a pair sets its order. Bonds with source orders (mmCIF) come
+        // first and keep their place in the record; explicit_mmcif() has given the component bonds
+        // that a template has the template's orders. Connectivity-only records (PDB CONECT) only
+        // add pairs templates do not cover.
         auto first = assign_template_bonds(model);
         auto second = std::move(explicit_bonds);
         if (explicit_orders == ExplicitBondOrders::from_source) {

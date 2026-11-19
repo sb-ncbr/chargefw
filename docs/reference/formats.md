@@ -210,8 +210,9 @@ the file. Its alternate-location code is kept and written to the output.
   `_struct_conn` connections, with their orders;
 - `templates`: ChargeFW's residue templates and the links between consecutive amino acids or
   nucleotides; and
-- `hybrid`, the default: both. Where both give a bond, the mmCIF bond order is used; PDB `CONECT`
-  records only add bonds that the templates do not have.
+- `hybrid`, the default: both. A bond that a residue's template has takes the template's order. The
+  file adds the bonds that the templates do not have: all bonds of other residues, with their orders
+  from mmCIF and as single bonds from PDB `CONECT` records.
 
 When a bond within a PDB residue comes only from `CONECT`, ChargeFW reads it as single. If neither
 of its atoms is hydrogen, ChargeFW reports `bond_orders_unknown`, once per record. Under `hybrid`, a
@@ -270,8 +271,13 @@ has bond orders summing to 4 and every nitrogen to 3 plus its formal charge. For
 A missing formal charge counts as 0, so a histidine or arginine cation without its formal charge
 fits no structure and keeps the template bonds; check the formal charges as described in
 [Preparing input](../guide/input.md). A residue with an incomplete group, for example without `CB`
-or without a hydrogen of `CD`, also keeps the template bonds. Under `hybrid`, bond orders from mmCIF
-`_chem_comp_bond` rows take precedence over the template's.
+or without a hydrogen of `CD`, also keeps the template bonds.
+
+An mmCIF `_chem_comp_bond` row applies to every residue with that name, so it cannot give two
+histidines different bonds. Under `hybrid`, a row for a bond that the residue's template has is
+therefore read for its two atoms only, and the template gives the order. To give a residue other
+bond orders than its template's, use a residue name without a template, for which the file's rows
+give every bond.
 
 ## Charge output
 

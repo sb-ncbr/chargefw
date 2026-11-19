@@ -8,6 +8,7 @@
 #include <optional>
 #include <snitch/snitch.hpp>
 
+#include <format>
 #include <ranges>
 #include <set>
 #include <sstream>
@@ -60,6 +61,68 @@ _atom_site.pdbx_PDB_model_num)cif";
 static_assert(!std::is_copy_constructible_v<io::MmcifReader> &&
               !std::is_copy_assignable_v<io::MmcifReader>);
 static_assert(std::is_move_constructible_v<io::MmcifReader>);
+
+TEST_CASE("mmCIF hybrid chooses histidine and arginine bond orders per residue", "[io][mmcif]") {
+    auto sites = atom_site_header("protonation") + "\n";
+    auto serial = 0;
+    const auto residue = [&](const int seq, const std::string_view comp,
+                             const std::string_view atoms) {
+        for (const auto part : std::views::split(atoms, ' ')) {
+            const auto atom = std::string_view{part};
+            // Unique author labels let the assertions address bonds across repeated components.
+            sites +=
+                std::format("ATOM {0} {1} {2} . {3} A {4} ? {0} 0 0 1 20 0 {4} {3} A {2}_{4} 1\n",
+                            ++serial, atom.front(), atom, comp, seq);
+        }
+    };
+    residue(1, "HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1");
+    residue(2, "HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HE2");
+    residue(3, "HIS", "CG ND1 CD2 CE1 NE2 HD2 HE1 HD1");        // Missing CB.
+    residue(4, "HIS", "CB CG ND1 CD2 CE1 NE2 HD2 HE1 HD1 HE2"); // Both H but no positive charge.
+    residue(5, "ARG", "CG CD HD2 HD3 NE CZ NH1 NH2 HH11 HH12 HH21 HH22");
+    const auto input = sites + R"cif(#
+loop_
+_chem_comp_bond.comp_id
+_chem_comp_bond.atom_id_1
+_chem_comp_bond.atom_id_2
+_chem_comp_bond.value_order
+HIS CG ND1 SING
+HIS CG CD2 DOUB
+HIS CD2 NE2 SING
+HIS NE2 CE1 SING
+HIS CE1 ND1 DOUB
+ARG NE CZ SING
+ARG CZ NH1 SING
+ARG CZ NH2 DOUB
+)cif";
+    using enum chargefw::core::BondOrder;
+    using Strategy = io::BondStrategy;
+    for (const auto strategy : {Strategy::hybrid, Strategy::explicit_bonds}) {
+        const auto hybrid = strategy == Strategy::hybrid;
+        CAPTURE(hybrid);
+        const auto molecule = read_first(input, {.bonds = strategy});
+        const auto order = [&](const std::string_view first, const std::string_view second) {
+            for (const auto& bond : molecule.bonds()) {
+                const auto a = molecule.atom(bond.first_atom_index()).name();
+                const auto b = molecule.atom(bond.second_atom_index()).name();
+                if ((first == a && second == b) || (first == b && second == a)) {
+                    return std::optional{bond.order()};
+                }
+            }
+            return std::optional<chargefw::core::BondOrder>{};
+        };
+        CHECK(order("CE1_1", "ND1_1") == (hybrid ? SINGLE : DOUBLE));
+        CHECK(order("CE1_1", "NE2_1") == (hybrid ? DOUBLE : SINGLE));
+        for (const auto seq : {2, 3, 4}) {
+            CAPTURE(seq);
+            CHECK(order(std::format("CE1_{}", seq), std::format("ND1_{}", seq)) == DOUBLE);
+            CHECK(order(std::format("CE1_{}", seq), std::format("NE2_{}", seq)) == SINGLE);
+        }
+        CHECK(order("CZ_5", "NE_5") == (hybrid ? DOUBLE : SINGLE));
+        CHECK(order("CZ_5", "NH2_5") == (hybrid ? SINGLE : DOUBLE));
+        CHECK(order("CZ_5", "NH1_5") == SINGLE);
+    }
+}
 
 TEST_CASE("mmCIF input preserves arbitrary atom-site IDs and label namespaces", "[io][mmcif]") {
     const auto header = R"cif(data_ids
@@ -428,18 +491,22 @@ disulf1 disulf A LIG 1 S1 1_555 B LIG 1 S2 )cif" +
     CHECK(other_copy.import_warnings.front().kind ==
           chargefw::io::ImportIssueKind::symmetry_connections_ignored);
 
+    // ChargeFW has a template for ALA and none for LIG.
     const auto duplicate_input = [](const std::string_view component_bond) {
-        return atom_site_header("duplicate") + R"cif(
-ATOM 1 N N . ALA A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 ALA A N 1
-ATOM 2 C CA . ALA A 1 ? 1.0 0.0 0.0 1.0 20.0 0 1 ALA A CA 1
+        const auto component = component_bond.substr(0, component_bond.find(' '));
+        return atom_site_header("duplicate") + std::format(R"cif(
+ATOM 1 N N . {0} A 1 ? 0.0 0.0 0.0 1.0 20.0 0 1 {0} A N 1
+ATOM 2 C CA . {0} A 1 ? 1.0 0.0 0.0 1.0 20.0 0 1 {0} A CA 1
 #
 loop_
 _chem_comp_bond.comp_id
 _chem_comp_bond.atom_id_1
 _chem_comp_bond.atom_id_2
 _chem_comp_bond.value_order
-)cif" + std::string{component_bond} +
-               "\n#\n";
+{1}
+#
+)cif",
+                                                           component, component_bond);
     };
     const auto read_duplicate_bond = [&](const io::BondStrategy strategy,
                                          const std::string_view component_bond) {
@@ -448,11 +515,16 @@ _chem_comp_bond.value_order
         return molecule.bond(0);
     };
 
-    CHECK(read_duplicate_bond(io::BondStrategy::templates, "ALA N CA DOUB").order() ==
-          chargefw::core::BondOrder::SINGLE);
+    // The template gives the order of a bond it has, unless only the file's bonds are read.
+    for (const auto strategy : {io::BondStrategy::templates, io::BondStrategy::hybrid}) {
+        CHECK(read_duplicate_bond(strategy, "ALA N CA DOUB").order() ==
+              chargefw::core::BondOrder::SINGLE);
+    }
+    CHECK(read_duplicate_bond(io::BondStrategy::explicit_bonds, "ALA N CA DOUB").order() ==
+          chargefw::core::BondOrder::DOUBLE);
     for (const auto strategy : {io::BondStrategy::explicit_bonds, io::BondStrategy::hybrid}) {
-        const auto unquoted = read_duplicate_bond(strategy, "ALA N CA DOUB");
-        const auto quoted = read_duplicate_bond(strategy, "'ALA' 'N' 'CA' 'DOUB'");
+        const auto unquoted = read_duplicate_bond(strategy, "LIG N CA DOUB");
+        const auto quoted = read_duplicate_bond(strategy, "LIG 'N' 'CA' 'DOUB'");
         CHECK(quoted.first_atom_index() == unquoted.first_atom_index());
         CHECK(quoted.second_atom_index() == unquoted.second_atom_index());
         CHECK(quoted.order() == unquoted.order());
@@ -475,7 +547,7 @@ _chem_comp_bond.value_order
     for (const auto strategy : {io::BondStrategy::templates, io::BondStrategy::explicit_bonds,
                                 io::BondStrategy::hybrid}) {
         CAPTURE(io::to_string(strategy));
-        std::istringstream aromatic{duplicate_input("ALA N CA arom")};
+        std::istringstream aromatic{duplicate_input("LIG N CA arom")};
         const auto record = io::MmcifReader{aromatic, {}, {.bonds = strategy}}.next();
         REQUIRE(record.has_value());
         const auto warning = std::ranges::find_if(record->import_warnings, [](const auto& issue) {
