@@ -172,7 +172,7 @@ MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
     }
     if (const auto line = io::detail::first_non_ascii_line(text)) {
         throw ParseError{"non-ASCII character; mmCIF files must be ASCII text",
-                         {.source_name = source_, .line = *line}};
+                         {.source_name = source_, .line = line}};
     }
     document_ = ::gemmi::cif::read_memory(text.data(), text.size(), source_.c_str());
     text_ = std::make_shared<const std::string>(std::move(text));

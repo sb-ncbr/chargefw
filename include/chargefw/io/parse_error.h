@@ -12,9 +12,9 @@ namespace chargefw::io {
 // Where in the source a reader stopped, as far as it knows.
 struct ParseLocation {
     std::string source_name;
-    std::optional<std::size_t> line;         // One-based line in the source.
-    std::optional<std::size_t> record_index; // Zero-based record in the source.
-    PortableId record_id;
+    std::optional<std::size_t> line = {};         // One-based line in the source.
+    std::optional<std::size_t> record_index = {}; // Zero-based record in the source.
+    PortableId record_id = {};
 };
 
 // Input that a reader cannot read. reason() gives only why; location() gives where, and what()
