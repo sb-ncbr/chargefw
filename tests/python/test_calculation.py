@@ -1032,13 +1032,15 @@ def test_numerical_failure_gives_its_molecule_and_conformer(tmp_path: Any) -> No
     singular = chargefw.read_parameter_set(
         write_eem_set(tmp_path / "singular.json", "singular", 3.0)
     )
+    # The first molecule succeeds, so the failure is of the second.
+    valid = chargefw.Molecule([1, 8], coordinates=[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], name="valid")
     pair = chargefw.Molecule(
         [1, 8],
         coordinates=[[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]],
         name="pair",
     )
     with pytest.raises(chargefw.NumericalFailureError) as context:
-        chargefw.calculate(pair, method="eem", parameter_set=singular, threads=1)
+        chargefw.calculate([valid, pair], method="eem", parameter_set=singular, threads=1)
 
     result = context.value.result
     assert result.status == "numerical_failure" and result.assignments == ()
@@ -1046,14 +1048,14 @@ def test_numerical_failure_gives_its_molecule_and_conformer(tmp_path: Any) -> No
     assert failure is not None
     assert (failure.kind, failure.molecule_index, failure.conformer_index, failure.atom_index) == (
         "no_solution",
-        0,
+        1,
         1,
         None,
     )
     # The message gives the reason only; the error adds the molecule and the conformer once.
     assert "conformer" not in failure.message
     text = str(context.value)
-    assert text.startswith("molecule 1 ('pair'), conformer 2: ")
+    assert text.startswith("molecule 2 ('pair'), conformer 2: ")
     assert text.count("conformer") == 1 and text.endswith(failure.message)
 
 

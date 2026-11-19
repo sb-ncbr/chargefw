@@ -123,9 +123,10 @@ TEST_CASE("calculation targets report method failures with their conformer",
     CHECK(failure->molecule_index == 0);
     CHECK(failure->location == core::IssueLocation{.conformer_index = 1});
 
-    // Anything else is an error in ChargeFW.
+    // Anything else is an error in ChargeFW, described with its target. An invalid_argument is
+    // itself a logic_error, so only the target shows that it was translated.
     CHECK_THROWS_AS(calculate(std::make_exception_ptr(std::runtime_error{"unexpected"})),
                     std::logic_error);
-    CHECK_THROWS_AS(calculate(std::make_exception_ptr(std::invalid_argument{"unexpected"})),
-                    std::logic_error);
+    CHECK_THROWS_MATCHES(calculate(std::make_exception_ptr(std::invalid_argument{"unexpected"})),
+                         std::logic_error, snitch::matchers::with_what_contains{"conformer 2"});
 }
