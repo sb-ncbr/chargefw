@@ -479,7 +479,8 @@ Failures are not issues, and each layer adds only what it knows. A method throws
 molecule or conformer it was given. Reduced execution adds the source atom of a fragment that
 failed, and target execution adds the molecule and conformer, giving
 `calculation::CalculationFailed` with a `CalculationFailure`. Charges that are not finite numbers
-become `no_solution` where they appear; any other exception from a method is an error in ChargeFW,
-rethrown as `std::logic_error` with the target or fragment. Readers likewise give the reason and,
-where they have them, the line and record in `io::ParseError`. The command line and Python put the
-molecule and conformer in front of the reason for people; the reason never repeats them.
+become `no_solution` where they appear; `std::bad_alloc` passes unchanged, and any other exception
+from a method is an error in ChargeFW, rethrown as `std::logic_error` with the target or fragment.
+Readers likewise give the reason and, where they have them, the line and record in `io::ParseError`.
+The command line and Python put the molecule and conformer in front of the reason for people; the
+reason never repeats them.

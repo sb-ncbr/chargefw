@@ -73,10 +73,10 @@ reader stopped as fields.
 - Input that ChargeFW cannot read gives the reason and, where the reader knows them, the line and
   record as fields: `reason`, `source_name`, `line`, `record_index`, and `record_id` of
   `chargefw.ParseError` in Python, and `io::ParseError` in C++. The line and record are known for
-  MOL, SDF, and MOL2 files, and the line for text that is not ASCII in PDB and mmCIF files and for a
-  file that `chargefw.io.read()` cannot read as UTF-8. Breaking change: in C++, these readers throw
-  `io::ParseError`, a `std::runtime_error`, also for values a molecule cannot hold, which were
-  `std::invalid_argument`.
+  MOL, SDF, and MOL2 files, the record for molecule JSON, and the line for text that is not ASCII in
+  PDB and mmCIF files and for a file that `chargefw.io.read()` cannot read as UTF-8. Breaking
+  change: in C++, these readers throw `io::ParseError`, a `std::runtime_error`, also for values a
+  molecule cannot hold, which were `std::invalid_argument`.
 
 ## 3.0.0rc5
 

@@ -15,8 +15,8 @@
 namespace chargefw::io::native::common_input {
 
 // Called from a parser's catch block; preserves standard input exception categories.
-[[noreturn]] auto rethrow_with_context(const MoleculeRecordIdentity& identity, std::size_t line)
-    -> void;
+[[noreturn]] auto rethrow_with_context(const MoleculeRecordIdentity& identity,
+                                       std::optional<std::size_t> line) -> void;
 
 [[nodiscard]] auto try_read_line(std::istream& input, std::size_t& line)
     -> std::optional<std::string>;

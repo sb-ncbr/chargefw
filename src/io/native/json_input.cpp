@@ -133,8 +133,9 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
     return context + "[" + std::to_string(index) + "]";
 }
 
-[[nodiscard]] auto parse_molecule(const Json& value, MoleculeRecordIdentity identity,
-                                  const ConformerSelection conformer_selection)
+// Sets identity.record_id as soon as it is read, so that an error after it names the record.
+[[nodiscard]] auto parse_molecule_record(const Json& value, MoleculeRecordIdentity& identity,
+                                         const ConformerSelection conformer_selection)
     -> ImportedMoleculeRecord {
     const std::string context{"molecules[" + std::to_string(identity.record_index) + "]"};
     require_object(value, context);
@@ -267,8 +268,19 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
                                                            : SourceConnectivity::present),
         .components = {},
     };
-    return io::make_record(std::move(atoms), std::move(bonds), std::move(conformers),
-                           std::move(identity), std::move(name), {}, std::move(metadata));
+    return io::make_record(std::move(atoms), std::move(bonds), std::move(conformers), identity,
+                           std::move(name), {}, std::move(metadata));
+}
+
+// A record the reader cannot read gives its index and ID; JSON has no lines to give.
+[[nodiscard]] auto parse_molecule(const Json& value, MoleculeRecordIdentity identity,
+                                  const ConformerSelection conformer_selection)
+    -> ImportedMoleculeRecord {
+    try {
+        return parse_molecule_record(value, identity, conformer_selection);
+    } catch (...) {
+        common::rethrow_with_context(identity, std::nullopt);
+    }
 }
 
 } // namespace

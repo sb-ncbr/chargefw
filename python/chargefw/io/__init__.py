@@ -282,11 +282,13 @@ def read(
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
+    data = source_path.read_bytes()
     try:
-        contents = source_path.read_text(encoding="utf-8")
+        # Lines end with LF, CRLF, or CR, as when reading text in Python.
+        contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
     except UnicodeDecodeError as error:
-        # The error gives the offset of the byte in the file.
-        line = source_path.read_bytes().count(b"\n", 0, error.start) + 1
+        before = data[: error.start].replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        line = before.count(b"\n") + 1
         raise ParseError(
             f"{source_path}:{line}: {error}",
             reason=str(error),

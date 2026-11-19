@@ -13,7 +13,8 @@
 
 namespace chargefw::io::native::common_input {
 
-auto rethrow_with_context(const MoleculeRecordIdentity& identity, const std::size_t line) -> void {
+auto rethrow_with_context(const MoleculeRecordIdentity& identity,
+                          const std::optional<std::size_t> line) -> void {
     // Text the reader cannot read and values a molecule cannot hold are both input it cannot
     // read; other exceptions pass unchanged.
     const auto location = ParseLocation{.source_name = identity.source_name,
