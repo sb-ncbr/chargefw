@@ -68,6 +68,7 @@ apps/chargefw/      Command-line application
 python/chargefw/    Public Python package and private extension stubs
 python/src/         Nanobind extension implementation
 data/parameters/    Bundled parameter sets
+packages/           Separately published Python packages: chargefw-ccd
 tests/cpp/          Native tests and downstream CMake consumer
 tests/cpp/support/  Shared native test fixtures and CLI test script helpers
 tests/python/       Python package and toolkit integration tests

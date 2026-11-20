@@ -139,9 +139,48 @@ Do not use **Re-run all jobs** after an upload: `qualify` then fails because the
 the `testpypi` job uploads, a failed release can be fixed with a new commit and dispatched again with the
 same version. After an upload, any change to the source or the artifacts needs a new version.
 
+## The chargefw-ccd data package
+
+`chargefw-ccd` holds the atoms and bonds of the wwPDB Chemical Component Dictionary in one data file.
+It is released on its own schedule, without a version commit, a tag, or a GitHub Release.
+[`ccd.yml`](.github/workflows/ccd.yml) runs on the 3rd of each month and can be dispatched by hand. It
+downloads `components.cif.gz`, writes the data file with `packages/chargefw-ccd/generate.py`, builds
+and checks the wheel, and publishes it to TestPyPI and then PyPI. No approval is needed.
+
+The version is the date of the most recently modified component, such as `2026.11.19`. A run publishes
+only from `main` and only when the version is newer than every version on PyPI.
+
+To build the wheel locally, with Gemmi and `build` installed:
+
+```bash
+curl --location --remote-name https://files.wwpdb.org/pub/pdb/data/monomers/components.cif.gz
+python packages/chargefw-ccd/generate.py components.cif.gz
+python -m build --wheel packages/chargefw-ccd
+```
+
+The same dictionary always gives the same data file. The format is described at the top of
+`generate.py`; when it changes, raise `FORMAT_VERSION` there and in the wheel check of `ccd.yml`, which
+expects the first line to start with `chargefw-ccd 1`.
+
+The workflow always uses the dictionary that the wwPDB serves at the time, so a correction of the
+generator is published for the current dictionary, not for an earlier one. Merge the correction to
+`main` and dispatch the workflow. If the build reports a version that is already on PyPI, the
+dictionary has not changed since: raise `REVISION` in `generate.py` and dispatch again, which
+publishes, for example, `2026.11.19.post1`. `REVISION` can be set back to 0 at any time. The version
+without the suffix is then older than the published one, so nothing is published until the dictionary
+has a later date.
+
+After a network or index failure, use **Re-run failed jobs**. Uploads follow the same rule as for
+`chargefw`: a remote file is skipped only when its SHA-256 matches the built wheel. If the run stops
+because an index holds a different wheel under the same version, raise `REVISION`.
+
 ## Configuration
 
-The workflow publishes through PyPI trusted publishing and needs no stored tokens for the indexes. The
+The `chargefw-ccd` workflow depends on trusted publishers for `sb-ncbr/chargefw`, workflow `ccd.yml`, on
+TestPyPI (environment `ccd-testpypi`) and PyPI (environment `ccd-pypi`), and on these two GitHub
+environments, limited to `main` and without required reviewers.
+
+The release workflow publishes through PyPI trusted publishing and needs no stored tokens for the indexes. The
 repository settings it depends on are:
 
 - trusted publishers for `sb-ncbr/chargefw`, workflow `release.yml`, on TestPyPI (environment

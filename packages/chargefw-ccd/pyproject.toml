@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chargefw-ccd"
+dynamic = ["version"]
+description = "Atoms and bonds of the wwPDB Chemical Component Dictionary for ChargeFW"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "CC0-1.0"
+authors = [{ name = "ChargeFW contributors" }]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://chargefw.readthedocs.io/"
+Repository = "https://github.com/sb-ncbr/chargefw"
+
+[tool.hatch.version]
+path = "src/chargefw_ccd/_version.py"
+
+# generate.py writes these two files, which are not in the repository, before a build.
+[tool.hatch.build]
+artifacts = ["src/chargefw_ccd/components.txt.gz", "src/chargefw_ccd/_version.py"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chargefw_ccd"]

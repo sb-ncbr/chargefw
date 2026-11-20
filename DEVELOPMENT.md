@@ -220,6 +220,11 @@ local release validation.
 `.github/workflows/release.yml` is dispatched manually to build and publish a release; see
 [RELEASING.md](RELEASING.md).
 
+`.github/workflows/ccd.yml` runs monthly and on demand. It builds the `chargefw-ccd` data package in
+`packages/chargefw-ccd` from the current wwPDB Chemical Component Dictionary and publishes it when the
+dictionary has changed; see [RELEASING.md](RELEASING.md#the-chargefw-ccd-data-package). Started by hand
+from a branch other than `main`, it builds and checks the wheel and publishes nothing.
+
 `.github/dependabot.yml` opens one pull request a month when the actions used by the workflows have new
 major versions. Other dependencies are pinned and updated by hand.
 
