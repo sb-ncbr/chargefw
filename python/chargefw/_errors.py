@@ -30,7 +30,9 @@ class ParseError(ChargeFWError, ValueError):
     kinds may be added. ``reason`` is why as text, without where ChargeFW knows. ``source_name`` names the source, or is empty.
     Where the reader knows them, ``line`` is the line of the source, counted from one,
     ``record_index`` the record, counted from zero, and ``record_id`` the record's identifier in the
-    source, such as its title; otherwise they are ``None``.
+    source, such as its title; otherwise they are ``None``. ``line_text`` is the text of that line,
+    without its line ending, or ``None`` when there is no line, the input ends before it, or the
+    file could not be decoded.
     """
 
     def __init__(
@@ -41,6 +43,7 @@ class ParseError(ChargeFWError, ValueError):
         reason: str | None = None,
         source_name: str = "",
         line: int | None = None,
+        line_text: str | None = None,
         record_index: int | None = None,
         record_id: str | int | None = None,
     ) -> None:
@@ -49,6 +52,7 @@ class ParseError(ChargeFWError, ValueError):
         self.reason = message if reason is None else reason
         self.source_name = source_name
         self.line = line
+        self.line_text = line_text
         self.record_index = record_index
         self.record_id = record_id
 
@@ -61,6 +65,7 @@ class ParseError(ChargeFWError, ValueError):
             reason=self.reason,
             source_name=self.source_name,
             line=self.line,
+            line_text=self.line_text,
             record_index=self.record_index,
             record_id=self.record_id,
         )

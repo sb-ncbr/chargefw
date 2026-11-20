@@ -233,6 +233,15 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
         "x",
     )
     assert "Xx" in error.reason and "input.sdf" not in error.reason
+    # The line the error names, as it is in the input.
+    assert error.line_text == "    0.0000    0.0000    0.0000 Xx  0  0"
+    with pytest.raises(chargefw.ParseError) as crlf:
+        chargefw.io.parse(unknown_element.replace("\n", "\r\n"), format="sdf")
+    assert crlf.value.line_text == error.line_text
+    # Input that stops too early is refused at a line it does not have.
+    with pytest.raises(chargefw.ParseError) as truncated:
+        chargefw.io.parse("x\n\n", format="sdf")
+    assert truncated.value.line == 3 and truncated.value.line_text is None
     assert str(error).startswith("input.sdf:5: record 1 ('x'): ")
 
     # The error keeps its attributes and notes when pickled, as when a worker process sends it back.
@@ -254,6 +263,7 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
             chargefw.io.read(latin1, format="sdf")
         assert (undecodable.value.source_name, undecodable.value.line) == (str(latin1), 2)
         assert undecodable.value.kind == "invalid_encoding"
+        assert undecodable.value.line_text is None
         assert str(latin1) not in undecodable.value.reason
     with pytest.raises(FileNotFoundError):
         chargefw.io.read(tmp_path / "missing.sdf", format="sdf")

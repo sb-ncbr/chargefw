@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import gzip
 import warnings
 import zlib
@@ -238,9 +239,21 @@ def _parse(
     bond_strategy = "hybrid" if bonds is None else bonds
     # Input a reader refuses raises ParseError. Any other exception from a reader is not a refusal
     # of the input.
-    payloads = _native_io._parse(
-        contents, source_name, format, selection, bond_strategy, conformers
-    )
+    try:
+        payloads = _native_io._parse(
+            contents, source_name, format, selection, bond_strategy, conformers
+        )
+    except ParseError as error:
+        if error.line is not None:
+            # The readers end lines at LF and drop a CR before it. The text is split no further than
+            # the line. A line past the end, as for input that stops too early, has no text, and
+            # what follows the last LF is not a line.
+            # Looking the line up must not replace the refusal, whatever goes wrong.
+            with contextlib.suppress(Exception):
+                parts = contents.split("\n", error.line)
+                if len(parts) > error.line or (len(parts) == error.line and parts[-1]):
+                    error.line_text = parts[error.line - 1].removesuffix("\r")
+        raise
     return _collection(payloads, source_name)
 
 

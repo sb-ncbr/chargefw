@@ -2,6 +2,7 @@
 
 #include "io/fixed_ions.h"
 
+#include <chargefw/io/parse_error.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
@@ -10,12 +11,16 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <istream>
 #include <optional>
 #include <ranges>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -123,6 +128,41 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
                              "': " + value};
 }
 
+// The message of a refusal with the line it names, for the person reading the terminal: as the
+// reader saw the line, without its line ending, and with every byte that is not printable ASCII
+// escaped. The message alone when the input cannot be read again or has no such line.
+auto with_refused_line(const io::ParseError& error, std::istream& input) -> std::string {
+    auto message = std::string{error.what()};
+    const auto line = error.location().line;
+    input.clear();
+    if (!line.has_value() || !input.seekg(0)) {
+        return message;
+    }
+    auto text = std::string{};
+    for (std::size_t number = 0; number < *line; ++number) {
+        if (!std::getline(input, text)) {
+            return message;
+        }
+    }
+    if (text.ends_with('\r')) {
+        text.pop_back();
+    }
+    message += "\n    | ";
+    for (const auto character : text) {
+        const auto byte = static_cast<unsigned char>(character);
+        if (byte >= 0x20 && byte < 0x7F) {
+            message += character;
+        } else {
+            message += std::format("\\x{:02X}", byte);
+        }
+    }
+    return message;
+}
+
+auto read_collection(std::istream& input, const std::string& input_path,
+                     const io::StructureOptions structural_options,
+                     bool structural_options_requested) -> ImportedCollection;
+
 auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     std::ifstream file{input_path};
@@ -140,7 +180,16 @@ auto read_collection(const std::string& input_path, const io::StructureOptions s
         decompressed.str(std::string{buffer.data(), buffer.size()});
     }
     auto& input = compressed ? static_cast<std::istream&>(decompressed) : file;
+    try {
+        return read_collection(input, input_path, structural_options, structural_options_requested);
+    } catch (const io::ParseError& error) {
+        throw std::runtime_error{with_refused_line(error, input)};
+    }
+}
 
+auto read_collection(std::istream& input, const std::string& input_path,
+                     const io::StructureOptions structural_options,
+                     const bool structural_options_requested) -> ImportedCollection {
     const auto extension = lowercase_extension(uncompressed_path(input_path));
     if (structural_options_requested && (extension == ".sdf" || extension == ".mol" ||
                                          extension == ".mol2" || extension == ".json")) {
@@ -236,10 +285,9 @@ auto import_input(const InputArguments& arguments) -> ImportedCollection {
         .selection = io::record_selection_from_string(arguments.structural_selection),
         .bonds = io::bond_strategy_from_string(arguments.structural_bonds),
         .conformers = io::conformer_selection_from_string(arguments.conformer_selection)};
-    auto imported = read_collection(arguments.path, options,
-                                    arguments.structural_selection_option->count() > 0 ||
-                                        arguments.structural_bonds_option->count() > 0);
-    return imported;
+    return read_collection(arguments.path, options,
+                           arguments.structural_selection_option->count() > 0 ||
+                               arguments.structural_bonds_option->count() > 0);
 }
 
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
