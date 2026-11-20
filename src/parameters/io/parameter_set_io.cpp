@@ -445,7 +445,14 @@ auto load_parameter_set_json(std::istream& input, std::string source_name) -> Pa
         throw ParseError{error.kind(), error.reason(), std::move(source_name)};
     } catch (const nlohmann::json::exception& error) {
         require_readable();
-        throw ParseError{ParseErrorKind::malformed, error.what(), std::move(source_name)};
+        // The library's message without its "[json.exception...] " prefix.
+        const auto message = std::string_view{error.what()};
+        const auto prefix = message.starts_with('[') ? message.find("] ") : std::string_view::npos;
+        throw ParseError{ParseErrorKind::malformed,
+                         "invalid JSON: " + std::string{prefix == std::string_view::npos
+                                                            ? message
+                                                            : message.substr(prefix + 2)},
+                         std::move(source_name)};
     } catch (const std::invalid_argument& error) {
         // A value a parameter set cannot hold, which its types refuse.
         throw ParseError{ParseErrorKind::malformed, error.what(), std::move(source_name)};

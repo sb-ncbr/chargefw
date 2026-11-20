@@ -666,6 +666,16 @@ TEST_CASE("mmCIF input gives the kind of refusal and where it is", "[io][mmcif]"
                                 "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1"
                                 "\nHETATM 2 O O1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A O1 2\n#\n");
     CHECK(models.kind() == io::ParseErrorKind::inconsistent_models);
+
+    // A formal charge that would be read as another value is refused, not read.
+    // The second does not fit an int either.
+    for (const auto* const value : {"-99999", "4294967296", "0.0"}) {
+        const auto charge =
+            refusal(atom_site_header("x") + "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 " + value +
+                    " 1 LIG A C1 1\n#\n");
+        CHECK(charge.kind() == io::ParseErrorKind::malformed);
+        CHECK(charge.reason().contains(value));
+    }
     CHECK(models.location().record_index == 0);
 }
 

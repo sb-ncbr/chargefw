@@ -325,9 +325,9 @@ void bind_io(nb::module_& module) {
             const auto& location = parse_error.location();
             const auto type = nb::module_::import_("chargefw._errors").attr("ParseError");
             const auto instance =
-                type(parse_error.what(),
+                // The Python class writes the message from the reason and these fields.
+                type(parse_error.reason(),
                      nb::arg("kind") = std::string{io::to_string(parse_error.kind())},
-                     nb::arg("reason") = parse_error.reason(),
                      nb::arg("source_name") = location.source_name, nb::arg("line") = location.line,
                      nb::arg("record_index") = location.record_index,
                      nb::arg("record_id") = portable_id(location.record_id));

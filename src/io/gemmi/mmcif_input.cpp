@@ -176,6 +176,18 @@ auto MmcifReader::next() -> std::optional<ImportedMoleculeRecord> {
 
 namespace {
 
+// A formal charge Gemmi cannot hold would be read as another charge, so it is refused first.
+auto require_readable_formal_charges(::gemmi::cif::Block& block) -> void {
+    for (const auto row : block.find("_atom_site.", {"pdbx_formal_charge"})) {
+        if (!gemmi::mmcif_labels::formal_charge(row[0]).has_value()) {
+            throw ParseError{ParseErrorKind::malformed,
+                             "mmCIF _atom_site.pdbx_formal_charge '" +
+                                 ::gemmi::cif::as_string(row[0]) + "' is not a formal charge",
+                             {}};
+        }
+    }
+}
+
 // Gemmi reports an error in the text as "source:line:column(byte): reason", as
 // "source:line in data_block: reason", or without a line as "source: reason"; the line and the
 // reason are taken from it, or the whole message is the reason.
@@ -254,6 +266,7 @@ auto MmcifReader::Impl::next() -> std::optional<ImportedMoleculeRecord> {
 auto MmcifReader::Impl::read_block(::gemmi::cif::Block& block, const std::size_t record_index)
     -> ImportedMoleculeRecord {
     auto structure = io::detail::parsed([&block] {
+        require_readable_formal_charges(block);
         const auto parser_ids = ParserAtomSiteIds{block};
         return ::gemmi::make_structure_from_block(block);
     });

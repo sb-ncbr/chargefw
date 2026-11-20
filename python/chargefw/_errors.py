@@ -29,7 +29,8 @@ class ParseError(ChargeFWError, ValueError):
     empty file or a file of another format, ``"invalid_encoding"`` for text that cannot be decoded,
     ``"malformed"`` for input that breaks its format, ``"unsupported"`` for valid data that ChargeFW
     does not read, and ``"inconsistent_models"`` for PDB or mmCIF models with different atoms. More
-    kinds may be added. ``reason`` is why as text, without where ChargeFW knows. ``source_name`` names the source, or is empty.
+    kinds may be added. ``reason`` is why as text; the message of the error says where before it.
+    ``source_name`` names the source, or is empty.
     Where the reader knows them, ``line`` is the line of the source, counted from one,
     ``record_index`` the record, counted from zero, and ``record_id`` the record's identifier in the
     source, such as its title; otherwise they are ``None``. ``line_text`` is the text of that line,
@@ -39,19 +40,27 @@ class ParseError(ChargeFWError, ValueError):
 
     def __init__(
         self,
-        message: str,
+        reason: str,
         *,
         kind: ParseErrorKind,
-        reason: str | None = None,
         source_name: str = "",
         line: int | None = None,
         line_text: str | None = None,
         record_index: int | None = None,
         record_id: str | int | None = None,
     ) -> None:
-        super().__init__(message)
+        # The message says where, then why: "input.sdf:24: record 3 ('title'): reason".
+        where = ""
+        if line is not None:
+            where = f"{source_name}:{line}: " if source_name else f"line {line}: "
+        elif source_name:
+            where = f"{source_name}: "
+        if record_index is not None:
+            name = "" if record_id in (None, "") else f" ('{record_id}')"
+            where += f"record {record_index + 1}{name}: "
+        super().__init__(where + reason)
         self.kind = kind
-        self.reason = message if reason is None else reason
+        self.reason = reason
         self.source_name = source_name
         self.line = line
         self.line_text = line_text
@@ -59,19 +68,18 @@ class ParseError(ChargeFWError, ValueError):
         self.record_id = record_id
 
     def __reduce__(self) -> tuple[Any, ...]:
-        # Exceptions are rebuilt from their positional arguments alone, which lacks the required
-        # kind. The state restores the rest, such as notes and attributes the caller added.
+        # Rebuilt from the reason and the fields, which give the message; the state restores the
+        # rest, such as notes and attributes the caller added.
         rebuild = partial(
             type(self),
             kind=self.kind,
-            reason=self.reason,
             source_name=self.source_name,
             line=self.line,
             line_text=self.line_text,
             record_index=self.record_index,
             record_id=self.record_id,
         )
-        return rebuild, self.args, vars(self)
+        return rebuild, (self.reason,), vars(self)
 
 
 class OutputError(ChargeFWError, ValueError):

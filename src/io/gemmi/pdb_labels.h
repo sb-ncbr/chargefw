@@ -1,13 +1,13 @@
 #pragma once
 
 #include <chargefw/io/molecule_record.h>
-#include <chargefw/io/parse_error.h>
 
 #include <gemmi/model.hpp>
 
 #include <charconv>
 #include <cstdlib>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -37,9 +37,8 @@ namespace chargefw::io::gemmi::pdb_labels {
         const auto [end, error] =
             std::from_chars(sequence->data(), sequence->data() + sequence->size(), value);
         if (error != std::errc{} || end != sequence->data() + sequence->size()) {
-            throw ParseError{ParseErrorKind::malformed,
-                             "PDB source contains an invalid residue sequence ID",
-                             {}};
+            // The reader reports it as input it refuses; see detail::rethrow_located().
+            throw std::invalid_argument{"PDB source contains an invalid residue sequence ID"};
         }
         return std::to_string(value);
     }

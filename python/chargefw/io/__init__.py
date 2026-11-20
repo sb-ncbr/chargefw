@@ -298,12 +298,7 @@ def read(
         try:
             data = gzip.decompress(data)
         except (OSError, EOFError, zlib.error) as error:
-            raise ParseError(
-                f"{source_path}: {error}",
-                kind="malformed",
-                reason=str(error),
-                source_name=str(source_path),
-            ) from None
+            raise ParseError(str(error), kind="malformed", source_name=str(source_path)) from None
     try:
         # Lines end with LF, CRLF, or CR, as when reading text in Python.
         contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
@@ -311,9 +306,8 @@ def read(
         before = data[: error.start].replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         line = before.count(b"\n") + 1
         raise ParseError(
-            f"{source_path}:{line}: {error}",
+            str(error),
             kind="invalid_encoding",
-            reason=str(error),
             source_name=str(source_path),
             line=line,
         ) from None

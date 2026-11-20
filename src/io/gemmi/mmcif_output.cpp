@@ -292,11 +292,11 @@ struct OutputAssignments {
             }
             const auto& position = record.molecule.conformer(conformer_index)[atom_index];
             const auto& identity_site = identity_sites[row_index];
-            // As a number, so that text that is not one differs instead of failing to convert.
-            const auto formal_charge =
-                identity_site.has(3) && !::gemmi::cif::is_null(identity_site[3])
-                    ? ::gemmi::cif::as_number(identity_site[3])
-                    : 0.0;
+            // As the reader reads it, and zero when the column is absent. Text that is not a
+            // formal charge is a changed target.
+            const auto formal_charge = identity_site.has(3)
+                                           ? gemmi::mmcif_labels::formal_charge(identity_site[3])
+                                           : std::optional<int>{0};
             if (::gemmi::cif::as_number(identity_site[0]) != position.x ||
                 ::gemmi::cif::as_number(identity_site[1]) != position.y ||
                 ::gemmi::cif::as_number(identity_site[2]) != position.z ||

@@ -96,9 +96,8 @@ void bind_parameters(nb::module_& module) {
         } catch (const parameters::ParseError& parse_error) {
             const auto type = nb::module_::import_("chargefw._errors").attr("ParseError");
             const auto instance =
-                type(parse_error.what(),
+                type(parse_error.reason(),
                      nb::arg("kind") = std::string{parameters::to_string(parse_error.kind())},
-                     nb::arg("reason") = parse_error.reason(),
                      nb::arg("source_name") = parse_error.source_name());
             PyErr_SetObject(type.ptr(), instance.ptr());
         }

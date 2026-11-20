@@ -340,8 +340,13 @@ TEST_CASE("parameter set rejects content this version does not read", "[paramete
     CHECK(std::string_view{named.what()} == "my_set.json: " + named.reason());
     CHECK(std::string_view{unnamed.what()} == unnamed.reason());
 
-    // An empty stream is refused for its content; a stream that failed is not.
+    // An empty stream is refused for its content; a stream that failed is not. The reason for
+    // text that is not JSON says where, without the code of the JSON library.
     CHECK(refusal("").kind() == parameters::ParseErrorKind::malformed);
+    const auto not_json = refusal(R"({"metadata": )");
+    CHECK(not_json.reason().starts_with("invalid JSON: "));
+    CHECK(not_json.reason().contains("line 1"));
+    CHECK_FALSE(not_json.reason().contains("json.exception"));
     for (const auto state : {std::ios::failbit, std::ios::badbit}) {
         std::istringstream input{wrong_type};
         input.setstate(state);

@@ -188,9 +188,10 @@ used, and the record gets a `partial_charges_ignored` warning.
 The first model gives the atoms of the molecule, in the order of the rows in the file, with their
 elements, formal charges, and names. Every further model must contain the same atoms: the same
 elements, formal charges, atom names, residues, and chains, in the same order. Each such model
-becomes another conformer, and a model that differs is an error. The alternate location chosen for
-an atom may differ between models. `--conformers first` (`conformers="first"` in Python) reads only
-the first model. Unknown elements and a selection that leaves no atoms are errors.
+becomes another conformer, and a model that differs is an error. An mmCIF formal charge that is not
+an integer from -128 to 127 is an error. The alternate location chosen for an atom may differ
+between models. `--conformers first` (`conformers="first"` in Python) reads only the first model.
+Unknown elements and a selection that leaves no atoms are errors.
 
 For every atom, ChargeFW keeps its ID, model, alternate location, entity, insertion code, and
 segment, and its atom, residue, and chain names as the file gives them. mmCIF has two sets of names,

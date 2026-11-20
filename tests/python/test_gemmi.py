@@ -638,6 +638,8 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         ("Cartn_x", "9.0"),
         ("pdbx_formal_charge", "1"),
         ("pdbx_formal_charge", "abc"),
+        ("pdbx_formal_charge", "0.0"),
+        ("pdbx_formal_charge", "4294967296"),
         ("type_symbol", "O"),
         ("auth_atom_id", "CB"),
     ):

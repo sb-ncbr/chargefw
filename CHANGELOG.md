@@ -32,8 +32,10 @@
   for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
   longer catches them: catch `parameters::ParseError`, then `std::runtime_error`.
 - Breaking change: in C++, `io::ParseError` is constructed with a `ParseErrorKind` as its first
-  argument. In Python, `ParseError` requires the keyword argument `kind`, and an exception from a
-  reader that is not a refusal of the input is no longer raised as `ParseError`.
+  argument. In Python, `ParseError` is constructed from the reason and the keyword argument `kind`,
+  and writes its message from the reason and the location; an exception from a reader that is not
+  a refusal of the input is no longer raised as `ParseError`.
+- An mmCIF formal charge outside -128 to 127 is an error; it was read as a different charge.
 
 ### Output
 
@@ -44,6 +46,9 @@
   `ValueError` in Python and a `std::invalid_argument` in C++, as these errors were, so existing
   handlers keep working. The messages changed: those for one molecule start with the molecule and
   atoms, counted from one.
+- Adding charges to a Gemmi document whose `_atom_site.pdbx_formal_charge` was changed to text that
+  is not an integer, such as `0.0`, is refused as a changed document, as reading such a file is
+  refused.
 - `chargefw.io.annotate()` and PQR output report molecules not read from PDB or mmCIF before what
   the format cannot hold of them, such as missing coordinates or several molecules.
 - mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,
