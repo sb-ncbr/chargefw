@@ -23,7 +23,13 @@ namespace {
     };
     add("molecule", molecule_index);
     add("conformer", location.conformer_index);
-    add("atom", location.atom_index);
+    if (location.atom_index.has_value() && location.other_atom_index.has_value()) {
+        text += (text.empty() ? "" : ", ") + std::string{"atoms "} +
+                std::to_string(*location.atom_index + 1) + " and " +
+                std::to_string(*location.other_atom_index + 1);
+    } else {
+        add("atom", location.atom_index);
+    }
     add("bond", location.bond_index);
     return text.empty() ? reason : text + ": " + reason;
 }

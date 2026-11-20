@@ -1,3 +1,4 @@
+#include <chargefw/io/output_error.h>
 #include <chargefw/io/parse_error.h>
 #include <chargefw/io/pdb_input.h>
 
@@ -350,11 +351,17 @@ namespace {
         }
         const auto& site = found->second;
         if (site.repeated) {
-            throw std::invalid_argument{std::format(
-                "PDB annotation cannot tell atom {} of residue {} {} {} from another atom with "
-                "the same labels",
-                site.atom->name, identity.author.residue.value_or(""),
-                identity.author.chain.value_or(""), identity.author.sequence.value_or(""))};
+            throw OutputError{
+                OutputErrorKind::unrepresentable,
+                std::format("PDB annotation cannot tell atom {} of residue {} {} {} from another "
+                            "atom with the same labels",
+                            site.atom->name, identity.author.residue.value_or(""),
+                            identity.author.chain.value_or(""),
+                            identity.author.sequence.value_or("")),
+                0,
+                core::IssueLocation{.conformer_index = conformer_index,
+                                    .atom_index = index,
+                                    .atom_indices = {index}}};
         }
         const auto& position = molecule.conformer(conformer_index)[index];
         if (site.atom->element.atomic_number() != molecule.atom(index).atomic_number() ||

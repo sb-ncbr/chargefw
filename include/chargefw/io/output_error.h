@@ -22,7 +22,7 @@ enum class OutputErrorKind : std::uint8_t {
     unrepresentable,
     // The document or toolkit molecule to add charges to is not the one that was read.
     target_mismatch,
-    // The target already has charges and was not to be changed.
+    // The target already has charges that were not to be replaced, or that cannot be added to.
     existing_charges,
 };
 
