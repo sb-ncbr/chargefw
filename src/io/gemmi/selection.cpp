@@ -4,8 +4,8 @@
 #include <chargefw/io/parse_error.h>
 #include <iterator>
 #include <memory>
-#include <string_view>
-#include <unordered_set>
+#include <string>
+#include <unordered_map>
 
 namespace chargefw::io::gemmi::selection {
 namespace {
@@ -25,7 +25,8 @@ auto include_residue(const ::gemmi::Residue& residue, const RecordSelection sele
 
 } // namespace
 
-SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection selection) {
+SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection selection,
+                             const AtomName& atom_name) {
     std::size_t atom_count = 0;
     for (const auto& chain : model.chains) {
         for (const auto& residue : chain.residues) {
@@ -35,7 +36,6 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
     atoms_.reserve(atom_count);
     sites_.reserve(atom_count);
     residues_.reserve(model.chains.size());
-    atom_indices_.reserve(atom_count);
     serial_indices_.reserve(atom_count);
 
     std::size_t atom_index = 0;
@@ -66,12 +66,30 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
                                      .component_name = residue.name,
                                      .atoms = {}};
             selected.atoms.reserve(residue.atoms.size());
-            // Select one alternate location per atom name: the first source-order occurrence.
-            auto seen_names = std::unordered_set<std::string_view>{};
-            seen_names.reserve(residue.atoms.size());
-            for (std::size_t index = 0; index < residue.atoms.size(); ++index) {
-                const auto& atom = residue.atoms[index];
-                if (!seen_names.emplace(atom.name).second) {
+            // Keep the first location per name, but check every location for duplicates.
+            auto seen_altlocs = std::unordered_map<std::string, std::string>{};
+            seen_altlocs.reserve(residue.atoms.size());
+            for (const auto& atom : residue.atoms) {
+                auto name = atom_name ? atom_name(atom) : atom.name;
+                if (name.empty()) {
+                    throw ParseError{
+                        ParseErrorKind::malformed, "selected atom has an empty name", {}};
+                }
+                auto& altlocs = seen_altlocs[name];
+                if (altlocs.contains(atom.altloc)) {
+                    throw ParseError{ParseErrorKind::malformed,
+                                     "residue " +
+                                         detail::residue_description(residue.name, chain.name,
+                                                                     residue.seqid.str(), {}) +
+                                         ": atom " + name + " occurs twice " +
+                                         (atom.has_altloc()
+                                              ? std::string{"at alternate location "} + atom.altloc
+                                              : "with no alternate location"),
+                                     {}};
+                }
+                const auto alternate = !altlocs.empty();
+                altlocs.push_back(atom.altloc);
+                if (alternate) {
                     continue;
                 }
 
@@ -79,8 +97,7 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
                 sites_.push_back(::gemmi::const_CRA{.chain = std::addressof(chain),
                                                     .residue = std::addressof(residue),
                                                     .atom = std::addressof(atom)});
-                selected.atoms.push_back({atom.name, atom_index});
-                atom_indices_.emplace(std::addressof(atom), atom_index);
+                selected.atoms.push_back({std::move(name), atom_index});
                 serial_indices_.emplace(atom.serial, atom_index++);
             }
             residues_.push_back(std::move(selected));
@@ -100,14 +117,6 @@ auto SelectedModel::residues() const -> const std::vector<SelectedResidue>& {
     return residues_;
 }
 
-auto SelectedModel::atom_index(const ::gemmi::Atom* atom) const -> std::optional<std::size_t> {
-    const auto found = atom_indices_.find(atom);
-    if (found == atom_indices_.end()) {
-        return std::nullopt;
-    }
-    return found->second;
-}
-
 auto SelectedModel::atom_index_by_serial(const int serial) const -> std::optional<std::size_t> {
     const auto found = serial_indices_.find(serial);
     if (found == serial_indices_.end()) {
@@ -123,15 +132,11 @@ void SelectedModel::normalize_component_names(
     }
     for (auto& residue : residues_) {
         auto component_name = std::string{};
-        auto names = std::unordered_set<std::string_view>{};
-        names.reserve(residue.atoms.size());
-        for (auto& atom : residue.atoms) {
+        for (const auto& atom : residue.atoms) {
             const auto* labels = source_atoms[atom.index].structural_labels.get();
             const auto canonical_component =
                 detail::canonical_component_name(labels, residue.residue->name);
-            const auto canonical_atom =
-                detail::canonical_atom_name(labels, atoms_[atom.index]->name);
-            if (canonical_component.empty() || canonical_atom.empty()) {
+            if (canonical_component.empty()) {
                 throw ParseError{ParseErrorKind::malformed,
                                  "selected structural component has an empty canonical name",
                                  {}};
@@ -143,25 +148,20 @@ void SelectedModel::normalize_component_names(
                                  "selected structural residue has inconsistent component names",
                                  {}};
             }
-            if (!names.emplace(canonical_atom).second) {
-                throw ParseError{ParseErrorKind::malformed,
-                                 "selected structural component has ambiguous canonical atom names",
-                                 {}};
-            }
-            atom.name = canonical_atom;
         }
         residue.component_name = std::move(component_name);
     }
 }
 
 auto select_models(const ::gemmi::Structure& structure, const RecordSelection selection,
-                   const ConformerSelection conformers) -> std::vector<SelectedModel> {
+                   const ConformerSelection conformers, const AtomName& atom_name)
+    -> std::vector<SelectedModel> {
     const auto count =
         conformers == ConformerSelection::all ? structure.models.size() : std::size_t{1};
     auto result = std::vector<SelectedModel>{};
     result.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
-        result.emplace_back(structure.models[index], selection);
+        result.emplace_back(structure.models[index], selection, atom_name);
     }
     return result;
 }

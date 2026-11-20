@@ -566,6 +566,39 @@ END
           chargefw::io::ImportIssueKind::symmetry_connections_ignored);
 }
 
+TEST_CASE("PDB explicit connections require a unique residue for each bonded atom", "[io][pdb]") {
+    // LINK has no segment ID. Only the second LIG has C1, but that does not identify the residue.
+    const auto read_link = [](const std::string_view link) {
+        return read_first(std::string{link} + R"pdb(
+HETATM    1  O1  LIG A   1       0.000   0.000   0.000  1.00 20.00      SEG1 O
+HETATM    2  C1 ALIG A   1       5.000   0.000   0.000  1.00 20.00      SEG2 C
+ATOM      3  C   ALA A   5       6.000   0.000   0.000  1.00 20.00           C
+END
+)pdb",
+                          {.bonds = io::BondStrategy::explicit_bonds});
+    };
+    for (const auto* link : {"LINK         C   ALA A   9                 C1  LIG A   1",
+                             "LINK         C1  LIG A   1                 C   ALA A   9",
+                             "LINK         C   ALA A   5                 C1 BLIG A   1"}) {
+        CAPTURE(link);
+        CHECK(read_link(link).molecule.bond_count() == 0);
+    }
+    const auto symmetry =
+        read_link("LINK         C   ALA A   5                 C1  LIG A   1     1555   2555");
+    CHECK(symmetry.molecule.bond_count() == 0);
+    REQUIRE(symmetry.import_warnings.size() == 1);
+    CHECK(symmetry.import_warnings.front().kind ==
+          io::ImportIssueKind::symmetry_connections_ignored);
+
+    const auto error = chargefw::test::thrown<io::ParseError>([&] {
+        static_cast<void>(read_link("LINK         C   ALA A   5                 C1  LIG A   1"));
+    });
+    REQUIRE(error.has_value());
+    CHECK(error->kind() == io::ParseErrorKind::malformed);
+    CHECK(error->reason().contains("LIG A 1"));
+    CHECK(error->reason().contains("C1"));
+}
+
 TEST_CASE("PDB source mapping follows Gemmi record handling", "[io][pdb]") {
     std::istringstream input{R"pdb(mOdEl        1
 aToM      1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
@@ -609,14 +642,28 @@ END
     CHECK(conformers[1].sites[0].structural_labels->alternate_location == "B");
 }
 
-TEST_CASE("PDB input rejects ambiguous source identities", "[io][pdb]") {
-    std::istringstream input{
-        R"pdb(ATOM      1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
-ATOM      2  C1  LIG A   1       0.100   0.000   0.000  1.00 20.00           C
-END
-)pdb"};
-
-    CHECK_THROWS_AS(io::PdbReader{input}, std::runtime_error);
+TEST_CASE("PDB input rejects an atom repeated at one alternate location", "[io][pdb]") {
+    // Without alternate locations, and at B after A, which is the one read.
+    for (const std::string_view locations : {"  ", "ABB"}) {
+        auto text = std::string{};
+        for (std::size_t index = 0; index < locations.size(); ++index) {
+            text +=
+                std::format("ATOM  {:>5}  C1 {}LIG A   1       {}.000   0.000   0.000  1.00 20.00"
+                            "           C\n",
+                            index + 1, locations[index], index);
+        }
+        CAPTURE(text);
+        std::istringstream input{text + "END\n"};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::PdbReader{input}); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::ParseErrorKind::malformed);
+        CHECK(error->reason().contains("LIG A 1"));
+        CHECK(error->reason().contains("C1"));
+        if (locations.back() != ' ') {
+            CHECK(error->reason().ends_with(locations.back()));
+        }
+    }
 }
 
 TEST_CASE("PDB mapping retains source labels through Gemmi normalization", "[io][pdb]") {

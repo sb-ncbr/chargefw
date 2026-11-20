@@ -283,6 +283,42 @@ ALA N CA SING
     auto ambiguous_reader = io::MmcifReader{ambiguous};
     CHECK_THROWS_AS(ambiguous_reader.next(), std::runtime_error);
 
+    // Rows that no alternate location tells apart are not alternatives.
+    std::istringstream repeated{make_input("HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
+                                           "HETATM 2 C C1 . LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};
+    auto repeated_reader = io::MmcifReader{repeated};
+    CHECK_THROWS_AS(repeated_reader.next(), io::ParseError);
+
+    // Label names tell atoms apart where the author names do not, and a connection names its
+    // residues and atoms by label. The alternate of C1 that is not read has the author name
+    // and the location of C2.
+    std::istringstream labeled{make_input("HETATM 1 C C1 A LIG A 1 ? 0 0 0 1 20 0 9 DRG A X1 1\n"
+                                          "HETATM 2 C C1 B LIG A 1 ? 0 1 0 1 20 0 9 DRG A C2 1\n"
+                                          "HETATM 3 C C2 B LIG A 1 ? 1 0 0 1 20 0 9 DRG A X1 1") +
+                               R"cif(loop_
+_struct_conn.id
+_struct_conn.conn_type_id
+_struct_conn.ptnr1_label_asym_id
+_struct_conn.ptnr1_label_comp_id
+_struct_conn.ptnr1_label_seq_id
+_struct_conn.ptnr1_label_atom_id
+_struct_conn.ptnr2_label_asym_id
+_struct_conn.ptnr2_label_comp_id
+_struct_conn.ptnr2_label_seq_id
+_struct_conn.ptnr2_label_atom_id
+_struct_conn.pdbx_ptnr2_label_alt_id
+link covale A LIG 1 C1 A LIG 1 C2 B
+#
+)cif"};
+    auto labeled_reader = io::MmcifReader{labeled, {}, {.bonds = io::BondStrategy::explicit_bonds}};
+    const auto labeled_record = labeled_reader.next();
+    REQUIRE(labeled_record.has_value());
+    REQUIRE(labeled_record->molecule.atom_count() == 2);
+    CHECK(labeled_record->import_metadata->atoms[0].structural_labels->label.atom == "C1");
+    CHECK(labeled_record->import_metadata->atoms[1].structural_labels->label.atom == "C2");
+    REQUIRE(labeled_record->molecule.bond_count() == 1);
+    CHECK(labeled_record->molecule.bond(0).second_atom_index() == 1);
+
     std::istringstream alternates{
         make_input("HETATM 1 C C1 A LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
                    "HETATM 2 C C1 B LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};

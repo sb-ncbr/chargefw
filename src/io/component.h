@@ -34,7 +34,11 @@ namespace chargefw::io::detail {
 residue_description(const std::string_view name, const std::string_view chain,
                     const std::string_view sequence, const std::string_view insertion_code)
     -> std::string {
-    auto result = std::string{name} + ' ' + std::string{chain} + ' ' + std::string{sequence};
+    auto result = std::string{name};
+    if (!chain.empty()) {
+        result += ' ' + std::string{chain};
+    }
+    result += ' ' + std::string{sequence};
     if (!insertion_code.empty() && insertion_code != "." && insertion_code != "?") {
         result += insertion_code;
     }

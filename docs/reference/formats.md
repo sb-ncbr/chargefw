@@ -222,6 +222,11 @@ alternate location. Residues in different PDB segments or mmCIF label chains are
 alternatives. For each atom name in a residue, only one alternate location is read: the first one in
 the file. Its alternate-location code is kept and written to the output.
 
+If two rows give the same atom name in a residue and the same alternate location (including a blank
+location), ChargeFW refuses the file and identifies the repeated atom. If a row was duplicated,
+remove the extra row. If two residues became indistinguishable because their insertion codes were
+lost, restore the insertion codes.
+
 ### Connectivity
 
 `bonds` (`--bonds` on the command line) chooses where bonds come from:
@@ -244,6 +249,12 @@ not supplied.
 
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
+
+For PDB `LINK` and `SSBOND` records and mmCIF `_struct_conn` connections, a missing or excluded
+partner atom means no bond. If both partners are present and ChargeFW would add the bond, each
+partner's residue labels must identify one selected residue. For example, if two PDB segments use
+`LIG A 1`, a `LINK` to `LIG A 1` does not identify the segment. ChargeFW refuses the file rather
+than choosing a residue. Give the residues distinct labels and update the `LINK` to match.
 
 Crystal structure files can describe bonds to symmetry-related copies of the listed atoms: a connection
 whose partners have different symmetry codes (`_struct_conn.ptnr1_symmetry` and `ptnr2_symmetry` in

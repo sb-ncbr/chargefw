@@ -3,6 +3,7 @@
 #include "component_templates.h"
 #include "selection.h"
 
+#include <chargefw/io/parse_error.h>
 #include <gemmi/chemcomp.hpp>
 #include <gemmi/cif.hpp>
 
@@ -86,20 +87,19 @@ class BondAccumulator {
     std::vector<std::size_t> aromatic_bonds_; // Indices in bonds_.
 };
 
-// Residues of a model by chain name and sequence ID, in model order, so that each connection
-// partner is found without scanning every chain and residue.
+// The selected residues of a model by chain name and sequence ID, in model order, so that each
+// connection partner is found without scanning every chain and residue.
 class ResidueIndex {
   public:
-    explicit ResidueIndex(const ::gemmi::Model& model) {
-        for (const auto& chain : model.chains) {
-            for (const auto& residue : chain.residues) {
-                residues_[key(chain.name, residue.seqid)].push_back(std::addressof(residue));
-            }
+    explicit ResidueIndex(const selection::SelectedModel& selected) {
+        for (const auto& residue : selected.residues()) {
+            residues_[key(residue.chain_name, residue.residue->seqid)].push_back(
+                std::addressof(residue));
         }
     }
 
     [[nodiscard]] auto find(const std::string_view chain_name, const ::gemmi::SeqId& seqid) const
-        -> std::span<const ::gemmi::Residue* const> {
+        -> std::span<const selection::SelectedResidue* const> {
         const auto found = residues_.find(key(chain_name, seqid));
         if (found == residues_.end()) {
             return {};
@@ -117,42 +117,31 @@ class ResidueIndex {
                 static_cast<char>(static_cast<unsigned char>(seqid.icode) | 0x20U)};
     }
 
-    std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;
+    std::map<Key, std::vector<const selection::SelectedResidue*>> residues_;
 };
 
-[[nodiscard]] auto selected_atom_index(const ResidueIndex& residues,
-                                       const selection::SelectedModel& selected,
-                                       const ::gemmi::AtomAddress& address)
-    -> std::optional<std::size_t> {
-    const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
-    // As Model::find_cra(address, true): the first residue with the given name decides.
-    for (const auto* residue : candidates) {
-        if (residue->name != address.res_id.name) {
-            continue;
-        }
-        if (!address.atom_name.empty()) {
-            if (const auto* atom = residue->find_atom(address.atom_name, address.altloc)) {
-                return selected.atom_index(atom);
-            }
-        }
-        break;
-    }
-    if (!address.res_id.name.empty() && address.altloc != '\0') {
-        return std::nullopt;
-    }
+struct PartnerMatch {
+    std::optional<std::size_t> atom;
+    std::size_t residue_count = 0;
+};
 
-    for (const auto* residue : candidates) {
-        if (!address.res_id.name.empty() && residue->name != address.res_id.name) {
+[[nodiscard]] auto match_partner(const ResidueIndex& residues,
+                                 const selection::SelectedModel& selected,
+                                 const ::gemmi::AtomAddress& address) -> PartnerMatch {
+    PartnerMatch match;
+    for (const auto* residue : residues.find(address.chain_name, address.res_id.seqid)) {
+        if (!address.res_id.name.empty() && residue->component_name != address.res_id.name) {
             continue;
         }
-        for (const auto& atom : residue->atoms) {
-            if (atom.name == address.atom_name &&
-                (address.altloc == '\0' || atom.altloc == address.altloc)) {
-                return selected.atom_index(std::addressof(atom));
-            }
+        // The atom determines whether the partner is present, not which residue it belongs to.
+        ++match.residue_count;
+        const auto index = residue->component().find_atom(address.atom_name);
+        if (index &&
+            (address.altloc == '\0' || selected.atoms()[*index]->altloc_matches(address.altloc))) {
+            match.atom = index;
         }
     }
-    return std::nullopt;
+    return match;
 }
 
 // Connection bond orders by _struct_conn.id; a connection without one is a single bond.
@@ -174,24 +163,35 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
         return 0;
     }
 
-    const auto residues = ResidueIndex{structure.models.front()};
+    const auto residues = ResidueIndex{selected};
     auto skipped = std::size_t{0};
     for (const auto& connection : structure.connections) {
         if (!is_bond(connection)) {
             continue;
         }
 
-        const auto first = selected_atom_index(residues, selected, connection.partner1);
-        const auto second = selected_atom_index(residues, selected, connection.partner2);
-        if (!first.has_value() || !second.has_value()) {
+        const auto first = match_partner(residues, selected, connection.partner1);
+        const auto second = match_partner(residues, selected, connection.partner2);
+        if (!first.atom || !second.atom) {
             continue;
         }
         if (connection.asu == ::gemmi::Asu::Different) {
             ++skipped;
             continue;
         }
+        if (first.residue_count > 1 || second.residue_count > 1) {
+            const auto& address =
+                first.residue_count > 1 ? connection.partner1 : connection.partner2;
+            const auto residue =
+                detail::residue_description(address.res_id.name.empty() ? "?" : address.res_id.name,
+                                            address.chain_name, address.res_id.seqid.str(), {});
+            throw ParseError{ParseErrorKind::malformed,
+                             "connection to atom " + address.atom_name +
+                                 ": multiple selected residues match " + residue,
+                             {}};
+        }
         const auto order = orders.find(connection.name);
-        bonds.add(*first, *second,
+        bonds.add(*first.atom, *second.atom,
                   order == orders.end() ? SourceOrder{.order = core::BondOrder::SINGLE}
                                         : order->second);
     }

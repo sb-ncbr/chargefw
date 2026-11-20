@@ -274,8 +274,16 @@ auto MmcifReader::Impl::read_block(::gemmi::cif::Block& block, const std::size_t
         throw ParseError{ParseErrorKind::malformed, "mmCIF block has no atom sites", {}};
     }
     ::gemmi::add_entity_types(structure, false);
-    auto selected_models =
-        gemmi::selection::select_models(structure, options_.selection, options_.conformers);
+    // Atoms are told apart by their label name where the file has one, as residue templates match
+    // them; Gemmi names an atom by its author name. An atom's serial number names its row, as in
+    // make_source_mappings().
+    auto atom_sites = gemmi::mmcif_labels::source_atom_sites(block);
+    const auto atom_name = [&atom_sites](const ::gemmi::Atom& atom) {
+        const auto label = gemmi::mmcif_labels::source_value(atom_sites[atom.serial - 1], 1);
+        return std::string{io::detail::known_label(label).value_or(atom.name)};
+    };
+    auto selected_models = gemmi::selection::select_models(structure, options_.selection,
+                                                           options_.conformers, atom_name);
     auto source_models = make_source_mappings(block, selected_models);
     for (std::size_t index = 0; index < selected_models.size(); ++index) {
         selected_models[index].normalize_component_names(source_models[index].conformer.sites);
