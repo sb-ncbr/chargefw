@@ -774,6 +774,38 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[io
     }
 }
 
+TEST_CASE("native readers reject input with no molecule record", "[io][native]") {
+    const std::string sdf_record{"water\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                                 "    0.0000    0.0000    0.0000 O   0  0\nM  END\n$$$$\n"};
+    // An SDF record has no MOLECULE line, so as MOL2 it is input with no record.
+    for (const auto& text : {std::string{}, std::string{"\n \n"}, sdf_record}) {
+        CAPTURE(text);
+        const auto check = [](auto reader) {
+            const auto error =
+                chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(reader.next()); });
+            REQUIRE(error.has_value());
+            CHECK(error->location().source_name == "input");
+            CHECK_FALSE(error->location().record_index.has_value());
+        };
+        std::istringstream mol2_input{text};
+        check(io::Mol2Reader{mol2_input, "input"});
+        if (text != sdf_record) {
+            std::istringstream sdf_input{text};
+            check(io::SdfReader{sdf_input, "input"});
+        }
+    }
+    std::istringstream mol_input{""};
+    auto mol_reader = io::MolReader{mol_input, "input"};
+    CHECK_THROWS_AS(mol_reader.next(), io::ParseError);
+    CHECK_FALSE(mol_reader.next().has_value());
+
+    // End of input after a record is not an error.
+    std::istringstream sdf_input{sdf_record + "\n"};
+    auto sdf_reader = io::SdfReader{sdf_input, "input"};
+    REQUIRE(sdf_reader.next().has_value());
+    CHECK_FALSE(sdf_reader.next().has_value());
+}
+
 TEST_CASE("native readers reject malformed records", "[io][native]") {
     struct MalformedFixture {
         std::string_view path;

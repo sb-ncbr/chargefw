@@ -25,8 +25,9 @@ Charges calculated from any input can be written as result JSON, and as MOL2 or 
 molecules have coordinates. Structures read from PDB or mmCIF can also be written as PQR. ChargeFW
 does not write MOL, SDF, molecule JSON, or PDB.
 
-Malformed or unsupported data in a file is an error. MOL, SDF, and MOL2 files may use LF or CRLF
-line endings.
+Malformed or unsupported data in a file is an error. So is a MOL, SDF, or MOL2 file with no molecule
+record in it, such as an empty file or an SDF file read as MOL2. MOL, SDF, and MOL2 files may use LF
+or CRLF line endings.
 
 The [command line](../interfaces/cli.md#calculating-charges) and
 [Python](../interfaces/python.md#reading-molecules) also read gzip-compressed files, such as the

@@ -7,6 +7,9 @@
 - The command line reads gzip-compressed files, such as `structure.cif.gz`, in the format of the
   extension before `.gz`, and names the outputs as for `structure.cif`. `chargefw.io.read()` reads
   gzip-compressed files whatever their name.
+- A MOL, SDF, or MOL2 input with no molecule record, such as an empty file or an SDF file read as
+  MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
+  output.
 
 ### Output
 

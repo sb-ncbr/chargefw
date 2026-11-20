@@ -12,6 +12,7 @@ namespace chargefw::io {
 // Bounded-memory Tripos MOL2 reader. Each call consumes one @<TRIPOS>MOLECULE record. The reader
 // uses the ATOM and BOND sections, with standard atom types and numeric bonds, and formal charges
 // from UNITY_ATOM_ATTR; it skips other sections. Aromatic bond types are imported as single bonds.
+// Input with no MOLECULE record throws ParseError.
 class Mol2Reader {
   public:
     explicit Mol2Reader(std::istream& input, std::string source_name = {});

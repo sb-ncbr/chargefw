@@ -10,6 +10,7 @@
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
+#include <chargefw/io/parse_error.h>
 
 #include <cstddef>
 #include <optional>
@@ -470,11 +471,14 @@ MolReader::MolReader(std::istream& input, std::string source_name)
     : input_{std::addressof(input)}, source_{std::move(source_name)} {}
 
 auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
-    if (consumed_ || input_->peek() == std::char_traits<char>::eof()) {
+    if (consumed_) {
         return std::nullopt;
     }
-
     consumed_ = true;
+    if (input_->peek() == std::char_traits<char>::eof()) {
+        throw ParseError{"no MOL molecule record found", {.source_name = source_}};
+    }
+
     auto line = std::size_t{};
     auto result = native::mol_input::parse_mol(
         *input_, {.source_name = source_, .record_index = 0, .record_id = {}}, line);

@@ -10,7 +10,7 @@
 namespace chargefw::io {
 
 // Bounded-memory SDF reader. Each call consumes at most one SDF record. A null result denotes clean
-// end-of-file; invalid input throws and terminates import.
+// end-of-file after at least one record; input with no record, and invalid input, throw ParseError.
 class SdfReader {
   public:
     explicit SdfReader(std::istream& input, std::string source_name = {});

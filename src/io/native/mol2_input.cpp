@@ -9,6 +9,7 @@
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
+#include <chargefw/io/parse_error.h>
 
 #include <cstddef>
 #include <optional>
@@ -354,6 +355,9 @@ auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
         while (!found) {
             const auto line = common::try_read_line(*input_, line_);
             if (!line.has_value()) {
+                if (record_index_ == 0) {
+                    throw ParseError{"no MOL2 molecule record found", {.source_name = source_}};
+                }
                 return std::nullopt;
             }
             found = line->starts_with('@') && common::trim(*line) == molecule_marker;

@@ -3,6 +3,8 @@
 #include "common_input.h"
 #include "mol_record_parser.h"
 
+#include <chargefw/io/parse_error.h>
+
 #include <istream>
 #include <string>
 #include <utility>
@@ -44,6 +46,9 @@ SdfReader::SdfReader(std::istream& input, std::string source_name)
 
 auto SdfReader::next() -> std::optional<ImportedMoleculeRecord> {
     if (at_end_of_records(*input_)) {
+        if (record_index_ == 0) {
+            throw ParseError{"no SDF molecule record found", {.source_name = source_}};
+        }
         return std::nullopt;
     }
 
