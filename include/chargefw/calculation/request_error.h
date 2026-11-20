@@ -13,6 +13,11 @@ namespace chargefw::calculation {
 enum class RequestErrorKind : std::uint8_t {
     // The method ID is not registered.
     unknown_method,
+    // The parameter-set ID is not among the parameter sets of the request.
+    unknown_parameter_set,
+    // The parameter set does not go with the method: it is for another method, the method takes
+    // none, or the request names no method.
+    incompatible_parameter_set,
     // The execution mode, radius, or atom thresholds do not go together or are out of range.
     invalid_execution,
 };

@@ -87,9 +87,18 @@ class RecordingObserver(chargefw.CalculationObserver):
 
 
 def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() -> None:
+    eem_set = next(id for id, item in chargefw.parameter_sets.items() if item.method.id == "eem")
     # Checked in Python before the native call, and in the native code.
     for arguments, kind in (
         ({"method": "no-such-method"}, "unknown_method"),
+        ({"method": "eem", "parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"method": "qeq", "parameter_set": eem_set}, "incompatible_parameter_set"),
+        ({"method": "formal", "parameter_set": eem_set}, "incompatible_parameter_set"),
+        ({"parameter_set": eem_set}, "incompatible_parameter_set"),
+        # Whether the set exists is asked before whether it goes with the method.
+        ({"method": "formal", "parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"method": "no-such-method", "parameter_set": "no-such-set"}, "unknown_method"),
         ({"method": "eem", "execution": "cutoff", "radius": 0.1}, "invalid_execution"),
     ):
         errors = []

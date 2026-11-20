@@ -823,6 +823,47 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
         CHECK_THROWS_AS(static_cast<void>(calculation::assess(request)), std::invalid_argument);
     }
 
+    // A parameter set that is not known, and one that does not go with the method.
+    using Kind = calculation::RequestErrorKind;
+    const auto sets = std::vector{make_singular_eem_parameter_set()};
+    for (const auto& [request, kind] :
+         {std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "eem",
+                                                   .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "qeq",
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "formal",
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          // Whether the set exists is asked before whether it goes with the method.
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "formal",
+                                                   .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set},
+          std::pair{calculation::AssessmentRequest{
+                        .molecules = water, .parameter_sets = sets, .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set}}) {
+        CAPTURE(request.method_id.value_or("none"), *request.parameter_set_id);
+        try {
+            static_cast<void>(calculation::assess(request));
+            FAIL_CHECK("an invalid parameter-set selection was accepted");
+        } catch (const calculation::RequestError& error) {
+            CHECK(error.kind() == kind);
+        }
+    }
+
     // The error says which part of the request to change, and is still a std::invalid_argument.
     // An unknown method is the same error whichever check meets it first, here also the check of
     // its options.

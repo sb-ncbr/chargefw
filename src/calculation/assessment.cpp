@@ -142,27 +142,31 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
     if (!request.parameter_set_id.has_value()) {
         return;
     }
-    if (!request.method_id.has_value()) {
-        throw std::invalid_argument{"parameter-set selection requires an explicit method"};
-    }
-
-    const auto& method = requested_method(*request.method_id);
-    if (!method.requirements().requires_parameters()) {
-        throw std::invalid_argument{"method '" + *request.method_id +
-                                    "' does not accept a parameter set"};
-    }
-
+    // In this order in every interface: the method must exist, then the set, and only then is
+    // it asked whether the two go together.
+    const auto* const method =
+        request.method_id.has_value() ? &requested_method(*request.method_id) : nullptr;
     const auto found = std::ranges::find_if(
         request.parameter_sets, [&request](const parameters::ParameterSet& parameter_set) {
             return parameter_set.id() == *request.parameter_set_id;
         });
     if (found == request.parameter_sets.end()) {
-        throw std::invalid_argument{"unknown parameter set '" + *request.parameter_set_id + "'"};
+        throw RequestError{RequestErrorKind::unknown_parameter_set,
+                           "unknown parameter set '" + *request.parameter_set_id + "'"};
+    }
+    if (method == nullptr) {
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "parameter-set selection requires an explicit method"};
+    }
+    if (!method->requirements().requires_parameters()) {
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "method '" + *request.method_id + "' does not accept a parameter set"};
     }
     if (!found->method_id().empty() && found->method_id() != *request.method_id) {
-        throw std::invalid_argument{"parameter set '" + *request.parameter_set_id +
-                                    "' belongs to method '" + std::string{found->method_id()} +
-                                    "', not '" + *request.method_id + "'"};
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "parameter set '" + *request.parameter_set_id + "' belongs to method '" +
+                               std::string{found->method_id()} + "', not '" + *request.method_id +
+                               "'"};
     }
 
     std::erase_if(request.parameter_sets,

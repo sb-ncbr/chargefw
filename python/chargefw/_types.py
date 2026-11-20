@@ -25,7 +25,9 @@ type FailureKind = Literal["no_solution", "not_converged", "invalid_parameter_va
 type ParseErrorKind = Literal[
     "no_records", "invalid_encoding", "malformed", "unsupported", "inconsistent_models"
 ]
-type RequestErrorKind = Literal["unknown_method", "invalid_execution"]
+type RequestErrorKind = Literal[
+    "unknown_method", "unknown_parameter_set", "incompatible_parameter_set", "invalid_execution"
+]
 type OutputErrorKind = Literal[
     "missing_coordinates",
     "unsupported_shape",

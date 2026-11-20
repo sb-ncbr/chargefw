@@ -12,6 +12,10 @@ auto to_string(const RequestErrorKind value) -> std::string_view {
     switch (value) {
     case RequestErrorKind::unknown_method:
         return "unknown_method";
+    case RequestErrorKind::unknown_parameter_set:
+        return "unknown_parameter_set";
+    case RequestErrorKind::incompatible_parameter_set:
+        return "incompatible_parameter_set";
     case RequestErrorKind::invalid_execution:
         return "invalid_execution";
     }

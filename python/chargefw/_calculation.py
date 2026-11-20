@@ -160,7 +160,7 @@ def _requested_parameter_set(parameter_set: str | ParameterSet | None) -> Parame
     if not isinstance(parameter_set, str):
         raise TypeError("parameter_set must be a parameter-set ID, ParameterSet, or None")
     if parameter_set not in parameter_sets:
-        raise ValueError(f"unknown parameter set {parameter_set!r}")
+        raise RequestError(f"unknown parameter set {parameter_set!r}", kind="unknown_parameter_set")
     return parameter_sets[parameter_set]
 
 
