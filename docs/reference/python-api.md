@@ -505,6 +505,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | --- | --- |
 | `chargefw.ChargeFWError` | Base class of the others below |
 | `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError`. `kind` is the cause as a code, one of the [kinds of the format reference](formats.md#format-overview), and `reason` says why as text; `source_name` names the source, or is empty. `line` (from one), `record_index` (from zero), and `record_id`, the record's identifier in the file, say where, and `line_text` is the text of the line; they are `None` when not known |
+| `chargefw.OutputError` | `io.dumps()`, `io.write()`, `io.annotate()`, or an `attach_charges()` function cannot write the result in the format or add the charges to the target; also a `ValueError`. `kind` is the cause as a code, one of the [kinds of the format reference](formats.md#charge-output), and `reason` says why as text. `molecule_index` is the molecule, or `None` for the whole result; `conformer_index`, `atom_index`, `other_atom_index`, `bond_index`, `atom_indices`, and `bond_indices` say where in it, as for an [issue](#issues) |
 | `chargefw.CalculationError` | Base class of the three below; `error.result` holds the `CalculationResult` |
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |

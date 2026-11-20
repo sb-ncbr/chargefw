@@ -383,16 +383,40 @@ The result keeps the text of the input, so `annotate()` needs neither the input 
 `molecules`. It also takes a list of results. Charges that are already in the input are an error
 unless you pass `if_exists="replace"`, or `if_exists="append"` to keep them and add the new charge
 sets after them. `annotate()` raises `ValueError` for molecules that were not read from one PDB or
-mmCIF input. [Charges added to the input
-structure](../reference/formats.md#charges-added-to-the-input-structure) describes the file.
+mmCIF input, and [`OutputError`](#writing-results) for charges it may not replace. [Charges added to
+the input structure](../reference/formats.md#charges-added-to-the-input-structure) describes the
+file.
 
 MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates; PQR
 only for a structure read from PDB or mmCIF, with one model. [Choosing an output
-format](../guide/results.md#choosing-an-output-format) compares the formats, and the
-[format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
-result the format cannot hold raises `ValueError`, and a file that cannot be written raises an `OSError`,
-such as `PermissionError`. A failed write can leave an incomplete file, but the result itself stays
-usable.
+format](../guide/results.md#choosing-an-output-format) compares the formats, and the [format
+reference](../reference/formats.md#charge-output) describes them. A file that cannot be written
+raises an `OSError`, such as `PermissionError`. A failed write can leave an incomplete file, but the
+result itself stays usable.
+
+A result the format cannot hold raises `chargefw.OutputError`, which is also a `ValueError`, before
+anything is written:
+
+```python
+try:
+    chargefw.io.write("ligands.mol2", result, format="mol2")
+except chargefw.OutputError as error:
+    print(error.kind)            # missing_coordinates
+    print(error.molecule_index)  # 2
+    print(error)                 # molecule 3: MOL2 output requires coordinates
+```
+
+`kind` is the cause as a code, one of the [kinds of the format
+reference](../reference/formats.md#charge-output), and `reason` says why as text. `molecule_index`
+is the molecule the error concerns, or `None` when it concerns the whole result. Where the error
+concerns them, `conformer_index`, `atom_index`, `other_atom_index`, `bond_index`, `atom_indices`,
+and `bond_indices` say where in the molecule, as for an [issue](../reference/python-api.md#issues).
+All count from zero; the message counts from one. The `attach_charges()` functions for
+[RDKit](#rdkit) and [Gemmi](#gemmi) raise it too, for a target that changed or already has charges.
+
+An unsupported format, MOL2, mmCIF, or PQR output for a failed calculation, or a format that the
+input never allows, such as PQR for a molecule read from SDF, raises a `ValueError` that is not an
+`OutputError`. A failed result can still be written as result JSON, with its reasons.
 
 Record and atom IDs are strings or 64-bit integers; NumPy integers are converted to Python integers.
 Result JSON keeps integer IDs as numbers. MOL2 and mmCIF write them as text where the format needs a name.

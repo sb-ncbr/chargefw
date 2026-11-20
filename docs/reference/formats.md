@@ -312,6 +312,21 @@ differ from the molecule's total charge by up to 0.00005 per atom; use result JS
 exact values. ChargeFW writes a file only when the charges belong to the molecules being written, in
 the same order; it never reorders them.
 
+A result that a format cannot hold is an error, and nothing is written. The error says why as one
+of these kinds, which Python gives as `OutputError.kind` and C++ as `OutputError::kind()`:
+
+| Kind | The result or target | What to do |
+| --- | --- | --- |
+| `missing_coordinates` | has a molecule without coordinates, which MOL2, mmCIF, and PQR need | Write result JSON, or calculate for molecules with coordinates |
+| `unsupported_shape` | has a number of molecules, conformers, or atoms the format cannot hold, such as several models in PQR | Write another format, or read only the first model |
+| `unrepresentable` | has a value the format cannot hold, such as a chain ID of two characters in PQR or a charge above 10 in mmCIF | Write another format, or change the value in the input |
+| `target_mismatch` | is a document or toolkit molecule that is not the one that was read | Add the charges to the unchanged document or molecule |
+| `existing_charges` | already has charges that block the request | Replace them, or append to them where the format allows |
+
+Later versions may add kinds. When the error concerns one molecule, it names it and, where it
+concerns them, its conformer and atoms. A request that a writer never supports, such as PQR for a
+molecule read from SDF, is an ordinary invalid-argument error without a kind.
+
 ### MOL2
 
 MOL2 output is meant for small molecules. It writes one `SMALL`/`USER_CHARGES` record for each

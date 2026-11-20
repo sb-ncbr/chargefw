@@ -31,6 +31,15 @@
 
 ### Output
 
+- A result that a format cannot hold, a document or RDKit molecule that changed since it was read,
+  and charges already present are reported as `OutputError`, with a kind: `missing_coordinates`,
+  `unsupported_shape`, `unrepresentable`, `target_mismatch`, or `existing_charges`. When it concerns
+  one molecule, it names it and, where it concerns them, its conformer and atoms. It is a
+  `ValueError` in Python and a `std::invalid_argument` in C++, as these errors were, so existing
+  handlers keep working. The messages changed: those for one molecule start with the molecule and
+  atoms, counted from one.
+- `chargefw.io.annotate()` and PQR output report molecules not read from PDB or mmCIF before what
+  the format cannot hold of them, such as missing coordinates or several molecules.
 - mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,
   such as `water` and `Water`, which now become `data_water` and `data_Water_2`. CIF block names
   are case-insensitive, and Gemmi refused the files with `data_water` and `data_Water`.
