@@ -11,11 +11,13 @@ namespace {
 
 auto validate_reduced_radius(const std::optional<double> radius) -> void {
     if (!radius.has_value()) {
-        throw std::invalid_argument{"cutoff and cover execution require a radius"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cutoff and cover execution require a radius"};
     }
 
     if (!std::isfinite(*radius)) {
-        throw std::invalid_argument{"cutoff and cover radius must be finite"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cutoff and cover radius must be finite"};
     }
 
     if (*radius < minimum_reduced_radius) {
@@ -29,7 +31,8 @@ auto validate_policy(const ExecutionMode mode, const std::optional<double> radiu
     switch (mode) {
     case ExecutionMode::full:
         if (radius.has_value()) {
-            throw std::invalid_argument{"full execution does not accept a radius"};
+            throw RequestError{RequestErrorKind::invalid_execution,
+                               "full execution does not accept a radius"};
         }
         return;
     case ExecutionMode::cutoff:

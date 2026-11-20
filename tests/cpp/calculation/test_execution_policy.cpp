@@ -52,12 +52,16 @@ TEST_CASE("execution policy validates mode and radius", "[calculation][execution
                         std::invalid_argument);
     }
 
-    // A radius below the smallest one is an invalid request for execution.
-    try {
-        static_cast<void>(calculation::ExecutionPolicy(Mode::cover, 7.99));
-        FAIL_CHECK("a radius below the smallest one was accepted");
-    } catch (const calculation::RequestError& error) {
-        CHECK(error.kind() == calculation::RequestErrorKind::invalid_execution);
+    // Each is an invalid request for execution: a radius with full execution, none or one that is
+    // not finite with cutoff, and one below the smallest with cover.
+    for (const auto& [mode, radius] : {Case{Mode::full, 8.0}, Case{Mode::cutoff, std::nullopt},
+                                       Case{Mode::cutoff, infinity}, Case{Mode::cover, 7.99}}) {
+        try {
+            static_cast<void>(calculation::ExecutionPolicy(mode, radius));
+            FAIL_CHECK("an invalid execution policy was accepted");
+        } catch (const calculation::RequestError& error) {
+            CHECK(error.kind() == calculation::RequestErrorKind::invalid_execution);
+        }
     }
 }
 

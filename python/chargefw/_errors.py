@@ -167,7 +167,9 @@ class RequestError(ChargeFWError, ValueError):
     ``"incompatible_parameter_set"`` for a set that does not go with the method, because it is for
     another method, the method takes none, or no method is named, ``"invalid_method_option"`` for
     an option the method does not have or a value it does not declare for it, and
-    ``"invalid_execution"`` for a radius below the smallest one. More kinds may be added.
+    ``"invalid_execution"`` for an execution mode, radius, and atom thresholds that do not go
+    together or are out of range, such as cutoff execution without a radius. More kinds may be
+    added.
     ``reason``, which is also the message, says why. ``option`` is the ID of the method option an
     ``"invalid_method_option"`` error concerns, or ``None`` when it concerns no single option.
     """

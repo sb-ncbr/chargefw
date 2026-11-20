@@ -101,6 +101,15 @@ def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() ->
         ({"parameter_set": "no-such-set"}, "unknown_parameter_set"),
         ({"method": "no-such-method", "parameter_set": "no-such-set"}, "unknown_method"),
         ({"method": "eem", "execution": "cutoff", "radius": 0.1}, "invalid_execution"),
+        ({"method": "eem", "execution": "cutoff"}, "invalid_execution"),
+        ({"method": "eem", "execution": "cover", "radius": float("inf")}, "invalid_execution"),
+        ({"method": "eem", "execution": "full", "radius": 10.0}, "invalid_execution"),
+        ({"cutoff_threshold": 100, "cover_threshold": 10}, "invalid_execution"),
+        ({"cutoff_threshold": "unlimited", "cover_threshold": 10}, "invalid_execution"),
+        # Checked before the native call: numbers that are no atom count or radius.
+        ({"cutoff_threshold": -1}, "invalid_execution"),
+        ({"cover_threshold": 2**100}, "invalid_execution"),
+        ({"method": "eem", "execution": "cutoff", "radius": 10**500}, "invalid_execution"),
     ):
         errors = []
         for function in (chargefw.assess, chargefw.calculate):

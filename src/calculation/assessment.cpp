@@ -135,12 +135,13 @@ auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void
 auto validate_resource_policy(const ResourcePolicy& resource_policy) -> void {
     if (resource_policy.cover_threshold.has_value() &&
         !resource_policy.cutoff_threshold.has_value()) {
-        throw std::invalid_argument{"cover atom threshold requires a finite cutoff atom threshold"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cover atom threshold requires a finite cutoff atom threshold"};
     }
     if (resource_policy.cover_threshold.has_value() &&
         *resource_policy.cover_threshold < *resource_policy.cutoff_threshold) {
-        throw std::invalid_argument{
-            "cover atom threshold must not be smaller than cutoff atom threshold"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cover atom threshold must not be smaller than cutoff atom threshold"};
     }
 }
 

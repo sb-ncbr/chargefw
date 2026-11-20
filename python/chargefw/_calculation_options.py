@@ -43,7 +43,11 @@ def _normalized_threshold(value: ResourceThreshold, name: str) -> ResourceThresh
         return value
     if value is None:
         raise TypeError(f"{name} must be a non-negative integer or 'unlimited'")
-    return _normalized_nonnegative_integer(value, name)
+    try:
+        return _normalized_nonnegative_integer(value, name)
+    except ValueError as error:
+        # A number that is no atom count; a value that is no number stays a TypeError.
+        raise RequestError(str(error), kind="invalid_execution") from None
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -191,7 +195,12 @@ class RequestedCalculation:
         if radius is not None:
             if not isinstance(radius, numbers.Real) or isinstance(radius, (bool, np.bool)):
                 raise TypeError("radius must be a real number or None")
-            radius = float(radius)
+            try:
+                radius = float(radius)
+            except OverflowError:
+                raise RequestError(
+                    "radius cannot be represented as a float", kind="invalid_execution"
+                ) from None
 
         normalized_cutoff = _normalized_threshold(cutoff_threshold, "cutoff_threshold")
         normalized_cover = _normalized_threshold(cover_threshold, "cover_threshold")
