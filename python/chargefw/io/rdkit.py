@@ -12,7 +12,7 @@ from .._arrays import as_integer
 from .._calculation import CalculationResult
 from .._charges import ChargeAssignment
 from .._core import Molecule
-from .._errors import OutputError
+from .._errors import OutputError, ParseError
 from . import IfExists, _replace_existing
 
 try:
@@ -57,11 +57,21 @@ def from_mol(
     hydrogen_counts = chemistry.Mol(molecule, quickCopy=True)
     hydrogen_counts.UpdatePropertyCache(strict=False)
     if any(atom.GetTotalNumHs() for atom in hydrogen_counts.GetAtoms()):
-        raise ValueError(
-            "RDKit molecule has hydrogens that are not explicit atoms; add them with Chem.AddHs()"
+        raise ParseError(
+            "RDKit molecule has hydrogens that are not explicit atoms; add them with Chem.AddHs()",
+            kind="unsupported",
+            source_name=source_name,
         )
 
     atoms = tuple(molecule.GetAtoms())
+    for atom in atoms:
+        if not 1 <= atom.GetAtomicNum() <= 100:
+            raise ParseError(
+                f"RDKit atom {atom.GetIdx() + 1} has atomic number {atom.GetAtomicNum()}; only "
+                "elements 1 to 100 are accepted, and dummy atoms are not",
+                kind="unsupported",
+                source_name=source_name,
+            )
     bonds: list[tuple[int, int, int]] = []
     direct_bond_orders = {
         chemistry.BondType.SINGLE: 1,
@@ -75,7 +85,11 @@ def from_mol(
     }
     for bond in molecule.GetBonds():
         if bond.HasQuery():
-            raise ValueError("RDKit query bonds cannot be imported as molecular input")
+            raise ParseError(
+                "RDKit query bonds cannot be imported as molecular input",
+                kind="unsupported",
+                source_name=source_name,
+            )
         bond_type = bond.GetBondType()
         is_aromatic = bond.GetIsAromatic()
         order = direct_bond_orders.get(bond_type) if not is_aromatic else None
@@ -86,9 +100,11 @@ def from_mol(
         ):
             order = 1
         if order is None:
-            raise ValueError(
+            raise ParseError(
                 f"RDKit molecule contains unsupported bond type {bond_type}; only explicit single, "
-                "double, and triple bonds are accepted without bond conversion"
+                "double, and triple bonds are accepted without bond conversion",
+                kind="unsupported",
+                source_name=source_name,
             )
         bonds.append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order))
 
@@ -96,11 +112,13 @@ def from_mol(
     # RDKit marks a conformer 2D when it was drawn, read from a file declared 2D, or read flat from
     # a file that declares no dimension.
     if any(not conformer.Is3D() for conformer in conformers):
-        raise ValueError(
+        raise ParseError(
             "RDKit molecule has a 2D conformer, which is a drawing, not a geometry; embed 3D "
             "coordinates with AllChem.EmbedMolecule(), remove the conformers with "
             "RemoveAllConformers() for methods that need no geometry, or, if the coordinates are "
-            "a real flat geometry, mark the conformer with Set3D(True)"
+            "a real flat geometry, mark the conformer with Set3D(True)",
+            kind="unsupported",
+            source_name=source_name,
         )
     coordinates = (
         [

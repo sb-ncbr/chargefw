@@ -589,7 +589,8 @@ need no geometry, or mark a real flat geometry with `conformer.Set3D(True)`. RDK
 conformer 2D when it reads a flat molecule from a molfile that declares no dimension. By default,
 only single, double, and triple bonds are accepted. `bond_conversion="single"` turns aromatic and
 dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds; other bond types,
-such as ionic, hydrogen, or zero-order bonds, remain errors.
+such as ionic, hydrogen, or zero-order bonds, remain errors. A molecule that `from_mol()` refuses
+raises a `ParseError` with `kind` `"unsupported"` and the `source_name` you gave.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.

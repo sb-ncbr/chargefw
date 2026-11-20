@@ -27,6 +27,9 @@
   MOL, SDF, and MOL2 readers reported bad or empty input.
 - A parameter-set file of a format version ChargeFW does not read is reported as unsupported,
   whatever else the file has; in Python, `ParseError.kind` is `"unsupported"` for it.
+- `chargefw.io.rdkit.from_mol()` raises `ParseError` with kind `"unsupported"` for an RDKit molecule
+  it refuses: hydrogens that are not explicit atoms, a dummy atom or an element above 100, a 2D
+  conformer, a query bond, or a bond type it does not accept. It was a `ValueError`, which `ParseError` also is.
 - Breaking change: in C++, the parameter-set loaders throw `parameters::ParseError`, a
   `std::runtime_error` with a kind, for a file whose content they refuse, and `std::runtime_error`
   for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
