@@ -609,14 +609,25 @@ END
     CHECK(conformers[1].sites[0].structural_labels->alternate_location == "B");
 }
 
-TEST_CASE("PDB input rejects ambiguous source identities", "[io][pdb]") {
-    std::istringstream input{
-        R"pdb(ATOM      1  C1  LIG A   1       0.000   0.000   0.000  1.00 20.00           C
-ATOM      2  C1  LIG A   1       0.100   0.000   0.000  1.00 20.00           C
-END
-)pdb"};
-
-    CHECK_THROWS_AS(io::PdbReader{input}, std::runtime_error);
+TEST_CASE("PDB input rejects an atom repeated at one alternate location", "[io][pdb]") {
+    // Without alternate locations, and at B after A, which is the one read.
+    for (const std::string_view locations : {"  ", "ABB"}) {
+        auto text = std::string{};
+        for (std::size_t index = 0; index < locations.size(); ++index) {
+            text +=
+                std::format("ATOM  {:>5}  C1 {}LIG A   1       {}.000   0.000   0.000  1.00 20.00"
+                            "           C\n",
+                            index + 1, locations[index], index);
+        }
+        CAPTURE(text);
+        std::istringstream input{text + "END\n"};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::PdbReader{input}); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::ParseErrorKind::malformed);
+        CHECK(error->reason().contains("LIG A 1"));
+        CHECK(error->reason().contains("C1"));
+    }
 }
 
 TEST_CASE("PDB mapping retains source labels through Gemmi normalization", "[io][pdb]") {

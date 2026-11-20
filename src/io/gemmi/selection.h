@@ -7,6 +7,7 @@
 #include <gemmi/model.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -27,10 +28,14 @@ struct SelectedResidue {
     }
 };
 
+// The name that tells the atoms of a residue apart, where it is not the one Gemmi gives the atom.
+using AtomName = std::function<std::string(const ::gemmi::Atom&)>;
+
 // Borrows a Gemmi model and its atoms. The model must outlive this view and remain unmodified.
 class SelectedModel {
   public:
-    explicit SelectedModel(const ::gemmi::Model& model, RecordSelection selection);
+    SelectedModel(const ::gemmi::Model& model, RecordSelection selection,
+                  const AtomName& atom_name = {});
 
     [[nodiscard]] auto atoms() const -> const std::vector<const ::gemmi::Atom*>&;
     [[nodiscard]] auto sites() const -> const std::vector<::gemmi::const_CRA>&;
@@ -48,6 +53,7 @@ class SelectedModel {
 };
 
 [[nodiscard]] auto select_models(const ::gemmi::Structure& structure, RecordSelection selection,
-                                 ConformerSelection conformers) -> std::vector<SelectedModel>;
+                                 ConformerSelection conformers, const AtomName& atom_name = {})
+    -> std::vector<SelectedModel>;
 
 } // namespace chargefw::io::gemmi::selection

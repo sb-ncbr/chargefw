@@ -222,6 +222,11 @@ alternate location. Residues in different PDB segments or mmCIF label chains are
 alternatives. For each atom name in a residue, only one alternate location is read: the first one in
 the file. Its alternate-location code is kept and written to the output.
 
+An atom name that repeats in a residue with the same alternate location, or with none, is an error.
+Either the file repeats an atom, or several residues share one name, chain, number, and insertion
+code, as in a file whose insertion codes were lost or whose molecules have no chain IDs. Remove the
+repeated atom, or give each residue its own labels.
+
 ### Connectivity
 
 `bonds` (`--bonds` on the command line) chooses where bonds come from:

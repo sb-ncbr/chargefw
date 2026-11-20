@@ -283,6 +283,22 @@ ALA N CA SING
     auto ambiguous_reader = io::MmcifReader{ambiguous};
     CHECK_THROWS_AS(ambiguous_reader.next(), std::runtime_error);
 
+    // Rows that no alternate location tells apart are not alternatives.
+    std::istringstream repeated{make_input("HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
+                                           "HETATM 2 C C1 . LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};
+    auto repeated_reader = io::MmcifReader{repeated};
+    CHECK_THROWS_AS(repeated_reader.next(), io::ParseError);
+
+    // Label names tell atoms apart where the author names do not.
+    std::istringstream labeled{make_input("HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
+                                          "HETATM 2 C C2 . LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};
+    auto labeled_reader = io::MmcifReader{labeled};
+    const auto labeled_record = labeled_reader.next();
+    REQUIRE(labeled_record.has_value());
+    REQUIRE(labeled_record->molecule.atom_count() == 2);
+    CHECK(labeled_record->import_metadata->atoms[0].structural_labels->label.atom == "C1");
+    CHECK(labeled_record->import_metadata->atoms[1].structural_labels->label.atom == "C2");
+
     std::istringstream alternates{
         make_input("HETATM 1 C C1 A LIG A 1 ? 0 0 0 1 20 0 9 LIG A X1 1\n"
                    "HETATM 2 C C1 B LIG A 1 ? 1 0 0 1 20 0 9 LIG A X1 1")};

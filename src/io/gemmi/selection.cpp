@@ -4,7 +4,9 @@
 #include <chargefw/io/parse_error.h>
 #include <iterator>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace chargefw::io::gemmi::selection {
@@ -25,7 +27,8 @@ auto include_residue(const ::gemmi::Residue& residue, const RecordSelection sele
 
 } // namespace
 
-SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection selection) {
+SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection selection,
+                             const AtomName& atom_name) {
     std::size_t atom_count = 0;
     for (const auto& chain : model.chains) {
         for (const auto& residue : chain.residues) {
@@ -66,12 +69,32 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
                                      .component_name = residue.name,
                                      .atoms = {}};
             selected.atoms.reserve(residue.atoms.size());
-            // Select one alternate location per atom name: the first source-order occurrence.
-            auto seen_names = std::unordered_set<std::string_view>{};
-            seen_names.reserve(residue.atoms.size());
+            // An atom name repeats in a residue only for alternate locations, of which the first
+            // in source order is read. Copies that no alternate location tells apart are not
+            // alternatives: the file repeats an atom or gave several residues the same labels.
+            auto seen_altlocs = std::unordered_map<std::string, std::string>{};
+            seen_altlocs.reserve(residue.atoms.size());
             for (std::size_t index = 0; index < residue.atoms.size(); ++index) {
                 const auto& atom = residue.atoms[index];
-                if (!seen_names.emplace(atom.name).second) {
+                auto name = atom_name ? atom_name(atom) : atom.name;
+                auto& altlocs = seen_altlocs[name];
+                if (altlocs.contains(atom.altloc)) {
+                    const auto icode = residue.seqid.has_icode() ? std::string{residue.seqid.icode}
+                                                                 : std::string{};
+                    throw ParseError{ParseErrorKind::malformed,
+                                     "residue " +
+                                         detail::residue_description(residue.name, chain.name,
+                                                                     residue.seqid.num.str(),
+                                                                     icode) +
+                                         " has more than one atom named " + name +
+                                         " and no alternate location to tell them apart; the atom "
+                                         "is repeated, or "
+                                         "several residues have this name, chain, and number",
+                                     {}};
+                }
+                const auto alternate = !altlocs.empty();
+                altlocs.push_back(atom.altloc);
+                if (alternate) {
                     continue;
                 }
 
@@ -155,13 +178,14 @@ void SelectedModel::normalize_component_names(
 }
 
 auto select_models(const ::gemmi::Structure& structure, const RecordSelection selection,
-                   const ConformerSelection conformers) -> std::vector<SelectedModel> {
+                   const ConformerSelection conformers, const AtomName& atom_name)
+    -> std::vector<SelectedModel> {
     const auto count =
         conformers == ConformerSelection::all ? structure.models.size() : std::size_t{1};
     auto result = std::vector<SelectedModel>{};
     result.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
-        result.emplace_back(structure.models[index], selection);
+        result.emplace_back(structure.models[index], selection, atom_name);
     }
     return result;
 }

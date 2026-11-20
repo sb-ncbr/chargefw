@@ -11,6 +11,10 @@
   MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
   output. A PDB file without `ATOM` or `HETATM` records is reported as such, instead of as a
   source mapping mismatch.
+- A PDB or mmCIF residue with an atom name repeated at one alternate location, or with none, is a
+  `ParseError` that names the residue and the atom. Such a file repeats an atom, or has several
+  residues under one name, chain, number, and insertion code. mmCIF input used to read the first atom of each name and
+  leave out the others without a warning; PDB input was refused without saying where.
 - `ParseError` says why the input was refused as a kind: `no_records`, `invalid_encoding`,
   `malformed`, `unsupported`, or `inconsistent_models`. Python has it as `ParseError.kind`, C++ as
   `ParseError::kind()`.
