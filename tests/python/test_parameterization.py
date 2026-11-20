@@ -394,8 +394,12 @@ def test_fit_checks_the_start_before_fitting() -> None:
 
     zero_kappa = FIT_START.copy()
     zero_kappa[0] = 0.0
-    with pytest.raises(EvaluationError, match="at the start"):
+    with pytest.raises(EvaluationError, match="at the start") as failed:
         fit(evaluator, references, start=zero_kappa, free=FIT_FREE)
+    # The failure is that of the calculation the error is chained from.
+    cause = failed.value.__cause__
+    assert isinstance(cause, EvaluationError)
+    assert failed.value.failure is not None and failed.value.failure is cause.failure
 
     # Equal electronegativities give zero charges for neutral molecules, which no hardness changes.
     equal = FIT_START.copy()
