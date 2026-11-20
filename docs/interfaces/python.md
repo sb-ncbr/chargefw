@@ -20,7 +20,9 @@ so several calculations can run at the same time in different threads.
 
 `chargefw.io.read()` reads a file and `chargefw.io.parse()` reads text. Both need the format:
 `"mol"`, `"sdf"`, `"mol2"`, `"molecule-json"`, `"pdb"`, or `"mmcif"`; the file extension is not used.
-`chargefw.io.INPUT_FORMATS` lists them. Both read the whole input and return a `MoleculeCollection`:
+`chargefw.io.INPUT_FORMATS` lists them. `read()` also reads gzip-compressed files, such as
+`structure.cif.gz`, which it recognizes by their content. Both read the whole input and return a
+`MoleculeCollection`:
 
 | Input | Molecules in the collection | Options |
 | --- | --- | --- |
@@ -280,11 +282,51 @@ and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own e
 
 Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
 `chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a
-`ValueError`. Its `reason` says why. For MOL, SDF, and MOL2 files, `line` is the line of the file,
-counted from one, and `record_index` and `record_id` give the record. For molecule JSON, only
-`record_index` and `record_id` are given. For text that is not ASCII in PDB and mmCIF files, and for
-a file that `chargefw.io.read()` cannot read as UTF-8, only `line` is given. Fields that are not
-given are `None`.
+`ValueError`:
+
+```python
+try:
+    molecules = chargefw.io.read("ligands.sdf", format="sdf")
+except chargefw.ParseError as error:
+    print(error.kind)  # malformed
+    print(error.reason)  # unknown element symbol 'Xx'
+    print(error.line)  # 5
+    print(error.line_text)  #     0.0000    0.0000    0.0000 Xx  0  0
+```
+
+`kind` is the cause as a code, one of the [kinds of the format
+reference](../reference/formats.md#format-overview), and `reason` says why as text. For a parameter
+set, `kind` is `"unsupported"` when the set is for a method ChargeFW does not have or in a format
+version this version of ChargeFW does not read, `"invalid_encoding"` when the file is not UTF-8, and
+otherwise `"malformed"`.
+
+`source_name`, `line`, `record_index`, and `record_id` say where, as far as the reader knows. `line`
+counts from one and `record_index` from zero. MOL, SDF, and MOL2 files give the line and the record;
+molecule JSON gives the record; PDB gives the line only for text that is not ASCII. mmCIF gives the
+line for most errors in the text of the file, such as a syntax error, and the data block as the
+record for errors found while reading the atoms of that block. A file that `chargefw.io.read()`
+cannot read as UTF-8 gives the line. `line_text` is the text of that line without its line ending.
+Fields that are not known are `None`; `line_text` is also `None` when the input ends before the line
+or the file could not be decoded.
+
+A request for `assess()` or `calculate()` that is invalid in itself raises
+`chargefw.RequestError`, which is also a `ValueError`:
+
+```python
+try:
+    result = chargefw.calculate(molecules, method="eem", execution="cutoff")
+except chargefw.RequestError as error:
+    print(error.kind)  # invalid_execution
+    print(error.reason)  # cutoff and cover execution require a radius
+```
+
+`kind` is one of the [kinds of an invalid request](../guide/results.md#when-a-request-is-invalid),
+and `reason` is also the message. For `"invalid_method_option"`, `option` is the ID of the option
+when the error concerns one option, and otherwise `None`. An argument of the wrong type, such as
+`method_options=["iters"]`, is still a `TypeError`. A value outside a fixed set of names, such as an
+unknown `execution`, is a plain `ValueError`, and so is a negative `threads`. An option value of a
+type the method does not declare, such as `method_options={"iters": "many"}` for PEOE, is a
+`RequestError`.
 
 A calculation that fails raises a `chargefw.CalculationError`:
 
@@ -360,17 +402,41 @@ chargefw.io.annotate("structure-charged.cif", result)
 The result keeps the text of the input, so `annotate()` needs neither the input file nor
 `molecules`. It also takes a list of results. Charges that are already in the input are an error
 unless you pass `if_exists="replace"`, or `if_exists="append"` to keep them and add the new charge
-sets after them. `annotate()` raises `ValueError` for molecules that were not read from one PDB or
-mmCIF input. [Charges added to the input
-structure](../reference/formats.md#charges-added-to-the-input-structure) describes the file.
+sets after them. `annotate()` raises [`OutputError`](#writing-results) for molecules that were not
+read from one PDB or mmCIF input, and for charges it may not replace. [Charges added to
+the input structure](../reference/formats.md#charges-added-to-the-input-structure) describes the
+file.
 
 MOL2 and mmCIF can be written for input in any format, but only for molecules with coordinates; PQR
 only for a structure read from PDB or mmCIF, with one model. [Choosing an output
-format](../guide/results.md#choosing-an-output-format) compares the formats, and the
-[format reference](../reference/formats.md#charge-output) describes them. An unsupported format or a
-result the format cannot hold raises `ValueError`, and a file that cannot be written raises an `OSError`,
-such as `PermissionError`. A failed write can leave an incomplete file, but the result itself stays
-usable.
+format](../guide/results.md#choosing-an-output-format) compares the formats, and the [format
+reference](../reference/formats.md#charge-output) describes them. A file that cannot be written
+raises an `OSError`, such as `PermissionError`. A failed write can leave an incomplete file, but the
+result itself stays usable.
+
+A result the format cannot hold raises `chargefw.OutputError`, which is also a `ValueError`, before
+anything is written:
+
+```python
+try:
+    chargefw.io.write("ligands.mol2", result, format="mol2")
+except chargefw.OutputError as error:
+    print(error.kind)  # missing_coordinates
+    print(error.molecule_index)  # 2
+    print(error)  # molecule 3: MOL2 output requires coordinates
+```
+
+`kind` is the cause as a code, one of the [kinds of the format
+reference](../reference/formats.md#charge-output), and `reason` says why as text. `molecule_index`
+is the molecule the error concerns, or `None` when it concerns the whole result. Where the error
+concerns them, `conformer_index`, `atom_index`, `other_atom_index`, `bond_index`, `atom_indices`,
+and `bond_indices` say where in the molecule, as for an [issue](../reference/python-api.md#issues).
+All count from zero; the message counts from one. The `attach_charges()` functions for
+[RDKit](#rdkit) and [Gemmi](#gemmi) raise it too, for a target that changed or already has charges,
+or for a failed calculation.
+
+A format name that ChargeFW does not know raises a `ValueError` that is not an `OutputError`. A
+failed result can still be written as result JSON, with its reasons.
 
 Record and atom IDs are strings or 64-bit integers; NumPy integers are converted to Python integers.
 Result JSON keeps integer IDs as numbers. MOL2 and mmCIF write them as text where the format needs a name.
@@ -542,7 +608,8 @@ need no geometry, or mark a real flat geometry with `conformer.Set3D(True)`. RDK
 conformer 2D when it reads a flat molecule from a molfile that declares no dimension. By default,
 only single, double, and triple bonds are accepted. `bond_conversion="single"` turns aromatic and
 dative bonds into single bonds, as ChargeFW's file readers do with aromatic bonds; other bond types,
-such as ionic, hydrogen, or zero-order bonds, remain errors.
+such as ionic, hydrogen, or zero-order bonds, remain errors. A molecule that `from_mol()` refuses
+raises a `ParseError` with `kind` `"unsupported"` and the `source_name` you gave.
 
 `attach_charges()` stores the charges of one assignment as a double property of each atom, named by
 `property_name` (default `ChargeFWPartialCharge`), and as a property list that RDKit writes to SD files.

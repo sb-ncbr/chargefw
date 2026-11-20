@@ -24,6 +24,7 @@ target_link_libraries(chargefw_cli_objects
         $<COMPILE_ONLY:chargefw_objects>
         chargefw_platform
         CLI11::CLI11
+        gemmi::gemmi_cpp
 )
 
 target_include_directories(chargefw_cli_objects PRIVATE "${PROJECT_SOURCE_DIR}/src")

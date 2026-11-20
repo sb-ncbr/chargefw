@@ -2,6 +2,8 @@
 
 #include "core/diagnostic_description.h"
 
+#include <chargefw/calculation/request_error.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -25,24 +27,27 @@ struct ValidatedTarget {
     auto selected_sources = fixed_ions.sources;
     for (const auto& source : fixed_ions.sources) {
         if (source.molecule_index >= molecules.size()) {
-            throw std::invalid_argument{
+            throw RequestError{
+                RequestErrorKind::invalid_fixed_ions,
                 "fixed charge source molecule index " + std::to_string(source.molecule_index) +
-                " is out of range (molecule count " + std::to_string(molecules.size()) + ")"};
+                    " is out of range (molecule count " + std::to_string(molecules.size()) + ")"};
         }
         const auto& molecule = molecules[source.molecule_index];
         if (source.atom_index >= molecule.atom_count()) {
-            throw std::invalid_argument{
+            throw RequestError{
+                RequestErrorKind::invalid_fixed_ions,
                 "fixed charge source at " +
-                core::detail::molecule_description(molecule, source.molecule_index) +
-                " has atom index " + std::to_string(source.atom_index) +
-                " out of range (atom count " + std::to_string(molecule.atom_count()) + ")"};
+                    core::detail::molecule_description(molecule, source.molecule_index) +
+                    " has atom index " + std::to_string(source.atom_index) +
+                    " out of range (atom count " + std::to_string(molecule.atom_count()) + ")"};
         }
         if (!std::isfinite(source.charge)) {
-            throw std::invalid_argument{
+            throw RequestError{
+                RequestErrorKind::invalid_fixed_ions,
                 "fixed charge source at " +
-                core::detail::molecule_description(molecule, source.molecule_index) + ", " +
-                core::detail::atom_description(molecule, source.atom_index) +
-                " has non-finite charge"};
+                    core::detail::molecule_description(molecule, source.molecule_index) + ", " +
+                    core::detail::atom_description(molecule, source.atom_index) +
+                    " has non-finite charge"};
         }
     }
 
@@ -54,10 +59,11 @@ struct ValidatedTarget {
             selected_sources[index].atom_index == selected_sources[index - 1].atom_index) {
             const auto& source = selected_sources[index];
             const auto& molecule = molecules[source.molecule_index];
-            throw std::invalid_argument{
+            throw RequestError{
+                RequestErrorKind::invalid_fixed_ions,
                 "duplicate fixed charge source at " +
-                core::detail::molecule_description(molecule, source.molecule_index) + ", " +
-                core::detail::atom_description(molecule, source.atom_index)};
+                    core::detail::molecule_description(molecule, source.molecule_index) + ", " +
+                    core::detail::atom_description(molecule, source.atom_index)};
         }
     }
 
@@ -79,33 +85,35 @@ struct ValidatedTarget {
         }
         for (const auto& bond : molecule.bonds()) {
             if (selected_mask[bond.first_atom_index()]) {
-                throw std::invalid_argument{
+                throw RequestError{
+                    RequestErrorKind::invalid_fixed_ions,
                     "fixed charge source at " +
-                    core::detail::molecule_description(molecule, molecule_index) + ", " +
-                    core::detail::atom_description(molecule, bond.first_atom_index()) +
-                    " is bonded to " +
-                    core::detail::atom_description(molecule, bond.second_atom_index())};
+                        core::detail::molecule_description(molecule, molecule_index) + ", " +
+                        core::detail::atom_description(molecule, bond.first_atom_index()) +
+                        " is bonded to " +
+                        core::detail::atom_description(molecule, bond.second_atom_index())};
             }
             if (selected_mask[bond.second_atom_index()]) {
-                throw std::invalid_argument{
+                throw RequestError{
+                    RequestErrorKind::invalid_fixed_ions,
                     "fixed charge source at " +
-                    core::detail::molecule_description(molecule, molecule_index) + ", " +
-                    core::detail::atom_description(molecule, bond.second_atom_index()) +
-                    " is bonded to " +
-                    core::detail::atom_description(molecule, bond.first_atom_index())};
+                        core::detail::molecule_description(molecule, molecule_index) + ", " +
+                        core::detail::atom_description(molecule, bond.second_atom_index()) +
+                        " is bonded to " +
+                        core::detail::atom_description(molecule, bond.first_atom_index())};
             }
         }
         if (static_cast<std::size_t>(std::ranges::count(selected_mask, true)) ==
             molecule.atom_count()) {
-            throw std::invalid_argument{
-                "fixed ions leave no active atoms in " +
-                core::detail::molecule_description(molecule, molecule_index)};
+            throw RequestError{RequestErrorKind::invalid_fixed_ions,
+                               "fixed ions leave no active atoms in " +
+                                   core::detail::molecule_description(molecule, molecule_index)};
         }
 
         if (molecule.conformer_count() == 0) {
-            throw std::invalid_argument{
-                "fixed ions require a conformer in " +
-                core::detail::molecule_description(molecule, molecule_index)};
+            throw RequestError{RequestErrorKind::invalid_fixed_ions,
+                               "fixed ions require a conformer in " +
+                                   core::detail::molecule_description(molecule, molecule_index)};
         }
         for (std::size_t conformer_index = 0; conformer_index < molecule.conformer_count();
              ++conformer_index) {
@@ -114,11 +122,12 @@ struct ValidatedTarget {
                 const auto& position = positions[atom_index];
                 if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
                     !std::isfinite(position.z)) {
-                    throw std::invalid_argument{
+                    throw RequestError{
+                        RequestErrorKind::invalid_fixed_ions,
                         "fixed ions have non-finite coordinates at " +
-                        core::detail::molecule_description(molecule, molecule_index) +
-                        ", conformer " + std::to_string(conformer_index + 1) + ", " +
-                        core::detail::atom_description(molecule, atom_index)};
+                            core::detail::molecule_description(molecule, molecule_index) +
+                            ", conformer " + std::to_string(conformer_index + 1) + ", " +
+                            core::detail::atom_description(molecule, atom_index)};
                 }
             }
             // Source positions with their atom indices, sorted for lookup by position.
@@ -136,13 +145,14 @@ struct ValidatedTarget {
                     std::ranges::lower_bound(source_positions, positions[active_atom], {},
                                              &std::pair<core::Position, std::size_t>::first);
                 if (found != source_positions.end() && found->first == positions[active_atom]) {
-                    throw std::invalid_argument{
+                    throw RequestError{
+                        RequestErrorKind::invalid_fixed_ions,
                         "fixed charge source at " +
-                        core::detail::molecule_description(molecule, molecule_index) +
-                        ", conformer " + std::to_string(conformer_index + 1) + ", " +
-                        core::detail::atom_description(molecule, found->second) +
-                        " coincides with active " +
-                        core::detail::atom_description(molecule, active_atom)};
+                            core::detail::molecule_description(molecule, molecule_index) +
+                            ", conformer " + std::to_string(conformer_index + 1) + ", " +
+                            core::detail::atom_description(molecule, found->second) +
+                            " coincides with active " +
+                            core::detail::atom_description(molecule, active_atom)};
                 }
             }
         }

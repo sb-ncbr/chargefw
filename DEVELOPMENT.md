@@ -484,3 +484,20 @@ from a method is an error in ChargeFW, rethrown as `std::logic_error` with the t
 Readers likewise give the reason and, where they have them, the line and record in `io::ParseError`.
 The command line and Python put the molecule and conformer in front of the reason for people; the
 reason never repeats them.
+
+An error that a user can cause has its own type, with a kind enum, a reason without the location,
+and the location as fields:
+
+| Error | Raised for | Base in C++ and Python |
+| --- | --- | --- |
+| `io::ParseError` | molecular input a reader or toolkit conversion refuses | `std::runtime_error`, `ValueError` |
+| `parameters::ParseError` | a parameter-set file whose content is refused; it does not depend on molecules or `io`, and Python raises it as the same `ParseError` | `std::runtime_error`, `ValueError` |
+| `calculation::RequestError` | a request that is invalid in itself, found before candidates are assessed; a valid request that a candidate cannot satisfy is a rejection | `std::invalid_argument`, `ValueError` |
+| `io::OutputError` | a result a writer cannot write, or a target charges cannot be added to | `std::invalid_argument`, `ValueError` |
+
+Declare a kind only when some code throws it, and construct the error where the problem is found
+instead of through a helper per kind. Everything else stays a standard exception: a value outside a
+fixed set of names, such as an unknown format, is `std::invalid_argument` or `ValueError`; a stream
+that fails is `std::runtime_error`; a broken installation is `std::runtime_error`; and a state that
+only a programming error can reach is `std::logic_error`. The command line reports errors as text
+for people and has no machine-readable error output; programs use Python or C++.

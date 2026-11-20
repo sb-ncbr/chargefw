@@ -12,6 +12,7 @@ import numpy as np
 
 from ._arrays import as_integer
 from ._chargefw import calculation as _native_calculation
+from ._errors import RequestError
 from ._methods import Method
 from ._parameters import ParameterSet
 from ._types import (
@@ -42,7 +43,11 @@ def _normalized_threshold(value: ResourceThreshold, name: str) -> ResourceThresh
         return value
     if value is None:
         raise TypeError(f"{name} must be a non-negative integer or 'unlimited'")
-    return _normalized_nonnegative_integer(value, name)
+    try:
+        return _normalized_nonnegative_integer(value, name)
+    except ValueError as error:
+        # A number that is no atom count; a value that is no number stays a TypeError.
+        raise RequestError(str(error), kind="invalid_execution") from None
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -97,12 +102,23 @@ def _normalized_option_values(
         elif isinstance(value, numbers.Integral):
             integer = int(value)
             if integer < int_limits.min or integer > int_limits.max:
-                raise ValueError(f"method option {method_id}.{option_id} is outside int range")
+                raise RequestError(
+                    f"method option {method_id}.{option_id} is outside int range",
+                    kind="invalid_method_option",
+                    option=option_id,
+                )
             result[option_id] = integer
         elif isinstance(value, numbers.Real):
-            floating = float(value)
+            try:
+                floating = float(value)
+            except OverflowError:
+                floating = float("inf")  # Too large for a float, such as a huge Fraction.
             if not np.isfinite(floating):
-                raise ValueError(f"method option {method_id}.{option_id} must be finite")
+                raise RequestError(
+                    f"method option {method_id}.{option_id} must be finite",
+                    kind="invalid_method_option",
+                    option=option_id,
+                )
             result[option_id] = floating
         elif isinstance(value, str):
             result[option_id] = value
@@ -163,7 +179,9 @@ class RequestedCalculation:
                 raise TypeError("method_options must be a mapping")
             if method_options:
                 if method_id is None:
-                    raise ValueError("method_options requires an explicit method")
+                    raise RequestError(
+                        "method_options requires an explicit method", kind="invalid_method_option"
+                    )
                 normalized_options = _normalized_option_values(method_options, method_id)
 
         if not isinstance(parameter_matching, str):
@@ -177,7 +195,12 @@ class RequestedCalculation:
         if radius is not None:
             if not isinstance(radius, numbers.Real) or isinstance(radius, (bool, np.bool)):
                 raise TypeError("radius must be a real number or None")
-            radius = float(radius)
+            try:
+                radius = float(radius)
+            except OverflowError:
+                raise RequestError(
+                    "radius cannot be represented as a float", kind="invalid_execution"
+                ) from None
 
         normalized_cutoff = _normalized_threshold(cutoff_threshold, "cutoff_threshold")
         normalized_cover = _normalized_threshold(cover_threshold, "cover_threshold")

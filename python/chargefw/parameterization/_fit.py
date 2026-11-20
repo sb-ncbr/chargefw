@@ -210,7 +210,9 @@ def fit(
     try:
         start_charges = evaluator.charges(feasible)
     except EvaluationError as error:
-        raise EvaluationError(f"the charges cannot be calculated at the start: {error}") from error
+        raise EvaluationError(
+            f"the charges cannot be calculated at the start: {error}", failure=error.failure
+        ) from error
     assert evaluator._assignment_sizes is not None
     sizes = evaluator._assignment_sizes
     reference = _flat(references, "references", sizes, allow_missing=True)

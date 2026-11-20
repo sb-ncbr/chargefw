@@ -14,8 +14,8 @@ namespace chargefw::io {
 [[nodiscard]] auto parse_mol(std::istream& input, MoleculeRecordIdentity identity)
     -> ImportedMoleculeRecord;
 
-// Stateful single-record counterpart to SdfReader. The first call parses the MOL record and later
-// calls return clean end-of-file.
+// Stateful single-record counterpart to SdfReader. The first call parses the MOL record, or throws
+// ParseError for empty input, and later calls return clean end-of-file.
 class MolReader {
   public:
     explicit MolReader(std::istream& input, std::string source_name = {});

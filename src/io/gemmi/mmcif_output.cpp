@@ -8,13 +8,16 @@
 #include "io/output_helpers.h"
 #include "io/record_assignments.h"
 
+#include <chargefw/core/issue_location.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/version.h>
 
 #include <gemmi/cif.hpp>
 #include <gemmi/elem.hpp>
 #include <gemmi/numb.hpp>
 #include <gemmi/to_cif.hpp>
+#include <gemmi/util.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -106,18 +109,21 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
     return candidate;
 }
 
-// Block names must be unique, so repeated names get _2, _3, and so on. Remembering used names and
-// the next suffix per name keeps this linear in the number of records, which often share a name.
+// Block names must be unique, so repeated names get _2, _3, and so on. CIF block names are
+// case-insensitive, so names are compared in lowercase and keep their spelling. Remembering used
+// names and the next suffix per name keeps this linear in the number of records, which often share
+// a name.
 class BlockNames {
   public:
     [[nodiscard]] auto unique(std::string candidate) -> std::string {
-        if (used_.insert(candidate).second) {
+        auto key = ::gemmi::to_lower(candidate);
+        if (used_.insert(key).second) {
             return candidate;
         }
-        auto& suffix = next_suffix_.try_emplace(candidate, 2).first->second;
+        auto& suffix = next_suffix_.try_emplace(std::move(key), 2).first->second;
         while (true) {
             auto name = candidate + "_" + std::to_string(suffix++);
-            if (used_.insert(name).second) {
+            if (used_.insert(::gemmi::to_lower(name)).second) {
                 return name;
             }
         }
@@ -180,29 +186,59 @@ struct OutputAssignments {
            std::to_string(id) == value;
 }
 
+// Where a refusal of one atom of a conformer is; the molecule is added by rethrow_for_molecule().
+[[nodiscard]] auto atom_location(const std::size_t conformer_index, const std::size_t atom_index)
+    -> core::IssueLocation {
+    return core::IssueLocation{
+        .conformer_index = conformer_index, .atom_index = atom_index, .atom_indices = {atom_index}};
+}
+
+// Where a refusal of two atoms is, in index order.
+[[nodiscard]] auto atom_pair(const std::size_t first, const std::size_t second)
+    -> core::IssueLocation {
+    const auto [lower, upper] = std::minmax(first, second);
+    return core::IssueLocation{
+        .atom_index = lower, .other_atom_index = upper, .atom_indices = {lower, upper}};
+}
+
+// Called from a catch block around the work on one input molecule: a refusal that does not name
+// its molecule gets it.
+[[noreturn]] auto rethrow_for_molecule(const std::size_t molecule_index) -> void {
+    try {
+        throw;
+    } catch (const OutputError& error) {
+        if (error.molecule_index().has_value()) {
+            throw;
+        }
+        throw OutputError{error.kind(), error.reason(), molecule_index, error.location()};
+    }
+}
+
 [[nodiscard]] auto attached_mapping(::gemmi::cif::Block& block,
                                     const ImportedMoleculeRecord& record) -> BlockMapping {
     if (!record.import_metadata.has_value() ||
         record.import_metadata->format != MolecularSourceFormat::mmcif) {
-        throw std::invalid_argument{
-            "charge attachment requires unchanged mmCIF-imported calculation inputs"};
+        throw OutputError{
+            OutputErrorKind::unsupported_source,
+            "charges can be added only to the mmCIF document the molecules were read from"};
     }
     if (record.identity.record_id.empty() ||
         record.identity.record_id.display_string() != block.name) {
-        throw std::invalid_argument{
-            "Gemmi target block identity does not match the calculation input"};
+        throw OutputError{OutputErrorKind::target_mismatch,
+                          "Gemmi target block identity does not match the calculation input"};
     }
     auto atom_sites = gemmi::mmcif_labels::source_atom_sites(block);
     auto type_symbols = block.find("_atom_site.", {"type_symbol"});
     auto identity_sites =
         block.find("_atom_site.", {"Cartn_x", "Cartn_y", "Cartn_z", "?pdbx_formal_charge"});
     if (atom_sites.length() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        throw std::invalid_argument{"Gemmi target contains too many atom sites"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "Gemmi target contains too many atom sites"};
     }
     if (type_symbols.length() != atom_sites.length() ||
         identity_sites.length() != atom_sites.length()) {
-        throw std::invalid_argument{
-            "Gemmi target site mapping does not match the calculation input"};
+        throw OutputError{OutputErrorKind::target_mismatch,
+                          "Gemmi target site mapping does not match the calculation input"};
     }
     const auto& metadata = *record.import_metadata;
     auto result = BlockMapping{};
@@ -217,47 +253,58 @@ struct OutputAssignments {
         for (std::size_t atom_index = 0; atom_index < conformer.sites.size(); ++atom_index) {
             const auto& site = conformer.sites[atom_index];
             if (!site.id.has_value() || site.position >= atom_sites.length()) {
-                throw std::invalid_argument{
-                    "Gemmi target site mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target site mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             const auto row_index = static_cast<int>(site.position);
             auto target_id = ::gemmi::cif::as_string(atom_sites[row_index][0]);
             if (target_id != *site.id || !mapped_ids.insert(target_id).second) {
-                throw std::invalid_argument{
-                    "Gemmi target site mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target site mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             if (!canonical_charge_site_id(target_id)) {
-                throw std::invalid_argument{
-                    "Gemmi target atom IDs are not representable by the charge dictionary"};
+                throw OutputError{
+                    OutputErrorKind::unrepresentable,
+                    "Gemmi target atom IDs are not representable by the charge dictionary",
+                    std::nullopt, atom_location(conformer_index, atom_index)};
             }
             const auto& target_site = atom_sites[row_index];
             // Compared as elements, as the reader reads them: wwPDB files write SE for Se.
             if (::gemmi::Element(::gemmi::cif::as_string(type_symbols[row_index][0]))
                     .atomic_number() != record.molecule.atom(atom_index).atomic_number()) {
-                throw std::invalid_argument{
-                    "Gemmi target site mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target site mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             if (site.structural_labels == nullptr ||
                 gemmi::mmcif_labels::decode_source_labels(target_site) != *site.structural_labels) {
-                throw std::invalid_argument{
-                    "Gemmi target site mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target site mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             if (target_site.has(gemmi::mmcif_labels::model_id_column) &&
                 ::gemmi::cif::as_string(target_site[gemmi::mmcif_labels::model_id_column]) !=
                     model_id) {
-                throw std::invalid_argument{
-                    "Gemmi target model mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target model mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             const auto& position = record.molecule.conformer(conformer_index)[atom_index];
             const auto& identity_site = identity_sites[row_index];
-            const auto formal_charge =
-                identity_site.has(3) ? ::gemmi::cif::as_int(identity_site[3], 0) : 0;
+            // As the reader reads it, and zero when the column is absent. Text that is not a
+            // formal charge is a changed target.
+            const auto formal_charge = identity_site.has(3)
+                                           ? gemmi::mmcif_labels::formal_charge(identity_site[3])
+                                           : std::optional<int>{0};
             if (::gemmi::cif::as_number(identity_site[0]) != position.x ||
                 ::gemmi::cif::as_number(identity_site[1]) != position.y ||
                 ::gemmi::cif::as_number(identity_site[2]) != position.z ||
                 formal_charge != record.molecule.atom(atom_index).formal_charge()) {
-                throw std::invalid_argument{
-                    "Gemmi target site mapping does not match the calculation input"};
+                throw OutputError{OutputErrorKind::target_mismatch,
+                                  "Gemmi target site mapping does not match the calculation input",
+                                  std::nullopt, atom_location(conformer_index, atom_index)};
             }
             ids.push_back(std::move(target_id));
         }
@@ -457,10 +504,14 @@ struct RecordBonds {
             residue.component = site.label_residue;
             residue.description = residue_description(site);
         }
-        if (!residue.atoms.emplace(site.label_atom, atom_index).second) {
-            throw std::invalid_argument{std::format(
-                "mmCIF bond output requires unique atom names, but {} has atom '{}' more than once",
-                residue.description, site.label_atom)};
+        if (const auto [named, added] = residue.atoms.emplace(site.label_atom, atom_index);
+            !added) {
+            throw OutputError{
+                OutputErrorKind::unrepresentable,
+                std::format("mmCIF bond output requires unique atom names, but {} has atom '{}' "
+                            "more than once",
+                            residue.description, site.label_atom),
+                std::nullopt, atom_pair(named->second, atom_index)};
         }
     }
 
@@ -493,10 +544,11 @@ struct RecordBonds {
     for (const auto& [index, description] : differing) {
         auto& bond = result.component_bonds[index];
         if (!follows_protonation(molecule, residues, bond)) {
-            throw std::invalid_argument{std::format(
-                "mmCIF bond output cannot write bond {}-{} of {}: another {} residue has a "
-                "different bond order",
-                bond.first_atom, bond.second_atom, description, bond.component)};
+            throw OutputError{
+                OutputErrorKind::unrepresentable,
+                std::format("mmCIF bond output cannot write bond {}-{} of {}: another {} residue "
+                            "has a different bond order",
+                            bond.first_atom, bond.second_atom, description, bond.component)};
         }
         bond.delocalized = true;
     }
@@ -531,10 +583,14 @@ struct RecordBonds {
         for (const auto& key : std::views::keys(definitions[residue.component])) {
             if (residue.atoms.contains(key.first) && residue.atoms.contains(key.second) &&
                 !residue.bonds.contains(key)) {
-                throw std::invalid_argument{std::format(
-                    "mmCIF bond output cannot write bond {}-{} of {}: {} has both atoms but no "
-                    "bond between them",
-                    key.first, key.second, residue.component, residue.description)};
+                throw OutputError{
+                    OutputErrorKind::unrepresentable,
+                    std::format("mmCIF bond output cannot write bond {}-{} of {}: {} has both "
+                                "atoms but no bond between them",
+                                key.first, key.second, residue.component, residue.description),
+                    std::nullopt,
+                    atom_pair(residue.atoms.find(key.first)->second,
+                              residue.atoms.find(key.second)->second)};
             }
         }
     }
@@ -560,20 +616,25 @@ auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds
 }
 
 // Appends the _struct_conn partner columns of one atom, in the order of connection_columns().
-auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLabels& site)
-    -> void {
+// A refusal is located at the two atoms of the bond.
+auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLabels& site,
+                               const core::IssueLocation& bond_atoms) -> void {
     // Readers find a partner by author chain and number, or by label chain and number.
     if (site.author_sequence == "." && site.label_sequence == ".") {
-        throw std::invalid_argument{"mmCIF bond output cannot write a bond to " +
-                                    residue_description(site) + ": it has no residue number"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "mmCIF bond output cannot write a bond to " + residue_description(site) +
+                              ": it has no residue number",
+                          std::nullopt, bond_atoms};
     }
     // Readers such as Gemmi name atoms by their author names but look up partners by the label
     // names, so a partner whose names differ would not be found.
     if (site.label_atom != site.author_atom || site.label_residue != site.author_residue) {
-        throw std::invalid_argument{std::format(
-            "mmCIF bond output cannot write a bond to atom {} of {}: its author and label atom or "
-            "residue names differ",
-            site.label_atom, residue_description(site))};
+        throw OutputError{
+            OutputErrorKind::unrepresentable,
+            std::format("mmCIF bond output cannot write a bond to atom {} of {}: its author and "
+                        "label atom or residue names differ",
+                        site.label_atom, residue_description(site)),
+            std::nullopt, bond_atoms};
     }
     const auto optional = [](const std::string& value) {
         return value == "." ? std::string{"."} : quote(value);
@@ -616,8 +677,9 @@ auto append_connections(::gemmi::cif::Block& block, const core::Molecule& molecu
         const auto type = std::string{disulfide ? "disulf" : "covale"};
         auto row = std::vector<std::string>{
             type + std::to_string(disulfide ? next_disulfide_id++ : next_covalent_id++), type};
-        append_connection_partner(row, labels[bond->first_atom_index()]);
-        append_connection_partner(row, labels[bond->second_atom_index()]);
+        const auto bond_atoms = atom_pair(bond->first_atom_index(), bond->second_atom_index());
+        append_connection_partner(row, labels[bond->first_atom_index()], bond_atoms);
+        append_connection_partner(row, labels[bond->second_atom_index()], bond_atoms);
         row.emplace_back(mmcif_bond_order(bond->order()));
         rows.append_row(row);
     }
@@ -641,40 +703,49 @@ auto append_bonds(::gemmi::cif::Block& block, const ImportedMoleculeRecord& reco
     append_connections(block, molecule, labels, bonds.connections);
 }
 
+// What the format can hold of a result that require_results() accepted.
 auto validate_result_output(const ChargeCalculationResult& result) -> void {
-    if (result.charges() == nullptr) {
-        throw std::invalid_argument{"mmCIF output requires a successful calculation"};
-    }
-    if (result.inputs().empty()) {
-        throw std::invalid_argument{"mmCIF output requires at least one molecule record"};
-    }
-    for (const auto& record : result.inputs()) {
-        const auto& molecule = record.molecule;
+    for (std::size_t molecule_index = 0; molecule_index < result.inputs().size();
+         ++molecule_index) {
+        const auto& molecule = result.inputs()[molecule_index].molecule;
         if (molecule.atom_count() == 0) {
-            throw std::invalid_argument{"mmCIF output requires at least one atom per record"};
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "mmCIF output requires at least one atom", molecule_index};
         }
         if (molecule.conformer_count() == 0) {
-            throw std::invalid_argument{"mmCIF output requires coordinates"};
+            throw OutputError{OutputErrorKind::missing_coordinates,
+                              "mmCIF output requires coordinates", molecule_index};
         }
-        if (molecule.atom_count() != 0 &&
-            molecule.conformer_count() >
-                static_cast<std::size_t>(std::numeric_limits<int>::max()) / molecule.atom_count()) {
-            throw std::invalid_argument{"mmCIF output contains too many atom sites"};
+        if (molecule.conformer_count() >
+            static_cast<std::size_t>(std::numeric_limits<int>::max()) / molecule.atom_count()) {
+            throw OutputError{OutputErrorKind::unrepresentable,
+                              "mmCIF output contains too many atom sites", molecule_index};
         }
-        for (const auto& conformer : molecule.conformers()) {
-            for (const auto& position : conformer.positions()) {
+        for (std::size_t conformer_index = 0; conformer_index < molecule.conformer_count();
+             ++conformer_index) {
+            const auto& conformer = molecule.conformer(conformer_index);
+            for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
+                const auto& position = conformer[atom_index];
                 if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
                     !std::isfinite(position.z)) {
-                    throw std::invalid_argument{"mmCIF output coordinates must be finite"};
+                    throw OutputError{OutputErrorKind::unrepresentable,
+                                      "mmCIF output coordinates must be finite", molecule_index,
+                                      atom_location(conformer_index, atom_index)};
                 }
             }
         }
     }
     for (const auto& assignment : result.charges()->assignments()) {
-        for (const auto charge : assignment.charges.values()) {
-            if (charge < -10.0 || charge > 10.0) {
-                throw std::invalid_argument{
-                    "mmCIF charge is outside the dictionary range [-10, 10]"};
+        const auto values = assignment.charges.values();
+        for (std::size_t atom_index = 0; atom_index < values.size(); ++atom_index) {
+            if (values[atom_index] < -10.0 || values[atom_index] > 10.0) {
+                throw OutputError{
+                    OutputErrorKind::unrepresentable,
+                    "mmCIF charge is outside the dictionary range [-10, 10]",
+                    assignment.target.molecule_index,
+                    core::IssueLocation{.conformer_index = assignment.target.conformer_index,
+                                        .atom_index = atom_index,
+                                        .atom_indices = {atom_index}}};
             }
         }
     }
@@ -684,15 +755,31 @@ using ResultSpan = std::span<const ChargeCalculationResult* const>;
 
 // Several charge sets share one file only when they were calculated for the same molecules and
 // can be told apart; the file records method and parameter set but not options or execution.
-auto validate_results_output(const ResultSpan results) -> void {
+// Results that can be written at all: successful, and with molecules.
+auto require_results(const ResultSpan results) -> void {
     if (results.empty()) {
-        throw std::invalid_argument{"mmCIF output requires at least one calculation result"};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "mmCIF output requires at least one calculation result"};
     }
-    auto charge_sets = std::set<std::pair<std::string, std::optional<std::string>>>{};
     for (const auto* result : results) {
         if (result == nullptr) {
             throw std::invalid_argument{"mmCIF output requires calculation results, not null"};
         }
+        if (result->charges() == nullptr) {
+            throw OutputError{OutputErrorKind::no_charges,
+                              "mmCIF output requires a successful calculation"};
+        }
+        if (result->inputs().empty()) {
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "mmCIF output requires at least one molecule"};
+        }
+    }
+}
+
+auto validate_results_output(const ResultSpan results) -> void {
+    require_results(results);
+    auto charge_sets = std::set<std::pair<std::string, std::optional<std::string>>>{};
+    for (const auto* result : results) {
         validate_result_output(*result);
         if (result != results.front() &&
             !std::ranges::equal(result->inputs(), results.front()->inputs())) {
@@ -703,10 +790,11 @@ auto validate_results_output(const ResultSpan results) -> void {
         const auto parameter_set = charge_set.parameter_set_id().transform(
             [](const std::string_view value) { return std::string{value}; });
         if (!charge_sets.emplace(std::string{charge_set.method_id()}, parameter_set).second) {
-            throw std::invalid_argument{std::format(
-                "mmCIF output cannot hold two charge sets of method {} with parameter set {}: "
-                "the file cannot distinguish their options or execution",
-                charge_set.method_id(), parameter_set.value_or("none"))};
+            throw OutputError{
+                OutputErrorKind::unrepresentable,
+                std::format("mmCIF output cannot hold two charge sets of method {} with parameter "
+                            "set {}: the file cannot distinguish their options or execution",
+                            charge_set.method_id(), parameter_set.value_or("none"))};
         }
     }
 }
@@ -724,7 +812,8 @@ auto append_charge_metadata(::gemmi::cif::Table& metadata, const std::string_vie
 [[nodiscard]] auto existing_charge_sets(::gemmi::cif::Block& block, const ResultSpan results)
     -> std::set<std::string> {
     const auto refuse = [](const std::string_view reason) {
-        return std::invalid_argument{std::format("charge sets cannot be appended: {}", reason)};
+        return OutputError{OutputErrorKind::existing_charges,
+                           std::format("charge sets cannot be appended: {}", reason)};
     };
     // Rows under another version of the charges dictionary are not reinterpreted.
     for (const auto row : block.find("_audit_conform.", {"dict_name"})) {
@@ -790,7 +879,8 @@ auto append_charge_metadata(::gemmi::cif::Table& metadata, const std::string_vie
         }
     }
     if (largest > std::numeric_limits<std::uint64_t>::max() - 1'000'000) {
-        throw std::invalid_argument{
+        throw OutputError{
+            OutputErrorKind::existing_charges,
             "charge sets cannot be appended: the existing charge set IDs are too large"};
     }
     return largest;
@@ -926,25 +1016,31 @@ auto write_charged(std::ostream& output, const ResultSpan results, ::gemmi::cif:
         }
     }
     if (every_block && blocks.size() != inputs.size()) {
-        throw std::invalid_argument{
-            "Gemmi target molecule count does not match the calculation input"};
+        throw OutputError{OutputErrorKind::target_mismatch,
+                          "Gemmi target molecule count does not match the calculation input"};
     }
     auto charged = std::vector<bool>(blocks.size(), false);
     for (std::size_t index = 0; index < inputs.size(); ++index) {
         const auto block_index = inputs[index].identity.record_index;
         if (block_index >= blocks.size() || charged[block_index]) {
-            throw std::invalid_argument{
-                "Gemmi target molecules do not match the calculation input"};
+            throw OutputError{OutputErrorKind::target_mismatch,
+                              "Gemmi target molecules do not match the calculation input", index};
         }
         charged[block_index] = true;
         auto& block = *blocks[block_index];
-        if (existing == ExistingCharges::error && (block.has_mmcif_category(metadata_category) ||
-                                                   block.has_mmcif_category(charges_category))) {
-            throw std::invalid_argument{"Gemmi target already contains partial charge categories"};
+        try {
+            if (existing == ExistingCharges::error &&
+                (block.has_mmcif_category(metadata_category) ||
+                 block.has_mmcif_category(charges_category))) {
+                throw OutputError{OutputErrorKind::existing_charges,
+                                  "Gemmi target already contains partial charge categories"};
+            }
+            const auto mapping = attached_mapping(block, inputs[index]);
+            append_charge_sets(block, results, index, mapping.atom_site_ids,
+                               existing == ExistingCharges::append);
+        } catch (...) {
+            rethrow_for_molecule(index);
         }
-        const auto mapping = attached_mapping(block, inputs[index]);
-        append_charge_sets(block, results, index, mapping.atom_site_ids,
-                           existing == ExistingCharges::append);
     }
     ::gemmi::cif::write_cif_to_stream(output, document);
     if (!output) {
@@ -983,7 +1079,11 @@ auto MmcifWriter::write(const ResultSpan results) const -> void {
     for (std::size_t index = 0; index < inputs.size(); ++index) {
         // Names are already unique, so the document's own duplicate search is not needed.
         auto& block = document.blocks.emplace_back(names.unique(block_name(inputs[index], index)));
-        write_result_block(block, results, index);
+        try {
+            write_result_block(block, results, index);
+        } catch (...) {
+            rethrow_for_molecule(index);
+        }
     }
     ::gemmi::cif::write_cif_to_stream(*output_, document);
     if (!*output_) {
@@ -992,7 +1092,9 @@ auto MmcifWriter::write(const ResultSpan results) const -> void {
 }
 
 auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges existing) const -> void {
-    validate_results_output(results);
+    // The source first: input that is not one structure file is never annotated, whatever else
+    // the format could not hold of it.
+    require_results(results);
     // Equal records can come from inputs that differ outside the selected sites, such as in an
     // assembly, so every record of every result must have the same source text.
     const auto first_inputs = results.front()->inputs();
@@ -1008,14 +1110,17 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
     if (text == nullptr || !std::ranges::all_of(results, [&](const auto* result) {
             return std::ranges::all_of(result->inputs(), same_source);
         })) {
-        throw std::invalid_argument{
-            "mmCIF annotation requires molecules read from one PDB or mmCIF input"};
+        throw OutputError{OutputErrorKind::unsupported_source,
+                          "mmCIF annotation requires molecules read from one PDB or mmCIF input"};
     }
+    validate_results_output(results);
     if (first_metadata->format == MolecularSourceFormat::pdb) {
         // A PDB input is one molecule and has no charges; the document is its conversion.
         if (first_inputs.size() != 1) {
-            throw std::invalid_argument{
-                "mmCIF annotation of PDB input requires results for one molecule"};
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "mmCIF annotation of PDB input requires results for one molecule, "
+                              "but the input has " +
+                                  std::to_string(first_inputs.size())};
         }
         auto converted = gemmi::pdb_conversion::convert(*text, first_inputs.front());
         append_charge_sets(converted.document.blocks.front(), results, 0, converted.atom_site_ids);

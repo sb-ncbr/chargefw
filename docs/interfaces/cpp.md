@@ -202,6 +202,25 @@ io::MmcifWriter{cif}.write(std::array{&eem_result, &sqeqp_result});
 
 The [mmCIF reference](../reference/formats.md#mmcif) describes when results are refused.
 
+A writer throws `io::OutputError`, a `std::invalid_argument`, for a result its format cannot hold,
+before it writes anything:
+
+```cpp
+try {
+    io::Mol2Writer{mol2}.write(result);
+} catch (const io::OutputError& error) {
+    if (error.kind() == io::OutputErrorKind::missing_coordinates) { /* write result JSON */ }
+    std::println(stderr, "{}", error.what()); // molecule 3: MOL2 output requires coordinates
+}
+```
+
+`kind()` is the cause, one of the [kinds of the format
+reference](../reference/formats.md#charge-output); later versions may add kinds, so give a `switch`
+over them a `default` branch. `reason()` says why as text. `molecule_index()` is the input molecule
+the error concerns, counted from zero, or empty when it concerns the whole result, and `location()`
+gives the conformer, atoms, and bonds as for an issue. `JsonWriter` writes a failed result, with its
+reasons.
+
 `chargefw/io/all.h` includes all readers and writers, for applications. They are all in
 `chargefw::io`.
 A reader can be moved but not copied, and its input stream must stay open until reading is complete. The
@@ -223,7 +242,11 @@ and conformer counts, the assignments, and the method and parameter set. It cann
 the records you calculated, so pass the same records whose molecules you calculated.
 
 When the request itself fails, `assess()` or `calculate()` throws `std::invalid_argument` and there is
-no `ExecutionResult`. To still write result JSON for the records, as the command line does, create the
+no `ExecutionResult`. A request that is invalid in itself throws
+`calculation::RequestError`, a `std::invalid_argument` declared in
+`chargefw/calculation/request_error.h`: `kind()` is one of the [kinds of an invalid
+request](../guide/results.md#when-a-request-is-invalid), `reason()` is the message, and `option()`
+the ID of the method option the error concerns, when it concerns one. To still write result JSON for the records, as the command line does, create the
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
 `ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
@@ -363,14 +386,32 @@ molecule index, an optional conformer index, and the charges in atom order.
 
 Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors that check their
 index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
-`operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
-throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
-molecule cannot hold, such as atomic number 0. Where a reader knows where it stopped, it throws
-`io::ParseError`, a `std::runtime_error`, for both: the MOL, SDF, MOL2, and molecule JSON readers,
-and the PDB and mmCIF readers for text that is not ASCII. Its `reason()` says why, and its
-`location()` gives the source name and, where the reader knows them, the line counted from one and
-the record index counted from zero and record ID: the MOL, SDF, and MOL2 readers give both, the
-molecule JSON reader only the record, and the PDB and mmCIF readers only the line. A valid
+`operator[]` and indexing a returned `std::span` do not check, so give them a valid index.
+
+Every reader throws `io::ParseError`, a `std::runtime_error`, for input it refuses, including
+values a molecule cannot hold, such as a bond of an atom to itself:
+
+```cpp
+try {
+    auto reader = chargefw::io::SdfReader{input, "ligands.sdf"};
+    while (auto record = reader.next()) { /* ... */ }
+} catch (const chargefw::io::ParseError& error) {
+    if (error.kind() == chargefw::io::ParseErrorKind::no_records) { /* wrong file or format */ }
+    std::println(stderr, "{}", error.what()); // ligands.sdf:5: record 1 ('x'): unknown element ...
+}
+```
+
+`kind()` is the cause, one of the [kinds of the format
+reference](../reference/formats.md#format-overview); later versions may add kinds, so give a
+`switch` over them a `default` branch. `reason()` says why as text, and `location()` gives the
+source name and, where the reader knows them, the line counted from one, the record index counted
+from zero, and the record ID. The MOL, SDF, and MOL2 readers give the line and the record; the
+molecule JSON reader the record; the PDB reader the line only for text that is not ASCII. The mmCIF
+reader gives the line for most errors in the text of the file, such as a syntax error, and the data
+block as the record for errors it finds while reading the atoms of that block. A reader whose stream
+fails, such as a file that was not opened, throws a `std::runtime_error` that is not a `ParseError`.
+
+A valid
 assessment reports methods that do not apply as rejections, and `default_plan()` is null when none
 applies; it has no status. `calculate()` reports failures and cancellation through the
 `ExecutionStatus`. A method that cannot calculate throws a `methods::MethodFailure` with its kind
@@ -390,7 +431,8 @@ the catalog. Leave it empty for ordinary calculations.
 
 Each source must refer to a different atom, have a finite charge, and refer to an atom without bonds.
 Every affected molecule needs at least one atom that is not a source, and at least one conformer, with
-finite coordinates throughout. No atom that is not a source may sit exactly at a source's position. Invalid sources throw `std::invalid_argument`. With
+finite coordinates throughout. No atom that is not a source may sit exactly at a source's position. Invalid sources throw
+`calculation::RequestError` with kind `invalid_fixed_ions`. With
 sources, only methods that support fixed ions are assessed, and the formal charges of the source atoms do
 not count toward the charge of the calculated atoms. A successful result contains the fixed charges at
 their atoms, and `ExecutionResult::effective` records the sources.
@@ -429,10 +471,16 @@ methods.
 `parameters::load_parameter_sets_json_directory()` the sets in another directory. Both group the
 sets by method ID and order each method's sets by descending priority, then ID.
 `parameters::load_parameter_set_json_file()` loads one file, and `load_parameter_set_json()` one set
-from a `std::istream`. `save_parameter_set_json()` writes a set to a `std::ostream` in the same
-format, which loads back as an equal set. The format lists the parameter names once for all atom
-entries and once for all bond entries, so writing a set whose entries have different names throws
-`std::invalid_argument`. These functions are declared in
+from a `std::istream`, with an optional name for the stream. A file whose content they refuse throws
+`parameters::ParseError`, a `std::runtime_error` declared in
+`<chargefw/parameters/io/parse_error.h>`: its `kind()` is `malformed`, or `unsupported` for a file
+of another format version, `reason()` says why, starting with the member of the file, and
+`source_name()` names the file. A file that cannot be opened throws a `std::runtime_error` that is
+not a `ParseError`, so catch `ParseError` first. So does an installation whose bundled sets are
+missing. `save_parameter_set_json()` writes a set to a
+`std::ostream` in the same format, which loads back as an equal set. The format lists the parameter
+names once for all atom entries and once for all bond entries, so writing a set whose entries have
+different names throws `std::invalid_argument`. These functions are declared in
 `<chargefw/parameters/io/parameter_set_io.h>`. The [parameter-set
 format](../reference/parameter-format.md) describes the files.
 

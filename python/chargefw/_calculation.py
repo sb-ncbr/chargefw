@@ -31,7 +31,7 @@ from ._calculation_values import (
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
 from ._core import Molecule, MoleculeCollection
-from ._errors import ParseError
+from ._errors import ParseError, RequestError
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._public import set_public_module
@@ -134,11 +134,10 @@ def _parameter_set_from_catalog(
     (descriptor,) = native._descriptors()
     result = ParameterSet._create(descriptor, native)
     if result._method_id not in methods:
-        where = f" in {source!r}" if source else ""
-        missing = f"is for method {result._method_id!r}, which ChargeFW does not have"
         raise ParseError(
-            f"parameter set {result.id!r}{where} {missing}",
-            reason=f"parameter set {result.id!r} {missing}",
+            f"parameter set {result.id!r} is for method {result._method_id!r}, which ChargeFW does "
+            "not have",
+            kind="unsupported",
             source_name=source or "",
         )
     result._link(methods[result._method_id])
@@ -151,7 +150,7 @@ def _requested_method(method: str | Method | None) -> Method | None:
     if not isinstance(method, str):
         raise TypeError("method must be a method ID, Method, or None")
     if method not in methods:
-        raise ValueError(f"method {method!r} is not registered")
+        raise RequestError(f"method {method!r} is not registered", kind="unknown_method")
     return methods[method]
 
 
@@ -161,7 +160,7 @@ def _requested_parameter_set(parameter_set: str | ParameterSet | None) -> Parame
     if not isinstance(parameter_set, str):
         raise TypeError("parameter_set must be a parameter-set ID, ParameterSet, or None")
     if parameter_set not in parameter_sets:
-        raise ValueError(f"unknown parameter set {parameter_set!r}")
+        raise RequestError(f"unknown parameter set {parameter_set!r}", kind="unknown_parameter_set")
     return parameter_sets[parameter_set]
 
 
@@ -181,11 +180,12 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
         try:
             text = file.read()
         except UnicodeDecodeError as error:
-            raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
+            raise ParseError(str(error), kind="invalid_encoding", source_name=source) from None
     try:
         native = _native_parameters._parse_parameter_set_catalog(text)
-    except ValueError as error:
-        raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
+    except ParseError as error:
+        # The path is added here: a file name need not be text the native reader can take.
+        raise ParseError(error.reason, kind=error.kind, source_name=source) from None
     result = _parameter_set_from_catalog(native, source)
     _check_custom_parameter_id(result.id, source)
     return result

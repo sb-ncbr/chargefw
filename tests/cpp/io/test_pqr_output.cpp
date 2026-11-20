@@ -1,4 +1,5 @@
 #include "support/test_charge_results.h"
+#include "support/test_exceptions.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_set.h>
@@ -7,12 +8,14 @@
 #include <chargefw/core/molecule.h>
 #include <chargefw/io/charge_result.h>
 #include <chargefw/io/mmcif_input.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/io/pdb_input.h>
 #include <chargefw/io/pqr_output.h>
 #include <chargefw/version.h>
 #include <snitch/snitch.hpp>
 
 #include <format>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -103,7 +106,23 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[i
         const auto result =
             calculation_result({read_mmcif_oxygen(sequence, chain, atom)}, formal(1));
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::PqrWriter{output}.write(result), std::invalid_argument);
+        CHECK_THROWS_AS(io::PqrWriter{output}.write(result), io::OutputError);
+        CHECK(output.str().empty());
+    }
+
+    {
+        // The refusal names the atom: its index from zero, and its number from one in the text.
+        const auto result = calculation_result({read_mmcif_oxygen("1", "AA", "O")}, formal(1));
+        auto output = std::ostringstream{};
+        const auto error =
+            chargefw::test::thrown<io::OutputError>([&] { io::PqrWriter{output}.write(result); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::unrepresentable);
+        CHECK(error->molecule_index() == 0);
+        CHECK(error->location().atom_index == 0);
+        CHECK(error->reason().contains("'AA'"));
+        CHECK_FALSE(error->reason().contains("atom"));
+        CHECK(std::string_view{error->what()}.contains("atom 1: "));
         CHECK(output.str().empty());
     }
 
@@ -117,7 +136,10 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[i
                 "ENDMDL\nEND\n")},
             formal(1));
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::PqrWriter{output}.write(models), std::invalid_argument);
+        const auto error =
+            chargefw::test::thrown<io::OutputError>([&] { io::PqrWriter{output}.write(models); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::unsupported_shape);
         CHECK(output.str().empty());
     }
 
@@ -127,10 +149,29 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[i
                                        {},
                                        {core::Conformer{{core::Position{0.0, 0.0, 0.0}}}}},
             .identity = {.source_name = "input.sdf"}};
-        const auto not_structural = calculation_result({std::move(record)}, formal(1));
-        auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::PqrWriter{output}.write(not_structural), std::invalid_argument);
-        CHECK(output.str().empty());
+        // Input that is not a structure is refused for its source, for one molecule or several;
+        // several molecules of a structure for their number.
+        const auto refusal = [](const io::ChargeCalculationResult& result) {
+            auto output = std::ostringstream{};
+            const auto refused = chargefw::test::thrown<io::OutputError>(
+                [&] { io::PqrWriter{output}.write(result); });
+            CHECK(output.str().empty());
+            return refused.transform(&io::OutputError::kind);
+        };
+        const std::string water{"ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  "
+                                "0.00           O\nEND\n"};
+        CHECK(refusal(calculation_result({record}, formal(1))) ==
+              io::OutputErrorKind::unsupported_source);
+        const auto two = [] {
+            const auto zero = charges::AtomicCharges{std::vector<double>(1, 0.0)};
+            return charges::ChargeSet{"formal",
+                                      {{.target = {.molecule_index = 0}, .charges = zero},
+                                       {.target = {.molecule_index = 1}, .charges = zero}}};
+        };
+        CHECK(refusal(calculation_result({record, record}, two())) ==
+              io::OutputErrorKind::unsupported_source);
+        CHECK(refusal(calculation_result({read_pdb(water), read_pdb(water)}, two())) ==
+              io::OutputErrorKind::unsupported_shape);
     }
 
     {

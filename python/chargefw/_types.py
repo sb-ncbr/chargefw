@@ -22,6 +22,26 @@ type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_ex
 type InputIssueKind = Literal["hydrogens_missing", "atoms_too_close"]
 type ChargeIssueKind = Literal["charge_out_of_range"]
 type FailureKind = Literal["no_solution", "not_converged", "invalid_parameter_value"]
+type ParseErrorKind = Literal[
+    "no_records", "invalid_encoding", "malformed", "unsupported", "inconsistent_models"
+]
+type RequestErrorKind = Literal[
+    "unknown_method",
+    "unknown_parameter_set",
+    "incompatible_parameter_set",
+    "invalid_method_option",
+    "invalid_execution",
+    "invalid_fixed_ions",
+]
+type OutputErrorKind = Literal[
+    "missing_coordinates",
+    "unsupported_shape",
+    "unrepresentable",
+    "target_mismatch",
+    "existing_charges",
+    "no_charges",
+    "unsupported_source",
+]
 type ImportIssueKind = Literal[
     "partial_charges_ignored",
     "coordinates_2d_ignored",

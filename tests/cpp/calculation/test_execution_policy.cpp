@@ -1,5 +1,8 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/calculation/execution_policy.h>
+#include <chargefw/calculation/request_error.h>
 
 #include <limits>
 #include <optional>
@@ -49,6 +52,16 @@ TEST_CASE("execution policy validates mode and radius", "[calculation][execution
         CAPTURE(calculation::to_string(mode), radius.value_or(-1.0));
         CHECK_THROWS_AS(static_cast<void>(calculation::ExecutionPolicy(mode, radius)),
                         std::invalid_argument);
+    }
+
+    // Each is an invalid request for execution: a radius with full execution, none or one that is
+    // not finite with cutoff, and one below the smallest with cover.
+    for (const auto& [mode, radius] : {Case{Mode::full, 8.0}, Case{Mode::cutoff, std::nullopt},
+                                       Case{Mode::cutoff, infinity}, Case{Mode::cover, 7.99}}) {
+        const auto error = chargefw::test::thrown<calculation::RequestError>(
+            [&] { static_cast<void>(calculation::ExecutionPolicy(mode, radius)); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == calculation::RequestErrorKind::invalid_execution);
     }
 }
 

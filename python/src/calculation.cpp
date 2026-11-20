@@ -14,6 +14,7 @@
 #include <chargefw/calculation/execution_policy.h>
 #include <chargefw/calculation/input_issues.h>
 #include <chargefw/calculation/observer.h>
+#include <chargefw/calculation/request_error.h>
 #include <chargefw/core/molecule_collection.h>
 #include <chargefw/io/charge_result.h>
 #include <chargefw/methods/method.h>
@@ -30,6 +31,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <map>
 #include <memory>
 #include <optional>
@@ -436,6 +438,19 @@ auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
 }
 
 void bind_calculation(nb::module_& module) {
+    // A request that is invalid in itself becomes chargefw.RequestError.
+    nb::register_exception_translator([](const std::exception_ptr& error, void* /*unused*/) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const calculation::RequestError& request_error) {
+            const auto type = nb::module_::import_("chargefw._errors").attr("RequestError");
+            const auto instance =
+                type(std::string{request_error.reason()},
+                     nb::arg("kind") = std::string{calculation::to_string(request_error.kind())},
+                     nb::arg("option") = request_error.option());
+            PyErr_SetObject(type.ptr(), instance.ptr());
+        }
+    });
     module.attr("_default_cutoff_atom_threshold") = nb::int_(calculation::default_cutoff_threshold);
     module.attr("_default_cover_atom_threshold") = nb::int_(calculation::default_cover_threshold);
 

@@ -1,5 +1,88 @@
 # Changelog
 
+## Unreleased
+
+### Input
+
+- The command line reads gzip-compressed files, such as `structure.cif.gz`, in the format of the
+  extension before `.gz`, and names the outputs as for `structure.cif`. `chargefw.io.read()` reads
+  gzip-compressed files whatever their name.
+- A MOL, SDF, or MOL2 input with no molecule record, such as an empty file or an SDF file read as
+  MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
+  output. A PDB file without `ATOM` or `HETATM` records is reported as such, instead of as a
+  source mapping mismatch.
+- `ParseError` says why the input was refused as a kind: `no_records`, `invalid_encoding`,
+  `malformed`, `unsupported`, or `inconsistent_models`. Python has it as `ParseError.kind`, C++ as
+  `ParseError::kind()`.
+- Python's `ParseError.line_text` is the text of the line an error names, and the command line
+  prints that line below the message when it can read the line again.
+- Most mmCIF errors in the text of the file, such as a syntax error, give their line, and an error
+  found while reading the atoms of a data block names the block.
+- Query bonds in MOL and SDF files, types 5 to 8, and the MOL2 bond types `du`, `un`, and `nc` are
+  reported as unsupported with their type. The messages for these and for invalid bond types
+  changed.
+- In C++, the PDB and mmCIF readers throw `io::ParseError` for every input they refuse, and the
+  molecule JSON reader also for errors outside the molecules; they threw `std::runtime_error`. A
+  reader whose stream fails throws a `std::runtime_error` that is not a `ParseError`, where the
+  MOL, SDF, and MOL2 readers reported bad or empty input.
+- A parameter-set file of a format version ChargeFW does not read is reported as unsupported,
+  whatever else the file has; in Python, `ParseError.kind` is `"unsupported"` for it.
+- `chargefw.io.rdkit.from_mol()` raises `ParseError` with kind `"unsupported"` for an RDKit molecule
+  it refuses: hydrogens that are not explicit atoms, a dummy atom or an element above 100, a 2D
+  conformer, a query bond, or a bond type it does not accept. It was a `ValueError`, which
+  `ParseError` also is.
+- Breaking change: in C++, the parameter-set loaders throw `parameters::ParseError`, a
+  `std::runtime_error` with a kind, for a file whose content they refuse, and `std::runtime_error`
+  for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
+  longer catches them: catch `parameters::ParseError`, then `std::runtime_error`.
+- An installation whose bundled parameter sets are missing or have a repeated ID is reported as a
+  `std::runtime_error` in C++ and a `RuntimeError` in Python. It was `std::invalid_argument` and
+  `ValueError`, as if an argument were wrong.
+- Breaking change: in C++, `io::ParseError` is constructed with a `ParseErrorKind` as its first
+  argument. In Python, `ParseError` is constructed from the reason and the keyword argument `kind`,
+  and writes its message from the reason and the location; an exception from a reader that is not
+  a refusal of the input is no longer raised as `ParseError`.
+- An mmCIF formal charge outside -128 to 127 is an error; it was read as a different charge.
+
+### Output
+
+- A result that a format cannot hold, a document or RDKit molecule that changed since it was read,
+  charges already present, a failed calculation, and molecules that were not read from the input
+  the format needs are reported as `OutputError`, with a kind: `missing_coordinates`,
+  `unsupported_shape`, `unrepresentable`, `target_mismatch`, `existing_charges`, `no_charges`, or
+  `unsupported_source`. When it concerns one molecule, it names it and, where it concerns them, its
+  conformer and atoms. It is a `ValueError` in Python and a `std::invalid_argument` in C++, as
+  these errors were, so existing handlers keep working, with one exception: the RDKit
+  `attach_charges()` raised `IndexError` for a failed calculation and now raises `OutputError` with
+  kind `no_charges`; an invalid `molecule_index` is still an `IndexError`. The messages changed:
+  those for one molecule start with the molecule and atoms, counted from one.
+- Adding charges to a Gemmi document whose `_atom_site.pdbx_formal_charge` was changed to text that
+  is not an integer, such as `0.0`, is refused as a changed document, as reading such a file is
+  refused.
+- `chargefw.io.annotate()` and PQR output report molecules not read from PDB or mmCIF before what
+  the format cannot hold of them, such as missing coordinates or several molecules.
+- mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,
+  such as `water` and `Water`, which now become `data_water` and `data_Water_2`. CIF block names
+  are case-insensitive, and Gemmi refused the files with `data_water` and `data_Water`.
+
+### Calculation
+
+- A request for an assessment or a calculation that is invalid in itself is reported as
+  `RequestError`, with a kind: `unknown_method`, `unknown_parameter_set`,
+  `incompatible_parameter_set`, `invalid_method_option`, `invalid_execution`, or
+  `invalid_fixed_ions`. It is `chargefw.RequestError` in Python, with `kind`, `reason`, and
+  `option`, and `calculation::RequestError` in C++. It is a `ValueError` in Python and a
+  `std::invalid_argument` in C++, as most of these errors were, so handlers for those keep working.
+  In Python, a radius or a real-valued method option too large for a float raised `OverflowError`
+  and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
+  and the exit statuses of the command line are unchanged.
+
+### Fitting
+
+- `chargefw.parameterization.EvaluationError` has `failure`: what the method reported when it
+  could not calculate the charges for the values, with its `kind`, `message`, `molecule_index`, and
+  `conformer_index`, or `None` when no calculation of a method failed. The messages are unchanged.
+
 ## 3.0.0rc6
 
 ### Input

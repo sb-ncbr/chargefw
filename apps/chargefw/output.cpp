@@ -217,8 +217,7 @@ auto write_calculation_outputs(const std::string& output_directory, const std::s
         return 6;
     };
     const auto directory = std::filesystem::path{output_directory};
-    const auto prefix =
-        directory / (std::filesystem::path{input_path}.stem().string() + ".chargefw");
+    const auto prefix = directory / (uncompressed_path(input_path).stem().string() + ".chargefw");
     run.metrics.peak_resident_memory_bytes = platform::peak_resident_memory_bytes();
     run.metrics.ended_at = utc_timestamp();
     run.metrics.runtime_seconds =

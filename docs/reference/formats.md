@@ -25,8 +25,27 @@ Charges calculated from any input can be written as result JSON, and as MOL2 or 
 molecules have coordinates. Structures read from PDB or mmCIF can also be written as PQR. ChargeFW
 does not write MOL, SDF, molecule JSON, or PDB.
 
-Malformed or unsupported data in a file is an error. MOL, SDF, and MOL2 files may use LF or CRLF
-line endings.
+Malformed or unsupported data in a file is an error. So is a MOL, SDF, MOL2, PDB, or mmCIF file
+with no molecule in it, such as an empty file or an SDF file read as MOL2. MOL, SDF, and MOL2 files
+may use LF or CRLF line endings.
+
+An error says why the file was refused as one of these kinds, which Python gives as
+`ParseError.kind` and C++ as `ParseError::kind()`:
+
+| Kind | The file | What to do |
+| --- | --- | --- |
+| `no_records` | has nothing to read: it is empty, in another format, or has no atoms left after the [selection](#structural-selection) | Check the file, the format, and the selection |
+| `invalid_encoding` | has text that cannot be decoded, such as a character that is not ASCII | Remove the character or convert the file |
+| `malformed` | breaks its format, for example with wrong counts, a bond to an atom that does not exist, or an unknown element | Correct the file or write it again with the program that made it |
+| `unsupported` | is valid but has data ChargeFW does not read, such as query atoms | Convert the data, for example query bonds to single, double, or triple bonds |
+| `inconsistent_models` | is a PDB or mmCIF structure whose models do not have the same atoms | Read only the first model, with `conformers="first"` or `--conformers first` |
+
+Later versions may add kinds.
+
+The [command line](../interfaces/cli.md#calculating-charges) and
+[Python](../interfaces/python.md#reading-molecules) also read gzip-compressed files, such as the
+`.cif.gz` files of the PDB archive. The decompressed text follows the rules on this page, and
+diagnostic line numbers count its lines.
 
 MOL, SDF, MOL2, PDB, and mmCIF files must be ASCII text throughout, including comments and SDF data
 items that ChargeFW does not read. Any other character, such as an accented letter or a UTF-8 byte
@@ -67,7 +86,8 @@ the atoms for drawing the structural formula on a page, and its bond lengths and
 those of a molecule. ChargeFW imports such a record without coordinates and attaches a
 `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a record not marked `2D` are kept.
 
-Query and wildcard atoms are errors. Aromatic bonds (order 4) are read as single bonds, and the
+Query and wildcard atoms are errors, and so are query bonds, types 5 to 8, such as "single or
+double". Aromatic bonds (order 4) are read as single bonds, and the
 record gets one `aromatic_bonds_converted` warning that counts them. V3000 coordinate bonds (order
 9) and hydrogen bonds (order 10) are left out, because ChargeFW has only single, double, and triple
 bonds; the record gets one `v3000_bond_order_ignored` warning for each of the two kinds, with the
@@ -91,8 +111,9 @@ section marker starts with `@` in the first column; whitespace after it is ignor
 The element is the part of the atom type before the `.`, such as C in `C.ar`; the atom name is kept.
 Types that do not name one element, such as dummy atoms, lone pairs, wildcards, and the groups
 `Hal`, `Het`, and `Hev`, are errors. Numeric bond types 1, 2, and 3 are imported directly; numeric
-type 4, aromatic type `ar`, and amide type `am` become single bonds. Aromatic bonds, types 4 and
-`ar`, give the record an `aromatic_bonds_converted` warning.
+type 4, aromatic type `ar`, and amide type `am` become single bonds. The dummy, unknown, and
+not-connected types `du`, `un`, and `nc` are errors. Aromatic bonds, types 4 and `ar`, give the
+record an `aromatic_bonds_converted` warning.
 
 Formal charges come from the `charge` attributes in `UNITY_ATOM_ATTR`, such as `charge -1` for atom 9:
 
@@ -167,9 +188,10 @@ used, and the record gets a `partial_charges_ignored` warning.
 The first model gives the atoms of the molecule, in the order of the rows in the file, with their
 elements, formal charges, and names. Every further model must contain the same atoms: the same
 elements, formal charges, atom names, residues, and chains, in the same order. Each such model
-becomes another conformer, and a model that differs is an error. The alternate location chosen for
-an atom may differ between models. `--conformers first` (`conformers="first"` in Python) reads only
-the first model. Unknown elements and a selection that leaves no atoms are errors.
+becomes another conformer, and a model that differs is an error. An mmCIF formal charge that is not
+an integer from -128 to 127 is an error. The alternate location chosen for an atom may differ
+between models. `--conformers first` (`conformers="first"` in Python) reads only the first model.
+Unknown elements and a selection that leaves no atoms are errors.
 
 For every atom, ChargeFW keeps its ID, model, alternate location, entity, insertion code, and
 segment, and its atom, residue, and chain names as the file gives them. mmCIF has two sets of names,
@@ -291,6 +313,22 @@ differ from the molecule's total charge by up to 0.00005 per atom; use result JS
 exact values. ChargeFW writes a file only when the charges belong to the molecules being written, in
 the same order; it never reorders them.
 
+A result that a format cannot hold is an error, and nothing is written. The error says why as one
+of these kinds, which Python gives as `OutputError.kind` and C++ as `OutputError::kind()`:
+
+| Kind | The result or target | What to do |
+| --- | --- | --- |
+| `missing_coordinates` | has a molecule without coordinates, which MOL2, mmCIF, and PQR need | Write result JSON, or calculate for molecules with coordinates |
+| `unsupported_shape` | has a number of results, molecules, conformers, or atoms the format cannot hold, such as several models in PQR | Write another format, or read only the first model |
+| `unrepresentable` | has a value the format cannot hold, such as a chain ID of two characters in PQR or a charge above 10 in mmCIF | Write another format, or change the value in the input |
+| `target_mismatch` | is a document or toolkit molecule that is not the one that was read | Add the charges to the unchanged document or molecule |
+| `existing_charges` | already has charges that block the request | Replace them, or append to them where the format allows |
+| `no_charges` | is of a failed calculation, which has no charges | Write result JSON, which holds the reasons of the failure |
+| `unsupported_source` | has molecules that were not read from the input the format needs, such as PQR for a molecule read from SDF | Write another format, or read the molecules from PDB or mmCIF |
+
+Later versions may add kinds. When the error concerns one molecule, it names it and, where it
+concerns them, its conformer and atoms.
+
 ### MOL2
 
 MOL2 output is meant for small molecules. It writes one `SMALL`/`USER_CHARGES` record for each
@@ -350,7 +388,9 @@ options or the execution mode that could tell them apart.
 
 For every molecule, ChargeFW writes a new data block with `_entry`, `_audit_conform`, `_atom_site`,
 the bond categories described below, and the charge categories; nothing else from the input file is
-copied. Author and label names are written as they were read. Missing names are replaced by
+copied. The block is named after the molecule. CIF block names are case-insensitive, so a name
+already used in the file, in any case, gets a suffix: `water`, `Water`, and `water` become
+`data_water`, `data_Water_2`, and `data_water_3`. Author and label names are written as they were read. Missing names are replaced by
 generated atom names, residue `UNL`, chain `A`, and entity `1`. Atom IDs and model numbers are
 numbered anew, and each charge refers to the new `_atom_site.id` of its atom. Charges from a method
 that does not use coordinates are written for every model. ChargeFW does not write failed results,

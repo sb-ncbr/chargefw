@@ -637,6 +637,10 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         ("id", "99"),
         ("Cartn_x", "9.0"),
         ("pdbx_formal_charge", "1"),
+        ("pdbx_formal_charge", "abc"),
+        ("pdbx_formal_charge", "0.0"),
+        ("pdbx_formal_charge", "+-0"),
+        ("pdbx_formal_charge", "4294967296"),
         ("type_symbol", "O"),
         ("auth_atom_id", "CB"),
     ):
@@ -645,8 +649,10 @@ def test_attach_charges_requires_the_unchanged_import_document() -> None:
         modified_result = calculate(modified_molecules, method="formal")
         modified[0].find("_atom_site.", [column])[0][0] = value
         before_mismatch = modified.as_string()
-        with pytest.raises(ValueError):
+        with pytest.raises(chargefw.OutputError) as mismatch:
             chargefw.io.gemmi.attach_charges(modified, modified_result)
+        assert mismatch.value.kind == "target_mismatch"
+        assert (mismatch.value.molecule_index, mismatch.value.atom_index) == (0, 0)
         assert modified.as_string() == before_mismatch
     with pytest.raises(TypeError):
         chargefw.io.gemmi.attach_charges(document, result, if_exists=cast(Any, 1))

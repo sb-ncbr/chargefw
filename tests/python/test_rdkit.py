@@ -180,8 +180,9 @@ def test_conversion_without_conformers_supports_coordinate_independent_methods()
     np.testing.assert_array_equal(result.assignments[0].values, [0.0, 0.0])
     with pytest.raises(chargefw.NoExecutablePlanError) as raised:
         chargefw.calculate(molecule, method="eem")
-    with pytest.raises(IndexError):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw_rdkit.attach_charges(target, raised.value.result)
+    assert refused.value.kind == "no_charges"
     assert not any(atom.properties for atom in target.atoms)
     assert not target.properties
 
@@ -204,9 +205,18 @@ def test_conversion_and_charge_attachment() -> None:
             chargefw_rdkit.attach_charges(
                 target, result, conformer_index=value, if_exists="replace"
             )
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.OutputError) as existing:
         chargefw_rdkit.attach_charges(target, result)
+    assert existing.value.kind == "existing_charges"
     chargefw_rdkit.attach_charges(target, result, if_exists="replace")
+
+    # A changed atom is named in the message, from one, and in the fields, from zero.
+    target.atoms[1].formal_charge = 1
+    with pytest.raises(chargefw.OutputError) as changed:
+        chargefw_rdkit.attach_charges(target, result, if_exists="replace")
+    assert (changed.value.kind, changed.value.atom_index) == ("target_mismatch", 1)
+    assert str(changed.value) == f"molecule 1, atom 2: {changed.value.reason}"
+    target.atoms[1].formal_charge = 0
 
     assert molecule.atom_ids == (0, 1)
     assert target.atoms[0].properties["ChargeFWPartialCharge"] == 0.0
@@ -253,7 +263,7 @@ def test_attachment_selects_source_conformer(conformer_count: int) -> None:
 def test_conversion_rejects_unsupported_bond_types_by_default(bond_type: str) -> None:
     target: Any = FakeMol()
     target.bonds = (FakeBond(bond_type),)
-    with pytest.raises(ValueError, match=bond_type):
+    with pytest.raises(chargefw.ParseError, match=bond_type):
         chargefw_rdkit.from_mol(target)
 
 
@@ -279,11 +289,11 @@ def test_single_conversion_normalizes_aromatic_and_dative_bonds(bond_type: str) 
 def test_single_conversion_rejects_zero_and_query_bonds() -> None:
     target: Any = FakeMol()
     target.bonds = (FakeBond(FakeBondType.ZERO),)
-    with pytest.raises(ValueError, match="ZERO"):
+    with pytest.raises(chargefw.ParseError, match="ZERO"):
         chargefw_rdkit.from_mol(target, bond_conversion="single")
 
     target.bonds = (FakeBond(query=True),)
-    with pytest.raises(ValueError, match="query"):
+    with pytest.raises(chargefw.ParseError, match="query"):
         chargefw_rdkit.from_mol(target, bond_conversion="single")
 
 
@@ -386,16 +396,25 @@ def test_real_rdkit_conversion_requires_explicit_hydrogens(chem: Any) -> None:
         chem.MolFromSmiles("[NH4+]"),
         chem.MolFromSmiles("CO", sanitize=False),
     ):
-        with pytest.raises(ValueError, match="Chem.AddHs"):
-            chargefw_rdkit.from_mol(molecule)
+        with pytest.raises(chargefw.ParseError, match="Chem.AddHs") as refused:
+            chargefw_rdkit.from_mol(molecule, source_name="ethanol")
+        assert refused.value.kind == "unsupported"
+        assert refused.value.source_name == "ethanol"
     assert chargefw_rdkit.from_mol(chem.AddHs(chem.MolFromSmiles("CCO"))).atom_count == 9
+
+
+def test_real_rdkit_conversion_refuses_dummy_atoms(chem: Any) -> None:
+    with pytest.raises(chargefw.ParseError) as refused:
+        chargefw_rdkit.from_mol(chem.MolFromSmiles("*[H]"), source_name="fragment")
+    assert refused.value.kind == "unsupported"
+    assert refused.value.source_name == "fragment"
 
 
 def test_real_rdkit_conversion_refuses_2d_conformers(chem: Any) -> None:
     all_chem = pytest.importorskip("rdkit.Chem.AllChem")
     water = chem.AddHs(chem.MolFromSmiles("O"))
     all_chem.Compute2DCoords(water)
-    with pytest.raises(ValueError, match="2D conformer"):
+    with pytest.raises(chargefw.ParseError, match="2D conformer"):
         chargefw_rdkit.from_mol(water)
 
     # A real flat geometry can be marked as 3D.
@@ -414,7 +433,7 @@ def test_real_rdkit_conversion_refuses_2d_conformers(chem: Any) -> None:
 def test_real_rdkit_aromatic_and_dative_bond_conversion(chem: Any) -> None:
     aromatic = chem.AddHs(chem.MolFromSmiles("c1ccccc1"))
     assert aromatic is not None
-    with pytest.raises(ValueError, match="AROMATIC"):
+    with pytest.raises(chargefw.ParseError, match="AROMATIC"):
         chargefw_rdkit.from_mol(aromatic)
     normalized = chargefw_rdkit.from_mol(aromatic, bond_conversion="single")
     assert np.all(normalized.bonds[:, 2] == 1)
@@ -428,7 +447,7 @@ def test_real_rdkit_aromatic_and_dative_bond_conversion(chem: Any) -> None:
         editable.AddBond(0, 1, getattr(chem.BondType, name))
         target = editable.GetMol()
         assert target.GetBondWithIdx(0).GetBondTypeAsDouble() == 1.0
-        with pytest.raises(ValueError, match=name):
+        with pytest.raises(chargefw.ParseError, match=name):
             chargefw_rdkit.from_mol(target)
         normalized = chargefw_rdkit.from_mol(target, bond_conversion="single")
         assert normalized.bonds.tolist() == [[0, 1, 1]]

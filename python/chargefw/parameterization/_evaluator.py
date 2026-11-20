@@ -12,7 +12,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from .._arrays import as_integer, immutable_array
 from .._calculation import Plan, _native_catalog_for
-from .._calculation_values import _calculation_failure, failure_text
+from .._calculation_values import CalculationFailure, _calculation_failure, failure_text
 from .._chargefw import parameterization as _native_parameterization
 from .._errors import ChargeFWError
 from .._parameters import AtomParameterKey, BondParameterKey, ParameterSet
@@ -21,7 +21,16 @@ from .._types import ParameterScope
 
 
 class EvaluationError(ChargeFWError):
-    """A calculation with candidate parameter values failed."""
+    """A calculation with candidate parameter values failed.
+
+    ``failure`` is what the method reported for the values, with its ``kind``, the molecule, and
+    the conformer, as ``CalculationFailure`` of a failed ``calculate()``. It is ``None`` for an
+    error that comes from no failed calculation, such as sums of the fit that are not finite.
+    """
+
+    def __init__(self, *args: object, failure: CalculationFailure | None = None) -> None:
+        super().__init__(*args)
+        self.failure = failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,12 +140,14 @@ class Evaluator:
 
         return self._matches
 
-    def _failure_text(self, payload: CalculationFailurePayload | None) -> str | None:
-        """The text of a failed calculation, as NumericalFailureError gives it; fits use full
-        execution."""
+    def _failed(self, payload: CalculationFailurePayload | None, otherwise: str) -> EvaluationError:
+        """The error of a failed calculation, with the text NumericalFailureError gives it; fits
+        use full execution. ``otherwise`` is the message when the method reported no failure."""
 
         failure = _calculation_failure(payload)
-        return None if failure is None else failure_text(failure, self._molecules, "full")
+        if failure is None:
+            return EvaluationError(otherwise)
+        return EvaluationError(failure_text(failure, self._molecules, "full"), failure=failure)
 
     def charges(self, values: ArrayLike) -> NDArray[np.float64]:
         """The charges of every assignment, concatenated in assignment order.
@@ -152,7 +163,7 @@ class Evaluator:
             or result["assignment_sizes"] is None
             or result["assignment_molecules"] is None
         ):
-            raise EvaluationError(self._failure_text(result["failure"]) or result["status"])
+            raise self._failed(result["failure"], result["status"])
         self._assignment_sizes = tuple(result["assignment_sizes"])
         self._assignment_molecules = tuple(result["assignment_molecules"])
         return result["charges"]
@@ -203,7 +214,8 @@ class Evaluator:
                 if not lower[slot] <= mirrored <= upper[slot] or mirrored == point[slot]:
                     raise EvaluationError(
                         f"calculation failed for slot {slot} ({self._describe(slot)}) "
-                        f"at value {moved[slot]!r}: {error}"
+                        f"at value {moved[slot]!r}: {error}",
+                        failure=error.failure,
                     ) from error
                 moved[slot] = mirrored
                 step = moved[slot] - point[slot]
@@ -213,7 +225,8 @@ class Evaluator:
                     raise EvaluationError(
                         f"calculation failed for slot {slot} ({self._describe(slot)}) at values "
                         f"{first!r} and {mirrored!r}: "
-                        f"{mirrored_error}"
+                        f"{mirrored_error}",
+                        failure=mirrored_error.failure,
                     ) from mirrored_error
             result[:, column] = (charges - base) / step
         return result
@@ -241,10 +254,8 @@ class Evaluator:
             or payload["gauss_newton"] is None
             or payload["gradient"] is None
         ):
-            raise EvaluationError(
-                self._failure_text(payload["failure"])
-                or payload["non_finite_message"]
-                or payload["status"]
+            raise self._failed(
+                payload["failure"], payload["non_finite_message"] or payload["status"]
             )
         size = len(self._layout)
         return (

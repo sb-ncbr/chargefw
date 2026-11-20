@@ -10,6 +10,7 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/position.h>
+#include <chargefw/io/parse_error.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -45,7 +46,7 @@ struct ModelAtoms {
         for (const auto& atom : residue.atoms) {
             const auto old_index = atom.index;
             if (old_index >= old_to_new.size()) {
-                throw std::runtime_error{"selected residue has an invalid atom index"};
+                throw std::logic_error{"selected residue has an invalid atom index"};
             }
             const auto atom_index = old_to_new[old_index];
             instance.atom_indices.push_back(atom_index);
@@ -70,7 +71,7 @@ struct ModelAtoms {
     std::ranges::sort(result, {}, [&](const auto index) { return references[index].position; });
     for (std::size_t index = 1; index < result.size(); ++index) {
         if (references[result[index - 1]].position == references[result[index]].position) {
-            throw std::runtime_error{"structural source mapping contains duplicate atom positions"};
+            throw std::logic_error{"structural source mapping contains duplicate atom positions"};
         }
     }
     return result;
@@ -80,13 +81,13 @@ template <typename T>
 [[nodiscard]] auto reordered(std::vector<T> values, const std::span<const std::size_t> order)
     -> std::vector<T> {
     if (values.size() != order.size()) {
-        throw std::runtime_error{"structural source mapping size does not match selected atoms"};
+        throw std::logic_error{"structural source mapping size does not match selected atoms"};
     }
     auto result = std::vector<T>{};
     result.reserve(values.size());
     for (const auto index : order) {
         if (index >= values.size()) {
-            throw std::runtime_error{"structural source mapping contains an invalid atom index"};
+            throw std::logic_error{"structural source mapping contains an invalid atom index"};
         }
         result.push_back(std::move(values[index]));
     }
@@ -101,7 +102,9 @@ template <typename T>
     for (const auto* atom : model.atoms()) {
         const auto atomic_number = atom->element.atomic_number();
         if (atomic_number <= 0) {
-            throw std::runtime_error{"structural atom '" + atom->name + "' has no known element"};
+            throw ParseError{ParseErrorKind::malformed,
+                             "structural atom '" + atom->name + "' has no known element",
+                             {}};
         }
 
         result.atoms.emplace_back(atomic_number, atom->charge, atom->name);
@@ -110,7 +113,8 @@ template <typename T>
     }
 
     if (result.atoms.empty()) {
-        throw std::runtime_error{"structural model contains no selected atoms"};
+        throw ParseError{
+            ParseErrorKind::no_records, "structural model contains no selected atoms", {}};
     }
 
     return result;
@@ -136,8 +140,9 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
     -> std::vector<core::Position> {
     if (reference.size() != model.atoms().size() || reference.size() != reference_mapping.size() ||
         reference.size() != source_mapping.size() || reference.size() != order.size()) {
-        throw std::runtime_error{
-            "structural models do not contain the same selected atom sequence"};
+        throw ParseError{ParseErrorKind::inconsistent_models,
+                         "structural models do not contain the same selected atom sequence",
+                         {}};
     }
 
     std::vector<core::Position> positions;
@@ -145,14 +150,15 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
     for (std::size_t index = 0; index < reference.size(); ++index) {
         const auto source_index = order[index];
         if (source_index >= model.atoms().size()) {
-            throw std::runtime_error{"structural source mapping contains an invalid atom index"};
+            throw std::logic_error{"structural source mapping contains an invalid atom index"};
         }
         const auto& source = *model.atoms()[source_index];
         if (reference[index].atomic_number() != source.element.atomic_number() ||
             reference[index].formal_charge() != source.charge ||
             reference[index].name() != source.name) {
-            throw std::runtime_error{
-                "structural models do not contain the same selected atom sequence"};
+            throw ParseError{ParseErrorKind::inconsistent_models,
+                             "structural models do not contain the same selected atom sequence",
+                             {}};
         }
 
         const auto& reference_labels = reference_mapping[index].structural_labels;
@@ -174,9 +180,11 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
                    first.insertion_code == second.insertion_code && first.segment == second.segment;
         }();
         if (!same_hierarchy) {
-            throw std::runtime_error{
+            throw ParseError{
+                ParseErrorKind::inconsistent_models,
                 "structural models do not contain the same selected atom identity at atom " +
-                std::to_string(index)};
+                    std::to_string(index),
+                {}};
         }
 
         positions.push_back(
@@ -196,7 +204,7 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
     for (auto& bond : bonds) {
         if (bond.first_atom_index() >= old_to_new.size() ||
             bond.second_atom_index() >= old_to_new.size()) {
-            throw std::runtime_error{"structural bond endpoint is outside selected atom mapping"};
+            throw std::logic_error{"structural bond endpoint is outside selected atom mapping"};
         }
         bond = core::Bond{old_to_new[bond.first_atom_index()], old_to_new[bond.second_atom_index()],
                           bond.order()};
@@ -334,20 +342,20 @@ auto make_record(const ::gemmi::Structure& structure,
                  const SourceConnectivity source_connectivity,
                  std::vector<std::size_t> unknown_order_indices) -> ImportedMoleculeRecord {
     if (structure.models.empty()) {
-        throw std::runtime_error{"structural input contains no models"};
+        throw std::logic_error{"structural input contains no models"};
     }
 
     const auto retained_model_count =
         conformer_selection == ConformerSelection::all ? structure.models.size() : std::size_t{1};
     if (selected_models.size() != retained_model_count) {
-        throw std::runtime_error{"structural selection does not match retained models"};
+        throw std::logic_error{"structural selection does not match retained models"};
     }
 
     const auto& selected_model = selected_models.front();
     auto first = import_reference(selected_model);
     if (source_models.size() != retained_model_count || source_models.empty() ||
         source_models.front().conformer.sites.size() != first.atoms.size()) {
-        throw std::runtime_error{"structural source mapping does not match selected models"};
+        throw std::logic_error{"structural source mapping does not match selected models"};
     }
 
     auto source_orders = std::vector<std::vector<std::size_t>>{};
@@ -371,8 +379,10 @@ auto make_record(const ::gemmi::Structure& structure,
          ++index) {
         const auto model_components = components(selected_models[index], source_orders[index]);
         if (model_components != component_instances) {
-            throw std::runtime_error{
-                "structural models do not contain the same selected component instances"};
+            throw ParseError{
+                ParseErrorKind::inconsistent_models,
+                "structural models do not contain the same selected component instances",
+                {}};
         }
         auto positions = conformer_positions(
             selected_models[index], first.atoms, source_models.front().conformer.sites,

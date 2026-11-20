@@ -1,6 +1,7 @@
 """Generated molecular and calculation-result output checks."""
 
 import json
+import pickle
 from gc import collect
 from pathlib import Path
 from typing import Any, cast
@@ -119,8 +120,9 @@ def test_pqr_requires_structural_input() -> None:
     pqr = chargefw.io.dumps(chargefw.calculate(structure, method="formal"), format="pqr")
     assert "ATOM      2  H1  HOH A    1" in pqr
 
-    with pytest.raises(ValueError, match="PDB or mmCIF"):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.dumps(chargefw.calculate(water(), method="formal"), format="pqr")
+    assert refused.value.kind == "unsupported_source"
 
 
 def test_mmcif_holds_one_charge_set_per_result() -> None:
@@ -140,8 +142,10 @@ def test_mmcif_holds_one_charge_set_per_result() -> None:
     ]
     assert type_ids == ["1"] * 6 + ["2"] * 6
 
-    with pytest.raises(ValueError, match="one calculation result"):
-        chargefw.io.dumps([formal, qeq], format="mol2")
+    for results, format_name in (([formal, qeq], "mol2"), ([], "mol2"), ([], "mmcif")):
+        with pytest.raises(chargefw.OutputError) as refused:
+            chargefw.io.dumps(results, format=cast(Any, format_name))
+        assert refused.value.kind == "unsupported_shape"
     for rejected in (
         [formal, chargefw.calculate(water(), method="qeq")],
         [formal, chargefw.calculate(molecule, method="formal")],
@@ -212,8 +216,9 @@ def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
     again = chargefw.calculate(
         chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="formal"
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.OutputError) as existing:
         chargefw.io.annotate(tmp_path / "rejected.cif", again)
+    assert existing.value.kind == "existing_charges"
     chargefw.io.annotate(tmp_path / "replaced.cif", again, if_exists="replace")
     other = chargefw.calculate(
         chargefw.io.read(path, format="mmcif", selection="polymers-and-ligands"), method="dummy"
@@ -225,10 +230,12 @@ def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
         for value in appended.find_values("_sb_ncbr_partial_atomic_charges_meta.method")
     ] == ["formal", "dummy"]
 
-    with pytest.raises(ValueError):
+    # Molecules that were not read from a file have no file to annotate.
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.annotate(
             tmp_path / "rejected.cif", chargefw.calculate(water(), method="formal")
         )
+    assert refused.value.kind == "unsupported_source"
     assert not (tmp_path / "rejected.cif").exists()
 
 
@@ -246,10 +253,11 @@ def test_annotate_writes_a_pdb_input_as_mmcif_with_charges_for_the_selection(
 
     # One PDB input is one molecule; a result for it twice has no place in the file.
     molecule = chargefw.io.read(ANNOTATION_PDB, format="pdb")[0]
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.annotate(
             tmp_path / "twice.cif", chargefw.calculate([molecule, molecule], method="formal")
         )
+    assert refused.value.kind == "unsupported_shape"
     assert not (tmp_path / "twice.cif").exists()
 
 
@@ -323,8 +331,9 @@ def test_failed_result_json_preserves_input_identity() -> None:
         assert index in molecule_indices
         assert set(molecule_indices) <= {index, None}
     for format_name in ("mol2", "mmcif"):
-        with pytest.raises(ValueError, match="successful calculation"):
+        with pytest.raises(chargefw.OutputError) as refused:
             chargefw.io.dumps(failed_result, format=cast(Any, format_name))
+        assert refused.value.kind == "no_charges"
 
 
 def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:
@@ -425,16 +434,32 @@ def test_result_outputs_preserve_integer_caller_ids() -> None:
 def test_molecular_output_requires_finite_coordinates(format_name: Any) -> None:
     missing = chargefw.calculate(chargefw.Molecule([1]), method="formal")
     result_json_text = chargefw.io.dumps(missing, format="result-json")
-    with pytest.raises(ValueError, match="coordinates"):
+    with pytest.raises(chargefw.OutputError, match="coordinates") as no_coordinates:
         chargefw.io.dumps(missing, format=format_name)
+    assert no_coordinates.value.kind == "missing_coordinates"
+    assert no_coordinates.value.molecule_index == 0
     assert chargefw.io.dumps(missing, format="result-json") == result_json_text
 
     nonfinite = chargefw.calculate(
         chargefw.Molecule([1], coordinates=[[float("nan"), 0.0, 0.0]]),
         method="formal",
     )
-    with pytest.raises(ValueError, match="finite"):
+    with pytest.raises(chargefw.OutputError, match="finite") as not_finite:
         chargefw.io.dumps(nonfinite, format=format_name)
+    error = not_finite.value
+    assert (error.kind, error.molecule_index, error.conformer_index, error.atom_index) == (
+        "unrepresentable",
+        0,
+        0,
+        0,
+    )
+    assert error.atom_indices.tolist() == [0]
+    assert str(error) == f"molecule 1, conformer 1, atom 1: {error.reason}"
+    # It is still a ValueError, and keeps its fields when pickled.
+    assert isinstance(error, ValueError)
+    copy = pickle.loads(pickle.dumps(error))
+    assert (copy.kind, copy.atom_index, str(copy)) == (error.kind, error.atom_index, str(error))
+    assert copy.atom_indices.tolist() == [0] and not copy.atom_indices.flags.writeable
 
 
 def test_output_format_is_explicit() -> None:

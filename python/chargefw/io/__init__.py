@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import gzip
 import warnings
+import zlib
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
@@ -234,15 +237,23 @@ def _parse(
         raise TypeError("source_name must be a string")
     _validate_options(format, selection, bonds, conformers)
     bond_strategy = "hybrid" if bonds is None else bonds
+    # Input a reader refuses raises ParseError. Any other exception from a reader is not a refusal
+    # of the input.
     try:
         payloads = _native_io._parse(
             contents, source_name, format, selection, bond_strategy, conformers
         )
-    except ParseError:
+    except ParseError as error:
+        if error.line is not None:
+            # The readers end lines at LF and drop a CR before it. The text is split no further than
+            # the line. A line past the end, as for input that stops too early, has no text, and
+            # what follows the last LF is not a line.
+            # Looking the line up must not replace the refusal, whatever goes wrong.
+            with contextlib.suppress(Exception):
+                parts = contents.split("\n", error.line)
+                if len(parts) > error.line or (len(parts) == error.line and parts[-1]):
+                    error.line_text = parts[error.line - 1].removesuffix("\r")
         raise
-    except (RuntimeError, ValueError, IndexError) as error:
-        # The reader gave no location; the source is still known.
-        raise ParseError(str(error), source_name=source_name) from None
     return _collection(payloads, source_name)
 
 
@@ -277,12 +288,17 @@ def read(
     bonds: BondStrategy | None = None,
     conformers: ConformerSelection = "all",
 ) -> MoleculeCollection:
-    """Read UTF-8 molecular text using an explicitly selected native reader."""
+    """Read UTF-8 molecular text, optionally gzip-compressed, with an explicitly selected reader."""
 
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
     data = source_path.read_bytes()
+    if data.startswith(b"\x1f\x8b"):
+        try:
+            data = gzip.decompress(data)
+        except (OSError, EOFError, zlib.error) as error:
+            raise ParseError(str(error), kind="malformed", source_name=str(source_path)) from None
     try:
         # Lines end with LF, CRLF, or CR, as when reading text in Python.
         contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
@@ -290,8 +306,8 @@ def read(
         before = data[: error.start].replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         line = before.count(b"\n") + 1
         raise ParseError(
-            f"{source_path}:{line}: {error}",
-            reason=str(error),
+            str(error),
+            kind="invalid_encoding",
             source_name=str(source_path),
             line=line,
         ) from None

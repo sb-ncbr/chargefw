@@ -3,6 +3,8 @@
 #include "component.h"
 #include "core/diagnostic_description.h"
 
+#include <chargefw/calculation/request_error.h>
+
 #include <algorithm>
 #include <array>
 #include <limits>
@@ -92,7 +94,8 @@ auto resolve_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
     for (const auto& id : component_ids) {
         const auto ion = std::ranges::find(ions, id, &Ion::component);
         if (ion == ions.end()) {
-            throw std::invalid_argument("unknown fixed-ion component ID: " + id);
+            throw calculation::RequestError{calculation::RequestErrorKind::invalid_fixed_ions,
+                                            "unknown fixed-ion component ID: " + id};
         }
         if (std::ranges::find(selected, std::addressof(*ion)) == selected.end()) {
             selected.push_back(std::addressof(*ion));
@@ -105,10 +108,11 @@ auto resolve_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
             continue;
         }
         if (!record.import_metadata || record.import_metadata->components.empty()) {
-            throw std::invalid_argument(
+            throw calculation::RequestError{
+                calculation::RequestErrorKind::invalid_fixed_ions,
                 "fixed ions are selected by residue name, but " +
-                core::detail::molecule_description(record.molecule, molecule_index) +
-                " has no residues; read the structure from a PDB or mmCIF file");
+                    core::detail::molecule_description(record.molecule, molecule_index) +
+                    " has no residues; read the structure from a PDB or mmCIF file"};
         }
         if (record.import_metadata->atoms.size() != record.molecule.atom_count()) {
             throw std::invalid_argument(
@@ -158,21 +162,24 @@ auto resolve_fixed_ions(const std::span<const ImportedMoleculeRecord> records,
                 continue;
             }
             if (component.atom_indices.size() != 1) {
-                throw std::invalid_argument(
+                throw calculation::RequestError{
+                    calculation::RequestErrorKind::invalid_fixed_ions,
                     context(molecule_index, component.atom_indices.front(), component.component_id,
-                            "selected fixed-ion component is not monatomic"));
+                            "selected fixed-ion component is not monatomic")};
             }
             const auto atom_index = component.atom_indices.front();
             const auto& atom = record.molecule.atom(atom_index);
             if (atom.atomic_number() != (*target)->atomic_number) {
-                throw std::invalid_argument(
+                throw calculation::RequestError{
+                    calculation::RequestErrorKind::invalid_fixed_ions,
                     context(molecule_index, atom_index, component.component_id,
-                            "selected fixed-ion component atom identity mismatch"));
+                            "selected fixed-ion component atom identity mismatch")};
             }
             if (bonds[atom_index]) {
-                throw std::invalid_argument(
+                throw calculation::RequestError{
+                    calculation::RequestErrorKind::invalid_fixed_ions,
                     context(molecule_index, atom_index, component.component_id,
-                            "selected fixed-ion component has an incident graph bond"));
+                            "selected fixed-ion component has an incident graph bond")};
             }
             result.sources.push_back({molecule_index, atom_index, (*target)->charge});
         }

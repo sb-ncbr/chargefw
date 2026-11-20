@@ -12,6 +12,7 @@ from .._arrays import as_integer
 from .._calculation import CalculationResult
 from .._charges import ChargeAssignment
 from .._core import Molecule
+from .._errors import OutputError, ParseError
 from . import IfExists, _replace_existing
 
 try:
@@ -56,11 +57,21 @@ def from_mol(
     hydrogen_counts = chemistry.Mol(molecule, quickCopy=True)
     hydrogen_counts.UpdatePropertyCache(strict=False)
     if any(atom.GetTotalNumHs() for atom in hydrogen_counts.GetAtoms()):
-        raise ValueError(
-            "RDKit molecule has hydrogens that are not explicit atoms; add them with Chem.AddHs()"
+        raise ParseError(
+            "RDKit molecule has hydrogens that are not explicit atoms; add them with Chem.AddHs()",
+            kind="unsupported",
+            source_name=source_name,
         )
 
     atoms = tuple(molecule.GetAtoms())
+    for atom in atoms:
+        if not 1 <= atom.GetAtomicNum() <= 100:
+            raise ParseError(
+                f"RDKit atom {atom.GetIdx() + 1} has atomic number {atom.GetAtomicNum()}; only "
+                "elements 1 to 100 are accepted, and dummy atoms are not",
+                kind="unsupported",
+                source_name=source_name,
+            )
     bonds: list[tuple[int, int, int]] = []
     direct_bond_orders = {
         chemistry.BondType.SINGLE: 1,
@@ -74,7 +85,11 @@ def from_mol(
     }
     for bond in molecule.GetBonds():
         if bond.HasQuery():
-            raise ValueError("RDKit query bonds cannot be imported as molecular input")
+            raise ParseError(
+                "RDKit query bonds cannot be imported as molecular input",
+                kind="unsupported",
+                source_name=source_name,
+            )
         bond_type = bond.GetBondType()
         is_aromatic = bond.GetIsAromatic()
         order = direct_bond_orders.get(bond_type) if not is_aromatic else None
@@ -85,9 +100,11 @@ def from_mol(
         ):
             order = 1
         if order is None:
-            raise ValueError(
+            raise ParseError(
                 f"RDKit molecule contains unsupported bond type {bond_type}; only explicit single, "
-                "double, and triple bonds are accepted without bond conversion"
+                "double, and triple bonds are accepted without bond conversion",
+                kind="unsupported",
+                source_name=source_name,
             )
         bonds.append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), order))
 
@@ -95,11 +112,13 @@ def from_mol(
     # RDKit marks a conformer 2D when it was drawn, read from a file declared 2D, or read flat from
     # a file that declares no dimension.
     if any(not conformer.Is3D() for conformer in conformers):
-        raise ValueError(
+        raise ParseError(
             "RDKit molecule has a 2D conformer, which is a drawing, not a geometry; embed 3D "
             "coordinates with AllChem.EmbedMolecule(), remove the conformers with "
             "RemoveAllConformers() for methods that need no geometry, or, if the coordinates are "
-            "a real flat geometry, mark the conformer with Set3D(True)"
+            "a real flat geometry, mark the conformer with Set3D(True)",
+            kind="unsupported",
+            source_name=source_name,
         )
     coordinates = (
         [
@@ -174,13 +193,23 @@ def attach_charges(
         raise ValueError("property_name must not be empty")
     replace = _replace_existing(if_exists)
 
+    if result.status != "success":
+        raise OutputError("RDKit attachment requires a successful calculation", kind="no_charges")
     assignment = _assignment(result, molecule_index, conformer_index)
     source = result.molecules[molecule_index]
     if molecule.GetNumAtoms() != source.atom_count:
-        raise ValueError("RDKit target atom count does not match the calculation input")
+        raise OutputError(
+            "RDKit target atom count does not match the calculation input",
+            kind="target_mismatch",
+            molecule_index=molecule_index,
+        )
     property_list_name = f"atom.dprop.{property_name}"
     if not replace and molecule.HasProp(property_list_name):
-        raise ValueError(f"RDKit molecule already has property {property_list_name!r}")
+        raise OutputError(
+            f"RDKit molecule already has property {property_list_name!r}",
+            kind="existing_charges",
+            molecule_index=molecule_index,
+        )
     atom_indices: list[int] = []
     for atom_id in source.atom_ids:
         if isinstance(atom_id, (str, bool, np.bool)):
@@ -190,19 +219,45 @@ def attach_charges(
         except TypeError as error:
             raise ValueError("RDKit attachment requires integer atom IDs") from error
         if atom_index < 0 or atom_index >= molecule.GetNumAtoms():
-            raise ValueError("RDKit atom ID is outside the target molecule")
+            raise OutputError(
+                "RDKit atom ID is outside the target molecule",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+            )
         atom_indices.append(atom_index)
     if len(set(atom_indices)) != molecule.GetNumAtoms():
-        raise ValueError("RDKit atom IDs must map each target atom exactly once")
+        raise OutputError(
+            "RDKit atom IDs must map each target atom exactly once",
+            kind="target_mismatch",
+            molecule_index=molecule_index,
+        )
 
     for source_index, atom_index in enumerate(atom_indices):
         atom = molecule.GetAtomWithIdx(atom_index)
         if atom.GetAtomicNum() != int(source.atomic_numbers[source_index]):
-            raise ValueError("RDKit target atom mapping does not match atomic numbers")
+            raise OutputError(
+                "RDKit target atom mapping does not match atomic numbers",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
         if atom.GetFormalCharge() != int(source.formal_charges[source_index]):
-            raise ValueError("RDKit target atom mapping does not match formal charges")
+            raise OutputError(
+                "RDKit target atom mapping does not match formal charges",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
         if not replace and atom.HasProp(property_name):
-            raise ValueError(f"RDKit atom already has property {property_name!r}")
+            raise OutputError(
+                f"RDKit atom already has property {property_name!r}",
+                kind="existing_charges",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
 
     for atom_index, charge in zip(atom_indices, assignment.values, strict=True):
         molecule.GetAtomWithIdx(atom_index).SetDoubleProp(property_name, float(charge))

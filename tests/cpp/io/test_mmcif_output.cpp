@@ -1,10 +1,12 @@
 #include "support/test_charge_results.h"
+#include "support/test_exceptions.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_set.h>
 #include <chargefw/io/charge_result.h>
 #include <chargefw/io/mmcif_input.h>
 #include <chargefw/io/mmcif_output.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/io/pdb_input.h>
 #include <chargefw/version.h>
 
@@ -365,8 +367,22 @@ TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot expre
         CAPTURE(description);
         const auto result = calculation_result({record}, formal(record.molecule.atom_count()));
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::MmcifWriter{output}.write(result), std::invalid_argument);
+        const auto error =
+            chargefw::test::thrown<io::OutputError>([&] { io::MmcifWriter{output}.write(result); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::unrepresentable);
+        CHECK(error->molecule_index() == 0);
         CHECK(output.str().empty());
+        // Two atoms the writer knows are both named: the two of the same name, the two of the
+        // second ligand that have no bond, and the two of the bond between residues.
+        if (description != "different orders") {
+            const auto first = description == "bond in one residue only" ? 2U : 0U;
+            CHECK(error->location().atom_index == first);
+            CHECK(error->location().other_atom_index == first + 1);
+            CHECK_FALSE(error->location().bond_index.has_value());
+            CHECK(std::string_view{error->what()}.starts_with(
+                std::format("molecule 1, atoms {} and {}: ", first + 1, first + 2)));
+        }
     }
 }
 
@@ -523,7 +539,11 @@ HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
 
     const auto again = calculation_result({reread}, charge_set("eem"));
     auto rejected = std::ostringstream{};
-    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&again}), std::invalid_argument);
+    const auto existing = chargefw::test::thrown<io::OutputError>(
+        [&] { io::MmcifWriter{rejected}.annotate(std::array{&again}); });
+    REQUIRE(existing.has_value());
+    CHECK(existing->kind() == io::OutputErrorKind::existing_charges);
+    CHECK(existing->molecule_index() == 0);
     auto replaced = std::ostringstream{};
     io::MmcifWriter{replaced}.annotate(std::array{&again}, io::ExistingCharges::replace);
     auto replaced_document = gemmi::cif::read_string(replaced.str());
@@ -549,9 +569,11 @@ HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
     }
     CHECK(set_of_row == std::vector<std::string>{"1", "1", "2", "2"});
     const auto repeated = calculation_result({reread}, charge_set("qeq"));
-    CHECK_THROWS_AS(
-        io::MmcifWriter{rejected}.annotate(std::array{&repeated}, io::ExistingCharges::append),
-        std::invalid_argument);
+    const auto not_appended = chargefw::test::thrown<io::OutputError>([&] {
+        io::MmcifWriter{rejected}.annotate(std::array{&repeated}, io::ExistingCharges::append);
+    });
+    REQUIRE(not_appended.has_value());
+    CHECK(not_appended->kind() == io::OutputErrorKind::existing_charges);
     // Without charges in the source, appending only adds; charges of dictionary 1.0 are refused.
     auto first = std::ostringstream{};
     io::MmcifWriter{first}.annotate(std::array{&result}, io::ExistingCharges::append);
@@ -639,9 +661,17 @@ HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
                               {"mmcif_pdbx.dic", "5.0"}, {"mmcif_charges_v11.dic", "1.1"}});
 
     // A molecule that was not read from mmCIF has no structure to annotate.
-    const auto generated = calculation_result({generated_record()}, formal(2));
-    CHECK_THROWS_AS(io::MmcifWriter{rejected}.annotate(std::array{&generated}),
-                    std::invalid_argument);
+    // Refused for its source, also when the format could not hold it for another reason, here for
+    // lack of coordinates.
+    auto coordinate_free = generated_record();
+    coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};
+    for (const auto& record : {generated_record(), coordinate_free}) {
+        const auto generated = calculation_result({record}, formal(2));
+        const auto refused = chargefw::test::thrown<io::OutputError>(
+            [&] { io::MmcifWriter{rejected}.annotate(std::array{&generated}); });
+        REQUIRE(refused.has_value());
+        CHECK(refused->kind() == io::OutputErrorKind::unsupported_source);
+    }
 }
 
 TEST_CASE("PDB annotation puts the charges on the calculated atoms of the converted structure",
@@ -734,10 +764,11 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
     CHECK(::gemmi::cif::as_string(charge_rows[2][0]) == "3");
     CHECK(::gemmi::cif::as_string(charge_rows[0][1]) == ::gemmi::cif::as_string(charge_rows[2][1]));
 
-    // A suffix is skipped when a record already has that name.
+    // A suffix is skipped when a record already has that name. CIF block names are
+    // case-insensitive, so names that differ only in case also get a suffix.
     auto records = std::vector<io::ImportedMoleculeRecord>{};
     auto assignments = std::vector<charges::ChargeAssignment>{};
-    for (const auto* name : {"same", "same_2", "same", "same"}) {
+    for (const auto* name : {"same", "Same_2", "SAME", "same"}) {
         assignments.push_back({.target = {.molecule_index = records.size()},
                                .charges = charges::AtomicCharges{{0.0, 0.0}}});
         records.push_back(generated_record(name));
@@ -750,7 +781,7 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
     for (const auto& block : named.blocks) {
         names.push_back(block.name);
     }
-    CHECK(names == std::vector<std::string>{"same", "same_2", "same_3", "same_4"});
+    CHECK(names == std::vector<std::string>{"same", "Same_2", "SAME_3", "same_4"});
 }
 
 TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range charges",
@@ -759,7 +790,10 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         {generated_record("cancelled")}, {},
         {.status = chargefw::calculation::ExecutionStatus::cancelled});
     auto output = std::ostringstream{};
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(cancelled), std::invalid_argument);
+    const auto no_charges =
+        chargefw::test::thrown<io::OutputError>([&] { io::MmcifWriter{output}.write(cancelled); });
+    REQUIRE(no_charges.has_value());
+    CHECK(no_charges->kind() == io::OutputErrorKind::no_charges);
 
     auto coordinate_free = generated_record("missing");
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};
@@ -768,7 +802,11 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
                            charges::ChargeSet{"formal",
                                               {{.target = {.molecule_index = 0},
                                                 .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(missing_result), std::invalid_argument);
+    const auto missing = chargefw::test::thrown<io::OutputError>(
+        [&] { io::MmcifWriter{output}.write(missing_result); });
+    REQUIRE(missing.has_value());
+    CHECK(missing->kind() == io::OutputErrorKind::missing_coordinates);
+    CHECK(missing->molecule_index() == 0);
 
     // The dictionary range is inclusive.
     const auto range_result = [](const double charge) {
@@ -780,7 +818,13 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
     };
     auto in_range = std::ostringstream{};
     CHECK_NOTHROW(io::MmcifWriter{in_range}.write(range_result(10.0)));
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(range_result(10.1)), std::invalid_argument);
+    // The first atom has the charge above the range.
+    const auto out_of_range = chargefw::test::thrown<io::OutputError>(
+        [&] { io::MmcifWriter{output}.write(range_result(10.1)); });
+    REQUIRE(out_of_range.has_value());
+    CHECK(out_of_range->kind() == io::OutputErrorKind::unrepresentable);
+    CHECK(out_of_range->location().atom_index == 0);
+    CHECK(std::string_view{out_of_range->what()}.starts_with("molecule 1, atom 1: "));
 
     auto nonfinite = generated_record("nonfinite");
     nonfinite.molecule = core::Molecule{
@@ -793,6 +837,10 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         charges::ChargeSet{"formal",
                            {{.target = {.molecule_index = 0, .conformer_index = 0},
                              .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(nonfinite_result), std::invalid_argument);
+    const auto not_finite = chargefw::test::thrown<io::OutputError>(
+        [&] { io::MmcifWriter{output}.write(nonfinite_result); });
+    REQUIRE(not_finite.has_value());
+    CHECK(not_finite->kind() == io::OutputErrorKind::unrepresentable);
+    CHECK(not_finite->location().atom_index == 0);
     CHECK(output.str().empty());
 }

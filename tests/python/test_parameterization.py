@@ -9,7 +9,7 @@ import json
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
-from typing import get_type_hints
+from typing import Any, get_type_hints
 from unittest.mock import patch
 
 import chargefw
@@ -121,8 +121,11 @@ def test_evaluator_charges_follow_the_values() -> None:
     equal[3] = equal[1]
     np.testing.assert_allclose(evaluator.charges(equal), np.zeros(3), atol=1e-12)
 
-    with pytest.raises(EvaluationError, match="kappa"):
+    with pytest.raises(EvaluationError, match="kappa") as failed:
         evaluator.charges(np.array([0.0, 2.0, 1.0, 3.0, 1.0]))
+    failure = failed.value.failure
+    assert failure is not None
+    assert (failure.kind, failure.molecule_index) == ("invalid_parameter_value", 0)
     with pytest.raises(ValueError):
         evaluator.charges(EEM_WATER_VALUES[:3])
     with pytest.raises(ValueError):
@@ -192,8 +195,35 @@ def test_evaluator_jacobian_names_the_slot_whose_step_fails() -> None:
     upper[0] = values[0]
 
     # The bounds allow negative kappa, so the step goes down to a value EEM rejects.
-    with pytest.raises(EvaluationError, match="slot 0 \\(common kappa\\)"):
+    with pytest.raises(EvaluationError, match="slot 0 \\(common kappa\\)") as failed:
         evaluator.jacobian(values, slots=[0], bounds=(lower, upper))
+    # The failure is that of the attempt the error is chained from.
+    cause = failed.value.__cause__
+    assert isinstance(cause, EvaluationError)
+    assert failed.value.failure is not None and failed.value.failure is cause.failure
+
+
+def test_evaluator_jacobian_reports_the_last_of_two_failed_steps() -> None:
+    evaluator = eem_evaluator(water())
+    records: list[Any] = []
+    calculate = Evaluator.charges
+
+    def fail_every_step(self: Evaluator, values: ArrayLike) -> NDArray[np.float64]:
+        if np.array_equal(values, EEM_WATER_VALUES):
+            return calculate(self, values)
+        records.append(object())
+        raise EvaluationError(f"attempt {len(records)}", failure=records[-1])
+
+    # Without bounds, the step is tried both ways.
+    with (
+        patch.object(Evaluator, "charges", fail_every_step),
+        pytest.raises(EvaluationError) as failed,
+    ):
+        evaluator.jacobian(EEM_WATER_VALUES, slots=[1])
+    assert len(records) == 2
+    cause = failed.value.__cause__
+    assert isinstance(cause, EvaluationError)
+    assert failed.value.failure is records[1] and cause.failure is records[1]
 
 
 def test_evaluator_jacobian_steps_stay_within_narrow_bounds() -> None:
@@ -364,8 +394,12 @@ def test_fit_checks_the_start_before_fitting() -> None:
 
     zero_kappa = FIT_START.copy()
     zero_kappa[0] = 0.0
-    with pytest.raises(EvaluationError, match="at the start"):
+    with pytest.raises(EvaluationError, match="at the start") as failed:
         fit(evaluator, references, start=zero_kappa, free=FIT_FREE)
+    # The failure is that of the calculation the error is chained from.
+    cause = failed.value.__cause__
+    assert isinstance(cause, EvaluationError)
+    assert failed.value.failure is not None and failed.value.failure is cause.failure
 
     # Equal electronegativities give zero charges for neutral molecules, which no hardness changes.
     equal = FIT_START.copy()
@@ -1275,8 +1309,9 @@ def test_cancelled_fit_whose_diagnostics_fail_leaves_the_checkpoint() -> None:
         return True
 
     observer = RecordingFitObserver(stop_and_break)
-    with pytest.raises(EvaluationError, match="lost after cancellation"):
+    with pytest.raises(EvaluationError, match="lost after cancellation") as failed:
         fit(evaluator, references, start=FIT_START, free=FIT_FREE, observer=observer)
+    assert failed.value.failure is None  # No calculation of a method failed.
 
     checkpoint = observer.events[-1].parameter_set(id="checkpoint")
     resumed = fit(

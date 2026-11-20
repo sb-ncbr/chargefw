@@ -18,6 +18,8 @@ target_sources(chargefw_objects
         native/sdf_input.cpp
         conformer_selection.cpp
         molecule_record.cpp
+        output_error.cpp
+        parse_context.h
         parse_error.cpp
         fixed_ions.cpp
         fixed_ions.h
@@ -37,7 +39,9 @@ target_sources(chargefw_objects
         gemmi/mmcif_input.cpp
         gemmi/mmcif_labels.h
         gemmi/mmcif_output.cpp
+        gemmi/pdb_conversion.cpp
         gemmi/pdb_input.cpp
+        gemmi/pdb_labels.h
         gemmi/selection.cpp
         gemmi/selection.h
         PUBLIC
@@ -46,6 +50,7 @@ target_sources(chargefw_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/molecule_record.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/io/output_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/parse_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/charge_result.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/conformer_selection.h

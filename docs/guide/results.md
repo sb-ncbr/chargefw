@@ -173,6 +173,30 @@ EEM_Baek1991: the parameter set has no atom parameter matching atom 1 (source na
 
 [Choosing a method](methods.md#choosing-a-method) shows how to see the reasons before calculating.
 
+## When a request is invalid
+
+Some requests are wrong in themselves: they name a method that does not exist, give a method an
+option it does not have, or combine settings that do not go together. ChargeFW checks the request
+before it assesses any method or parameter set for your molecules, refuses a wrong one, and says
+which part to change as one of these kinds:
+
+| Kind | The request | What to do |
+| --- | --- | --- |
+| `unknown_method` | names a method ChargeFW does not have | Use an ID from the [list of methods](methods.md#available-methods) |
+| `unknown_parameter_set` | names a parameter set that is not known | Use the ID of a [bundled set](../reference/parameter-sets.md); in Python, pass a set you read from a file as the object that `read_parameter_set()` returned, not as its ID |
+| `incompatible_parameter_set` | names a parameter set of another method, or a parameter set where the method takes none or no method is named | Name the method the set is for |
+| `invalid_method_option` | has an option the method does not have, or a value outside what the method accepts for it | Check the options of the method |
+| `invalid_execution` | has an execution mode, radius, and atom thresholds that do not go together or are out of range, such as cutoff execution without a radius | See [large structures](large-structures.md) |
+| `invalid_fixed_ions` | has fixed ions that cannot be taken out of the molecules, such as an ion name that is not known or molecules without residues | See [fixed ions](fixed-ions.md) |
+
+Later versions may add kinds. Python raises `chargefw.RequestError` and C++ throws
+`calculation::RequestError`, each with the kind and the reason. The command line prints the reason
+and exits with [status](../interfaces/cli.md#exit-statuses) 2.
+
+A valid request that a method or parameter set cannot satisfy for your molecules is not such an
+error. It is a rejection of that method or parameter set, and the calculation fails as
+[above](#when-a-calculation-fails) only when none is left.
+
 ## Choosing an output format
 
 | Format | Use it for |

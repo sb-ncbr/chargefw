@@ -6,9 +6,13 @@ in Python.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterable
+from functools import partial
+from typing import TYPE_CHECKING, Any
 
+from ._arrays import index_array
 from ._public import set_public_module
+from ._types import OutputErrorKind, ParseErrorKind, RequestErrorKind
 
 if TYPE_CHECKING:
     from ._calculation_values import CalculationResult
@@ -21,28 +25,168 @@ class ChargeFWError(Exception):
 class ParseError(ChargeFWError, ValueError):
     """Molecular input or a parameter-set file cannot be read.
 
-    ``reason`` is why, without where ChargeFW knows. ``source_name`` names the source, or is empty.
+    ``kind`` is the cause as a code: ``"no_records"`` for input with nothing to read, such as an
+    empty file or a file of another format, ``"invalid_encoding"`` for text that cannot be decoded,
+    ``"malformed"`` for input that breaks its format, ``"unsupported"`` for valid data that ChargeFW
+    does not read, and ``"inconsistent_models"`` for PDB or mmCIF models with different atoms. More
+    kinds may be added. ``reason`` is why as text; the message of the error says where before it.
+    ``source_name`` names the source, or is empty.
     Where the reader knows them, ``line`` is the line of the source, counted from one,
     ``record_index`` the record, counted from zero, and ``record_id`` the record's identifier in the
-    source, such as its title; otherwise they are ``None``.
+    source, such as its title; otherwise they are ``None``. ``line_text`` is the text of that line,
+    without its line ending, or ``None`` when there is no line, the input ends before it, or the
+    file could not be decoded.
     """
 
     def __init__(
         self,
-        message: str,
+        reason: str,
         *,
-        reason: str | None = None,
+        kind: ParseErrorKind,
         source_name: str = "",
         line: int | None = None,
+        line_text: str | None = None,
         record_index: int | None = None,
         record_id: str | int | None = None,
     ) -> None:
-        super().__init__(message)
-        self.reason = message if reason is None else reason
+        # The message says where, then why: "input.sdf:24: record 3 ('title'): reason".
+        where = ""
+        if line is not None:
+            where = f"{source_name}:{line}: " if source_name else f"line {line}: "
+        elif source_name:
+            where = f"{source_name}: "
+        if record_index is not None:
+            name = "" if record_id in (None, "") else f" ('{record_id}')"
+            where += f"record {record_index + 1}{name}: "
+        super().__init__(where + reason)
+        self.kind = kind
+        self.reason = reason
         self.source_name = source_name
         self.line = line
+        self.line_text = line_text
         self.record_index = record_index
         self.record_id = record_id
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Rebuilt from the reason and the fields, which give the message; the state restores the
+        # rest, such as notes and attributes the caller added.
+        rebuild = partial(
+            type(self),
+            kind=self.kind,
+            source_name=self.source_name,
+            line=self.line,
+            line_text=self.line_text,
+            record_index=self.record_index,
+            record_id=self.record_id,
+        )
+        return rebuild, (self.reason,), vars(self)
+
+
+class OutputError(ChargeFWError, ValueError):
+    """A result cannot be written in the requested format, or charges cannot be added to a target.
+
+    ``kind`` is the cause as a code: ``"missing_coordinates"`` for a molecule without coordinates in
+    a format that needs them, ``"unsupported_shape"`` for a number of results, molecules,
+    conformers, or atoms the format cannot hold, ``"unrepresentable"`` for a value the format cannot
+    hold,
+    ``"target_mismatch"`` for a document or toolkit molecule that is not the one that was read,
+    ``"existing_charges"`` for charges already in the target that block the request,
+    ``"no_charges"`` for a failed calculation, and ``"unsupported_source"`` for molecules that were
+    not read from the input the format needs, such as PQR for a molecule read from SDF. More kinds
+    may be added. ``reason`` is why as text; the message of the error says where before it.
+
+    ``molecule_index`` is the input molecule the error concerns, or ``None`` when it concerns the
+    result as a whole. The other fields say where in the molecule, as for an issue:
+    ``conformer_index``, ``atom_index``, ``other_atom_index`` for the second atom of a pair,
+    ``bond_index``, and the arrays ``atom_indices`` and ``bond_indices``. All count from zero.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        kind: OutputErrorKind,
+        molecule_index: int | None = None,
+        conformer_index: int | None = None,
+        atom_index: int | None = None,
+        other_atom_index: int | None = None,
+        bond_index: int | None = None,
+        atom_indices: Iterable[int] = (),
+        bond_indices: Iterable[int] = (),
+    ) -> None:
+        # The message says where, counted from one, then why.
+        where = [
+            f"{name} {index + 1}"
+            for name, index in (("molecule", molecule_index), ("conformer", conformer_index))
+            if index is not None
+        ]
+        if atom_index is not None and other_atom_index is not None:
+            where.append(f"atoms {atom_index + 1} and {other_atom_index + 1}")
+        elif atom_index is not None:
+            where.append(f"atom {atom_index + 1}")
+        if bond_index is not None:
+            where.append(f"bond {bond_index + 1}")
+        super().__init__(f"{', '.join(where)}: {reason}" if where else reason)
+        self.kind = kind
+        self.reason = reason
+        self.molecule_index = molecule_index
+        self.conformer_index = conformer_index
+        self.atom_index = atom_index
+        self.other_atom_index = other_atom_index
+        self.bond_index = bond_index
+        self.atom_indices = index_array(atom_indices)
+        self.bond_indices = index_array(bond_indices)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Rebuilt from the reason and the fields, which give the message; the state restores the
+        # rest, such as notes.
+        rebuild = partial(
+            type(self),
+            kind=self.kind,
+            molecule_index=self.molecule_index,
+            conformer_index=self.conformer_index,
+            atom_index=self.atom_index,
+            other_atom_index=self.other_atom_index,
+            bond_index=self.bond_index,
+        )
+        return rebuild, (self.reason,), vars(self)
+
+    def __setstate__(self, state: dict[str, Any] | None) -> None:
+        vars(self).update(state or {})
+        # Unpickled arrays are writable; these are not.
+        self.atom_indices = index_array(self.atom_indices)
+        self.bond_indices = index_array(self.bond_indices)
+
+
+class RequestError(ChargeFWError, ValueError):
+    """A request for an assessment or a calculation is invalid in itself.
+
+    It is raised before any method or parameter set is assessed for the molecules. A valid request
+    that a method or parameter set cannot satisfy is not this error: ``assess()`` reports it as a
+    rejection and ``calculate()`` raises ``NoExecutablePlanError``.
+
+    ``kind`` says which part of the request to change: ``"unknown_method"`` for a method ID that is
+    not registered, ``"unknown_parameter_set"`` for a parameter-set ID that is not known,
+    ``"incompatible_parameter_set"`` for a set that does not go with the method, because it is for
+    another method, the method takes none, or no method is named, ``"invalid_method_option"`` for
+    an option the method does not have or a value it does not declare for it,
+    ``"invalid_execution"`` for an execution mode, radius, and atom thresholds that do not go
+    together or are out of range, such as cutoff execution without a radius, and
+    ``"invalid_fixed_ions"`` for fixed ions that cannot be taken out of the molecules, such as an
+    ion name that is not known or molecules without residues. More kinds may be added.
+    ``reason``, which is also the message, says why. ``option`` is the ID of the method option an
+    ``"invalid_method_option"`` error concerns, or ``None`` when it concerns no single option.
+    """
+
+    def __init__(self, reason: str, *, kind: RequestErrorKind, option: str | None = None) -> None:
+        super().__init__(reason)
+        self.kind = kind
+        self.reason = reason
+        self.option = option
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # The required kind, then the state, which restores the rest, such as notes.
+        return partial(type(self), kind=self.kind), self.args, vars(self)
 
 
 class CalculationError(ChargeFWError):
@@ -69,6 +213,8 @@ set_public_module(
     "chargefw",
     ChargeFWError,
     ParseError,
+    OutputError,
+    RequestError,
     CalculationError,
     NoExecutablePlanError,
     NumericalFailureError,

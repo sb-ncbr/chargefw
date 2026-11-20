@@ -5,6 +5,8 @@
 #include "fixed_charge_partition.h"
 #include "input_checks.h"
 
+#include <chargefw/calculation/request_error.h>
+
 #include "methods/applicable_method_execution.h"
 #include "methods/find_applicable_methods.h"
 #include "methods/geometry_issue_messages.h"
@@ -69,11 +71,22 @@ namespace {
     return candidates;
 }
 
+// The method a request names. Every check that needs it asks here, so that an unknown ID is the
+// same error whichever check comes first.
+[[nodiscard]] auto requested_method(const std::string& id) -> const methods::Method& {
+    const auto* method = methods::method_registry().find(id);
+    if (method == nullptr) {
+        throw RequestError{RequestErrorKind::unknown_method,
+                           "method '" + id + "' is not registered"};
+    }
+    return *method;
+}
+
 [[nodiscard]] auto assessment_methods(const AssessmentRequest& request)
     -> std::vector<const methods::Method*> {
     const auto& registry = methods::method_registry();
     if (request.method_id.has_value()) {
-        return {&registry.require(*request.method_id)};
+        return {&requested_method(*request.method_id)};
     }
 
     auto result = std::vector<const methods::Method*>{};
@@ -91,14 +104,20 @@ auto validate_assessment_method_options(const AssessmentRequest& request) -> voi
         return;
     }
     if (!request.method_id.has_value()) {
-        throw std::invalid_argument{"method options require a method"};
+        throw RequestError{RequestErrorKind::invalid_method_option,
+                           "method options require a method"};
     }
-    const auto& method = methods::method_registry().require(*request.method_id);
-    auto options = methods::make_default_options(method.option_schema());
+    const auto& method = requested_method(*request.method_id);
+    // What the method itself declares is checked first and outside the catch: an error there is
+    // not the request's.
+    static_cast<void>(methods::make_default_options(method.option_schema()));
     for (const auto& [id, value] : request.method_options.values()) {
-        options.set(id, value);
+        try {
+            methods::validate_method_option(method.option_schema(), id, value);
+        } catch (const std::invalid_argument& error) {
+            throw RequestError{RequestErrorKind::invalid_method_option, error.what(), id};
+        }
     }
-    methods::validate_method_options(method.option_schema(), options);
 }
 
 auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void {
@@ -116,12 +135,13 @@ auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void
 auto validate_resource_policy(const ResourcePolicy& resource_policy) -> void {
     if (resource_policy.cover_threshold.has_value() &&
         !resource_policy.cutoff_threshold.has_value()) {
-        throw std::invalid_argument{"cover atom threshold requires a finite cutoff atom threshold"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cover atom threshold requires a finite cutoff atom threshold"};
     }
     if (resource_policy.cover_threshold.has_value() &&
         *resource_policy.cover_threshold < *resource_policy.cutoff_threshold) {
-        throw std::invalid_argument{
-            "cover atom threshold must not be smaller than cutoff atom threshold"};
+        throw RequestError{RequestErrorKind::invalid_execution,
+                           "cover atom threshold must not be smaller than cutoff atom threshold"};
     }
 }
 
@@ -129,27 +149,31 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
     if (!request.parameter_set_id.has_value()) {
         return;
     }
-    if (!request.method_id.has_value()) {
-        throw std::invalid_argument{"parameter-set selection requires an explicit method"};
-    }
-
-    const auto& method = methods::method_registry().require(*request.method_id);
-    if (!method.requirements().requires_parameters()) {
-        throw std::invalid_argument{"method '" + *request.method_id +
-                                    "' does not accept a parameter set"};
-    }
-
+    // In this order in every interface: the method must exist, then the set, and only then is
+    // it asked whether the two go together.
+    const auto* const method =
+        request.method_id.has_value() ? &requested_method(*request.method_id) : nullptr;
     const auto found = std::ranges::find_if(
         request.parameter_sets, [&request](const parameters::ParameterSet& parameter_set) {
             return parameter_set.id() == *request.parameter_set_id;
         });
     if (found == request.parameter_sets.end()) {
-        throw std::invalid_argument{"unknown parameter set '" + *request.parameter_set_id + "'"};
+        throw RequestError{RequestErrorKind::unknown_parameter_set,
+                           "unknown parameter set '" + *request.parameter_set_id + "'"};
+    }
+    if (method == nullptr) {
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "parameter-set selection requires an explicit method"};
+    }
+    if (!method->requirements().requires_parameters()) {
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "method '" + *request.method_id + "' does not accept a parameter set"};
     }
     if (!found->method_id().empty() && found->method_id() != *request.method_id) {
-        throw std::invalid_argument{"parameter set '" + *request.parameter_set_id +
-                                    "' belongs to method '" + std::string{found->method_id()} +
-                                    "', not '" + *request.method_id + "'"};
+        throw RequestError{RequestErrorKind::incompatible_parameter_set,
+                           "parameter set '" + *request.parameter_set_id + "' belongs to method '" +
+                               std::string{found->method_id()} + "', not '" + *request.method_id +
+                               "'"};
     }
 
     std::erase_if(request.parameter_sets,

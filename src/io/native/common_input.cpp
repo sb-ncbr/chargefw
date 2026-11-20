@@ -1,5 +1,6 @@
 #include "common_input.h"
 
+#include "io/parse_context.h"
 #include "io/text_encoding.h"
 
 #include <chargefw/io/parse_error.h>
@@ -15,27 +16,27 @@ namespace chargefw::io::native::common_input {
 
 auto rethrow_with_context(const MoleculeRecordIdentity& identity,
                           const std::optional<std::size_t> line) -> void {
-    // Text the reader cannot read and values a molecule cannot hold are both input it cannot
-    // read; other exceptions pass unchanged.
-    const auto location = ParseLocation{.source_name = identity.source_name,
-                                        .line = line,
-                                        .record_index = identity.record_index,
-                                        .record_id = identity.record_id};
-    try {
-        throw;
-    } catch (const ParseError&) {
-        throw;
-    } catch (const std::invalid_argument& error) {
-        throw ParseError{error.what(), location};
-    } catch (const std::runtime_error& error) {
-        throw ParseError{error.what(), location};
+    io::detail::rethrow_located({.source_name = identity.source_name,
+                                 .line = line,
+                                 .record_index = identity.record_index,
+                                 .record_id = identity.record_id});
+}
+
+auto at_end(std::istream& input) -> bool {
+    io::detail::require_readable(input);
+    if (input.eof()) {
+        return true;
     }
+    const auto end = input.peek() == std::char_traits<char>::eof();
+    io::detail::require_readable(input);
+    return end;
 }
 
 auto try_read_line(std::istream& input, std::size_t& line) -> std::optional<std::string> {
     std::string result;
 
     if (!std::getline(input, result)) {
+        io::detail::require_readable(input);
         return std::nullopt;
     }
 
@@ -45,8 +46,9 @@ auto try_read_line(std::istream& input, std::size_t& line) -> std::optional<std:
 
     ++line;
     if (io::detail::first_non_ascii_line(result).has_value()) {
-        throw std::runtime_error{
-            "non-ASCII character; MOL, SDF, and MOL2 files must be ASCII text"};
+        throw ParseError{ParseErrorKind::invalid_encoding,
+                         "non-ASCII character; MOL, SDF, and MOL2 files must be ASCII text",
+                         {}};
     }
     return result;
 }
@@ -56,7 +58,9 @@ auto read_line(std::istream& input, std::size_t& line, const std::string_view re
     auto result = try_read_line(input, line);
     if (!result.has_value()) {
         ++line;
-        throw std::runtime_error{"unexpected end of " + std::string{record_name} + " record"};
+        throw ParseError{ParseErrorKind::malformed,
+                         "unexpected end of " + std::string{record_name} + " record",
+                         {}};
     }
     return std::move(*result);
 }
@@ -74,7 +78,8 @@ auto trim(const std::string_view value) -> std::string_view {
 auto element(const std::string_view symbol) -> const core::Element& {
     const auto& table = core::periodic_table();
     if (!table.contains(symbol)) {
-        throw std::runtime_error{"unknown element symbol '" + std::string{symbol} + "'"};
+        throw ParseError{
+            ParseErrorKind::malformed, "unknown element symbol '" + std::string{symbol} + "'", {}};
     }
     return table.element(symbol);
 }
@@ -84,7 +89,7 @@ auto parse_int(const std::string_view value, const std::string_view field) -> in
     const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), result);
 
     if (error != std::errc{} || end != value.data() + value.size()) {
-        throw std::runtime_error{"invalid " + std::string{field}};
+        throw ParseError{ParseErrorKind::malformed, "invalid " + std::string{field}, {}};
     }
 
     return result;
@@ -98,7 +103,7 @@ auto parse_double(const std::string_view value, const std::string_view field) ->
     const auto token = trim(value);
 
     if (token.empty()) {
-        throw std::runtime_error{"invalid " + std::string{field}};
+        throw ParseError{ParseErrorKind::malformed, "invalid " + std::string{field}, {}};
     }
 
     // Intentionally not std::from_chars: Apple's libc++ provides it for floating-point values only
@@ -109,7 +114,7 @@ auto parse_double(const std::string_view value, const std::string_view field) ->
         gemmi::fast_from_chars(token.data(), token.data() + token.size(), result);
 
     if (error != std::errc{} || end != token.data() + token.size()) {
-        throw std::runtime_error{"invalid " + std::string{field}};
+        throw ParseError{ParseErrorKind::malformed, "invalid " + std::string{field}, {}};
     }
 
     return result;
@@ -118,7 +123,7 @@ auto parse_double(const std::string_view value, const std::string_view field) ->
 auto fixed_field(const std::string_view line, const std::size_t offset, const std::size_t width,
                  const std::string_view field) -> std::string_view {
     if (line.size() < offset + width) {
-        throw std::runtime_error{"missing " + std::string{field}};
+        throw ParseError{ParseErrorKind::malformed, "missing " + std::string{field}, {}};
     }
 
     return line.substr(offset, width);
@@ -130,10 +135,34 @@ auto bond_order(const std::string_view value, const ::chargefw::io::native::Bond
     if (format == ::chargefw::io::native::BondFormat::mol2 && (value == "ar" || value == "am")) {
         return core::BondOrder::SINGLE;
     }
-    const auto numeric_value =
-        parse_int(value, format == ::chargefw::io::native::BondFormat::mol ? "MOL bond order"
-                                                                           : "MOL2 bond type");
-    return core::bond_order_from_value(numeric_value == 4 ? 1 : numeric_value);
+    if (format == ::chargefw::io::native::BondFormat::mol) {
+        return mol_bond_order(parse_int(value, "MOL bond order"));
+    }
+    // Dummy, unknown, and not-connected bonds.
+    if (value == "du" || value == "un" || value == "nc") {
+        throw ParseError{ParseErrorKind::unsupported,
+                         "unsupported MOL2 bond type '" + std::string{value} + "'",
+                         {}};
+    }
+    const auto type = parse_int(value, "MOL2 bond type");
+    if (type < 1 || type > 4) {
+        throw ParseError{
+            ParseErrorKind::malformed, "invalid MOL2 bond type '" + std::string{value} + "'", {}};
+    }
+    return core::bond_order_from_value(type == 4 ? 1 : type);
+}
+
+auto mol_bond_order(const int type) -> core::BondOrder {
+    // Types 5 to 8 are query bonds, such as "single or double".
+    if (type >= 5 && type <= 8) {
+        throw ParseError{
+            ParseErrorKind::unsupported, "unsupported query bond type " + std::to_string(type), {}};
+    }
+    if (type < 1 || type > 4) {
+        throw ParseError{
+            ParseErrorKind::malformed, "invalid MOL bond order " + std::to_string(type), {}};
+    }
+    return core::bond_order_from_value(type == 4 ? 1 : type);
 }
 
 } // namespace chargefw::io::native::common_input

@@ -1,7 +1,10 @@
 #include <chargefw/io/sdf_input.h>
 
 #include "common_input.h"
+#include "io/parse_context.h"
 #include "mol_record_parser.h"
+
+#include <chargefw/io/parse_error.h>
 
 #include <istream>
 #include <string>
@@ -13,18 +16,19 @@ namespace {
 // Blank lines may begin a record with an empty title, so whitespace is skipped only to detect
 // trailing whitespace at the end of the file and is otherwise restored.
 auto at_end_of_records(std::istream& input) -> bool {
-    if (input.eof()) {
+    if (native::common_input::at_end(input)) {
         return true;
     }
     const auto start = input.tellg();
     if (start == std::istream::pos_type(-1)) {
-        return input.peek() == std::char_traits<char>::eof();
+        return false; // Not seekable, and at_end() found a character.
     }
 
     input >> std::ws;
     if (input.eof()) {
         return true;
     }
+    io::detail::require_readable(input);
     input.seekg(start);
     return false;
 }
@@ -44,6 +48,11 @@ SdfReader::SdfReader(std::istream& input, std::string source_name)
 
 auto SdfReader::next() -> std::optional<ImportedMoleculeRecord> {
     if (at_end_of_records(*input_)) {
+        if (record_index_ == 0) {
+            throw ParseError{ParseErrorKind::no_records,
+                             "no SDF molecule record found",
+                             {.source_name = source_}};
+        }
         return std::nullopt;
     }
 

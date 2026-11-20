@@ -3,11 +3,13 @@
 
 #include <chargefw/core/periodic_table.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
+#include <chargefw/parameters/io/parse_error.h>
 #include <chargefw/parameters/models/parameter_key.h>
 #include <chargefw/parameters/models/parameter_set.h>
 
 #include <nanobind/stl/string.h>
 
+#include <exception>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -87,6 +89,19 @@ void bind_parameters(nb::module_& module) {
         .def("_json", &parameter_set_json, nb::arg("id"));
     module.def("_load_bundled_parameter_catalog", &make_bundled_parameter_catalog,
                nb::call_guard<nb::gil_scoped_release>());
+    // A parameter-set file the reader refuses becomes chargefw.ParseError.
+    nb::register_exception_translator([](const std::exception_ptr& error, void* /*unused*/) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const parameters::ParseError& parse_error) {
+            const auto type = nb::module_::import_("chargefw._errors").attr("ParseError");
+            const auto instance =
+                type(parse_error.reason(),
+                     nb::arg("kind") = std::string{parameters::to_string(parse_error.kind())},
+                     nb::arg("source_name") = parse_error.source_name());
+            PyErr_SetObject(type.ptr(), instance.ptr());
+        }
+    });
     module.def("_parse_parameter_set_catalog", &parse_parameter_set_catalog, nb::arg("text"),
                nb::call_guard<nb::gil_scoped_release>());
 }

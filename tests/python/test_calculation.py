@@ -1,10 +1,14 @@
 """Focused calculation facade and result-model checks."""
 
 import gc
+import os
+import pickle
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from fractions import Fraction
+from pathlib import Path
 from threading import Lock
 from typing import Any, cast
 from unittest.mock import patch
@@ -81,6 +85,85 @@ class RecordingObserver(chargefw.CalculationObserver):
 
     def on_progress(self, progress: chargefw.CalculationProgress) -> None:
         self.events.append(progress)
+
+
+def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() -> None:
+    eem_set = next(id for id, item in chargefw.parameter_sets.items() if item.method.id == "eem")
+    # Checked in Python before the native call, and in the native code.
+    for arguments, kind in (
+        ({"method": "no-such-method"}, "unknown_method"),
+        ({"method": "eem", "parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"method": "qeq", "parameter_set": eem_set}, "incompatible_parameter_set"),
+        ({"method": "formal", "parameter_set": eem_set}, "incompatible_parameter_set"),
+        ({"parameter_set": eem_set}, "incompatible_parameter_set"),
+        # Whether the set exists is asked before whether it goes with the method.
+        ({"method": "formal", "parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"parameter_set": "no-such-set"}, "unknown_parameter_set"),
+        ({"method": "no-such-method", "parameter_set": "no-such-set"}, "unknown_method"),
+        ({"method": "eem", "execution": "cutoff", "radius": 0.1}, "invalid_execution"),
+        ({"method": "eem", "execution": "cutoff"}, "invalid_execution"),
+        ({"method": "eem", "execution": "cover", "radius": float("inf")}, "invalid_execution"),
+        ({"method": "eem", "execution": "full", "radius": 10.0}, "invalid_execution"),
+        ({"cutoff_threshold": 100, "cover_threshold": 10}, "invalid_execution"),
+        ({"cutoff_threshold": "unlimited", "cover_threshold": 10}, "invalid_execution"),
+        # Checked before the native call: numbers that are no atom count or radius.
+        ({"cutoff_threshold": -1}, "invalid_execution"),
+        ({"cover_threshold": 2**100}, "invalid_execution"),
+        ({"method": "eem", "execution": "cutoff", "radius": 10**500}, "invalid_execution"),
+    ):
+        errors = []
+        for function in (chargefw.assess, chargefw.calculate):
+            with pytest.raises(chargefw.RequestError) as raised:
+                cast(Any, function)(water(), **arguments)
+            errors.append(raised.value)
+        assessed, calculated = errors
+        assert (assessed.kind, assessed.reason) == (calculated.kind, calculated.reason)
+        assert assessed.kind == kind and str(assessed) == assessed.reason
+        assert assessed.option is None
+        # Still a ValueError, and whole after pickling.
+        assert isinstance(assessed, ValueError)
+        copy = pickle.loads(pickle.dumps(assessed))
+        assert (copy.kind, copy.reason, str(copy)) == (
+            assessed.kind,
+            assessed.reason,
+            str(assessed),
+        )
+
+    # The thread count is not part of the request.
+    for function in (chargefw.assess, chargefw.calculate):
+        with pytest.raises(ValueError) as negative_threads:
+            cast(Any, function)(water(), threads=-1)
+        assert type(negative_threads.value) is ValueError
+
+    # A valid request that the method cannot satisfy is a rejection, not a request error.
+    unsupported = {"method": "peoe", "execution": "cutoff", "radius": 8.0}
+    assert chargefw.assess(water(), **cast(Any, unsupported)).default_plan is None
+    with pytest.raises(chargefw.NoExecutablePlanError):
+        chargefw.calculate(water(), **cast(Any, unsupported))
+
+
+def test_invalid_method_option_names_the_option() -> None:
+    # An option the method lacks, and values of the wrong type, outside the bounds, outside the
+    # choices, and not finite, which is checked before the native call.
+    for method, options, option in (
+        ("peoe", {"no-such-option": 1}, "no-such-option"),
+        ("peoe", {"iters": "many"}, "iters"),
+        ("peoe", {"iters": 99}, "iters"),
+        ("peoe", {"initial_charges": "random"}, "initial_charges"),
+        ("denr", {"step": float("nan")}, "step"),
+        ("denr", {"step": Fraction(10**500, 3)}, "step"),
+    ):
+        for function in (chargefw.assess, chargefw.calculate):
+            with pytest.raises(chargefw.RequestError) as raised:
+                cast(Any, function)(water(), method=method, method_options=options)
+            assert (raised.value.kind, raised.value.option) == ("invalid_method_option", option)
+    # Options without a method concern no single option.
+    with pytest.raises(chargefw.RequestError) as unnamed:
+        chargefw.calculate(water(), method_options={"iters": 2})
+    assert (unnamed.value.kind, unnamed.value.option) == ("invalid_method_option", None)
+    # The shape of the argument is not the request's content.
+    with pytest.raises(TypeError):
+        chargefw.calculate(water(), method="peoe", method_options=cast(Any, ["iters"]))
 
 
 def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> None:
@@ -225,10 +308,15 @@ def test_fixed_ions_validation_empty_and_method_support() -> None:
     for invalid in ("MG", b"MG", ["MG", 12]):
         with pytest.raises(TypeError):
             chargefw.assess(molecules, fixed_ions=cast(Any, invalid))
-    with pytest.raises(ValueError):
-        chargefw.assess(molecules, fixed_ions=["mg"])
-    with pytest.raises(ValueError):
-        chargefw.assess(chargefw.MoleculeCollection([]), fixed_ions=["bad"])
+    # An ion name that is not known, and a molecule without residues to find the ions by.
+    for invalid_molecules, names in (
+        (molecules, ["mg"]),
+        (chargefw.MoleculeCollection([]), ["bad"]),
+        (water(), ["MG"]),
+    ):
+        with pytest.raises(chargefw.RequestError) as caught:
+            chargefw.assess(invalid_molecules, fixed_ions=names)
+        assert caught.value.kind == "invalid_fixed_ions"
 
     absent = chargefw.calculate(molecules, method="formal", fixed_ions=["CA"])
     assert absent.requested.fixed_ions == ("CA",)
@@ -1110,6 +1198,19 @@ def test_parameter_sets_read_from_files_with_other_values_are_distinct(tmp_path:
     assert chargefw.parameter_sets["EEM_Baek1991"] == chargefw.parameter_sets["EEM_Baek1991"]
 
 
+@pytest.mark.skipif(os.name != "posix", reason="needs file names of arbitrary bytes")
+def test_parameter_set_file_name_need_not_be_text(tmp_path: Path) -> None:
+    # Such a name still loads, and still names the file in an error.
+    odd_name = Path(os.fsdecode(os.fsencode(tmp_path) + b"/\xff.json"))
+    try:
+        odd_name.write_text('{"metadata": {"id": "broken"}}')
+    except OSError:
+        pytest.skip("the file system does not allow such names")
+    with pytest.raises(chargefw.ParseError) as odd:
+        chargefw.read_parameter_set(odd_name)
+    assert odd.value.kind == "malformed" and odd.value.source_name == str(odd_name)
+
+
 def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path: Any) -> None:
     bundled_id = next(iter(chargefw.parameter_sets))
     with pytest.raises(ValueError, match="bundled"):
@@ -1117,8 +1218,19 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     malformed = tmp_path / "malformed.json"
     malformed.write_text('{"metadata": {"id": "broken"}}')
-    with pytest.raises(chargefw.ParseError):
+    with pytest.raises(chargefw.ParseError) as broken:
         chargefw.read_parameter_set(malformed)
+    assert broken.value.kind == "malformed"
+    # The file is named once, in the message and not in the reason.
+    assert broken.value.source_name == str(malformed)
+    assert str(broken.value) == f"{malformed}: {broken.value.reason}"
+
+    # A file of a later format version is unsupported, whatever else it has.
+    later = tmp_path / "later.json"
+    later.write_text('{"metadata": {"format_version": 2, "method": "eem"}, "units": {}}')
+    with pytest.raises(chargefw.ParseError) as unsupported:
+        chargefw.read_parameter_set(later)
+    assert unsupported.value.kind == "unsupported"
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
@@ -1127,6 +1239,7 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
     # The path is in the source name, not in the reason.
     assert unknown.value.source_name == str(unknown_method)
     assert "no-such-method" in unknown.value.reason
+    assert unknown.value.kind == "unsupported"
     assert str(unknown_method) not in unknown.value.reason
 
     with pytest.raises(FileNotFoundError):

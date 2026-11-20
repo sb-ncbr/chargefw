@@ -1,4 +1,5 @@
 #include "support/test_charge_results.h"
+#include "support/test_exceptions.h"
 
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_set.h>
@@ -9,6 +10,7 @@
 #include <chargefw/io/charge_result.h>
 #include <chargefw/io/mol2_input.h>
 #include <chargefw/io/mol2_output.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/version.h>
 #include <snitch/snitch.hpp>
 
@@ -276,7 +278,10 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
             {generated_record()}, {},
             {.status = chargefw::calculation::ExecutionStatus::cancelled});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::Mol2Writer{output}.write(cancelled), std::invalid_argument);
+        const auto refused = chargefw::test::thrown<io::OutputError>(
+            [&] { io::Mol2Writer{output}.write(cancelled); });
+        REQUIRE(refused.has_value());
+        CHECK(refused->kind() == io::OutputErrorKind::no_charges);
         CHECK(output.str().empty());
     }
 
@@ -289,7 +294,11 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                {{.target = {.molecule_index = 0},
                                  .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::Mol2Writer{output}.write(missing), std::invalid_argument);
+        const auto error =
+            chargefw::test::thrown<io::OutputError>([&] { io::Mol2Writer{output}.write(missing); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::missing_coordinates);
+        CHECK(error->molecule_index() == 0);
         CHECK(output.str().empty());
     }
 
@@ -301,7 +310,11 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                                     {{.target = {.molecule_index = 0},
                                                       .charges = charges::AtomicCharges{{}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::Mol2Writer{output}.write(empty), std::invalid_argument);
+        const auto error =
+            chargefw::test::thrown<io::OutputError>([&] { io::Mol2Writer{output}.write(empty); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::unsupported_shape);
+        CHECK(error->molecule_index() == 0);
         CHECK(output.str().empty());
     }
 
@@ -318,7 +331,13 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
                                {{.target = {.molecule_index = 0, .conformer_index = 0},
                                  .charges = charges::AtomicCharges{{0.0, 0.0}}}}});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::Mol2Writer{output}.write(nonfinite_coordinates), std::invalid_argument);
+        const auto error = chargefw::test::thrown<io::OutputError>(
+            [&] { io::Mol2Writer{output}.write(nonfinite_coordinates); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::OutputErrorKind::unrepresentable);
+        CHECK(error->location().conformer_index == 0);
+        CHECK(error->location().atom_index == 0);
+        CHECK(std::string_view{error->what()}.starts_with("molecule 1, conformer 1, atom 1: "));
         CHECK(output.str().empty());
     }
 }

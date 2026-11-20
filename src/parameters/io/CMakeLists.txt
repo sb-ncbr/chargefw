@@ -1,6 +1,7 @@
 target_sources(chargefw_objects
         PRIVATE
         parameter_set_io.cpp
+        parse_error.cpp
         parameter_data_paths.cpp
         PUBLIC
         FILE_SET HEADERS
@@ -8,5 +9,6 @@ target_sources(chargefw_objects
         ${PROJECT_SOURCE_DIR}/include
         FILES
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/io/parameter_set_io.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/io/parse_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/parameters/io/parameter_data_paths.h
 )

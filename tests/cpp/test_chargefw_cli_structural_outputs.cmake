@@ -96,6 +96,28 @@ function(expect_annotated_mmcif contents)
     file(REMOVE_RECURSE "${output_directory}")
 endfunction()
 
+# A .gz file is read as the format of the extension before .gz, and outputs are named without both.
+function(expect_gzip_input contents)
+    set(plain_path "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_gzip.cif")
+    set(input_path "${plain_path}.gz")
+    fresh_output_directory(output_directory gzip_outputs)
+    file(WRITE "${plain_path}" "${contents}")
+    file(ARCHIVE_CREATE OUTPUT "${input_path}" PATHS "${plain_path}" FORMAT raw COMPRESSION GZip)
+
+    run_cli(gzip 0 calculate --method formal --output-mmcif "${input_path}" "${output_directory}")
+    expect_files_exist(gzip "${output_directory}/chargefw_cli_gzip.chargefw.json"
+                       "${output_directory}/chargefw_cli_gzip.chargefw.cif")
+
+    # Text named .gz is not gzip data.
+    file(COPY_FILE "${plain_path}" "${input_path}")
+    fresh_output_directory(output_directory gzip_outputs)
+    run_cli(gzip_uncompressed 2 calculate --method formal "${input_path}" "${output_directory}")
+    expect_files_absent(gzip_uncompressed "${output_directory}/chargefw_cli_gzip.chargefw.json")
+
+    file(REMOVE "${plain_path}" "${input_path}")
+    file(REMOVE_RECURSE "${output_directory}")
+endfunction()
+
 set(water_atom_site "loop_\n_atom_site.group_PDB\n_atom_site.id\n_atom_site.type_symbol\n_atom_site.label_atom_id\n_atom_site.label_alt_id\n_atom_site.label_comp_id\n_atom_site.label_asym_id\n_atom_site.label_seq_id\n_atom_site.pdbx_PDB_ins_code\n_atom_site.Cartn_x\n_atom_site.Cartn_y\n_atom_site.Cartn_z\n_atom_site.occupancy\n_atom_site.B_iso_or_equiv\n_atom_site.pdbx_formal_charge\n_atom_site.auth_seq_id\n_atom_site.auth_comp_id\n_atom_site.auth_asym_id\n_atom_site.auth_atom_id\n_atom_site.pdbx_PDB_model_num\nHETATM 1 O O . HOH A 1 ? 0.000 0.000 0.000 1.00 20.00 0 1 HOH A O 1\nHETATM 2 H H1 . HOH A 1 ? 0.957 0.000 0.000 1.00 20.00 0 1 HOH A H1 1\nHETATM 3 H H2 . HOH A 1 ? -0.239 0.927 0.000 1.00 20.00 0 1 HOH A H2 1\n#\n")
 
 run_structural_input(
@@ -119,3 +141,4 @@ run_structural_input(
 expect_annotated_mmcif("data_annotate\n_note.text kept\n${water_atom_site}")
 
 expect_non_structural_options_rejected()
+expect_gzip_input("data_gzip\n${water_atom_site}")

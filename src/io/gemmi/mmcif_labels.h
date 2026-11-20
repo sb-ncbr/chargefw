@@ -2,9 +2,12 @@
 
 #include <chargefw/io/molecule_record.h>
 
+#include <charconv>
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <string>
+#include <system_error>
 
 #include <gemmi/cifdoc.hpp>
 
@@ -45,6 +48,27 @@ constexpr auto model_id_column = std::size_t{12};
                                   .insertion_code = source_value(row, 9),
                                   .alternate_location = source_value(row, 10),
                                   .segment = std::nullopt};
+}
+
+// The formal charge of an _atom_site.pdbx_formal_charge value: zero for a missing or unknown one,
+// and nothing for text that is not an integer from -128 to 127, the charges Gemmi can hold. The
+// conversion checks for overflow, which Gemmi's own does not.
+[[nodiscard]] inline auto formal_charge(const std::string& value) -> std::optional<int> {
+    if (::gemmi::cif::is_null(value)) {
+        return 0;
+    }
+    const auto text = ::gemmi::cif::as_string(value);
+    const auto* first = text.data() + (text.starts_with('+') ? 1 : 0);
+    const auto* last = text.data() + text.size();
+    auto charge = 0;
+    const auto [end, error] = std::from_chars(first, last, charge);
+    // from_chars() reads a minus sign itself, so "+-1" would pass as -1.
+    if (error != std::errc{} || end != last || first == last || text.starts_with("+-") ||
+        charge < std::numeric_limits<signed char>::min() ||
+        charge > std::numeric_limits<signed char>::max()) {
+        return std::nullopt;
+    }
+    return charge;
 }
 
 } // namespace chargefw::io::gemmi::mmcif_labels

@@ -1,9 +1,12 @@
+#include "support/test_exceptions.h"
+
 #include "support/test_calculation.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
 
 #include <algorithm>
 #include <chargefw/calculation/calculation.h>
+#include <chargefw/calculation/request_error.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -820,6 +823,91 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
     for (const auto& request : invalid_requests) {
         CAPTURE(request.method_id.value_or("automatic"), request.parameter_set_id.value_or(""));
         CHECK_THROWS_AS(static_cast<void>(calculation::assess(request)), std::invalid_argument);
+    }
+
+    // A parameter set that is not known, and one that does not go with the method.
+    using Kind = calculation::RequestErrorKind;
+    const auto sets = std::vector{make_singular_eem_parameter_set()};
+    for (const auto& [request, kind] :
+         {std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "eem",
+                                                   .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "qeq",
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "formal",
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .parameter_set_id = "singular-eem"},
+                    Kind::incompatible_parameter_set},
+          // Whether the set exists is asked before whether it goes with the method.
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .parameter_sets = sets,
+                                                   .method_id = "formal",
+                                                   .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set},
+          std::pair{calculation::AssessmentRequest{
+                        .molecules = water, .parameter_sets = sets, .parameter_set_id = "missing"},
+                    Kind::unknown_parameter_set}}) {
+        CAPTURE(request.method_id.value_or("none"), *request.parameter_set_id);
+        const auto error = chargefw::test::thrown<calculation::RequestError>(
+            [&] { static_cast<void>(calculation::assess(request)); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == kind);
+    }
+
+    // A method option names the option, unless the error concerns no single one.
+    for (const auto& [request, option] :
+         {std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_id = "peoe",
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"iters", 99}}}},
+                    std::optional<std::string>{"iters"}},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_id = "peoe",
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"missing", 1}}}},
+                    std::optional<std::string>{"missing"}},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"iters", 2}}}},
+                    std::optional<std::string>{}}}) {
+        const auto error = chargefw::test::thrown<calculation::RequestError>(
+            [&] { static_cast<void>(calculation::assess(request)); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == Kind::invalid_method_option);
+        CHECK(error->option() == option);
+    }
+
+    // The error says which part of the request to change, and is still a std::invalid_argument.
+    // An unknown method is the same error whichever check meets it first, here also the check of
+    // its options.
+    for (const auto& request :
+         {calculation::AssessmentRequest{.molecules = water, .method_id = "missing"},
+          calculation::AssessmentRequest{.molecules = water,
+                                         .method_id = "missing",
+                                         .method_options = methods::MethodOptions{{{"iters", 2}}}},
+          calculation::AssessmentRequest{
+              .molecules = water, .method_id = "missing", .parameter_set_id = "any"}}) {
+        try {
+            static_cast<void>(calculation::assess(request));
+            FAIL_CHECK("an unknown method was accepted");
+        } catch (const std::invalid_argument& error) {
+            const auto* const request_error =
+                dynamic_cast<const calculation::RequestError*>(&error);
+            REQUIRE(request_error != nullptr);
+            CHECK(request_error->kind() == calculation::RequestErrorKind::unknown_method);
+            CHECK(request_error->reason() == "method 'missing' is not registered");
+            CHECK_FALSE(request_error->option().has_value());
+        }
     }
 }
 

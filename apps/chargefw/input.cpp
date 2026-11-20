@@ -2,22 +2,38 @@
 
 #include "io/fixed_ions.h"
 
+#include <chargefw/io/parse_error.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
+
+#include <gemmi/gz.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <istream>
 #include <optional>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <variant>
 
 namespace chargefw::cli {
 namespace {
+
+[[nodiscard]] auto lowercase_extension(const std::filesystem::path& path) -> std::string {
+    auto extension = path.extension().string();
+    std::ranges::transform(extension, extension.begin(), [](const unsigned char character) -> char {
+        return static_cast<char>(std::tolower(character));
+    });
+    return extension;
+}
 
 template <typename Reader>
 auto read_collection(Reader& reader, const std::string& input_path) -> ImportedCollection {
@@ -112,17 +128,71 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
                              "': " + value};
 }
 
+// The message of a refusal with the line it names, for the person reading the terminal: as the
+// reader saw the line, without its line ending, and with every byte that is not printable ASCII
+// escaped. The message alone when the input cannot be read again or has no such line.
+auto with_refused_line(const io::ParseError& error, std::istream& input) -> std::string {
+    auto message = std::string{error.what()};
+    const auto line = error.location().line;
+    input.clear();
+    if (!line.has_value() || !input.seekg(0)) {
+        return message;
+    }
+    auto text = std::string{};
+    for (std::size_t number = 0; number < *line; ++number) {
+        if (!std::getline(input, text)) {
+            return message;
+        }
+    }
+    if (text.ends_with('\r')) {
+        text.pop_back();
+    }
+    message += "\n    | ";
+    for (const auto character : text) {
+        const auto byte = static_cast<unsigned char>(character);
+        if (byte >= 0x20 && byte < 0x7F) {
+            message += character;
+        } else {
+            message += std::format("\\x{:02X}", byte);
+        }
+    }
+    return message;
+}
+
+auto read_collection(std::istream& input, const std::string& input_path,
+                     const io::StructureOptions structural_options,
+                     bool structural_options_requested) -> ImportedCollection;
+
 auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
-    std::ifstream input{input_path};
-    if (!input) {
+    // Binary, as the readers take LF and CRLF themselves and some return to an earlier position,
+    // which a Windows text stream does not do reliably for a file with LF line endings.
+    std::ifstream file{input_path, std::ios::binary};
+    if (!file) {
         throw std::runtime_error{"Unable to open input file: " + input_path};
     }
 
-    auto extension = std::filesystem::path{input_path}.extension().string();
-    std::ranges::transform(extension, extension.begin(), [](const unsigned char character) -> char {
-        return static_cast<char>(std::tolower(character));
-    });
+    // A .gz file is decompressed into memory and read as the format of the extension before .gz.
+    // Gemmi refuses one that would decompress to more than 3 GiB, or whose gzip trailer gives a
+    // size over 100 times that of the file, such as an SDF of many identical records.
+    const auto compressed = lowercase_extension(input_path) == ".gz";
+    std::istringstream decompressed;
+    if (compressed) {
+        const auto buffer = ::gemmi::MaybeGzipped{input_path}.uncompress_into_buffer();
+        decompressed.str(std::string{buffer.data(), buffer.size()});
+    }
+    auto& input = compressed ? static_cast<std::istream&>(decompressed) : file;
+    try {
+        return read_collection(input, input_path, structural_options, structural_options_requested);
+    } catch (const io::ParseError& error) {
+        throw std::runtime_error{with_refused_line(error, input)};
+    }
+}
+
+auto read_collection(std::istream& input, const std::string& input_path,
+                     const io::StructureOptions structural_options,
+                     const bool structural_options_requested) -> ImportedCollection {
+    const auto extension = lowercase_extension(uncompressed_path(input_path));
     if (structural_options_requested && (extension == ".sdf" || extension == ".mol" ||
                                          extension == ".mol2" || extension == ".json")) {
         throw std::runtime_error{
@@ -153,11 +223,21 @@ auto read_collection(const std::string& input_path, const io::StructureOptions s
         return read_collection(reader, input_path);
     }
 
-    throw std::runtime_error{"Unsupported input file type: " + extension +
-                             ". Supported types: .sdf, .mol, .mol2, .json, .pdb, .cif, .mmcif"};
+    throw std::runtime_error{
+        "Unsupported input file type: " + extension +
+        ". Supported types: .sdf, .mol, .mol2, .json, .pdb, .cif, .mmcif, each "
+        "optionally followed by .gz"};
 }
 
 } // namespace
+
+auto uncompressed_path(const std::string& path) -> std::filesystem::path {
+    auto result = std::filesystem::path{path};
+    if (lowercase_extension(result) == ".gz") {
+        result.replace_extension();
+    }
+    return result;
+}
 
 void add_input_options(CLI::App& command, InputArguments& arguments) {
     command.add_option("input", arguments.path, "Input molecular file")->required();
@@ -207,10 +287,9 @@ auto import_input(const InputArguments& arguments) -> ImportedCollection {
         .selection = io::record_selection_from_string(arguments.structural_selection),
         .bonds = io::bond_strategy_from_string(arguments.structural_bonds),
         .conformers = io::conformer_selection_from_string(arguments.conformer_selection)};
-    auto imported = read_collection(arguments.path, options,
-                                    arguments.structural_selection_option->count() > 0 ||
-                                        arguments.structural_bonds_option->count() > 0);
-    return imported;
+    return read_collection(arguments.path, options,
+                           arguments.structural_selection_option->count() > 0 ||
+                               arguments.structural_bonds_option->count() > 0);
 }
 
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
