@@ -129,6 +129,12 @@ def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() ->
             str(assessed),
         )
 
+    # The thread count is not part of the request.
+    for function in (chargefw.assess, chargefw.calculate):
+        with pytest.raises(ValueError) as negative_threads:
+            cast(Any, function)(water(), threads=-1)
+        assert type(negative_threads.value) is ValueError
+
     # A valid request that the method cannot satisfy is a rejection, not a request error.
     unsupported = {"method": "peoe", "execution": "cutoff", "radius": 8.0}
     assert chargefw.assess(water(), **cast(Any, unsupported)).default_plan is None
