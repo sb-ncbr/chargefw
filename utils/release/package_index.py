@@ -4,14 +4,15 @@ import argparse
 import hashlib
 import json
 import platform
+import time
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 USER_AGENT = "chargefw-release-workflow"
 INDEXES = {
-    "testpypi": "https://test.pypi.org/pypi/chargefw/{version}/json",
-    "pypi": "https://pypi.org/pypi/chargefw/{version}/json",
+    "testpypi": "https://test.pypi.org/pypi/{project}/{version}/json",
+    "pypi": "https://pypi.org/pypi/{project}/{version}/json",
 }
 
 
@@ -20,9 +21,9 @@ def fetch(url, timeout=30):
         return response.read()
 
 
-def remote_files(index, version):
+def remote_files(index, project, version):
     try:
-        payload = json.loads(fetch(INDEXES[index].format(version=version)))
+        payload = json.loads(fetch(INDEXES[index].format(project=project, version=version)))
     except HTTPError as error:
         if error.code != 404:
             raise
@@ -51,17 +52,35 @@ def compare(index, remote, manifest):
     return sorted(expected.keys() - remote.keys())
 
 
+def verify(index, project, version, manifest, attempts=10, delay=30):
+    """Wait until the index lists every manifest file; fail at once on a conflicting file."""
+    for attempt in range(attempts):
+        # The index cache can answer with an older file list for a while after an upload.
+        missing = compare(index, remote_files(index, project, version), manifest)
+        if not missing:
+            print(f"{index}: every file is listed with the SHA-256 of the manifest")
+            return
+        if attempt + 1 < attempts:
+            time.sleep(delay)
+    raise SystemExit(f"{index} does not yet list: {', '.join(missing)}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["preflight", "download-wheel"])
+    parser.add_argument("command", choices=["preflight", "verify", "download-wheel"])
     parser.add_argument("index", choices=sorted(INDEXES))
     parser.add_argument("version")
     parser.add_argument("manifest")
     parser.add_argument("--output-dir", type=Path, default=Path.cwd())
+    parser.add_argument("--project", default="chargefw")
     args = parser.parse_args()
 
+    if args.command == "verify":
+        verify(args.index, args.project, args.version, args.manifest)
+        return
+
     # Use one response throughout: consecutive requests can reach caches holding different lists.
-    remote = remote_files(args.index, args.version)
+    remote = remote_files(args.index, args.project, args.version)
     missing = compare(args.index, remote, args.manifest)
     if args.command == "preflight":
         print(f"{args.index}: {len(missing)} files to upload, no conflicts")

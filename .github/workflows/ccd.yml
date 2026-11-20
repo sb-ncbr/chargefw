@@ -1,0 +1,151 @@
+name: Component dictionary
+
+# Publishes chargefw-ccd (packages/chargefw-ccd) from the current wwPDB Chemical Component Dictionary.
+# The package version is the date of the newest component, so a run with an unchanged dictionary
+# builds and checks the wheel and publishes nothing. A run started by hand from another branch does
+# the same.
+#
+# An upload skips a file that the index already holds. The index's copy is compared with the built
+# wheel by SHA-256 before and after each upload, so "Re-run failed jobs" is safe and a later run cannot
+# publish a different wheel under a version that TestPyPI has already accepted.
+on:
+  schedule:
+    - cron: "17 4 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.generate.outputs.version }}
+      publish: ${{ steps.index.outputs.publish }}
+    defaults:
+      run:
+        working-directory: packages/chargefw-ccd
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install build gemmi==0.7.4 twine
+      - name: Download the dictionary
+        run: >-
+          curl --fail --location --retry 3 --create-dirs --output "$RUNNER_TEMP/ccd/components.cif.gz"
+          https://files.wwpdb.org/pub/pdb/data/monomers/components.cif.gz
+      - name: Generate the data file
+        id: generate
+        run: |
+          version=$(python -I generate.py "$RUNNER_TEMP/ccd/components.cif.gz")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Check whether the version is published
+        id: index
+        env:
+          VERSION: ${{ steps.generate.outputs.version }}
+        run: |
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              "https://pypi.org/pypi/chargefw-ccd/$VERSION/json")
+          case $status in
+              200) echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+              404) echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+              *) echo "PyPI answered $status" >&2; exit 1 ;;
+          esac
+      - run: python -m build --wheel --outdir "$GITHUB_WORKSPACE/dist"
+      - run: python -m twine check --strict "$GITHUB_WORKSPACE"/dist/*
+      - name: Install the wheel and read the data file
+        env:
+          VERSION: ${{ steps.generate.outputs.version }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv environment
+          environment/bin/python -m pip install --quiet --no-index "$GITHUB_WORKSPACE"/dist/*.whl
+          environment/bin/python -I -c '
+          import gzip, sys, chargefw_ccd
+          assert chargefw_ccd.__version__ == sys.argv[1]
+          with gzip.open(chargefw_ccd.path(), "rt") as file:
+              assert file.readline().startswith("chargefw-ccd 1 ")
+              assert sum(1 for _ in file) > 1_000_000
+          ' "$VERSION"
+      - name: Write the checksum manifest
+        working-directory: ${{ github.workspace }}
+        run: (cd dist && sha256sum ./*) > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: chargefw-ccd-${{ steps.generate.outputs.version }}
+          path: |
+            dist/
+            SHA256SUMS
+          if-no-files-found: error
+
+  testpypi:
+    needs: build
+    if: needs.build.outputs.publish == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    environment:
+      name: ccd-testpypi
+      url: https://test.pypi.org/project/chargefw-ccd/${{ needs.build.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: chargefw-ccd-${{ needs.build.outputs.version }}
+          path: release
+      - run: (cd release/dist && sha256sum --check ../SHA256SUMS)
+      - name: Check TestPyPI for conflicting files
+        run: >-
+          python3 -I utils/release/package_index.py preflight testpypi "$VERSION" release/SHA256SUMS
+          --project chargefw-ccd
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: release/dist/
+          skip-existing: true
+      - name: Check that TestPyPI holds the built wheel
+        run: >-
+          python3 -I utils/release/package_index.py verify testpypi "$VERSION" release/SHA256SUMS
+          --project chargefw-ccd
+
+  pypi:
+    needs: [build, testpypi]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    environment:
+      name: ccd-pypi
+      url: https://pypi.org/project/chargefw-ccd/${{ needs.build.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: chargefw-ccd-${{ needs.build.outputs.version }}
+          path: release
+      - run: (cd release/dist && sha256sum --check ../SHA256SUMS)
+      - name: Check PyPI for conflicting files
+        run: >-
+          python3 -I utils/release/package_index.py preflight pypi "$VERSION" release/SHA256SUMS
+          --project chargefw-ccd
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release/dist/
+          skip-existing: true
+      - name: Check that PyPI holds the built wheel
+        run: >-
+          python3 -I utils/release/package_index.py verify pypi "$VERSION" release/SHA256SUMS
+          --project chargefw-ccd
