@@ -1,8 +1,9 @@
 name: Component dictionary
 
 # Publishes chargefw-ccd (packages/chargefw-ccd) from the current wwPDB Chemical Component Dictionary.
-# The package version is the date of the newest component, so a run with an unchanged dictionary
-# builds and checks the wheel and publishes nothing. A run started by hand from another branch does
+# The package version is the date of the newest component, and only a version newer than every one
+# on PyPI is published, so a run with an unchanged dictionary builds and checks the wheel and publishes
+# nothing. A run started by hand from another branch does
 # the same.
 #
 # An upload skips a file that the index already holds. The index's copy is compared with the built
@@ -45,18 +46,27 @@ jobs:
         run: |
           version=$(python -I generate.py "$RUNNER_TEMP/ccd/components.cif.gz")
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Check whether the version is published
+      - name: Check whether the version is newer than every published one
         id: index
         env:
           VERSION: ${{ steps.generate.outputs.version }}
         run: |
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
-              "https://pypi.org/pypi/chargefw-ccd/$VERSION/json")
-          case $status in
-              200) echo "publish=false" >> "$GITHUB_OUTPUT" ;;
-              404) echo "publish=true" >> "$GITHUB_OUTPUT" ;;
-              *) echo "PyPI answered $status" >&2; exit 1 ;;
-          esac
+          python -I - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os, urllib.error, urllib.request
+          from packaging.version import Version
+
+          url = "https://pypi.org/pypi/chargefw-ccd/json"
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  published = [Version(version) for version in json.load(response)["releases"]]
+          except urllib.error.HTTPError as error:
+              # The project does not exist before its first upload.
+              if error.code != 404:
+                  raise
+              published = []
+          newer = all(Version(os.environ["VERSION"]) > version for version in published)
+          print(f"publish={str(newer).lower()}")
+          EOF
       - run: python -m build --wheel --outdir "$GITHUB_WORKSPACE/dist"
       - run: python -m twine check --strict "$GITHUB_WORKSPACE"/dist/*
       - name: Install the wheel and read the data file
@@ -70,7 +80,7 @@ jobs:
           import gzip, sys, chargefw_ccd
           assert chargefw_ccd.__version__ == sys.argv[1]
           with gzip.open(chargefw_ccd.path(), "rt") as file:
-              assert file.readline().startswith("chargefw-ccd 1 ")
+              assert file.readline() == f"chargefw-ccd 1 {sys.argv[1]}\n"
               assert sum(1 for _ in file) > 1_000_000
           ' "$VERSION"
       - name: Write the checksum manifest

@@ -36,6 +36,21 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
   `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
 
+- [ ] Read the `chargefw-ccd` component dictionary (`packages/chargefw-ccd`) in ChargeFW. Decide the
+  source of each bond, not of each residue. Under `hybrid`, a built-in template keeps precedence, the
+  dictionary gives the bonds that neither the file nor a template has, and it gives the order of a
+  PDB `CONECT` bond whose order is unknown; `explicit` does not change. Warn about residue atoms that the dictionary entry
+  lacks. The dictionary is used only when the caller names the file, so that installing a package
+  does not change the bonds an unchanged script gets: a `components` argument of the Python readers,
+  to which `chargefw_ccd.path()` can be passed, a `ccd` extra that installs the package, and a
+  command-line option. When the dictionary gives a bond, record the version from the first line of
+  the file in the results. Decide first how dictionary bond orders, which assume one protonation state, combine
+  with the formal charges in the file: the built-in templates have protonation motifs and dictionary
+  components do not. Test with a small dictionary fixture, including the order of a ligand carbonyl whose
+  bonds a PDB file gives only as `CONECT`, not only the absence of warnings. Add a check to `ccd.yml`
+  that 1EHZ from the PDB reads without an `unbonded_residue_atoms` warning, and correct the statement in
+  `docs/guide/input.md` that mmCIF files downloaded from the PDB contain all bonds.
+
 - [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
   `README.md`.
 

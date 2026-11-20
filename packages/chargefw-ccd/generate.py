@@ -11,9 +11,9 @@ Writes two files into src/chargefw_ccd/:
 
 The data file is gzip-compressed text. Its first line is
 
-    chargefw-ccd FORMAT_VERSION DATE
+    chargefw-ccd FORMAT_VERSION PACKAGE_VERSION
 
-with the date as YYYY-MM-DD. Each component follows as a line
+Each component follows as a line
 
     ID ATOM_COUNT BOND_COUNT
 
@@ -104,14 +104,14 @@ def main() -> None:
         dates.append(cif.as_string(block.find_value("_chem_comp.pdbx_modified_date")))
     year, month, day = (int(part) for part in max(dates).split("-"))
 
-    text = "\n".join([f"chargefw-ccd {FORMAT_VERSION} {year:04}-{month:02}-{day:02}", *lines, ""])
+    version = f"{year}.{month}.{day}" + (f".post{REVISION}" if REVISION else "")
+    text = "\n".join([f"chargefw-ccd {FORMAT_VERSION} {version}", *lines, ""])
     # No file name or time in the gzip header, so that the output depends only on the dictionary.
     with (
         open(PACKAGE / "components.txt.gz", "wb") as file,
         gzip.GzipFile(filename="", mode="wb", fileobj=file, mtime=0) as compressed,
     ):
         compressed.write(text.encode("ascii"))
-    version = f"{year}.{month}.{day}" + (f".post{REVISION}" if REVISION else "")
     (PACKAGE / "_version.py").write_text(f'__version__ = "{version}"\n')
     print(version)
 
