@@ -53,6 +53,7 @@ from ._errors import (
     ChargeFWError,
     NoExecutablePlanError,
     NumericalFailureError,
+    OutputError,
     ParseError,
 )
 from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
@@ -94,6 +95,7 @@ __all__ = [
     "write_parameter_set",
     "RequestedCalculation",
     "ChargeFWError",
+    "OutputError",
     "ParseError",
     "CalculationError",
     "NoExecutablePlanError",

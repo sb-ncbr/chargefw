@@ -6,11 +6,13 @@ in Python.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+from ._arrays import index_array
 from ._public import set_public_module
-from ._types import ParseErrorKind
+from ._types import OutputErrorKind, ParseErrorKind
 
 if TYPE_CHECKING:
     from ._calculation_values import CalculationResult
@@ -72,6 +74,79 @@ class ParseError(ChargeFWError, ValueError):
         return rebuild, self.args, vars(self)
 
 
+class OutputError(ChargeFWError, ValueError):
+    """A result cannot be written in the requested format, or charges cannot be added to a target.
+
+    ``kind`` is the cause as a code: ``"missing_coordinates"`` for a molecule without coordinates in
+    a format that needs them, ``"unsupported_shape"`` for a number of molecules, conformers, or
+    atoms the format cannot hold, ``"unrepresentable"`` for a value the format cannot hold,
+    ``"target_mismatch"`` for a document or toolkit molecule that is not the one that was read, and
+    ``"existing_charges"`` for charges already in the target that block the request. More kinds may
+    be added. ``reason`` is why as text; the message of the error says where before it.
+
+    ``molecule_index`` is the input molecule the error concerns, or ``None`` when it concerns the
+    result as a whole. The other fields say where in the molecule, as for an issue:
+    ``conformer_index``, ``atom_index``, ``other_atom_index`` for the second atom of a pair,
+    ``bond_index``, and the arrays ``atom_indices`` and ``bond_indices``. All count from zero.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        kind: OutputErrorKind,
+        molecule_index: int | None = None,
+        conformer_index: int | None = None,
+        atom_index: int | None = None,
+        other_atom_index: int | None = None,
+        bond_index: int | None = None,
+        atom_indices: Iterable[int] = (),
+        bond_indices: Iterable[int] = (),
+    ) -> None:
+        # The message says where, counted from one, then why.
+        where = [
+            f"{name} {index + 1}"
+            for name, index in (("molecule", molecule_index), ("conformer", conformer_index))
+            if index is not None
+        ]
+        if atom_index is not None and other_atom_index is not None:
+            where.append(f"atoms {atom_index + 1} and {other_atom_index + 1}")
+        elif atom_index is not None:
+            where.append(f"atom {atom_index + 1}")
+        if bond_index is not None:
+            where.append(f"bond {bond_index + 1}")
+        super().__init__(f"{', '.join(where)}: {reason}" if where else reason)
+        self.kind = kind
+        self.reason = reason
+        self.molecule_index = molecule_index
+        self.conformer_index = conformer_index
+        self.atom_index = atom_index
+        self.other_atom_index = other_atom_index
+        self.bond_index = bond_index
+        self.atom_indices = index_array(atom_indices)
+        self.bond_indices = index_array(bond_indices)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Rebuilt from the reason and the fields, which give the message; the state restores the
+        # rest, such as notes.
+        rebuild = partial(
+            type(self),
+            kind=self.kind,
+            molecule_index=self.molecule_index,
+            conformer_index=self.conformer_index,
+            atom_index=self.atom_index,
+            other_atom_index=self.other_atom_index,
+            bond_index=self.bond_index,
+        )
+        return rebuild, (self.reason,), vars(self)
+
+    def __setstate__(self, state: dict[str, Any] | None) -> None:
+        vars(self).update(state or {})
+        # Unpickled arrays are writable; these are not.
+        self.atom_indices = index_array(self.atom_indices)
+        self.bond_indices = index_array(self.bond_indices)
+
+
 class CalculationError(ChargeFWError):
     """A calculation produced no charges; ``result`` holds the failed result."""
 
@@ -96,6 +171,7 @@ set_public_module(
     "chargefw",
     ChargeFWError,
     ParseError,
+    OutputError,
     CalculationError,
     NoExecutablePlanError,
     NumericalFailureError,

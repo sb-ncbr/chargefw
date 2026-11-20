@@ -12,6 +12,7 @@ from .._arrays import as_integer
 from .._calculation import CalculationResult
 from .._charges import ChargeAssignment
 from .._core import Molecule
+from .._errors import OutputError
 from . import IfExists, _replace_existing
 
 try:
@@ -177,10 +178,18 @@ def attach_charges(
     assignment = _assignment(result, molecule_index, conformer_index)
     source = result.molecules[molecule_index]
     if molecule.GetNumAtoms() != source.atom_count:
-        raise ValueError("RDKit target atom count does not match the calculation input")
+        raise OutputError(
+            "RDKit target atom count does not match the calculation input",
+            kind="target_mismatch",
+            molecule_index=molecule_index,
+        )
     property_list_name = f"atom.dprop.{property_name}"
     if not replace and molecule.HasProp(property_list_name):
-        raise ValueError(f"RDKit molecule already has property {property_list_name!r}")
+        raise OutputError(
+            f"RDKit molecule already has property {property_list_name!r}",
+            kind="existing_charges",
+            molecule_index=molecule_index,
+        )
     atom_indices: list[int] = []
     for atom_id in source.atom_ids:
         if isinstance(atom_id, (str, bool, np.bool)):
@@ -190,19 +199,45 @@ def attach_charges(
         except TypeError as error:
             raise ValueError("RDKit attachment requires integer atom IDs") from error
         if atom_index < 0 or atom_index >= molecule.GetNumAtoms():
-            raise ValueError("RDKit atom ID is outside the target molecule")
+            raise OutputError(
+                "RDKit atom ID is outside the target molecule",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+            )
         atom_indices.append(atom_index)
     if len(set(atom_indices)) != molecule.GetNumAtoms():
-        raise ValueError("RDKit atom IDs must map each target atom exactly once")
+        raise OutputError(
+            "RDKit atom IDs must map each target atom exactly once",
+            kind="target_mismatch",
+            molecule_index=molecule_index,
+        )
 
     for source_index, atom_index in enumerate(atom_indices):
         atom = molecule.GetAtomWithIdx(atom_index)
         if atom.GetAtomicNum() != int(source.atomic_numbers[source_index]):
-            raise ValueError("RDKit target atom mapping does not match atomic numbers")
+            raise OutputError(
+                "RDKit target atom mapping does not match atomic numbers",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
         if atom.GetFormalCharge() != int(source.formal_charges[source_index]):
-            raise ValueError("RDKit target atom mapping does not match formal charges")
+            raise OutputError(
+                "RDKit target atom mapping does not match formal charges",
+                kind="target_mismatch",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
         if not replace and atom.HasProp(property_name):
-            raise ValueError(f"RDKit atom already has property {property_name!r}")
+            raise OutputError(
+                f"RDKit atom already has property {property_name!r}",
+                kind="existing_charges",
+                molecule_index=molecule_index,
+                atom_index=source_index,
+                atom_indices=[source_index],
+            )
 
     for atom_index, charge in zip(atom_indices, assignment.values, strict=True):
         molecule.GetAtomWithIdx(atom_index).SetDoubleProp(property_name, float(charge))

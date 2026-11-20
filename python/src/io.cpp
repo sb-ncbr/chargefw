@@ -18,6 +18,7 @@
 #include <chargefw/io/mol2_output.h>
 #include <chargefw/io/mol_input.h>
 #include <chargefw/io/molecule_record.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/io/parse_error.h>
 #include <chargefw/io/pdb_input.h>
 #include <chargefw/io/pqr_output.h>
@@ -330,6 +331,21 @@ void bind_io(nb::module_& module) {
                      nb::arg("source_name") = location.source_name, nb::arg("line") = location.line,
                      nb::arg("record_index") = location.record_index,
                      nb::arg("record_id") = portable_id(location.record_id));
+            PyErr_SetObject(type.ptr(), instance.ptr());
+        }
+    });
+    // A result a writer refuses becomes chargefw.OutputError, with where it is as attributes.
+    nb::register_exception_translator([](const std::exception_ptr& error, void* /*unused*/) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const io::OutputError& output_error) {
+            const auto type = nb::module_::import_("chargefw._errors").attr("OutputError");
+            auto fields = nb::dict{};
+            fields["kind"] = std::string{io::to_string(output_error.kind())};
+            fields["molecule_index"] = output_error.molecule_index();
+            add_issue_location(fields, output_error.location());
+            // The Python class writes the message from the reason and these fields.
+            const auto instance = type(nb::str(output_error.reason().c_str()), **fields);
             PyErr_SetObject(type.ptr(), instance.ptr());
         }
     });

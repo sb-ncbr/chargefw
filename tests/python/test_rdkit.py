@@ -204,9 +204,18 @@ def test_conversion_and_charge_attachment() -> None:
             chargefw_rdkit.attach_charges(
                 target, result, conformer_index=value, if_exists="replace"
             )
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.OutputError) as existing:
         chargefw_rdkit.attach_charges(target, result)
+    assert existing.value.kind == "existing_charges"
     chargefw_rdkit.attach_charges(target, result, if_exists="replace")
+
+    # A changed atom is named in the message, from one, and in the fields, from zero.
+    target.atoms[1].formal_charge = 1
+    with pytest.raises(chargefw.OutputError) as changed:
+        chargefw_rdkit.attach_charges(target, result, if_exists="replace")
+    assert (changed.value.kind, changed.value.atom_index) == ("target_mismatch", 1)
+    assert str(changed.value) == f"molecule 1, atom 2: {changed.value.reason}"
+    target.atoms[1].formal_charge = 0
 
     assert molecule.atom_ids == (0, 1)
     assert target.atoms[0].properties["ChargeFWPartialCharge"] == 0.0

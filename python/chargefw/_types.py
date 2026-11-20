@@ -25,6 +25,13 @@ type FailureKind = Literal["no_solution", "not_converged", "invalid_parameter_va
 type ParseErrorKind = Literal[
     "no_records", "invalid_encoding", "malformed", "unsupported", "inconsistent_models"
 ]
+type OutputErrorKind = Literal[
+    "missing_coordinates",
+    "unsupported_shape",
+    "unrepresentable",
+    "target_mismatch",
+    "existing_charges",
+]
 type ImportIssueKind = Literal[
     "partial_charges_ignored",
     "coordinates_2d_ignored",
