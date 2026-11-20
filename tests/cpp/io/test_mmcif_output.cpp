@@ -373,10 +373,10 @@ TEST_CASE("mmCIF bond output rejects bonds that residue definitions cannot expre
         CHECK(error->kind() == io::OutputErrorKind::unrepresentable);
         CHECK(error->molecule_index() == 0);
         CHECK(output.str().empty());
-        // Two atoms the writer knows are both named: the two of the same name, and the two of
-        // the second ligand that have no bond.
-        if (description == "repeated atom name" || description == "bond in one residue only") {
-            const auto first = description == "repeated atom name" ? 0U : 2U;
+        // Two atoms the writer knows are both named: the two of the same name, the two of the
+        // second ligand that have no bond, and the two of the bond between residues.
+        if (description != "different orders") {
+            const auto first = description == "bond in one residue only" ? 2U : 0U;
             CHECK(error->location().atom_index == first);
             CHECK(error->location().other_atom_index == first + 1);
             CHECK_FALSE(error->location().bond_index.has_value());

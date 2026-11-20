@@ -616,13 +616,15 @@ auto append_component_bonds(::gemmi::cif::Block& block, const RecordBonds& bonds
 }
 
 // Appends the _struct_conn partner columns of one atom, in the order of connection_columns().
-auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLabels& site)
-    -> void {
+// A refusal is located at the two atoms of the bond.
+auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLabels& site,
+                               const core::IssueLocation& bond_atoms) -> void {
     // Readers find a partner by author chain and number, or by label chain and number.
     if (site.author_sequence == "." && site.label_sequence == ".") {
         throw OutputError{OutputErrorKind::unrepresentable,
                           "mmCIF bond output cannot write a bond to " + residue_description(site) +
-                              ": it has no residue number"};
+                              ": it has no residue number",
+                          std::nullopt, bond_atoms};
     }
     // Readers such as Gemmi name atoms by their author names but look up partners by the label
     // names, so a partner whose names differ would not be found.
@@ -631,7 +633,8 @@ auto append_connection_partner(std::vector<std::string>& row, const OutputSiteLa
             OutputErrorKind::unrepresentable,
             std::format("mmCIF bond output cannot write a bond to atom {} of {}: its author and "
                         "label atom or residue names differ",
-                        site.label_atom, residue_description(site))};
+                        site.label_atom, residue_description(site)),
+            std::nullopt, bond_atoms};
     }
     const auto optional = [](const std::string& value) {
         return value == "." ? std::string{"."} : quote(value);
@@ -674,8 +677,9 @@ auto append_connections(::gemmi::cif::Block& block, const core::Molecule& molecu
         const auto type = std::string{disulfide ? "disulf" : "covale"};
         auto row = std::vector<std::string>{
             type + std::to_string(disulfide ? next_disulfide_id++ : next_covalent_id++), type};
-        append_connection_partner(row, labels[bond->first_atom_index()]);
-        append_connection_partner(row, labels[bond->second_atom_index()]);
+        const auto bond_atoms = atom_pair(bond->first_atom_index(), bond->second_atom_index());
+        append_connection_partner(row, labels[bond->first_atom_index()], bond_atoms);
+        append_connection_partner(row, labels[bond->second_atom_index()], bond_atoms);
         row.emplace_back(mmcif_bond_order(bond->order()));
         rows.append_row(row);
     }
