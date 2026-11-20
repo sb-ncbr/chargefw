@@ -5,6 +5,8 @@
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
+#include <gemmi/gz.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <charconv>
@@ -12,12 +14,21 @@
 #include <fstream>
 #include <optional>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <variant>
 
 namespace chargefw::cli {
 namespace {
+
+[[nodiscard]] auto lowercase_extension(const std::filesystem::path& path) -> std::string {
+    auto extension = path.extension().string();
+    std::ranges::transform(extension, extension.begin(), [](const unsigned char character) -> char {
+        return static_cast<char>(std::tolower(character));
+    });
+    return extension;
+}
 
 template <typename Reader>
 auto read_collection(Reader& reader, const std::string& input_path) -> ImportedCollection {
@@ -114,15 +125,23 @@ auto read_collection(Reader& reader, const std::string& input_path) -> ImportedC
 
 auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
-    std::ifstream input{input_path};
-    if (!input) {
+    std::ifstream file{input_path};
+    if (!file) {
         throw std::runtime_error{"Unable to open input file: " + input_path};
     }
 
-    auto extension = std::filesystem::path{input_path}.extension().string();
-    std::ranges::transform(extension, extension.begin(), [](const unsigned char character) -> char {
-        return static_cast<char>(std::tolower(character));
-    });
+    // A .gz file is decompressed into memory and read as the format of the extension before .gz.
+    // Gemmi refuses one that would decompress to more than 3 GiB, or whose gzip trailer gives a
+    // size over 100 times that of the file, such as an SDF of many identical records.
+    const auto compressed = lowercase_extension(input_path) == ".gz";
+    std::istringstream decompressed;
+    if (compressed) {
+        const auto buffer = ::gemmi::MaybeGzipped{input_path}.uncompress_into_buffer();
+        decompressed.str(std::string{buffer.data(), buffer.size()});
+    }
+    auto& input = compressed ? static_cast<std::istream&>(decompressed) : file;
+
+    const auto extension = lowercase_extension(uncompressed_path(input_path));
     if (structural_options_requested && (extension == ".sdf" || extension == ".mol" ||
                                          extension == ".mol2" || extension == ".json")) {
         throw std::runtime_error{
@@ -153,11 +172,21 @@ auto read_collection(const std::string& input_path, const io::StructureOptions s
         return read_collection(reader, input_path);
     }
 
-    throw std::runtime_error{"Unsupported input file type: " + extension +
-                             ". Supported types: .sdf, .mol, .mol2, .json, .pdb, .cif, .mmcif"};
+    throw std::runtime_error{
+        "Unsupported input file type: " + extension +
+        ". Supported types: .sdf, .mol, .mol2, .json, .pdb, .cif, .mmcif, each "
+        "optionally followed by .gz"};
 }
 
 } // namespace
+
+auto uncompressed_path(const std::string& path) -> std::filesystem::path {
+    auto result = std::filesystem::path{path};
+    if (lowercase_extension(result) == ".gz") {
+        result.replace_extension();
+    }
+    return result;
+}
 
 void add_input_options(CLI::App& command, InputArguments& arguments) {
     command.add_option("input", arguments.path, "Input molecular file")->required();

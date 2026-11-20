@@ -1,5 +1,6 @@
 """Owned molecule and collection model checks."""
 
+import gzip
 from dataclasses import FrozenInstanceError
 from gc import collect
 from pathlib import Path
@@ -241,6 +242,22 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
         assert str(latin1) not in undecodable.value.reason
     with pytest.raises(FileNotFoundError):
         chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
+
+
+def test_read_decompresses_gzip(tmp_path: Path) -> None:
+    plain = Path(__file__).parents[1] / "fixtures" / "synthetic" / "sdf" / "water_3d.sdf"
+    compressed = tmp_path / "water_3d.sdf.gz"
+    compressed.write_bytes(gzip.compress(plain.read_bytes()))
+
+    expected = chargefw.io.read(plain, format="sdf")[0]
+    molecule = chargefw.io.read(compressed, format="sdf")[0]
+    np.testing.assert_array_equal(molecule.atomic_numbers, expected.atomic_numbers)
+    np.testing.assert_array_equal(molecule.coordinates, expected.coordinates)
+
+    compressed.write_bytes(compressed.read_bytes()[:-8])
+    with pytest.raises(chargefw.ParseError) as truncated:
+        chargefw.io.read(compressed, format="sdf")
+    assert truncated.value.source_name == str(compressed)
 
 
 def test_invalid_reader_options_are_not_parse_errors() -> None:

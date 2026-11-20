@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
 #include <optional>
 #include <set>
 #include <span>
@@ -74,6 +75,9 @@ struct CalculationRun {
                                          const std::set<std::size_t>& molecules,
                                          std::optional<std::size_t> conformer_index = std::nullopt)
     -> std::string;
+
+// The input path without a final .gz extension, in any case, which names a gzip-compressed file.
+[[nodiscard]] auto uncompressed_path(const std::string& path) -> std::filesystem::path;
 
 void add_input_options(CLI::App& command, InputArguments& arguments);
 void add_selection_options(CLI::App& command, SelectionArguments& arguments);

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Input
+
+- The command line reads gzip-compressed files, such as `structure.cif.gz`, in the format of the
+  extension before `.gz`, and names the outputs as for `structure.cif`. `chargefw.io.read()` reads
+  gzip-compressed files whatever their name.
+
 ### Output
 
 - mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,

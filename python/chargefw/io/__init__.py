@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import gzip
 import warnings
+import zlib
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
@@ -277,12 +279,19 @@ def read(
     bonds: BondStrategy | None = None,
     conformers: ConformerSelection = "all",
 ) -> MoleculeCollection:
-    """Read UTF-8 molecular text using an explicitly selected native reader."""
+    """Read UTF-8 molecular text, optionally gzip-compressed, with an explicitly selected reader."""
 
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
     data = source_path.read_bytes()
+    if data.startswith(b"\x1f\x8b"):
+        try:
+            data = gzip.decompress(data)
+        except (OSError, EOFError, zlib.error) as error:
+            raise ParseError(
+                f"{source_path}: {error}", reason=str(error), source_name=str(source_path)
+            ) from None
     try:
         # Lines end with LF, CRLF, or CR, as when reading text in Python.
         contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")

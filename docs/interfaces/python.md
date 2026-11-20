@@ -20,7 +20,9 @@ so several calculations can run at the same time in different threads.
 
 `chargefw.io.read()` reads a file and `chargefw.io.parse()` reads text. Both need the format:
 `"mol"`, `"sdf"`, `"mol2"`, `"molecule-json"`, `"pdb"`, or `"mmcif"`; the file extension is not used.
-`chargefw.io.INPUT_FORMATS` lists them. Both read the whole input and return a `MoleculeCollection`:
+`chargefw.io.INPUT_FORMATS` lists them. `read()` also reads gzip-compressed files, such as
+`structure.cif.gz`, which it recognizes by their content. Both read the whole input and return a
+`MoleculeCollection`:
 
 | Input | Molecules in the collection | Options |
 | --- | --- | --- |

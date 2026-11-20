@@ -23,8 +23,11 @@ Wrote output/molecule.chargefw.json
 ```
 
 ChargeFW chooses the input format from the file extension, in lower or upper case: `.sdf` and
-`.mol`, `.mol2`, `.pdb`, `.cif` and `.mmcif`, or `.json` for molecule JSON. It creates the output
-directory if needed and names the results after the input file.
+`.mol`, `.mol2`, `.pdb`, `.cif` and `.mmcif`, or `.json` for molecule JSON. A gzip-compressed file
+has `.gz` after the format extension, as in `structure.cif.gz`; it can hold up to 3 GiB of text, so
+decompress a larger file first. ChargeFW creates the output directory if needed and names the
+results after the input file: both `structure.cif` and `structure.cif.gz` give
+`output/structure.chargefw.json`.
 
 Without other options, ChargeFW chooses the method and parameter set itself, as described in
 [Choosing a method](../guide/methods.md#choosing-a-method). Name them to get the same model every time:

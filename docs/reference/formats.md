@@ -28,6 +28,11 @@ does not write MOL, SDF, molecule JSON, or PDB.
 Malformed or unsupported data in a file is an error. MOL, SDF, and MOL2 files may use LF or CRLF
 line endings.
 
+The [command line](../interfaces/cli.md#calculating-charges) and
+[Python](../interfaces/python.md#reading-molecules) also read gzip-compressed files, such as the
+`.cif.gz` files of the PDB archive. The decompressed text follows the rules on this page, and
+diagnostic line numbers count its lines.
+
 MOL, SDF, MOL2, PDB, and mmCIF files must be ASCII text throughout, including comments and SDF data
 items that ChargeFW does not read. Any other character, such as an accented letter or a UTF-8 byte
 order mark, is an error that names its line; remove it before reading the file. Molecule JSON files
