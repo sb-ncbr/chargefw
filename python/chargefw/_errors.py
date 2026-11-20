@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from ._arrays import index_array
 from ._public import set_public_module
-from ._types import OutputErrorKind, ParseErrorKind
+from ._types import OutputErrorKind, ParseErrorKind, RequestErrorKind
 
 if TYPE_CHECKING:
     from ._calculation_values import CalculationResult
@@ -155,6 +155,30 @@ class OutputError(ChargeFWError, ValueError):
         self.bond_indices = index_array(self.bond_indices)
 
 
+class RequestError(ChargeFWError, ValueError):
+    """A request for an assessment or a calculation is invalid, whatever the method.
+
+    It is raised before any method or parameter set is considered. A valid request that a method or
+    parameter set cannot satisfy is not this error: ``assess()`` reports it as a rejection and
+    ``calculate()`` raises ``NoExecutablePlanError``.
+
+    ``kind`` says which part of the request to change: ``"unknown_method"`` for a method ID that is
+    not registered, and ``"invalid_execution"`` for a radius below the smallest one. More kinds may
+    be added. ``reason``, which is also the message, says why. ``option`` is the ID of the method
+    option the error concerns, or ``None``.
+    """
+
+    def __init__(self, reason: str, *, kind: RequestErrorKind, option: str | None = None) -> None:
+        super().__init__(reason)
+        self.kind = kind
+        self.reason = reason
+        self.option = option
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # The required kind, then the state, which restores the rest, such as notes.
+        return partial(type(self), kind=self.kind), self.args, vars(self)
+
+
 class CalculationError(ChargeFWError):
     """A calculation produced no charges; ``result`` holds the failed result."""
 
@@ -180,6 +204,7 @@ set_public_module(
     ChargeFWError,
     ParseError,
     OutputError,
+    RequestError,
     CalculationError,
     NoExecutablePlanError,
     NumericalFailureError,

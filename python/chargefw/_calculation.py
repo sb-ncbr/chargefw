@@ -31,7 +31,7 @@ from ._calculation_values import (
 from ._chargefw import calculation as _native_calculation
 from ._chargefw import parameters as _native_parameters
 from ._core import Molecule, MoleculeCollection
-from ._errors import ParseError
+from ._errors import ParseError, RequestError
 from ._methods import Method, _method_catalog
 from ._parameters import ParameterSet, ParameterSetCatalog
 from ._public import set_public_module
@@ -150,7 +150,7 @@ def _requested_method(method: str | Method | None) -> Method | None:
     if not isinstance(method, str):
         raise TypeError("method must be a method ID, Method, or None")
     if method not in methods:
-        raise ValueError(f"method {method!r} is not registered")
+        raise RequestError(f"method {method!r} is not registered", kind="unknown_method")
     return methods[method]
 
 

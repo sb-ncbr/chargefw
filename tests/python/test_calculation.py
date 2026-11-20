@@ -2,6 +2,7 @@
 
 import gc
 import os
+import pickle
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -83,6 +84,37 @@ class RecordingObserver(chargefw.CalculationObserver):
 
     def on_progress(self, progress: chargefw.CalculationProgress) -> None:
         self.events.append(progress)
+
+
+def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() -> None:
+    # Checked in Python before the native call, and in the native code.
+    for arguments, kind in (
+        ({"method": "no-such-method"}, "unknown_method"),
+        ({"method": "eem", "execution": "cutoff", "radius": 0.1}, "invalid_execution"),
+    ):
+        errors = []
+        for function in (chargefw.assess, chargefw.calculate):
+            with pytest.raises(chargefw.RequestError) as raised:
+                cast(Any, function)(water(), **arguments)
+            errors.append(raised.value)
+        assessed, calculated = errors
+        assert (assessed.kind, assessed.reason) == (calculated.kind, calculated.reason)
+        assert assessed.kind == kind and str(assessed) == assessed.reason
+        assert assessed.option is None
+        # Still a ValueError, and whole after pickling.
+        assert isinstance(assessed, ValueError)
+        copy = pickle.loads(pickle.dumps(assessed))
+        assert (copy.kind, copy.reason, str(copy)) == (
+            assessed.kind,
+            assessed.reason,
+            str(assessed),
+        )
+
+    # A valid request that the method cannot satisfy is a rejection, not a request error.
+    unsupported = {"method": "peoe", "execution": "cutoff", "radius": 8.0}
+    assert chargefw.assess(water(), **cast(Any, unsupported)).default_plan is None
+    with pytest.raises(chargefw.NoExecutablePlanError):
+        chargefw.calculate(water(), **cast(Any, unsupported))
 
 
 def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> None:

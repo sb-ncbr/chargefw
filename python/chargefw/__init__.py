@@ -55,6 +55,7 @@ from ._errors import (
     NumericalFailureError,
     OutputError,
     ParseError,
+    RequestError,
 )
 from ._methods import ExecutionIssue, Method, MethodOption, PrerequisiteIssue
 from ._parameters import AtomParameterKey, BondParameterKey, ParameterSet
@@ -97,6 +98,7 @@ __all__ = [
     "ChargeFWError",
     "OutputError",
     "ParseError",
+    "RequestError",
     "CalculationError",
     "NoExecutablePlanError",
     "NumericalFailureError",

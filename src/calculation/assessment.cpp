@@ -5,6 +5,8 @@
 #include "fixed_charge_partition.h"
 #include "input_checks.h"
 
+#include <chargefw/calculation/request_error.h>
+
 #include "methods/applicable_method_execution.h"
 #include "methods/find_applicable_methods.h"
 #include "methods/geometry_issue_messages.h"
@@ -69,11 +71,22 @@ namespace {
     return candidates;
 }
 
+// The method a request names. Every check that needs it asks here, so that an unknown ID is the
+// same error whichever check comes first.
+[[nodiscard]] auto requested_method(const std::string& id) -> const methods::Method& {
+    const auto* method = methods::method_registry().find(id);
+    if (method == nullptr) {
+        throw RequestError{RequestErrorKind::unknown_method,
+                           "method '" + id + "' is not registered"};
+    }
+    return *method;
+}
+
 [[nodiscard]] auto assessment_methods(const AssessmentRequest& request)
     -> std::vector<const methods::Method*> {
     const auto& registry = methods::method_registry();
     if (request.method_id.has_value()) {
-        return {&registry.require(*request.method_id)};
+        return {&requested_method(*request.method_id)};
     }
 
     auto result = std::vector<const methods::Method*>{};
@@ -93,7 +106,7 @@ auto validate_assessment_method_options(const AssessmentRequest& request) -> voi
     if (!request.method_id.has_value()) {
         throw std::invalid_argument{"method options require a method"};
     }
-    const auto& method = methods::method_registry().require(*request.method_id);
+    const auto& method = requested_method(*request.method_id);
     auto options = methods::make_default_options(method.option_schema());
     for (const auto& [id, value] : request.method_options.values()) {
         options.set(id, value);
@@ -133,7 +146,7 @@ auto retain_requested_parameter_set(AssessmentRequest& request) -> void {
         throw std::invalid_argument{"parameter-set selection requires an explicit method"};
     }
 
-    const auto& method = methods::method_registry().require(*request.method_id);
+    const auto& method = requested_method(*request.method_id);
     if (!method.requirements().requires_parameters()) {
         throw std::invalid_argument{"method '" + *request.method_id +
                                     "' does not accept a parameter set"};

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chargefw/calculation/calculation.h>
+#include <chargefw/calculation/request_error.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
@@ -820,6 +821,29 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
     for (const auto& request : invalid_requests) {
         CAPTURE(request.method_id.value_or("automatic"), request.parameter_set_id.value_or(""));
         CHECK_THROWS_AS(static_cast<void>(calculation::assess(request)), std::invalid_argument);
+    }
+
+    // The error says which part of the request to change, and is still a std::invalid_argument.
+    // An unknown method is the same error whichever check meets it first, here also the check of
+    // its options.
+    for (const auto& request :
+         {calculation::AssessmentRequest{.molecules = water, .method_id = "missing"},
+          calculation::AssessmentRequest{.molecules = water,
+                                         .method_id = "missing",
+                                         .method_options = methods::MethodOptions{{{"iters", 2}}}},
+          calculation::AssessmentRequest{
+              .molecules = water, .method_id = "missing", .parameter_set_id = "any"}}) {
+        try {
+            static_cast<void>(calculation::assess(request));
+            FAIL_CHECK("an unknown method was accepted");
+        } catch (const std::invalid_argument& error) {
+            const auto* const request_error =
+                dynamic_cast<const calculation::RequestError*>(&error);
+            REQUIRE(request_error != nullptr);
+            CHECK(request_error->kind() == calculation::RequestErrorKind::unknown_method);
+            CHECK(request_error->reason() == "method 'missing' is not registered");
+            CHECK_FALSE(request_error->option().has_value());
+        }
     }
 }
 

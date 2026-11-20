@@ -1,5 +1,6 @@
 #include <chargefw/calculation/calculation.h>
 #include <chargefw/calculation/execution_policy.h>
+#include <chargefw/calculation/request_error.h>
 
 #include <limits>
 #include <optional>
@@ -49,6 +50,14 @@ TEST_CASE("execution policy validates mode and radius", "[calculation][execution
         CAPTURE(calculation::to_string(mode), radius.value_or(-1.0));
         CHECK_THROWS_AS(static_cast<void>(calculation::ExecutionPolicy(mode, radius)),
                         std::invalid_argument);
+    }
+
+    // A radius below the smallest one is an invalid request for execution.
+    try {
+        static_cast<void>(calculation::ExecutionPolicy(Mode::cover, 7.99));
+        FAIL_CHECK("a radius below the smallest one was accepted");
+    } catch (const calculation::RequestError& error) {
+        CHECK(error.kind() == calculation::RequestErrorKind::invalid_execution);
     }
 }
 

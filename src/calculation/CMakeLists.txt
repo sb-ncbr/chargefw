@@ -7,6 +7,7 @@ target_sources(chargefw_objects
         calculation_cancelled.h
         fragment_failure.h
         calculation_request.h
+        request_error.cpp
         charge_issues.cpp
         cover_execution.cpp
         cutoff_execution.cpp
@@ -42,4 +43,5 @@ target_sources(chargefw_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/execution_policy.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/input_issues.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/observer.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/calculation/request_error.h
 )
