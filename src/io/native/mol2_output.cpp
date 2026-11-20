@@ -4,7 +4,9 @@
 #include "io/output_helpers.h"
 #include "io/record_assignments.h"
 
+#include <chargefw/core/issue_location.h>
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/io/output_error.h>
 
 #include <algorithm>
 #include <cctype>
@@ -69,11 +71,12 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
          ++molecule_index) {
         const auto& molecule = result.inputs()[molecule_index].molecule;
         if (molecule.atom_count() == 0) {
-            throw std::invalid_argument{"MOL2 output requires at least one atom per molecule"};
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "MOL2 output requires at least one atom", molecule_index};
         }
         if (molecule.conformer_count() == 0) {
-            throw std::invalid_argument{"MOL2 output requires coordinates for molecule " +
-                                        std::to_string(molecule_index + 1)};
+            throw OutputError{OutputErrorKind::missing_coordinates,
+                              "MOL2 output requires coordinates", molecule_index};
         }
         for (std::size_t conformer_index = 0; conformer_index < molecule.conformer_count();
              ++conformer_index) {
@@ -85,12 +88,21 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
             }
             for (std::size_t atom_index = 0; atom_index < molecule.atom_count(); ++atom_index) {
                 const auto& position = conformer[atom_index];
+                // Built only for a refusal: it allocates.
+                const auto location = [&] {
+                    return core::IssueLocation{.conformer_index = conformer_index,
+                                               .atom_index = atom_index,
+                                               .atom_indices = {atom_index}};
+                };
                 if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
                     !std::isfinite(position.z)) {
-                    throw std::invalid_argument{"MOL2 coordinates must be finite"};
+                    throw OutputError{OutputErrorKind::unrepresentable,
+                                      "MOL2 coordinates must be finite", molecule_index,
+                                      location()};
                 }
                 if (!std::isfinite(assignment.charges[atom_index])) {
-                    throw std::invalid_argument{"MOL2 charges must be finite"};
+                    throw OutputError{OutputErrorKind::unrepresentable,
+                                      "MOL2 charges must be finite", molecule_index, location()};
                 }
             }
         }

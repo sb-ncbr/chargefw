@@ -113,7 +113,8 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
 
     const auto& molecule = record.molecule;
     if (molecule.atom_count() == 0) {
-        throw std::invalid_argument{"PQR output requires at least one atom"};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "PQR output requires at least one atom", 0};
     }
     if (molecule.conformer_count() == 0) {
         throw OutputError{OutputErrorKind::missing_coordinates, "PQR output requires coordinates",

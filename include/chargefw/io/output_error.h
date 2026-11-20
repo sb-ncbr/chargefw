@@ -15,7 +15,8 @@ namespace chargefw::io {
 enum class OutputErrorKind : std::uint8_t {
     // The format needs coordinates and a molecule has none.
     missing_coordinates,
-    // The format holds fewer molecules or conformers than the result has.
+    // The format cannot hold the number of molecules, conformers, or atoms, such as several
+    // molecules in PQR or a molecule without atoms.
     unsupported_shape,
     // The format cannot hold a value, such as a chain ID of two characters in PQR.
     unrepresentable,
