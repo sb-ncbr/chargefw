@@ -39,7 +39,9 @@ target_sources(chargefw_objects
         gemmi/mmcif_input.cpp
         gemmi/mmcif_labels.h
         gemmi/mmcif_output.cpp
+        gemmi/pdb_conversion.cpp
         gemmi/pdb_input.cpp
+        gemmi/pdb_labels.h
         gemmi/selection.cpp
         gemmi/selection.h
         PUBLIC
