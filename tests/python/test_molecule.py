@@ -1,6 +1,7 @@
 """Owned molecule and collection model checks."""
 
 import gzip
+import pickle
 from dataclasses import FrozenInstanceError
 from gc import collect
 from pathlib import Path
@@ -207,13 +208,19 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
     unknown_element = "x\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n" + (
         "    0.0000    0.0000    0.0000 Xx  0  0\nM  END\n$$$$\n"
     )
-    for contents, format_name in (
-        ("garbage\n", "sdf"),
-        (unknown_element, "sdf"),
-        ('{"x": 1}', "molecule-json"),
+    # The kind says what to do about it, whichever reader refused the input.
+    for contents, format_name, kind in (
+        ("", "sdf", "no_records"),
+        ("garbage\n", "sdf", "malformed"),
+        (unknown_element, "sdf", "malformed"),
+        ('{"x": 1}', "molecule-json", "malformed"),
+        ('{"schema_version": "2.0"}', "molecule-json", "unsupported"),
+        ("data_x\n_entry.id 'x\n", "mmcif", "malformed"),
+        ("END\n", "pdb", "no_records"),
     ):
-        with pytest.raises(chargefw.ParseError):
+        with pytest.raises(chargefw.ParseError) as refused:
             chargefw.io.parse(contents, format=cast(Any, format_name))
+        assert refused.value.kind == kind
 
     # Where the reader knows it, the error gives where as attributes, and the reason without it.
     with pytest.raises(chargefw.ParseError) as located:
@@ -228,6 +235,13 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
     assert "Xx" in error.reason and "input.sdf" not in error.reason
     assert str(error).startswith("input.sdf:5: record 1 ('x'): ")
 
+    # The error keeps its attributes and notes when pickled, as when a worker process sends it back.
+    error.add_note("worker 2")
+    copy = pickle.loads(pickle.dumps(error))
+    assert copy.__notes__ == ["worker 2"]
+    assert type(copy) is chargefw.ParseError and str(copy) == str(error)
+    assert vars(copy) == vars(error)
+
     # A reader that gives no location still leaves the source known.
     with pytest.raises(chargefw.ParseError) as unlocated:
         chargefw.io.parse("data_x\n_entry.id x\n", format="mmcif", source_name="input.cif")
@@ -239,6 +253,7 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
         with pytest.raises(chargefw.ParseError) as undecodable:
             chargefw.io.read(latin1, format="sdf")
         assert (undecodable.value.source_name, undecodable.value.line) == (str(latin1), 2)
+        assert undecodable.value.kind == "invalid_encoding"
         assert str(latin1) not in undecodable.value.reason
     with pytest.raises(FileNotFoundError):
         chargefw.io.read(tmp_path / "missing.sdf", format="sdf")
@@ -258,6 +273,7 @@ def test_read_decompresses_gzip(tmp_path: Path) -> None:
     with pytest.raises(chargefw.ParseError) as truncated:
         chargefw.io.read(compressed, format="sdf")
     assert truncated.value.source_name == str(compressed)
+    assert truncated.value.kind == "malformed"
 
 
 def test_invalid_reader_options_are_not_parse_errors() -> None:

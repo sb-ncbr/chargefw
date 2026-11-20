@@ -138,6 +138,7 @@ def _parameter_set_from_catalog(
         missing = f"is for method {result._method_id!r}, which ChargeFW does not have"
         raise ParseError(
             f"parameter set {result.id!r}{where} {missing}",
+            kind="unsupported",
             reason=f"parameter set {result.id!r} {missing}",
             source_name=source or "",
         )
@@ -181,11 +182,15 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
         try:
             text = file.read()
         except UnicodeDecodeError as error:
-            raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
+            raise ParseError(
+                f"{source}: {error}", kind="invalid_encoding", reason=str(error), source_name=source
+            ) from None
     try:
         native = _native_parameters._parse_parameter_set_catalog(text)
     except ValueError as error:
-        raise ParseError(f"{source}: {error}", reason=str(error), source_name=source) from None
+        raise ParseError(
+            f"{source}: {error}", kind="malformed", reason=str(error), source_name=source
+        ) from None
     result = _parameter_set_from_catalog(native, source)
     _check_custom_parameter_id(result.id, source)
     return result

@@ -22,6 +22,9 @@ type ExecutionIssueKind = Literal["resource_threshold_exceeded", "unsupported_ex
 type InputIssueKind = Literal["hydrogens_missing", "atoms_too_close"]
 type ChargeIssueKind = Literal["charge_out_of_range"]
 type FailureKind = Literal["no_solution", "not_converged", "invalid_parameter_value"]
+type ParseErrorKind = Literal[
+    "no_records", "invalid_encoding", "malformed", "unsupported", "inconsistent_models"
+]
 type ImportIssueKind = Literal[
     "partial_charges_ignored",
     "coordinates_2d_ignored",

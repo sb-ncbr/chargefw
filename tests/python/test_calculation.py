@@ -1117,8 +1117,9 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
 
     malformed = tmp_path / "malformed.json"
     malformed.write_text('{"metadata": {"id": "broken"}}')
-    with pytest.raises(chargefw.ParseError):
+    with pytest.raises(chargefw.ParseError) as broken:
         chargefw.read_parameter_set(malformed)
+    assert broken.value.kind == "malformed"
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))
@@ -1127,6 +1128,7 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
     # The path is in the source name, not in the reason.
     assert unknown.value.source_name == str(unknown_method)
     assert "no-such-method" in unknown.value.reason
+    assert unknown.value.kind == "unsupported"
     assert str(unknown_method) not in unknown.value.reason
 
     with pytest.raises(FileNotFoundError):

@@ -236,15 +236,11 @@ def _parse(
         raise TypeError("source_name must be a string")
     _validate_options(format, selection, bonds, conformers)
     bond_strategy = "hybrid" if bonds is None else bonds
-    try:
-        payloads = _native_io._parse(
-            contents, source_name, format, selection, bond_strategy, conformers
-        )
-    except ParseError:
-        raise
-    except (RuntimeError, ValueError, IndexError) as error:
-        # The reader gave no location; the source is still known.
-        raise ParseError(str(error), source_name=source_name) from None
+    # Input a reader refuses raises ParseError. Any other exception from a reader is not a refusal
+    # of the input.
+    payloads = _native_io._parse(
+        contents, source_name, format, selection, bond_strategy, conformers
+    )
     return _collection(payloads, source_name)
 
 
@@ -290,7 +286,10 @@ def read(
             data = gzip.decompress(data)
         except (OSError, EOFError, zlib.error) as error:
             raise ParseError(
-                f"{source_path}: {error}", reason=str(error), source_name=str(source_path)
+                f"{source_path}: {error}",
+                kind="malformed",
+                reason=str(error),
+                source_name=str(source_path),
             ) from None
     try:
         # Lines end with LF, CRLF, or CR, as when reading text in Python.
@@ -300,6 +299,7 @@ def read(
         line = before.count(b"\n") + 1
         raise ParseError(
             f"{source_path}:{line}: {error}",
+            kind="invalid_encoding",
             reason=str(error),
             source_name=str(source_path),
             line=line,
