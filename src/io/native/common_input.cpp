@@ -15,17 +15,33 @@ namespace chargefw::io::native::common_input {
 
 auto rethrow_with_context(const MoleculeRecordIdentity& identity,
                           const std::optional<std::size_t> line) -> void {
-    // Text the reader cannot read and values a molecule cannot hold are both input it cannot
-    // read; other exceptions pass unchanged.
     const auto location = ParseLocation{.source_name = identity.source_name,
                                         .line = line,
                                         .record_index = identity.record_index,
                                         .record_id = identity.record_id};
     try {
         throw;
-    } catch (const ParseError&) {
-        throw;
-    } catch (const std::invalid_argument& error) {
+    } catch (const ParseError& error) {
+        // The throw site knows best where the offending data is, such as the line of a bond found
+        // wrong at the end of its record; only what it left out is added.
+        auto known = error.location();
+        if (known.source_name.empty()) {
+            known.source_name = location.source_name;
+        }
+        if (!known.line.has_value()) {
+            known.line = location.line;
+        }
+        if (!known.record_index.has_value()) {
+            known.record_index = location.record_index;
+        }
+        if (known.record_id.empty()) {
+            known.record_id = location.record_id;
+        }
+        throw ParseError{error.kind(), error.reason(), std::move(known)};
+    }
+    // DRAFT: until every throw site gives a kind, text the reader cannot read and values a
+    // molecule cannot hold are converted here; other exceptions pass unchanged.
+    catch (const std::invalid_argument& error) {
         throw ParseError{error.what(), location};
     } catch (const std::runtime_error& error) {
         throw ParseError{error.what(), location};

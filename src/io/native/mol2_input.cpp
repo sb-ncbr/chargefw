@@ -290,12 +290,14 @@ struct FormalCharge {
         auto aromatic_bonds = std::vector<std::size_t>{}; // Indices in bonds.
 
         for (const auto& [first_id, second_id, type, source_line] : *source_bonds) {
-            validation_line = source_line;
+            validation_line = source_line; // For the bond type, not yet given a kind.
             const auto first = atom_indices.find(first_id);
             const auto second = atom_indices.find(second_id);
 
             if (first == atom_indices.end() || second == atom_indices.end()) {
-                throw std::runtime_error{"MOL2 bond references an unknown atom"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "MOL2 bond references an unknown atom",
+                                 {.source_name = {}, .line = source_line}};
             }
 
             bonds.emplace_back(first->second, second->second,
@@ -355,15 +357,21 @@ auto Mol2Reader::next() -> std::optional<ImportedMoleculeRecord> {
         while (!found) {
             const auto line = common::try_read_line(*input_, line_);
             if (!line.has_value()) {
-                if (record_index_ == 0) {
-                    throw ParseError{"no MOL2 molecule record found", {.source_name = source_}};
-                }
-                return std::nullopt;
+                break;
             }
             found = line->starts_with('@') && common::trim(*line) == molecule_marker;
         }
     } catch (...) {
         common::rethrow_with_context(identity, line_);
+    }
+    if (!found) {
+        // Outside the record context: input without a record has no record to name.
+        if (record_index_ == 0) {
+            throw ParseError{ParseErrorKind::no_records,
+                             "no MOL2 molecule record found",
+                             {.source_name = source_}};
+        }
+        return std::nullopt;
     }
     ++record_index_;
     return parse_record(*input_, std::move(identity), next_record_started_, line_);

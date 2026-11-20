@@ -774,6 +774,24 @@ TEST_CASE("MOL input reads atoms, bonds, and charges and ignores the rest", "[io
     }
 }
 
+TEST_CASE("a MOL2 bond to an unknown atom is located at the bond, not at the end of the record",
+          "[io][native]") {
+    // The bond is checked after the whole record is read, 3 lines below it.
+    std::istringstream input{"@<TRIPOS>MOLECULE\nligand\n2 2\n@<TRIPOS>ATOM\n"
+                             "1 C1 0 0 0 C.3\n2 C2 1 0 0 C.3\n@<TRIPOS>BOND\n"
+                             "1 1 7 1\n2 1 2 1\n@<TRIPOS>SUBSTRUCTURE\nignored\n"};
+    auto reader = io::Mol2Reader{input, "input.mol2"};
+    const auto error =
+        chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(reader.next()); });
+    REQUIRE(error.has_value());
+    CHECK(error->kind() == io::ParseErrorKind::malformed);
+    CHECK(error->location().source_name == "input.mol2");
+    CHECK(error->location().line == 8);
+    CHECK(error->location().record_index == 0);
+    CHECK(error->location().record_id == io::PortableId{"ligand"});
+    CHECK_FALSE(error->reason().contains("input.mol2"));
+}
+
 TEST_CASE("native readers reject input with no molecule record", "[io][native]") {
     const std::string sdf_record{"water\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
                                  "    0.0000    0.0000    0.0000 O   0  0\nM  END\n$$$$\n"};
