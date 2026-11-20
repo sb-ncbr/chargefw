@@ -282,11 +282,31 @@ and a calculation that runs out of memory raises `MemoryError`. ChargeFW's own e
 
 Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, or
 `chargefw.read_parameter_set()` cannot read raise `chargefw.ParseError`, which is also a
-`ValueError`. Its `reason` says why. For MOL, SDF, and MOL2 files, `line` is the line of the file,
-counted from one, and `record_index` and `record_id` give the record. For molecule JSON, only
-`record_index` and `record_id` are given. For text that is not ASCII in PDB and mmCIF files, and for
-a file that `chargefw.io.read()` cannot read as UTF-8, only `line` is given. Fields that are not
-given are `None`.
+`ValueError`:
+
+```python
+try:
+    molecules = chargefw.io.read("ligands.sdf", format="sdf")
+except chargefw.ParseError as error:
+    print(error.kind)       # malformed
+    print(error.reason)     # unknown element symbol 'Xx'
+    print(error.line)       # 5
+    print(error.line_text)  #     0.0000    0.0000    0.0000 Xx  0  0
+```
+
+`kind` is the cause as a code, one of the [kinds of the format
+reference](../reference/formats.md#format-overview), and `reason` says why as text. For a parameter
+set, `kind` is `"unsupported"` when the set is for a method ChargeFW does not have,
+`"invalid_encoding"` when the file is not UTF-8, and otherwise `"malformed"`.
+
+`source_name`, `line`, `record_index`, and `record_id` say where, as far as the reader knows. `line`
+counts from one and `record_index` from zero. MOL, SDF, and MOL2 files give the line and the record;
+molecule JSON gives the record; PDB gives the line only for text that is not ASCII. mmCIF gives the
+line for most errors in the text of the file, such as a syntax error, and the data block as the
+record for errors found while reading the atoms of that block. A file that `chargefw.io.read()`
+cannot read as UTF-8 gives the line. `line_text` is the text of that line without its line ending.
+Fields that are not known are `None`; `line_text` is also `None` when the input ends before the line
+or the file could not be decoded.
 
 A calculation that fails raises a `chargefw.CalculationError`:
 

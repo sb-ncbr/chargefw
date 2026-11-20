@@ -504,7 +504,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | Exception | Raised when |
 | --- | --- |
 | `chargefw.ChargeFWError` | Base class of the others below |
-| `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError`. `reason` says why; `source_name` names the source, or is empty. `line` (from one), `record_index` (from zero), and `record_id`, the record's identifier in the file, say where, or are `None` when the reader does not know |
+| `chargefw.ParseError` | `io.read()`, `io.parse()`, or `read_parameter_set()` cannot read the input; also a `ValueError`. `kind` is the cause as a code, one of the [kinds of the format reference](formats.md#format-overview), and `reason` says why as text; `source_name` names the source, or is empty. `line` (from one), `record_index` (from zero), and `record_id`, the record's identifier in the file, say where, and `line_text` is the text of the line; they are `None` when not known |
 | `chargefw.CalculationError` | Base class of the three below; `error.result` holds the `CalculationResult` |
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |

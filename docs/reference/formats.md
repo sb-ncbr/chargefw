@@ -29,6 +29,19 @@ Malformed or unsupported data in a file is an error. So is a MOL, SDF, MOL2, PDB
 with no molecule in it, such as an empty file or an SDF file read as MOL2. MOL, SDF, and MOL2 files
 may use LF or CRLF line endings.
 
+An error says why the file was refused as one of these kinds, which Python gives as
+`ParseError.kind` and C++ as `ParseError::kind()`:
+
+| Kind | The file | What to do |
+| --- | --- | --- |
+| `no_records` | has nothing to read: it is empty, in another format, or has no atoms left after the [selection](#structural-selection) | Check the file, the format, and the selection |
+| `invalid_encoding` | has text that cannot be decoded, such as a character that is not ASCII | Remove the character or convert the file |
+| `malformed` | breaks its format, for example with wrong counts, a bond to an atom that does not exist, or an unknown element | Correct the file or write it again with the program that made it |
+| `unsupported` | is valid but has data ChargeFW does not read, such as query atoms | Convert the data, for example query bonds to single, double, or triple bonds |
+| `inconsistent_models` | is a PDB or mmCIF structure whose models do not have the same atoms | Read only the first model, with `conformers="first"` or `--conformers first` |
+
+Later versions may add kinds.
+
 The [command line](../interfaces/cli.md#calculating-charges) and
 [Python](../interfaces/python.md#reading-molecules) also read gzip-compressed files, such as the
 `.cif.gz` files of the PDB archive. The decompressed text follows the rules on this page, and
@@ -73,7 +86,8 @@ the atoms for drawing the structural formula on a page, and its bond lengths and
 those of a molecule. ChargeFW imports such a record without coordinates and attaches a
 `coordinates_2d_ignored` warning. Coordinates with all z = 0 in a record not marked `2D` are kept.
 
-Query and wildcard atoms are errors. Aromatic bonds (order 4) are read as single bonds, and the
+Query and wildcard atoms are errors, and so are query bonds, types 5 to 8, such as "single or
+double". Aromatic bonds (order 4) are read as single bonds, and the
 record gets one `aromatic_bonds_converted` warning that counts them. V3000 coordinate bonds (order
 9) and hydrogen bonds (order 10) are left out, because ChargeFW has only single, double, and triple
 bonds; the record gets one `v3000_bond_order_ignored` warning for each of the two kinds, with the
@@ -97,8 +111,9 @@ section marker starts with `@` in the first column; whitespace after it is ignor
 The element is the part of the atom type before the `.`, such as C in `C.ar`; the atom name is kept.
 Types that do not name one element, such as dummy atoms, lone pairs, wildcards, and the groups
 `Hal`, `Het`, and `Hev`, are errors. Numeric bond types 1, 2, and 3 are imported directly; numeric
-type 4, aromatic type `ar`, and amide type `am` become single bonds. Aromatic bonds, types 4 and
-`ar`, give the record an `aromatic_bonds_converted` warning.
+type 4, aromatic type `ar`, and amide type `am` become single bonds. The dummy, unknown, and
+not-connected types `du`, `un`, and `nc` are errors. Aromatic bonds, types 4 and `ar`, give the
+record an `aromatic_bonds_converted` warning.
 
 Formal charges come from the `charge` attributes in `UNITY_ATOM_ATTR`, such as `charge -1` for atom 9:
 

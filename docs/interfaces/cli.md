@@ -43,11 +43,13 @@ handle the molecules, the calculation fails with the reasons; ChargeFW does not 
 
 Once ChargeFW has read the input and accepted the options, it writes `<input>.chargefw.json`, the
 [result JSON](../guide/results.md) with all charges and the record of the calculation. It is written
-also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as a
-malformed input file or an invalid option value, are reported on standard error and leave no result
-file. An unknown method, a parameter set of another method, or a cover threshold below the cutoff
-threshold is found only when ChargeFW assesses the calculation, so it is reported in the result JSON
-with status `invalid_input_or_request`. The exit status is 2 in all these cases.
+also when the calculation fails or is cancelled, with the reasons. Errors before that point, such as
+a malformed input file or an invalid option value, are reported on standard error and leave no
+result file. For an error in a line of the input file, that line is printed below the message when
+ChargeFW can read it again. An unknown method, a parameter set of another method, or a cover
+threshold below the cutoff threshold is found only when ChargeFW assesses the calculation, so it is
+reported in the result JSON with status `invalid_input_or_request`. The exit status is 2 in all
+these cases.
 
 Problems that do not stop the calculation are printed on standard error as warnings, such as
 `Warning: molecule 1 ('1CRN'): the molecule contains carbon but no hydrogen atoms; …`, and recorded

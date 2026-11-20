@@ -11,6 +11,23 @@
   MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
   output. A PDB file without `ATOM` or `HETATM` records is reported as such, instead of as a
   source mapping mismatch.
+- `ParseError` says why the input was refused as a kind: `no_records`, `invalid_encoding`,
+  `malformed`, `unsupported`, or `inconsistent_models`. Python has it as `ParseError.kind`, C++ as
+  `ParseError::kind()`.
+- Python's `ParseError.line_text` is the text of the line an error names, and the command line
+  prints that line below the message when it can read the line again.
+- Most mmCIF errors in the text of the file, such as a syntax error, give their line, and an error
+  found while reading the atoms of a data block names the block.
+- Query bonds in MOL and SDF files, types 5 to 8, and the MOL2 bond types `du`, `un`, and `nc` are
+  reported as unsupported with their type. The messages for these and for invalid bond types
+  changed.
+- In C++, the PDB and mmCIF readers throw `io::ParseError` for every input they refuse, and the
+  molecule JSON reader also for errors outside the molecules; they threw `std::runtime_error`. A
+  reader whose stream fails throws a `std::runtime_error` that is not a `ParseError`, where the
+  MOL, SDF, and MOL2 readers reported bad or empty input.
+- Breaking change: in C++, `io::ParseError` is constructed with a `ParseErrorKind` as its first
+  argument. In Python, `ParseError` requires the keyword argument `kind`, and an exception from a
+  reader that is not a refusal of the input is no longer raised as `ParseError`.
 
 ### Output
 

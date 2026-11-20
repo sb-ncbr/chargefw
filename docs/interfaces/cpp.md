@@ -363,15 +363,32 @@ molecule index, an optional conformer index, and the charges in atom order.
 
 Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors that check their
 index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
-`operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
-throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
-molecule cannot hold, such as atomic number 0. The MOL, SDF, MOL2, and molecule JSON readers throw
-`io::ParseError`, a `std::runtime_error`, for both. The PDB and mmCIF readers throw it for text that
-is not ASCII, and the PDB reader also for a file without atoms. Its `reason()` says why, and its
-`location()` gives the source name and, where the reader knows them, the line counted from one and
-the record index counted from zero and record ID: the MOL, SDF, and MOL2 readers give both for an
-error within a record, the molecule JSON reader only the record, and the PDB and mmCIF readers at
-most the line. A valid
+`operator[]` and indexing a returned `std::span` do not check, so give them a valid index.
+
+Every reader throws `io::ParseError`, a `std::runtime_error`, for input it refuses, including
+values a molecule cannot hold, such as a bond of an atom to itself:
+
+```cpp
+try {
+    auto reader = chargefw::io::SdfReader{input, "ligands.sdf"};
+    while (auto record = reader.next()) { /* ... */ }
+} catch (const chargefw::io::ParseError& error) {
+    if (error.kind() == chargefw::io::ParseErrorKind::no_records) { /* wrong file or format */ }
+    std::println(stderr, "{}", error.what()); // ligands.sdf:5: record 1 ('x'): unknown element ...
+}
+```
+
+`kind()` is the cause, one of the [kinds of the format
+reference](../reference/formats.md#format-overview); later versions may add kinds, so give a
+`switch` over them a `default` branch. `reason()` says why as text, and `location()` gives the
+source name and, where the reader knows them, the line counted from one, the record index counted
+from zero, and the record ID. The MOL, SDF, and MOL2 readers give the line and the record; the
+molecule JSON reader the record; the PDB reader the line only for text that is not ASCII. The mmCIF
+reader gives the line for most errors in the text of the file, such as a syntax error, and the data
+block as the record for errors it finds while reading the atoms of that block. A reader whose stream
+fails, such as a file that was not opened, throws a `std::runtime_error` that is not a `ParseError`.
+
+A valid
 assessment reports methods that do not apply as rejections, and `default_plan()` is null when none
 applies; it has no status. `calculate()` reports failures and cancellation through the
 `ExecutionStatus`. A method that cannot calculate throws a `methods::MethodFailure` with its kind
