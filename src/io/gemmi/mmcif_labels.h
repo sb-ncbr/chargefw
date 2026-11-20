@@ -62,7 +62,8 @@ constexpr auto model_id_column = std::size_t{12};
     const auto* last = text.data() + text.size();
     auto charge = 0;
     const auto [end, error] = std::from_chars(first, last, charge);
-    if (error != std::errc{} || end != last || first == last ||
+    // from_chars() reads a minus sign itself, so "+-1" would pass as -1.
+    if (error != std::errc{} || end != last || first == last || text.starts_with("+-") ||
         charge < std::numeric_limits<signed char>::min() ||
         charge > std::numeric_limits<signed char>::max()) {
         return std::nullopt;

@@ -837,6 +837,20 @@ TEST_CASE("native readers give the kind of refusal", "[io][native]") {
         [&] { static_cast<void>(io::parse_mol(v3000, {})); });
     REQUIRE(v3000_error.has_value());
     CHECK(v3000_error->kind() == io::ParseErrorKind::unsupported);
+
+    // An atom list is a query atom, not an unknown element.
+    for (const std::string_view symbol : {"[C,N]", "NOT [C,N]"}) {
+        CAPTURE(symbol);
+        std::istringstream atom_list{"query\n\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+                                     "M  V30 BEGIN CTAB\nM  V30 COUNTS 1 0 0 0 0\n"
+                                     "M  V30 BEGIN ATOM\nM  V30 1 " +
+                                     std::string{symbol} +
+                                     " 0 0 0 0\nM  V30 END ATOM\nM  V30 END CTAB\nM  END\n"};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::parse_mol(atom_list, {})); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == io::ParseErrorKind::unsupported);
+    }
 }
 
 TEST_CASE("native readers pass a failed read on instead of refusing the input", "[io][native]") {
