@@ -365,12 +365,13 @@ Invalid arguments throw `std::invalid_argument`, also from `assess()`. Accessors
 index, such as `Molecule::atom()` and `MoleculeCollection::at()`, throw `std::out_of_range`;
 `operator[]` and indexing a returned `std::span` do not check, so give them a valid index. Readers
 throw `std::runtime_error` for input they cannot parse, and `std::invalid_argument` for values a
-molecule cannot hold, such as atomic number 0. Where a reader knows where it stopped, it throws
-`io::ParseError`, a `std::runtime_error`, for both: the MOL, SDF, MOL2, and molecule JSON readers,
-and the PDB and mmCIF readers for text that is not ASCII. Its `reason()` says why, and its
+molecule cannot hold, such as atomic number 0. The MOL, SDF, MOL2, and molecule JSON readers throw
+`io::ParseError`, a `std::runtime_error`, for both. The PDB and mmCIF readers throw it for text that
+is not ASCII, and the PDB reader also for a file without atoms. Its `reason()` says why, and its
 `location()` gives the source name and, where the reader knows them, the line counted from one and
-the record index counted from zero and record ID: the MOL, SDF, and MOL2 readers give both, the
-molecule JSON reader only the record, and the PDB and mmCIF readers only the line. A valid
+the record index counted from zero and record ID: the MOL, SDF, and MOL2 readers give both for an
+error within a record, the molecule JSON reader only the record, and the PDB and mmCIF readers at
+most the line. A valid
 assessment reports methods that do not apply as rejections, and `default_plan()` is null when none
 applies; it has no status. `calculate()` reports failures and cancellation through the
 `ExecutionStatus`. A method that cannot calculate throws a `methods::MethodFailure` with its kind
