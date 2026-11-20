@@ -1,6 +1,7 @@
 #include "support/test_exceptions.h"
 
 #include <chargefw/core/bond.h>
+#include <chargefw/io/component_dictionary.h>
 #include <chargefw/io/conformer_selection.h>
 #include <chargefw/io/molecule_record.h>
 #include <chargefw/io/parse_error.h>
@@ -15,6 +16,7 @@
 #include <exception>
 #include <format>
 #include <map>
+#include <memory>
 #include <ranges>
 #include <set>
 #include <sstream>
@@ -808,4 +810,115 @@ TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
     const auto* location = &error->location();
     CHECK(location->line == 2);
     CHECK_FALSE(location->record_index.has_value());
+}
+
+TEST_CASE("A component dictionary gives PDB residues the bonds that nothing else does",
+          "[io][pdb][components]") {
+    // The ligand entry lacks N1. The alanine entry differs from the built-in template: a single
+    // carbonyl bond, and a hydrogen HZ9 on CB that the template does not have.
+    std::istringstream dictionary_text{"chargefw-ccd 1 2026.11.13\n"
+                                       "LIG 3 2\n"
+                                       "C1 C 0\n"
+                                       "O1 O 0\n"
+                                       "C2 C 0\n"
+                                       "0 1 2\n"
+                                       "0 2 1\n"
+                                       "ALA 4 2\n"
+                                       "C C 0\n"
+                                       "O O 0\n"
+                                       "CB C 0\n"
+                                       "HZ9 H 0\n"
+                                       "0 1 1\n"
+                                       "2 3 1\n"};
+    const auto dictionary = std::make_shared<const io::ComponentDictionary>(dictionary_text);
+    const auto input =
+        R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
+HETATM    2  O1  LIG A   1       6.230   0.000   0.000  1.00 20.00           O
+HETATM    3  C2  LIG A   1       5.000   1.500   0.000  1.00 20.00           C
+HETATM    4  N1  LIG A   1       5.000   3.000   0.000  1.00 20.00           N
+ATOM      5  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
+ATOM      6  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
+ATOM      7  CB  ALA A   2       0.000   3.000   0.000  1.00 20.00           C
+ATOM      8  HZ9 ALA A   2       0.000   4.000   0.000  1.00 20.00           H
+CONECT    1    2
+CONECT    3    4
+END
+)pdb";
+    using chargefw::core::BondOrder;
+    // The order of the bond between two atoms, or nothing when they are not bonded.
+    const auto order = [](const io::ImportedMoleculeRecord& record, const std::size_t first,
+                          const std::size_t second) -> std::optional<BondOrder> {
+        for (const auto& bond : record.molecule.bonds()) {
+            if ((bond.first_atom_index() == first && bond.second_atom_index() == second) ||
+                (bond.first_atom_index() == second && bond.second_atom_index() == first)) {
+                return bond.order();
+            }
+        }
+        return std::nullopt;
+    };
+    const auto unknown_orders = [](const io::ImportedMoleculeRecord& record) {
+        for (const auto& warning : record.import_warnings) {
+            if (warning.kind == io::ImportIssueKind::bond_orders_unknown) {
+                return warning.location.bond_indices;
+            }
+        }
+        return std::vector<std::size_t>{};
+    };
+
+    {
+        // Hybrid fills gaps bond by bond. The dictionary gives the order of one CONECT pair and
+        // adds C1-C2; the other CONECT pair stays the only one of unknown order.
+        const auto record =
+            read_first(input, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
+        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK(order(record, 2, 3) == BondOrder::SINGLE);
+        const auto unknown = unknown_orders(record);
+        REQUIRE(unknown.size() == 1);
+        const auto& bond = record.molecule.bond(unknown.front());
+        CHECK(bond.first_atom_index() == 2);
+        CHECK(bond.second_atom_index() == 3);
+        // The built-in template keeps its carbonyl order, and the dictionary adds the pair the
+        // template lacks.
+        CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
+        CHECK(order(record, 6, 7) == BondOrder::SINGLE);
+    }
+    {
+        // A bond the file states with an order keeps it: a LINK record is a single bond, although
+        // the dictionary has the pair as double.
+        const auto linked =
+            std::string{"LINK         C1  LIG A   1                 O1  LIG A   1\n"} + input;
+        const auto record =
+            read_first(linked, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::SINGLE);
+        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK(unknown_orders(record).size() == 1);
+    }
+    {
+        // Templates take one template per residue: the dictionary's for the ligand, the built-in
+        // one alone for alanine. CONECT is not read.
+        const auto record =
+            read_first(input, {.bonds = io::BondStrategy::templates, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
+        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK_FALSE(order(record, 2, 3).has_value());
+        CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
+        CHECK_FALSE(order(record, 6, 7).has_value());
+    }
+    {
+        // Explicit bonds are those of the file, whatever the dictionary has.
+        const auto record = read_first(
+            input, {.bonds = io::BondStrategy::explicit_bonds, .components = dictionary});
+        CHECK(record.molecule.bond_count() == 2);
+        CHECK(order(record, 0, 1) == BondOrder::SINGLE);
+        CHECK(unknown_orders(record).size() == 2);
+    }
+    {
+        // Without a dictionary, hybrid reads the file as before.
+        const auto record = read_first(input, {.bonds = io::BondStrategy::hybrid});
+        CHECK(order(record, 0, 1) == BondOrder::SINGLE);
+        CHECK_FALSE(order(record, 0, 2).has_value());
+        CHECK_FALSE(order(record, 6, 7).has_value());
+        CHECK(unknown_orders(record).size() == 2);
+    }
 }

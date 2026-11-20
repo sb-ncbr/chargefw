@@ -217,9 +217,9 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
         structure, selected_models,
         MoleculeRecordIdentity{
             .source_name = std::move(source_name), .record_index = 0, .record_id = name},
-        options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
-        MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity,
-        std::move(explicit_bonds.unknown_order_indices));
+        options.selection, options.bonds, options.components.get(), options.conformers,
+        std::move(explicit_bonds.bonds), name, MolecularSourceFormat::pdb, std::move(mappings),
+        parsed_source.connectivity, std::move(explicit_bonds.unknown_order_indices));
     record.import_metadata->source_text = std::make_shared<const std::string>(std::move(contents));
     if (explicit_bonds.skipped_symmetry_connections > 0) {
         record.import_warnings.push_back(

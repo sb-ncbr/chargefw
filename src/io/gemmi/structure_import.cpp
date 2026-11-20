@@ -336,7 +336,8 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
 auto make_record(const ::gemmi::Structure& structure,
                  const std::span<const selection::SelectedModel> selected_models,
                  MoleculeRecordIdentity identity, const RecordSelection selection,
-                 const BondStrategy bond_strategy, const ConformerSelection conformer_selection,
+                 const BondStrategy bond_strategy, const ComponentDictionary* const dictionary,
+                 const ConformerSelection conformer_selection,
                  std::vector<core::Bond> explicit_bonds, std::string name,
                  const MolecularSourceFormat format, std::vector<SourceModelMapping> source_models,
                  const SourceConnectivity source_connectivity,
@@ -397,8 +398,8 @@ auto make_record(const ::gemmi::Structure& structure,
             ? ::chargefw::io::gemmi::bonds::ExplicitBondOrders::connectivity_only
             : ::chargefw::io::gemmi::bonds::ExplicitBondOrders::from_source;
     auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                                 selected_model, bond_strategy, std::move(explicit_bonds),
-                                 explicit_orders, unknown_order_indices),
+                                 selected_model, bond_strategy, dictionary,
+                                 std::move(explicit_bonds), explicit_orders, unknown_order_indices),
                              source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
