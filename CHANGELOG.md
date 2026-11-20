@@ -29,7 +29,8 @@
   whatever else the file has; in Python, `ParseError.kind` is `"unsupported"` for it.
 - `chargefw.io.rdkit.from_mol()` raises `ParseError` with kind `"unsupported"` for an RDKit molecule
   it refuses: hydrogens that are not explicit atoms, a dummy atom or an element above 100, a 2D
-  conformer, a query bond, or a bond type it does not accept. It was a `ValueError`, which `ParseError` also is.
+  conformer, a query bond, or a bond type it does not accept. It was a `ValueError`, which
+  `ParseError` also is.
 - Breaking change: in C++, the parameter-set loaders throw `parameters::ParseError`, a
   `std::runtime_error` with a kind, for a file whose content they refuse, and `std::runtime_error`
   for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
@@ -42,24 +43,6 @@
   and writes its message from the reason and the location; an exception from a reader that is not
   a refusal of the input is no longer raised as `ParseError`.
 - An mmCIF formal charge outside -128 to 127 is an error; it was read as a different charge.
-
-### Calculation
-
-- A request for an assessment or a calculation that is invalid in itself is reported as
-  `RequestError`, with a kind: `unknown_method`, `unknown_parameter_set`,
-  `incompatible_parameter_set`, `invalid_method_option`, `invalid_execution`, or
-  `invalid_fixed_ions`. It is `chargefw.RequestError` in Python, with `kind`, `reason`, and
-  `option`, and `calculation::RequestError` in C++. It is a `ValueError` in Python and a
-  `std::invalid_argument` in C++, as most of these errors were, so handlers for those keep working.
-  In Python, a radius or a real-valued method option too large for a float raised `OverflowError`
-  and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
-  and the exit statuses of the command line are unchanged.
-
-### Fitting
-
-- `chargefw.parameterization.EvaluationError` has `failure`: what the method reported when it
-  could not calculate the charges for the values, with its `kind`, `message`, `molecule_index`, and
-  `conformer_index`, or `None` when no calculation of a method failed. The messages are unchanged.
 
 ### Output
 
@@ -81,6 +64,24 @@
 - mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,
   such as `water` and `Water`, which now become `data_water` and `data_Water_2`. CIF block names
   are case-insensitive, and Gemmi refused the files with `data_water` and `data_Water`.
+
+### Calculation
+
+- A request for an assessment or a calculation that is invalid in itself is reported as
+  `RequestError`, with a kind: `unknown_method`, `unknown_parameter_set`,
+  `incompatible_parameter_set`, `invalid_method_option`, `invalid_execution`, or
+  `invalid_fixed_ions`. It is `chargefw.RequestError` in Python, with `kind`, `reason`, and
+  `option`, and `calculation::RequestError` in C++. It is a `ValueError` in Python and a
+  `std::invalid_argument` in C++, as most of these errors were, so handlers for those keep working.
+  In Python, a radius or a real-valued method option too large for a float raised `OverflowError`
+  and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
+  and the exit statuses of the command line are unchanged.
+
+### Fitting
+
+- `chargefw.parameterization.EvaluationError` has `failure`: what the method reported when it
+  could not calculate the charges for the values, with its `kind`, `message`, `molecule_index`, and
+  `conformer_index`, or `None` when no calculation of a method failed. The messages are unchanged.
 
 ## 3.0.0rc6
 

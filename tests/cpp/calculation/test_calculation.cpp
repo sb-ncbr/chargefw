@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include "support/test_calculation.h"
 #include "support/test_molecules.h"
 #include "support/test_parameters.h"
@@ -856,12 +858,10 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
                         .molecules = water, .parameter_sets = sets, .parameter_set_id = "missing"},
                     Kind::unknown_parameter_set}}) {
         CAPTURE(request.method_id.value_or("none"), *request.parameter_set_id);
-        try {
-            static_cast<void>(calculation::assess(request));
-            FAIL_CHECK("an invalid parameter-set selection was accepted");
-        } catch (const calculation::RequestError& error) {
-            CHECK(error.kind() == kind);
-        }
+        const auto error = chargefw::test::thrown<calculation::RequestError>(
+            [&] { static_cast<void>(calculation::assess(request)); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == kind);
     }
 
     // A method option names the option, unless the error concerns no single one.
@@ -880,13 +880,11 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
                                                    .method_options =
                                                        methods::MethodOptions{{{"iters", 2}}}},
                     std::optional<std::string>{}}}) {
-        try {
-            static_cast<void>(calculation::assess(request));
-            FAIL_CHECK("an invalid method option was accepted");
-        } catch (const calculation::RequestError& error) {
-            CHECK(error.kind() == Kind::invalid_method_option);
-            CHECK(error.option() == option);
-        }
+        const auto error = chargefw::test::thrown<calculation::RequestError>(
+            [&] { static_cast<void>(calculation::assess(request)); });
+        REQUIRE(error.has_value());
+        CHECK(error->kind() == Kind::invalid_method_option);
+        CHECK(error->option() == option);
     }
 
     // The error says which part of the request to change, and is still a std::invalid_argument.

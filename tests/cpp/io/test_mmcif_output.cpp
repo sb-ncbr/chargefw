@@ -667,12 +667,10 @@ HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};
     for (const auto& record : {generated_record(), coordinate_free}) {
         const auto generated = calculation_result({record}, formal(2));
-        try {
-            io::MmcifWriter{rejected}.annotate(std::array{&generated});
-            FAIL_CHECK("a molecule that was not read from a file was annotated");
-        } catch (const io::OutputError& error) {
-            CHECK(error.kind() == io::OutputErrorKind::unsupported_source);
-        }
+        const auto refused = chargefw::test::thrown<io::OutputError>(
+            [&] { io::MmcifWriter{rejected}.annotate(std::array{&generated}); });
+        REQUIRE(refused.has_value());
+        CHECK(refused->kind() == io::OutputErrorKind::unsupported_source);
     }
 }
 
@@ -792,7 +790,10 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         {generated_record("cancelled")}, {},
         {.status = chargefw::calculation::ExecutionStatus::cancelled});
     auto output = std::ostringstream{};
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(cancelled), io::OutputError);
+    const auto no_charges =
+        chargefw::test::thrown<io::OutputError>([&] { io::MmcifWriter{output}.write(cancelled); });
+    REQUIRE(no_charges.has_value());
+    CHECK(no_charges->kind() == io::OutputErrorKind::no_charges);
 
     auto coordinate_free = generated_record("missing");
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};

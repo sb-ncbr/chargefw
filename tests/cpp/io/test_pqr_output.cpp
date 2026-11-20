@@ -153,14 +153,10 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[i
         // several molecules of a structure for their number.
         const auto refusal = [](const io::ChargeCalculationResult& result) {
             auto output = std::ostringstream{};
-            auto kind = std::optional<io::OutputErrorKind>{};
-            try {
-                io::PqrWriter{output}.write(result);
-            } catch (const io::OutputError& error) {
-                kind = error.kind();
-            }
+            const auto refused = chargefw::test::thrown<io::OutputError>(
+                [&] { io::PqrWriter{output}.write(result); });
             CHECK(output.str().empty());
-            return kind;
+            return refused.transform(&io::OutputError::kind);
         };
         const std::string water{"ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  "
                                 "0.00           O\nEND\n"};

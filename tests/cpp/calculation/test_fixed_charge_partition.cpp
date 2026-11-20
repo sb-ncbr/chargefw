@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/calculation/request_error.h>
 #include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
@@ -312,12 +314,11 @@ TEST_CASE("fixed-charge partition factory shares source validation",
     CHECK_THROWS_AS(calculation::detail::make_fixed_charge_partition(
                         unbonded, calculation::FixedIons{{{1, 0, 1.0}}}),
                     calculation::RequestError);
-    try {
+    const auto refused = chargefw::test::thrown<calculation::RequestError>([&] {
         static_cast<void>(calculation::detail::make_fixed_charge_partition(bonded, fixed_ions));
-        FAIL_CHECK("a bonded fixed ion was accepted");
-    } catch (const calculation::RequestError& error) {
-        CHECK(error.kind() == calculation::RequestErrorKind::invalid_fixed_ions);
-    }
+    });
+    REQUIRE(refused.has_value());
+    CHECK(refused->kind() == calculation::RequestErrorKind::invalid_fixed_ions);
     const auto coincident = core::MoleculeCollection{
         std::vector{core::Molecule{std::vector{core::Atom{6}, core::Atom{6}},
                                    {},

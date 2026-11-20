@@ -401,8 +401,8 @@ chargefw.io.annotate("structure-charged.cif", result)
 The result keeps the text of the input, so `annotate()` needs neither the input file nor
 `molecules`. It also takes a list of results. Charges that are already in the input are an error
 unless you pass `if_exists="replace"`, or `if_exists="append"` to keep them and add the new charge
-sets after them. `annotate()` raises `ValueError` for molecules that were not read from one PDB or
-mmCIF input, and [`OutputError`](#writing-results) for charges it may not replace. [Charges added to
+sets after them. `annotate()` raises [`OutputError`](#writing-results) for molecules that were not
+read from one PDB or mmCIF input, and for charges it may not replace. [Charges added to
 the input structure](../reference/formats.md#charges-added-to-the-input-structure) describes the
 file.
 
