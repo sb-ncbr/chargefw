@@ -36,7 +36,9 @@ constexpr std::string_view v30_prefix{"M  V30 "};
 
     if (normalized.empty() || normalized == "*" || normalized == "A" || normalized == "Q" ||
         normalized == "L" || normalized == "LP" || normalized == "R" || normalized == "R#") {
-        throw std::runtime_error{"unsupported query atom '" + std::string{normalized} + "'"};
+        throw ParseError{ParseErrorKind::unsupported,
+                         "unsupported query atom '" + std::string{normalized} + "'",
+                         {}};
     }
 
     // Molfiles have no atom names; the symbol is the element, not a name.
@@ -72,7 +74,8 @@ constexpr std::string_view v30_prefix{"M  V30 "};
     case 7:
         return -3;
     default:
-        throw std::runtime_error{"invalid V2000 atom charge '" + std::string{code} + "'"};
+        throw ParseError{
+            ParseErrorKind::malformed, "invalid V2000 atom charge '" + std::string{code} + "'", {}};
     }
 }
 
@@ -94,7 +97,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         common::fixed_field(counts, 3, 3, "V2000 bond count"), "V2000 bond count");
 
     if (atom_count <= 0 || bond_count < 0) {
-        throw std::runtime_error{"invalid V2000 counts"};
+        throw ParseError{ParseErrorKind::malformed, "invalid V2000 counts", {}};
     }
 
     auto result = ParsedMolecule{};
@@ -133,7 +136,8 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         const auto order = common::trim(common::fixed_field(bond_line, 6, 3, "V2000 bond order"));
 
         if (first <= 0 || second <= 0 || first > atom_count || second > atom_count) {
-            throw std::runtime_error{"V2000 bond references an unknown atom"};
+            throw ParseError{
+                ParseErrorKind::malformed, "V2000 bond references an unknown atom", {}};
         }
 
         result.bonds.emplace_back(static_cast<std::size_t>(first - 1),
@@ -153,13 +157,13 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
             return result;
         }
         if (property_line == "$$$$") {
-            throw std::runtime_error{"missing M  END"};
+            throw ParseError{ParseErrorKind::malformed, "missing M  END", {}};
         }
         // An atom alias (A) or group abbreviation (G) line is followed by its text, which is
         // skipped unread even if it looks like a property line.
         if (property_line.starts_with("A  ") || property_line.starts_with("G  ")) {
             if (common::read_line(input, line, "MOL") == "$$$$") {
-                throw std::runtime_error{"missing M  END"};
+                throw ParseError{ParseErrorKind::malformed, "missing M  END", {}};
             }
             continue;
         }
@@ -181,7 +185,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
             common::fixed_field(property_line, 6, 3, "M  CHG count"), "M  CHG count");
 
         if (count < 0 || property_line.size() < 9 + static_cast<std::size_t>(count) * 8) {
-            throw std::runtime_error{"invalid M  CHG record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid M  CHG record", {}};
         }
 
         for (int index = 0; index < count; ++index) {
@@ -193,7 +197,8 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
                 "M  CHG charge");
 
             if (atom_number <= 0 || atom_number > atom_count) {
-                throw std::runtime_error{"M  CHG references an unknown atom"};
+                throw ParseError{
+                    ParseErrorKind::malformed, "M  CHG references an unknown atom", {}};
             }
 
             const auto atom_index = static_cast<std::size_t>(atom_number - 1);
@@ -206,7 +211,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
 
 [[nodiscard]] auto v30_payload(std::string_view line) -> std::string_view {
     if (!line.starts_with(v30_prefix)) {
-        throw std::runtime_error{"expected V3000 record"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 record", {}};
     }
 
     return line.substr(v30_prefix.size());
@@ -216,7 +221,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
     auto result = common::read_line(input, line, "MOL");
 
     if (!result.starts_with(v30_prefix)) {
-        throw std::runtime_error{"expected V3000 record"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 record", {}};
     }
 
     while (!result.empty() && result.back() == '-') {
@@ -224,7 +229,7 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
         const auto continuation = common::read_line(input, line, "MOL");
 
         if (!continuation.starts_with(v30_prefix)) {
-            throw std::runtime_error{"invalid V3000 continuation"};
+            throw ParseError{ParseErrorKind::malformed, "invalid V3000 continuation", {}};
         }
 
         result += continuation.substr(v30_prefix.size());
@@ -247,24 +252,24 @@ auto parse_v2000(std::istream& input, const std::string_view counts, std::size_t
 
 auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     if (v30_payload(read_v30_line(input, line)) != "BEGIN CTAB") {
-        throw std::runtime_error{"expected V3000 BEGIN CTAB"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 BEGIN CTAB", {}};
     }
 
     const auto counts = v30_tokens(read_v30_line(input, line));
 
     if (counts.size() < 3 || counts[0] != "COUNTS") {
-        throw std::runtime_error{"expected V3000 COUNTS"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 COUNTS", {}};
     }
 
     const auto atom_count = common::parse_int(counts[1], "V3000 atom count");
     const auto bond_count = common::parse_int(counts[2], "V3000 bond count");
 
     if (atom_count <= 0 || bond_count < 0) {
-        throw std::runtime_error{"invalid V3000 counts"};
+        throw ParseError{ParseErrorKind::malformed, "invalid V3000 counts", {}};
     }
 
     if (v30_payload(read_v30_line(input, line)) != "BEGIN ATOM") {
-        throw std::runtime_error{"expected V3000 BEGIN ATOM"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 BEGIN ATOM", {}};
     }
 
     auto result = ParsedMolecule{};
@@ -278,13 +283,13 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         const auto atom = v30_tokens(read_v30_line(input, line));
 
         if (atom.size() < 6) {
-            throw std::runtime_error{"invalid V3000 atom record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid V3000 atom record", {}};
         }
 
         const auto source_id = common::parse_int(atom[0], "V3000 atom id");
 
         if (source_id <= 0 || atom_indices.contains(source_id)) {
-            throw std::runtime_error{"duplicate or invalid V3000 atom id"};
+            throw ParseError{ParseErrorKind::malformed, "duplicate or invalid V3000 atom id", {}};
         }
 
         int formal_charge = 0;
@@ -311,7 +316,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     }
 
     if (v30_payload(read_v30_line(input, line)) != "END ATOM") {
-        throw std::runtime_error{"expected V3000 END ATOM"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 END ATOM", {}};
     }
 
     auto next = read_v30_line(input, line);
@@ -321,12 +326,13 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
             const auto bond = v30_tokens(read_v30_line(input, line));
 
             if (bond.size() < 4) {
-                throw std::runtime_error{"invalid V3000 bond record"};
+                throw ParseError{ParseErrorKind::malformed, "invalid V3000 bond record", {}};
             }
 
             const auto source_id = common::parse_int(bond[0], "V3000 bond id");
             if (source_id <= 0 || !bond_ids.emplace(source_id).second) {
-                throw std::runtime_error{"duplicate or invalid V3000 bond id"};
+                throw ParseError{
+                    ParseErrorKind::malformed, "duplicate or invalid V3000 bond id", {}};
             }
 
             const auto first_source_id = common::parse_int(bond[2], "V3000 bond atom");
@@ -335,7 +341,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
             const auto second = atom_indices.find(second_source_id);
 
             if (first == atom_indices.end() || second == atom_indices.end()) {
-                throw std::runtime_error{"V3000 bond references an unknown atom"};
+                throw ParseError{
+                    ParseErrorKind::malformed, "V3000 bond references an unknown atom", {}};
             }
 
             const auto order = common::parse_int(bond[1], "V3000 bond order");
@@ -352,19 +359,18 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
                 continue;
             }
 
-            result.bonds.emplace_back(first->second, second->second,
-                                      core::bond_order_from_value(order == 4 ? 1 : order));
+            result.bonds.emplace_back(first->second, second->second, common::mol_bond_order(order));
             if (order == 4) {
                 result.aromatic_bonds.push_back(result.bonds.size() - 1);
             }
         }
 
         if (v30_payload(read_v30_line(input, line)) != "END BOND") {
-            throw std::runtime_error{"expected V3000 END BOND"};
+            throw ParseError{ParseErrorKind::malformed, "expected V3000 END BOND", {}};
         }
         next = read_v30_line(input, line);
     } else if (bond_count != 0) {
-        throw std::runtime_error{"expected V3000 bond block"};
+        throw ParseError{ParseErrorKind::malformed, "expected V3000 bond block", {}};
     }
 
     // Only the atoms and bonds are read. Other blocks, such as SGROUP and COLLECTION, are ignored,
@@ -372,8 +378,10 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
     // block would change the molecule and is an error.
     while (v30_payload(next) != "END CTAB") {
         if (v30_payload(next) == "BEGIN ATOM" || v30_payload(next) == "BEGIN BOND") {
-            throw std::runtime_error{"repeated or misplaced V3000 " +
-                                     std::string{v30_payload(next).substr(6)} + " block"};
+            throw ParseError{ParseErrorKind::malformed,
+                             "repeated or misplaced V3000 " +
+                                 std::string{v30_payload(next).substr(6)} + " block",
+                             {}};
         }
         next = read_v30_line(input, line);
     }
@@ -383,7 +391,7 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
             return result;
         }
         if (text == "$$$$") {
-            throw std::runtime_error{"missing M  END"};
+            throw ParseError{ParseErrorKind::malformed, "missing M  END", {}};
         }
     }
 }
@@ -458,7 +466,7 @@ auto native::mol_input::parse_mol(std::istream& input, MoleculeRecordIdentity id
         } else if (counts.contains("V3000")) {
             parsed = parse_v3000(input, line);
         } else {
-            throw std::runtime_error{"unsupported MOL version"};
+            throw ParseError{ParseErrorKind::unsupported, "unsupported MOL version", {}};
         }
 
         return make_record(std::move(parsed), identity, drawing, record_start);
@@ -475,8 +483,9 @@ auto MolReader::next() -> std::optional<ImportedMoleculeRecord> {
         return std::nullopt;
     }
     consumed_ = true;
-    if (input_->peek() == std::char_traits<char>::eof()) {
-        throw ParseError{"no MOL molecule record found", {.source_name = source_}};
+    if (common::at_end(*input_)) {
+        throw ParseError{
+            ParseErrorKind::no_records, "no MOL molecule record found", {.source_name = source_}};
     }
 
     auto line = std::size_t{};

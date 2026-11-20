@@ -109,6 +109,49 @@ TEST_CASE("JSON input preserves identity, graph, and conformer mapping", "[io][j
     }
 }
 
+TEST_CASE("JSON input tells syntax and version apart", "[io][json]") {
+    const auto kind = [](const std::string& text) {
+        std::istringstream input{text};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::JsonReader{input, "input.json"}); });
+        REQUIRE(error.has_value());
+        CHECK(error->location().source_name == "input.json");
+        return error->kind();
+    };
+    // JSON is UTF-8, so a Latin-1 byte breaks the format as a missing comma does.
+    CHECK(kind("{\"schema_version\": \"1.0\", \"molecules\": [{\"id\": \"caf\xe9\"}]}") ==
+          io::ParseErrorKind::malformed);
+    CHECK(kind("{\"schema_version\": \"1.0\" \"molecules\": [{\"id\": \"caf\xc3\xa9\"}]}") ==
+          io::ParseErrorKind::malformed);
+    // Which members another version allows is not known, so the version is what is refused.
+    CHECK(kind(R"json({"schema_version": "2.0", "molecules": [], "units": "angstrom"})json") ==
+          io::ParseErrorKind::unsupported);
+    CHECK(kind(R"json({"schema_version": "1.0", "molecules": [], "units": "angstrom"})json") ==
+          io::ParseErrorKind::malformed);
+}
+
+TEST_CASE("JSON input passes a failed read on instead of reading or refusing the input",
+          "[io][json]") {
+    for (const auto state : {std::ios::failbit, std::ios::badbit}) {
+        std::istringstream input{R"json({"schema_version": "1.0", "molecules": []})json"};
+        input.setstate(state);
+        auto read = false;
+        auto refused = false;
+        auto failed = false;
+        try {
+            static_cast<void>(io::JsonReader{input, "input.json"});
+            read = true;
+        } catch (const io::ParseError&) {
+            refused = true;
+        } catch (const std::runtime_error&) {
+            failed = true;
+        }
+        CHECK(failed);
+        CHECK_FALSE(read);
+        CHECK_FALSE(refused);
+    }
+}
+
 TEST_CASE("JSON input rejects integers outside the native integer range", "[io][json]") {
     const auto input = R"json(
 {

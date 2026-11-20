@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <istream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -40,13 +41,15 @@ using Json = nlohmann::json;
 
 auto require_object(const Json& value, const std::string& context) -> void {
     if (!value.is_object()) {
-        throw std::runtime_error{context + " must be an object, got " + type_name(value)};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " must be an object, got " + type_name(value), {}};
     }
 }
 
 auto require_array(const Json& value, const std::string& context) -> void {
     if (!value.is_array()) {
-        throw std::runtime_error{context + " must be an array, got " + type_name(value)};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " must be an array, got " + type_name(value), {}};
     }
 }
 
@@ -55,7 +58,9 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
                            const std::string& context) -> void {
     for (const auto& item : object.items()) {
         if (std::ranges::find(known, item.key()) == known.end()) {
-            throw std::runtime_error{context + " has unknown member '" + item.key() + "'"};
+            throw ParseError{ParseErrorKind::malformed,
+                             context + " has unknown member '" + item.key() + "'",
+                             {}};
         }
     }
 }
@@ -65,7 +70,8 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
     const auto iterator = object.find(name);
 
     if (iterator == object.end()) {
-        throw std::runtime_error{context + " is missing required member '" + name + "'"};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " is missing required member '" + name + "'", {}};
     }
 
     return *iterator;
@@ -78,7 +84,8 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
 
 [[nodiscard]] auto require_string(const Json& value, const std::string& context) -> std::string {
     if (!value.is_string()) {
-        throw std::runtime_error{context + " must be a string, got " + type_name(value)};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " must be a string, got " + type_name(value), {}};
     }
 
     return value.get<std::string>();
@@ -86,13 +93,16 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
 
 [[nodiscard]] auto require_integer(const Json& value, const std::string& context) -> int {
     if (!value.is_number_integer()) {
-        throw std::runtime_error{context + " must be an integer, got " + type_name(value)};
+        throw ParseError{ParseErrorKind::malformed,
+                         context + " must be an integer, got " + type_name(value),
+                         {}};
     }
 
     if (value.is_number_unsigned()) {
         const auto number = value.get<std::uint64_t>();
         if (number > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
-            throw std::runtime_error{context + " is outside the supported integer range"};
+            throw ParseError{
+                ParseErrorKind::malformed, context + " is outside the supported integer range", {}};
         }
         return static_cast<int>(number);
     }
@@ -100,15 +110,17 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
     const auto number = value.get<std::int64_t>();
     if (number < static_cast<std::int64_t>(std::numeric_limits<int>::min()) ||
         number > static_cast<std::int64_t>(std::numeric_limits<int>::max())) {
-        throw std::runtime_error{context + " is outside the supported integer range"};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " is outside the supported integer range", {}};
     }
     return static_cast<int>(number);
 }
 
 [[nodiscard]] auto require_index(const Json& value, const std::string& context) -> std::size_t {
     if (!value.is_number_unsigned()) {
-        throw std::runtime_error{context + " must be a non-negative integer, got " +
-                                 type_name(value)};
+        throw ParseError{ParseErrorKind::malformed,
+                         context + " must be a non-negative integer, got " + type_name(value),
+                         {}};
     }
 
     return value.get<std::size_t>();
@@ -116,13 +128,14 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
 
 [[nodiscard]] auto require_number(const Json& value, const std::string& context) -> double {
     if (!value.is_number()) {
-        throw std::runtime_error{context + " must be a number, got " + type_name(value)};
+        throw ParseError{
+            ParseErrorKind::malformed, context + " must be a number, got " + type_name(value), {}};
     }
 
     const auto result = value.get<double>();
 
     if (!std::isfinite(result)) {
-        throw std::runtime_error{context + " must be finite"};
+        throw ParseError{ParseErrorKind::malformed, context + " must be finite", {}};
     }
 
     return result;
@@ -155,7 +168,7 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
     const auto& atoms_value = member(value, "atoms", context);
     require_array(atoms_value, context + ".atoms");
     if (atoms_value.empty()) {
-        throw std::runtime_error{context + ".atoms must not be empty"};
+        throw ParseError{ParseErrorKind::malformed, context + ".atoms must not be empty", {}};
     }
 
     std::vector<core::Atom> atoms;
@@ -189,7 +202,9 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
             const auto& endpoints = member(bond_value, "atoms", bond_context);
             require_array(endpoints, bond_context + ".atoms");
             if (endpoints.size() != 2) {
-                throw std::runtime_error{bond_context + ".atoms must contain exactly two indices"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 bond_context + ".atoms must contain exactly two indices",
+                                 {}};
             }
             bonds.emplace_back(
                 require_index(endpoints[0], bond_context + ".atoms[0]"),
@@ -237,8 +252,9 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
                 const auto& coordinate = coordinates[coordinate_index];
                 require_array(coordinate, coordinate_context);
                 if (coordinate.size() != 3) {
-                    throw std::runtime_error{coordinate_context +
-                                             " must contain exactly three values"};
+                    throw ParseError{ParseErrorKind::malformed,
+                                     coordinate_context + " must contain exactly three values",
+                                     {}};
                 }
                 positions.push_back(
                     core::Position{.x = require_number(coordinate[0], coordinate_context + "[0]"),
@@ -288,6 +304,7 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
 struct JsonReader::Impl {
     Impl(std::istream& input, std::string source_name, ConformerSelection conformers);
     auto next() -> std::optional<ImportedMoleculeRecord>;
+    auto read_document(std::istream& input) -> void;
 
     nlohmann::json molecule_records_;
     std::string source_;
@@ -310,17 +327,34 @@ auto JsonReader::next() -> std::optional<ImportedMoleculeRecord> {
 JsonReader::Impl::Impl(std::istream& input, std::string source_name,
                        const ConformerSelection conformers)
     : source_{std::move(source_name)}, conformers_{conformers} {
-    auto document = Json::parse(input, nullptr, false);
+    try {
+        read_document(input);
+    } catch (const ParseError& error) {
+        // An error in the document outside its molecules has no record.
+        throw ParseError{error.kind(), error.reason(), {.source_name = source_}};
+    }
+}
+
+auto JsonReader::Impl::read_document(std::istream& input) -> void {
+    // The iterators read the buffer whatever the state of the stream, so it is checked first.
+    common::require_readable(input);
+    const auto text =
+        std::string{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
+    common::require_readable(input);
+    auto document = Json::parse(text, nullptr, false);
     if (document.is_discarded()) {
-        throw std::runtime_error{"invalid JSON document"};
+        throw ParseError{ParseErrorKind::malformed,
+                         "invalid JSON document; molecule JSON must be valid JSON in UTF-8",
+                         {}};
     }
     require_object(document, "document");
-    require_known_members(document, {"schema_version", "molecules"}, "document");
-
+    // The version first: which members a document may have depends on it.
     if (require_string(member(document, "schema_version", "document"), "document.schema_version") !=
         "1.0") {
-        throw std::runtime_error{"unsupported schema_version; expected '1.0'"};
+        throw ParseError{
+            ParseErrorKind::unsupported, "unsupported schema_version; expected '1.0'", {}};
     }
+    require_known_members(document, {"schema_version", "molecules"}, "document");
 
     const std::string document_context{"document"};
     require_array(member(document, "molecules", document_context), "document.molecules");

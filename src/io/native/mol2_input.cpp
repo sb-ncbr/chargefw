@@ -37,7 +37,9 @@ constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATT
 
     if (symbol.empty() || symbol == "Du" || symbol == "LP" || symbol == "Any" || symbol == "Hal" ||
         symbol == "Het" || symbol == "Hev") {
-        throw std::runtime_error{"unsupported MOL2 atom type '" + std::string{atom_type} + "'"};
+        throw ParseError{ParseErrorKind::unsupported,
+                         "unsupported MOL2 atom type '" + std::string{atom_type} + "'",
+                         {}};
     }
 
     return symbol;
@@ -64,8 +66,10 @@ constexpr std::string_view unity_atom_attributes_marker{"@<TRIPOS>UNITY_ATOM_ATT
         }
         const auto trimmed = common::trim(*text);
         if (!trimmed.empty() && !trimmed.starts_with('#')) {
-            throw std::runtime_error{"MOL2 " + std::string{section} +
-                                     " section has more lines than its declared count"};
+            throw ParseError{ParseErrorKind::malformed,
+                             "MOL2 " + std::string{section} +
+                                 " section has more lines than its declared count",
+                             {}};
         }
     }
     return std::nullopt;
@@ -98,14 +102,14 @@ struct AtomSection {
 
         if (!(atom_line >> source_id_text >> atom_name >> x_text >> y_text >> z_text >>
               atom_type)) {
-            throw std::runtime_error{"invalid MOL2 atom record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 atom record", {}};
         }
 
         static_cast<void>(atom_line >> subst_id >> subst_name >> charge_text);
         const auto source_id = common::parse_int(source_id_text, "MOL2 atom id");
 
         if (source_id <= 0 || result.indices.contains(source_id)) {
-            throw std::runtime_error{"duplicate or invalid MOL2 atom id"};
+            throw ParseError{ParseErrorKind::malformed, "duplicate or invalid MOL2 atom id", {}};
         }
 
         if (!charge_text.empty()) {
@@ -156,7 +160,7 @@ struct FormalCharge {
         std::string type;
 
         if (!(bond_line >> bond_id >> first_text >> second_text >> type)) {
-            throw std::runtime_error{"invalid MOL2 bond record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 bond record", {}};
         }
 
         result.push_back(SourceBond{.first = common::parse_int(first_text, "MOL2 bond atom"),
@@ -185,14 +189,14 @@ struct FormalCharge {
             continue;
         }
         if (!(header >> attribute_count_text)) {
-            throw std::runtime_error{"invalid MOL2 UNITY_ATOM_ATTR record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 UNITY_ATOM_ATTR record", {}};
         }
         const auto atom_id = common::parse_int(atom_id_text, "MOL2 UNITY_ATOM_ATTR atom");
         const auto atom_line = line;
         const auto attribute_count =
             common::parse_int(attribute_count_text, "MOL2 UNITY_ATOM_ATTR count");
         if (attribute_count < 0) {
-            throw std::runtime_error{"invalid MOL2 UNITY_ATOM_ATTR record"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 UNITY_ATOM_ATTR record", {}};
         }
         for (int attribute = 0; attribute < attribute_count; ++attribute) {
             const auto attribute_text = common::read_line(input, line, "MOL2");
@@ -200,8 +204,10 @@ struct FormalCharge {
             std::string attribute_name;
             std::string value;
             if (attribute_text.starts_with('@') || !(attribute_line >> attribute_name)) {
-                throw std::runtime_error{"MOL2 UNITY_ATOM_ATTR record has fewer attributes "
-                                         "than its count"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "MOL2 UNITY_ATOM_ATTR record has fewer attributes "
+                                 "than its count",
+                                 {}};
             }
             attribute_line >> value;
             if (attribute_name == "charge") {
@@ -230,14 +236,14 @@ struct FormalCharge {
         std::string bond_count_text;
 
         if (!(counts >> atom_count_text >> bond_count_text)) {
-            throw std::runtime_error{"invalid MOL2 counts"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 counts", {}};
         }
 
         const auto atom_count = common::parse_int(atom_count_text, "MOL2 atom count");
         const auto bond_count = common::parse_int(bond_count_text, "MOL2 bond count");
 
         if (atom_count <= 0 || bond_count < 0) {
-            throw std::runtime_error{"invalid MOL2 counts"};
+            throw ParseError{ParseErrorKind::malformed, "invalid MOL2 counts", {}};
         }
 
         auto atom_section = std::optional<AtomSection>{};
@@ -248,13 +254,13 @@ struct FormalCharge {
             const auto marker = common::trim(*section);
             if (marker == atom_marker) {
                 if (atom_section.has_value()) {
-                    throw std::runtime_error{"repeated MOL2 ATOM section"};
+                    throw ParseError{ParseErrorKind::malformed, "repeated MOL2 ATOM section", {}};
                 }
                 atom_section = read_atoms(input, line, atom_count);
                 section = end_counted_section(input, line, "ATOM");
             } else if (marker == bond_marker) {
                 if (source_bonds.has_value()) {
-                    throw std::runtime_error{"repeated MOL2 BOND section"};
+                    throw ParseError{ParseErrorKind::malformed, "repeated MOL2 BOND section", {}};
                 }
                 source_bonds = read_bonds(input, line, bond_count);
                 section = end_counted_section(input, line, "BOND");
@@ -267,10 +273,10 @@ struct FormalCharge {
         next_record = section.has_value();
 
         if (!atom_section.has_value()) {
-            throw std::runtime_error{"missing MOL2 ATOM section"};
+            throw ParseError{ParseErrorKind::malformed, "missing MOL2 ATOM section", {}};
         }
         if (!source_bonds.has_value()) {
-            throw std::runtime_error{"expected MOL2 BOND section"};
+            throw ParseError{ParseErrorKind::malformed, "expected MOL2 BOND section", {}};
         }
         auto& [atoms, positions, atom_references, atom_indices, partial_charge_line] =
             *atom_section;
@@ -279,7 +285,9 @@ struct FormalCharge {
             validation_line = charge.line;
             const auto index = atom_indices.find(atom_id);
             if (index == atom_indices.end()) {
-                throw std::runtime_error{"MOL2 UNITY_ATOM_ATTR references an unknown atom"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "MOL2 UNITY_ATOM_ATTR references an unknown atom",
+                                 {}};
             }
             auto& atom = atoms[index->second];
             atom = core::Atom{atom.atomic_number(), charge.value, std::string{atom.name()}};
@@ -290,14 +298,13 @@ struct FormalCharge {
         auto aromatic_bonds = std::vector<std::size_t>{}; // Indices in bonds.
 
         for (const auto& [first_id, second_id, type, source_line] : *source_bonds) {
-            validation_line = source_line; // For the bond type, not yet given a kind.
+            validation_line = source_line;
             const auto first = atom_indices.find(first_id);
             const auto second = atom_indices.find(second_id);
 
             if (first == atom_indices.end() || second == atom_indices.end()) {
-                throw ParseError{ParseErrorKind::malformed,
-                                 "MOL2 bond references an unknown atom",
-                                 {.source_name = {}, .line = source_line}};
+                throw ParseError{
+                    ParseErrorKind::malformed, "MOL2 bond references an unknown atom", {}};
             }
 
             bonds.emplace_back(first->second, second->second,

@@ -792,6 +792,79 @@ TEST_CASE("a MOL2 bond to an unknown atom is located at the bond, not at the end
     CHECK_FALSE(error->reason().contains("input.mol2"));
 }
 
+TEST_CASE("native readers give the kind of refusal", "[io][native]") {
+    const auto kind = [](const std::string& text) {
+        std::istringstream input{text};
+        auto reader = io::Mol2Reader{input, "input.mol2"};
+        const auto error =
+            chargefw::test::thrown<io::ParseError>([&] { static_cast<void>(reader.next()); });
+        REQUIRE(error.has_value());
+        return error->kind();
+    };
+    const std::string head{"@<TRIPOS>MOLECULE\nligand\n1 0\n@<TRIPOS>ATOM\n"};
+    CHECK(kind("") == io::ParseErrorKind::no_records);
+    CHECK(kind(head + "1 C1 0 0 0\n") == io::ParseErrorKind::malformed);
+    CHECK(kind(head + "1 D1 0 0 0 Du\n@<TRIPOS>BOND\n") == io::ParseErrorKind::unsupported);
+    CHECK(kind(head + "1 C\xe9 0 0 0 C.3\n") == io::ParseErrorKind::invalid_encoding);
+    // A value the molecule cannot hold, refused by the molecule's types: a bond of an atom to
+    // itself.
+    CHECK(kind("@<TRIPOS>MOLECULE\nligand\n1 1\n@<TRIPOS>ATOM\n1 C1 0 0 0 C.3\n"
+               "@<TRIPOS>BOND\n1 1 1 1\n") == io::ParseErrorKind::malformed);
+
+    // Bond types the formats define but a molecule cannot hold, and one that neither defines.
+    const std::string bond_head{"@<TRIPOS>MOLECULE\nligand\n2 1\n@<TRIPOS>ATOM\n"
+                                "1 C1 0 0 0 C.3\n2 C2 1 0 0 C.3\n@<TRIPOS>BOND\n"};
+    CHECK(kind(bond_head + "1 1 2 nc\n") == io::ParseErrorKind::unsupported);
+    CHECK(kind(bond_head + "1 1 2 7\n") == io::ParseErrorKind::malformed);
+    const auto mol_kind = [](const std::string_view bond_type) {
+        std::istringstream v2000{"query\n\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+                                 "    0.0000    0.0000    0.0000 C   0  0\n"
+                                 "    1.0000    0.0000    0.0000 C   0  0\n  1  2  " +
+                                 std::string{bond_type} + "  0\nM  END\n"};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::parse_mol(v2000, {})); });
+        REQUIRE(error.has_value());
+        return error->kind();
+    };
+    CHECK(mol_kind("5") == io::ParseErrorKind::unsupported); // Single or double.
+    CHECK(mol_kind("0") == io::ParseErrorKind::malformed);
+    std::istringstream v3000{"query\n\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+                             "M  V30 BEGIN CTAB\nM  V30 COUNTS 2 1 0 0 0\nM  V30 BEGIN ATOM\n"
+                             "M  V30 1 C 0 0 0 0\nM  V30 2 C 1 0 0 0\nM  V30 END ATOM\n"
+                             "M  V30 BEGIN BOND\nM  V30 1 6 1 2\nM  V30 END BOND\n"
+                             "M  V30 END CTAB\nM  END\n"};
+    const auto v3000_error = chargefw::test::thrown<io::ParseError>(
+        [&] { static_cast<void>(io::parse_mol(v3000, {})); });
+    REQUIRE(v3000_error.has_value());
+    CHECK(v3000_error->kind() == io::ParseErrorKind::unsupported);
+}
+
+TEST_CASE("native readers pass a failed read on instead of refusing the input", "[io][native]") {
+    // A stream that was never readable, such as a file that was not opened, and one that broke.
+    for (const auto state : {std::ios::failbit, std::ios::badbit}) {
+        for (const auto read :
+             {+[](std::istream& input) { static_cast<void>(io::MolReader{input, "input"}.next()); },
+              +[](std::istream& input) { static_cast<void>(io::SdfReader{input, "input"}.next()); },
+              +[](std::istream& input) {
+                  static_cast<void>(io::Mol2Reader{input, "input"}.next());
+              }}) {
+            std::istringstream input{"text\n"};
+            input.setstate(state);
+            auto refused = false;
+            auto failed = false;
+            try {
+                read(input);
+            } catch (const io::ParseError&) {
+                refused = true;
+            } catch (const std::runtime_error&) {
+                failed = true;
+            }
+            CHECK(failed);
+            CHECK_FALSE(refused);
+        }
+    }
+}
+
 TEST_CASE("native readers reject input with no molecule record", "[io][native]") {
     const std::string sdf_record{"water\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
                                  "    0.0000    0.0000    0.0000 O   0  0\nM  END\n$$$$\n"};
