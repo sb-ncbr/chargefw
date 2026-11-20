@@ -22,15 +22,11 @@ namespace chargefw::io::native::common_input {
 [[noreturn]] auto rethrow_with_context(const MoleculeRecordIdentity& identity,
                                        std::optional<std::size_t> line) -> void;
 
-// Throws std::runtime_error for a stream that failed other than by reaching its end, such as a
-// file that was not opened. It is not a ParseError: the input was not refused.
-auto require_readable(std::istream& input) -> void;
-
-// Whether the input has no more characters; a failed stream throws as in require_readable().
+// Whether the input has no more characters; a stream that failed otherwise throws
+// std::runtime_error, which is not a ParseError: the input was not refused.
 [[nodiscard]] auto at_end(std::istream& input) -> bool;
 
-// The next line, or nothing at the end of the input; a failed stream throws as in
-// require_readable().
+// The next line, or nothing at the end of the input; a failed stream throws as in at_end().
 [[nodiscard]] auto try_read_line(std::istream& input, std::size_t& line)
     -> std::optional<std::string>;
 

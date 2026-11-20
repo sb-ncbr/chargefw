@@ -1,6 +1,7 @@
 #include "selection.h"
 
 #include <algorithm>
+#include <chargefw/io/parse_error.h>
 #include <iterator>
 #include <memory>
 #include <string_view>
@@ -118,7 +119,7 @@ auto SelectedModel::atom_index_by_serial(const int serial) const -> std::optiona
 void SelectedModel::normalize_component_names(
     const std::span<const SourceAtomReference> source_atoms) {
     if (source_atoms.size() != atoms_.size()) {
-        throw std::runtime_error{"structural source mapping does not match selected atoms"};
+        throw std::logic_error{"structural source mapping does not match selected atoms"};
     }
     for (auto& residue : residues_) {
         auto component_name = std::string{};
@@ -131,18 +132,21 @@ void SelectedModel::normalize_component_names(
             const auto canonical_atom =
                 detail::canonical_atom_name(labels, atoms_[atom.index]->name);
             if (canonical_component.empty() || canonical_atom.empty()) {
-                throw std::runtime_error{
-                    "selected structural component has an empty canonical name"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "selected structural component has an empty canonical name",
+                                 {}};
             }
             if (component_name.empty()) {
                 component_name = canonical_component;
             } else if (component_name != canonical_component) {
-                throw std::runtime_error{
-                    "selected structural residue has inconsistent component names"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "selected structural residue has inconsistent component names",
+                                 {}};
             }
             if (!names.emplace(canonical_atom).second) {
-                throw std::runtime_error{
-                    "selected structural component has ambiguous canonical atom names"};
+                throw ParseError{ParseErrorKind::malformed,
+                                 "selected structural component has ambiguous canonical atom names",
+                                 {}};
             }
             atom.name = canonical_atom;
         }

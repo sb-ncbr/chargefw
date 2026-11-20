@@ -1,5 +1,6 @@
 #include "common_input.h"
 
+#include "io/parse_context.h"
 #include "io/text_encoding.h"
 
 #include <chargefw/io/parse_error.h>
@@ -15,47 +16,19 @@ namespace chargefw::io::native::common_input {
 
 auto rethrow_with_context(const MoleculeRecordIdentity& identity,
                           const std::optional<std::size_t> line) -> void {
-    const auto location = ParseLocation{.source_name = identity.source_name,
-                                        .line = line,
-                                        .record_index = identity.record_index,
-                                        .record_id = identity.record_id};
-    try {
-        throw;
-    } catch (const ParseError& error) {
-        // The throw site knows best where the offending data is, such as the line of a bond found
-        // wrong at the end of its record; only what it left out is added.
-        auto known = error.location();
-        if (known.source_name.empty()) {
-            known.source_name = location.source_name;
-        }
-        if (!known.line.has_value()) {
-            known.line = location.line;
-        }
-        if (!known.record_index.has_value()) {
-            known.record_index = location.record_index;
-        }
-        if (known.record_id.empty()) {
-            known.record_id = location.record_id;
-        }
-        throw ParseError{error.kind(), error.reason(), std::move(known)};
-    } catch (const std::invalid_argument& error) {
-        throw ParseError{ParseErrorKind::malformed, error.what(), location};
-    }
-}
-
-auto require_readable(std::istream& input) -> void {
-    if (input.bad() || (input.fail() && !input.eof())) {
-        throw std::runtime_error{"failed to read the input"};
-    }
+    io::detail::rethrow_located({.source_name = identity.source_name,
+                                 .line = line,
+                                 .record_index = identity.record_index,
+                                 .record_id = identity.record_id});
 }
 
 auto at_end(std::istream& input) -> bool {
-    require_readable(input);
+    io::detail::require_readable(input);
     if (input.eof()) {
         return true;
     }
     const auto end = input.peek() == std::char_traits<char>::eof();
-    require_readable(input);
+    io::detail::require_readable(input);
     return end;
 }
 
@@ -63,7 +36,7 @@ auto try_read_line(std::istream& input, std::size_t& line) -> std::optional<std:
     std::string result;
 
     if (!std::getline(input, result)) {
-        require_readable(input);
+        io::detail::require_readable(input);
         return std::nullopt;
     }
 

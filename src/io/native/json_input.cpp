@@ -3,6 +3,7 @@
 #include "common_input.h"
 
 #include "io/imported_records.h"
+#include "io/parse_context.h"
 
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
@@ -337,10 +338,10 @@ JsonReader::Impl::Impl(std::istream& input, std::string source_name,
 
 auto JsonReader::Impl::read_document(std::istream& input) -> void {
     // The iterators read the buffer whatever the state of the stream, so it is checked first.
-    common::require_readable(input);
+    io::detail::require_readable(input);
     const auto text =
         std::string{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
-    common::require_readable(input);
+    io::detail::require_readable(input);
     auto document = Json::parse(text, nullptr, false);
     if (document.is_discarded()) {
         throw ParseError{ParseErrorKind::malformed,

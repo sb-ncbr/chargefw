@@ -41,9 +41,6 @@ enum class ParseErrorKind : std::uint8_t {
 class ParseError : public std::runtime_error {
   public:
     ParseError(ParseErrorKind kind, std::string reason, ParseLocation location);
-    // DRAFT: for the readers not yet given kinds; reports malformed. To be removed with its last
-    // caller.
-    ParseError(std::string reason, ParseLocation location);
 
     [[nodiscard]] auto kind() const noexcept -> ParseErrorKind;
     [[nodiscard]] auto reason() const noexcept -> const std::string&;

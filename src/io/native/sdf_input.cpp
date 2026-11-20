@@ -1,6 +1,7 @@
 #include <chargefw/io/sdf_input.h>
 
 #include "common_input.h"
+#include "io/parse_context.h"
 #include "mol_record_parser.h"
 
 #include <chargefw/io/parse_error.h>
@@ -27,7 +28,7 @@ auto at_end_of_records(std::istream& input) -> bool {
     if (input.eof()) {
         return true;
     }
-    native::common_input::require_readable(input);
+    io::detail::require_readable(input);
     input.seekg(start);
     return false;
 }

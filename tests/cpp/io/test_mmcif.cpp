@@ -624,6 +624,51 @@ HETATM 4 O O1 . LIG A 1 ? 1.1 0.0 0.0 1.0 20.0 0 1 LIG B O1 2
                          snitch::matchers::with_what_contains{"same selected component instances"});
 }
 
+TEST_CASE("mmCIF input gives the kind of refusal and where it is", "[io][mmcif]") {
+    const auto refusal = [](const std::string& text) {
+        std::istringstream input{text};
+        const auto error = chargefw::test::thrown<io::ParseError>([&] {
+            auto reader = io::MmcifReader{input, "input.cif"};
+            while (reader.next().has_value()) {
+            }
+        });
+        REQUIRE(error.has_value());
+        CHECK(error->location().source_name == "input.cif");
+        return *error;
+    };
+    const std::string row{"\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1"};
+
+    // A syntax error is located by its line, and its reason does not repeat the source.
+    const auto syntax = refusal("data_x\n_entry.id 'x\n");
+    CHECK(syntax.kind() == io::ParseErrorKind::malformed);
+    CHECK(syntax.location().line == 2);
+    CHECK_FALSE(syntax.reason().contains("input.cif"));
+    // Gemmi words an error found after parsing differently.
+    const auto duplicate_tag = refusal("data_x\n_entry.id x\n_entry.id y\n");
+    CHECK(duplicate_tag.location().line == 3);
+    CHECK_FALSE(duplicate_tag.reason().contains("input.cif"));
+    const auto duplicate_block = refusal("data_x\n_entry.id x\ndata_x\n_entry.id y\n");
+    CHECK_FALSE(duplicate_block.location().line.has_value());
+    CHECK_FALSE(duplicate_block.reason().contains("input.cif"));
+
+    CHECK(refusal("data_x\n_entry.id x\n").kind() == io::ParseErrorKind::no_records);
+    CHECK(refusal("# \xe5\x88\x86\n" + atom_site_header("x") + row + "\n").kind() ==
+          io::ParseErrorKind::invalid_encoding);
+
+    // An error in a later block names that block.
+    const auto duplicate = refusal(atom_site_header("first") + row + "\n#\n" +
+                                   atom_site_header("second") + row + row + "\n#\n");
+    CHECK(duplicate.kind() == io::ParseErrorKind::malformed);
+    CHECK(duplicate.location().record_index == 1);
+    CHECK(duplicate.location().record_id == io::PortableId{"second"});
+
+    const auto models = refusal(atom_site_header("x") +
+                                "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1"
+                                "\nHETATM 2 O O1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A O1 2\n#\n");
+    CHECK(models.kind() == io::ParseErrorKind::inconsistent_models);
+    CHECK(models.location().record_index == 0);
+}
+
 TEST_CASE("mmCIF input rejects non-ASCII text", "[io][mmcif]") {
     std::istringstream input{"# structure\n# \xe5\x88\x86\xe5\xad\x90\n" + atom_site_header("x") +
                              "\nHETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1\n#\n"};

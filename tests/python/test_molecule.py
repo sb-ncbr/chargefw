@@ -230,7 +230,7 @@ def test_unreadable_input_raises_parse_error(tmp_path: Path) -> None:
 
     # A reader that gives no location still leaves the source known.
     with pytest.raises(chargefw.ParseError) as unlocated:
-        chargefw.io.parse("data_x\nloop_\n", format="mmcif", source_name="input.cif")
+        chargefw.io.parse("data_x\n_entry.id x\n", format="mmcif", source_name="input.cif")
     assert unlocated.value.source_name == "input.cif" and unlocated.value.line is None
 
     latin1 = tmp_path / "latin1.sdf"

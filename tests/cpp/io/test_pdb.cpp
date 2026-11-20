@@ -706,6 +706,50 @@ END
 )pdb") == 0);
 }
 
+TEST_CASE("PDB input gives the kind of refusal and passes a failed read on", "[io][pdb]") {
+    const auto kind = [](const std::string& text, const io::StructureOptions options = {}) {
+        std::istringstream input{text};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::PdbReader{input, "input.pdb", options}); });
+        REQUIRE(error.has_value());
+        CHECK(error->location().source_name == "input.pdb");
+        return error->kind();
+    };
+    const auto atom = [](const std::string_view name, const std::string_view element,
+                         const std::string_view record = "ATOM  ") {
+        return std::format("{}    1 {:<4} HOH A   1       0.000   0.000   0.000  1.00  0.00"
+                           "          {:>2}\n",
+                           record, name, element);
+    };
+    CHECK(kind("") == io::ParseErrorKind::no_records);
+    CHECK(kind(atom(" O", "O", "HETATM"), {.selection = io::RecordSelection::polymers}) ==
+          io::ParseErrorKind::no_records);
+    CHECK(kind("REMARK   1 Caf\xe9\n" + atom(" O", "O")) == io::ParseErrorKind::invalid_encoding);
+    CHECK(kind(atom(" X", "Xx")) == io::ParseErrorKind::malformed);
+    // Refused by the parsing library, and atoms that cannot be told apart.
+    CHECK(kind("MODEL        1\n" + atom(" O", "O") + "MODEL        2\n" + atom(" O", "O") +
+               "ENDMDL\nEND\n") == io::ParseErrorKind::malformed);
+    CHECK(kind(atom(" O", "O") + atom(" O", "O")) == io::ParseErrorKind::malformed);
+    CHECK(kind("MODEL        1\n" + atom(" C", "C") + "ENDMDL\nMODEL        2\n" + atom(" O", "O") +
+               "ENDMDL\nEND\n") == io::ParseErrorKind::inconsistent_models);
+
+    for (const auto state : {std::ios::failbit, std::ios::badbit}) {
+        std::istringstream input{atom(" O", "O")};
+        input.setstate(state);
+        auto refused = false;
+        auto failed = false;
+        try {
+            static_cast<void>(io::PdbReader{input, "input.pdb", {}});
+        } catch (const io::ParseError&) {
+            refused = true;
+        } catch (const std::runtime_error&) {
+            failed = true;
+        }
+        CHECK(failed);
+        CHECK_FALSE(refused);
+    }
+}
+
 TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
     const auto read = [](const std::string& text) {
         std::istringstream input{text};
