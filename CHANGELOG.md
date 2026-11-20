@@ -11,9 +11,10 @@
   MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
   output. A PDB file without `ATOM` or `HETATM` records is reported as such, instead of as a
   source mapping mismatch.
-- A repeated atom name at the same alternate location in a PDB or mmCIF residue is a `ParseError`
-  that names the residue, atom, and location. This includes two rows with no alternate location.
-  Previously, mmCIF input silently dropped the repeated atoms; PDB input did not identify them.
+- **Breaking change:** A repeated atom name at the same alternate location in a PDB or mmCIF
+  residue is a `ParseError` that names the residue, atom, and location. This includes two rows with
+  no alternate location. Previously, mmCIF input silently dropped the repeated atoms; PDB input did
+  not identify them.
 - An mmCIF `_struct_conn` connection is read where the author name of the atom or its residue
   (`auth_atom_id`, `auth_comp_id`) differs from the label name. The bond used to be left out
   without a warning.
