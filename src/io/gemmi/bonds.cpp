@@ -3,6 +3,7 @@
 #include "component_templates.h"
 #include "selection.h"
 
+#include <chargefw/io/parse_error.h>
 #include <gemmi/chemcomp.hpp>
 #include <gemmi/cif.hpp>
 
@@ -119,52 +120,28 @@ class ResidueIndex {
     std::map<Key, std::vector<const selection::SelectedResidue*>> residues_;
 };
 
-// The selected atom a connection names. A residue and its atoms are matched by the names the
-// selection gives them: an mmCIF connection uses label names, and Gemmi's own names are author
-// names. Atoms that were not selected, such as other alternate locations, are not looked at.
-[[nodiscard]] auto selected_atom_index(const ResidueIndex& residues,
-                                       const selection::SelectedModel& selected,
-                                       const ::gemmi::AtomAddress& address)
-    -> std::optional<std::size_t> {
-    const auto find_atom = [&](const selection::SelectedResidue& residue, const auto& location) {
-        const auto atom = std::ranges::find_if(residue.atoms, [&](const auto& candidate) {
-            return candidate.name == address.atom_name &&
-                   location(*selected.atoms()[candidate.index]);
-        });
-        return atom != residue.atoms.end() ? std::optional{atom->index} : std::nullopt;
-    };
-    const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
-    // As Model::find_cra(address, true): the first residue with the given name decides.
-    for (const auto* residue : candidates) {
-        if (residue->component_name != address.res_id.name) {
-            continue;
-        }
-        if (!address.atom_name.empty()) {
-            const auto index = find_atom(*residue, [&](const ::gemmi::Atom& atom) {
-                return atom.altloc_matches(address.altloc);
-            });
-            if (index.has_value()) {
-                return index;
-            }
-        }
-        break;
-    }
-    if (!address.res_id.name.empty() && address.altloc != '\0') {
-        return std::nullopt;
-    }
+struct PartnerMatch {
+    std::optional<std::size_t> atom;
+    std::size_t residue_count = 0;
+};
 
-    for (const auto* residue : candidates) {
+[[nodiscard]] auto match_partner(const ResidueIndex& residues,
+                                 const selection::SelectedModel& selected,
+                                 const ::gemmi::AtomAddress& address) -> PartnerMatch {
+    PartnerMatch match;
+    for (const auto* residue : residues.find(address.chain_name, address.res_id.seqid)) {
         if (!address.res_id.name.empty() && residue->component_name != address.res_id.name) {
             continue;
         }
-        const auto index = find_atom(*residue, [&](const ::gemmi::Atom& atom) {
-            return address.altloc == '\0' || atom.altloc == address.altloc;
-        });
-        if (index.has_value()) {
-            return index;
+        // The atom determines whether the partner is present, not which residue it belongs to.
+        ++match.residue_count;
+        const auto index = residue->component().find_atom(address.atom_name);
+        if (index &&
+            (address.altloc == '\0' || selected.atoms()[*index]->altloc_matches(address.altloc))) {
+            match.atom = index;
         }
     }
-    return std::nullopt;
+    return match;
 }
 
 // Connection bond orders by _struct_conn.id; a connection without one is a single bond.
@@ -193,17 +170,28 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
             continue;
         }
 
-        const auto first = selected_atom_index(residues, selected, connection.partner1);
-        const auto second = selected_atom_index(residues, selected, connection.partner2);
-        if (!first.has_value() || !second.has_value()) {
+        const auto first = match_partner(residues, selected, connection.partner1);
+        const auto second = match_partner(residues, selected, connection.partner2);
+        if (!first.atom || !second.atom) {
             continue;
         }
         if (connection.asu == ::gemmi::Asu::Different) {
             ++skipped;
             continue;
         }
+        if (first.residue_count > 1 || second.residue_count > 1) {
+            const auto& address =
+                first.residue_count > 1 ? connection.partner1 : connection.partner2;
+            const auto residue =
+                detail::residue_description(address.res_id.name.empty() ? "?" : address.res_id.name,
+                                            address.chain_name, address.res_id.seqid.str(), {});
+            throw ParseError{ParseErrorKind::malformed,
+                             "connection to atom " + address.atom_name +
+                                 ": multiple selected residues match " + residue,
+                             {}};
+        }
         const auto order = orders.find(connection.name);
-        bonds.add(*first, *second,
+        bonds.add(*first.atom, *second.atom,
                   order == orders.end() ? SourceOrder{.order = core::BondOrder::SINGLE}
                                         : order->second);
     }

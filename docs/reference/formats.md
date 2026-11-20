@@ -250,6 +250,12 @@ not supplied.
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
 
+For PDB `LINK` and `SSBOND` records and mmCIF `_struct_conn` connections, a missing or excluded
+partner atom means no bond. If both partners are present and ChargeFW would add the bond, each
+partner's residue labels must identify one selected residue. For example, if two PDB segments use
+`LIG A 1`, a `LINK` to `LIG A 1` does not identify the segment. ChargeFW refuses the file rather
+than choosing a residue. Give the residues distinct labels and update the `LINK` to match.
+
 Crystal structure files can describe bonds to symmetry-related copies of the listed atoms: a connection
 whose partners have different symmetry codes (`_struct_conn.ptnr1_symmetry` and `ptnr2_symmetry` in
 mmCIF, the symmetry columns of `LINK` and `SSBOND` in PDB). ChargeFW does not build those copies, so
