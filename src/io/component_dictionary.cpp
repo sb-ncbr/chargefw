@@ -4,6 +4,7 @@
 #include <chargefw/io/parse_error.h>
 
 #include "parse_context.h"
+#include "text_encoding.h"
 
 #include <gemmi/gz.hpp>
 
@@ -184,6 +185,12 @@ ComponentDictionary::ComponentDictionary(std::istream& input, const std::string&
 
 ComponentDictionary::ComponentDictionary(std::string text, const std::string& source_name)
     : text_{std::move(text)} {
+    // The file is ASCII. Its version goes into results, which cannot hold other bytes as text.
+    if (const auto line = detail::first_non_ascii_line(text_)) {
+        throw ParseError{ParseErrorKind::invalid_encoding,
+                         "a character that is not ASCII",
+                         {.source_name = source_name, .line = *line}};
+    }
     auto lines = Lines{text_, source_name};
     // The first word decides whether this is a dictionary at all, before its line is judged.
     if (std::string_view{text_}.substr(0, text_.find_first_of(" \n")) != magic) {

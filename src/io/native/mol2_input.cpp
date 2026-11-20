@@ -338,7 +338,8 @@ struct FormalCharge {
             .policy = {.selection = std::nullopt,
                        .alternate_locations = std::nullopt,
                        .conformers = "all",
-                       .bonds = std::nullopt},
+                       .bonds = std::nullopt,
+                       .components = std::nullopt},
             .source_connectivity = bond_count == 0 ? SourceConnectivity::explicitly_empty
                                                    : SourceConnectivity::present,
             .components = {},

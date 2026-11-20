@@ -85,6 +85,7 @@ constexpr auto metric_scale = 1000.0;
     add_policy("alternate_locations", metadata.policy.alternate_locations);
     add_policy("conformers", metadata.policy.conformers);
     add_policy("bonds", metadata.policy.bonds);
+    add_policy("components", metadata.policy.components);
 
     return Json{{"format", to_string(metadata.format)},
                 {"policy", std::move(policy)},

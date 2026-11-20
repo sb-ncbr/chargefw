@@ -520,7 +520,7 @@ auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
             const ComponentDictionary* const dictionary, std::vector<core::Bond> explicit_bonds,
             const ExplicitBondOrders explicit_orders,
-            std::vector<std::size_t>& unknown_order_indices) -> std::vector<core::Bond> {
+            std::vector<std::size_t>& unknown_order_indices) -> AssignedBonds {
     if (explicit_orders == ExplicitBondOrders::from_source && !unknown_order_indices.empty()) {
         throw std::logic_error{"unknown-order indices require connectivity-only input"};
     }
@@ -531,16 +531,18 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
     case BondStrategy::templates: {
         unknown_order_indices.clear();
         auto bonds = assign_template_bonds(model);
+        const auto template_count = bonds.size();
         if (dictionary != nullptr) {
             // The residues are other ones, so no pair is given twice.
             std::ranges::move(
                 dictionary_bonds(model, *dictionary, DictionaryUse::residues_without_template),
                 std::back_inserter(bonds));
         }
-        return bonds;
+        const auto dictionary_used = bonds.size() > template_count;
+        return {.bonds = std::move(bonds), .dictionary_used = dictionary_used};
     }
     case BondStrategy::explicit_bonds:
-        return explicit_bonds;
+        return {.bonds = std::move(explicit_bonds)};
     case BondStrategy::hybrid: {
         // The first source to define a pair sets its order. Bonds with source orders (mmCIF) come
         // first and keep their place in the record; explicit_mmcif() has given the component bonds
@@ -569,6 +571,7 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
         for (const auto& bond : first) {
             bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
         }
+        auto dictionary_used = false;
         auto retained_unknown = std::vector<std::size_t>{};
         auto unknown = unknown_order_indices.begin();
         for (std::size_t i = 0; i < second.size(); ++i) {
@@ -585,15 +588,20 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
                 if (index && known == dictionary_orders.end()) {
                     retained_unknown.push_back(*index);
                 }
+                // The order counts as the dictionary's even when it is single, as the file's is.
+                dictionary_used =
+                    dictionary_used || (index.has_value() && known != dictionary_orders.end());
                 ++unknown;
             }
         }
         unknown_order_indices = std::move(retained_unknown);
         for (const auto& bond : from_dictionary) {
-            bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
+            const auto added =
+                bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
+            dictionary_used = dictionary_used || added.has_value();
         }
 
-        return bonds.take();
+        return {.bonds = bonds.take(), .dictionary_used = dictionary_used};
     }
     }
 

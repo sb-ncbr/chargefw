@@ -278,7 +278,8 @@ auto require_known_members(const Json& object, const std::initializer_list<std::
         .policy = {.selection = std::nullopt,
                    .alternate_locations = std::nullopt,
                    .conformers = std::string{to_string(conformer_selection)},
-                   .bonds = std::nullopt},
+                   .bonds = std::nullopt,
+                   .components = std::nullopt},
         .source_connectivity = bonds_value == nullptr
                                    ? SourceConnectivity::absent
                                    : (bonds_value->empty() ? SourceConnectivity::explicitly_empty

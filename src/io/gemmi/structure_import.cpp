@@ -464,10 +464,10 @@ auto make_record(const ::gemmi::Structure& structure,
         format == MolecularSourceFormat::pdb
             ? ::chargefw::io::gemmi::bonds::ExplicitBondOrders::connectivity_only
             : ::chargefw::io::gemmi::bonds::ExplicitBondOrders::from_source;
-    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                                 selected_model, bond_strategy, dictionary,
-                                 std::move(explicit_bonds), explicit_orders, unknown_order_indices),
-                             source_orders.front());
+    auto assigned = ::chargefw::io::gemmi::bonds::assign(selected_model, bond_strategy, dictionary,
+                                                         std::move(explicit_bonds), explicit_orders,
+                                                         unknown_order_indices);
+    auto bonds = remap_bonds(std::move(assigned.bonds), source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};
@@ -482,7 +482,9 @@ auto make_record(const ::gemmi::Structure& structure,
         .policy = {.selection = std::string{::chargefw::io::to_string(selection)},
                    .alternate_locations = "first-source-order",
                    .conformers = std::string{::chargefw::io::to_string(conformer_selection)},
-                   .bonds = std::string{::chargefw::io::to_string(bond_strategy)}},
+                   .bonds = std::string{::chargefw::io::to_string(bond_strategy)},
+                   .components = assigned.dictionary_used ? std::optional{dictionary->version()}
+                                                          : std::nullopt},
         .source_connectivity = source_connectivity,
         .components = std::move(component_instances),
     };

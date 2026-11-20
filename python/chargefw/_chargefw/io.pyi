@@ -28,6 +28,7 @@ class ImportPolicyPayload(TypedDict):
     alternate_locations: str | None
     conformers: str | None
     bonds: str | None
+    components: str | None
 
 class ImportMetadataPayload(TypedDict):
     format: Literal["mol", "sdf", "mol2", "molecule-json", "pdb", "mmcif"]

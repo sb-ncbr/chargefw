@@ -895,6 +895,8 @@ END
         // N1 is not in the ligand's entry, although the file bonds it. Alanine has a built-in
         // template, which names its atoms: CA is not reported, although its entry lacks it.
         CHECK(unknown_atoms(record) == std::vector<std::size_t>{3});
+        REQUIRE(record.import_metadata.has_value());
+        CHECK(record.import_metadata->policy.components == "2026.11.13");
     }
     {
         // A bond the file states with an order keeps it: a LINK record is a single bond, although
@@ -927,6 +929,34 @@ END
         CHECK(order(record, 0, 1) == BondOrder::SINGLE);
         CHECK(unknown_orders(record).size() == 2);
         CHECK(unknown_atoms(record).empty());
+        CHECK_FALSE(record.import_metadata->policy.components.has_value());
+    }
+    {
+        // The record names the dictionary only when it took something from it. The alanine
+        // carbonyl is the template's, so the dictionary changes nothing here.
+        const auto carbonyl =
+            R"pdb(ATOM      1  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
+ATOM      2  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
+END
+)pdb";
+        const auto record =
+            read_first(carbonyl, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
+        CHECK_FALSE(record.import_metadata->policy.components.has_value());
+    }
+    {
+        // An order the dictionary gives to a CONECT pair counts, also when it is single.
+        const auto single =
+            R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
+HETATM    2  C2  LIG A   1       5.000   1.500   0.000  1.00 20.00           C
+CONECT    1    2
+END
+)pdb";
+        const auto record =
+            read_first(single, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::SINGLE);
+        CHECK(unknown_orders(record).empty());
+        CHECK(record.import_metadata->policy.components == "2026.11.13");
     }
     {
         // Without a dictionary, hybrid reads the file as before.

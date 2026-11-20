@@ -113,6 +113,7 @@ struct MoleculePayload {
     policy["alternate_locations"] = metadata.policy.alternate_locations;
     policy["conformers"] = metadata.policy.conformers;
     policy["bonds"] = metadata.policy.bonds;
+    policy["components"] = metadata.policy.components;
     result["policy"] = std::move(policy);
     result["source_connectivity"] = std::string{io::to_string(metadata.source_connectivity)};
     result["components"] = std::move(components);

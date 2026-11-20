@@ -550,7 +550,9 @@ fails](../guide/results.md#when-a-calculation-fails) lists the kinds.
 
 For a molecule read from a file, `input.import` records the format, the reading options (`policy`),
 and whether the file contained bonds (`source_connectivity`); failed and cancelled records keep it
-too. Molecules built in code have no `input.import`, and their atom IDs are listed once, in
+too. `policy.components` is the version of the component dictionary, such as `2026.11.13`, not its
+path. It is present only when the dictionary gave the molecule a bond or the order of one, so its
+absence does not show that no dictionary was used for reading. Molecules built in code have no `input.import`, and their atom IDs are listed once, in
 `input.atom_ids`. Record and atom IDs are strings or signed 64-bit integers, written as JSON strings
 or numbers.
 

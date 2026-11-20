@@ -99,7 +99,9 @@ How the atoms and conformers of a molecule correspond to its file. See
 arguments of `chargefw.io.read()` name them, such as `"all"` and `"hybrid"`, and
 `alternate_locations`, `"first-source-order"` for PDB and mmCIF, where the first
 [alternate location](formats.md#structural-selection) of each atom is read. Each is `None` where the
-reader has no such choice.
+reader has no such choice. `components` is the version of the component dictionary, such as
+`"2026.11.13"`, when the dictionary gave the molecule a bond or the order of one, and `None`
+otherwise.
 
 ### SourceAtomReference
 

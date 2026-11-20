@@ -136,6 +136,10 @@
                 { "const": "hybrid", "title": "Hybrid", "description": "Combine explicit connectivity with built-in templates, preferring explicit connections." },
                 { "type": "string", "description": "A value added by a later 1.x version." }
               ]
+            },
+            "components": {
+              "type": "string",
+              "description": "Version of the component dictionary that gave this record a bond or the order of one, such as 2026.11.13. Absent when no dictionary was given or it changed nothing."
             }
           }
         },

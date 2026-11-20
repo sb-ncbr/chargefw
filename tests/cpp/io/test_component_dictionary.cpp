@@ -90,6 +90,9 @@ TEST_CASE("A component dictionary refuses a file it cannot read as a whole", "[i
         // A bond to an atom position that the component does not have.
         Case{"chargefw-ccd 1 2026.11.13\nOH 2 1\nO O 0\nHO H 1\n0 2 1\n",
              io::ParseErrorKind::malformed, 5},
+        // A version that is not ASCII, which results could not hold.
+        Case{"chargefw-ccd 1 2026.11.13\xff\nOH 1 0\nO O 0\n", io::ParseErrorKind::invalid_encoding,
+             1},
         // Two atoms of one name, which a residue's atoms could not be matched to.
         Case{"chargefw-ccd 1 2026.11.13\nOH 2 1\nO O 0\nO H 1\n0 1 1\n",
              io::ParseErrorKind::malformed, 4},
