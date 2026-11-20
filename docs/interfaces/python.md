@@ -323,9 +323,10 @@ except chargefw.RequestError as error:
 `kind` is one of the [kinds of an invalid request](../guide/results.md#when-a-request-is-invalid),
 and `reason` is also the message. For `"invalid_method_option"`, `option` is the ID of the option
 when the error concerns one option, and otherwise `None`. An argument of the wrong type, such as
-`method_options=["iters"]`, is still a `TypeError`, and a value outside a fixed set of names, such
-as an unknown `execution`, a plain `ValueError`. An option value of a type the method does not
-declare, such as `method_options={"iters": "many"}` for PEOE, is a `RequestError`.
+`method_options=["iters"]`, is still a `TypeError`. A value outside a fixed set of names, such as an
+unknown `execution`, is a plain `ValueError`, and so is a negative `threads`. An option value of a
+type the method does not declare, such as `method_options={"iters": "many"}` for PEOE, is a
+`RequestError`.
 
 A calculation that fails raises a `chargefw.CalculationError`:
 
