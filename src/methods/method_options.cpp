@@ -199,28 +199,34 @@ auto make_default_options(std::span<const MethodOptionSpec> schema) -> MethodOpt
     return options;
 }
 
+auto validate_method_option(std::span<const MethodOptionSpec> schema, const std::string_view id,
+                            const MethodOptionValue& value) -> void {
+    const auto name = std::string{id};
+    const auto* spec = find_spec(schema, id);
+
+    if (spec == nullptr) {
+        throw std::invalid_argument{"unknown method option '" + name + "'"};
+    }
+
+    if (!value_matches_type(value, spec->type)) {
+        throw std::invalid_argument{"method option '" + name + "' has type '" +
+                                    std::string{to_string(value_type(value))} + "', expected '" +
+                                    std::string{to_string(spec->type)} + "'"};
+    }
+
+    if (!spec->choices.empty() && !choices_contain(spec->choices, value)) {
+        throw std::invalid_argument{"method option '" + name +
+                                    "' is not one of the allowed choices"};
+    }
+    validate_bounds(*spec, value);
+}
+
 auto validate_method_options(std::span<const MethodOptionSpec> schema, const MethodOptions& options)
     -> void {
     validate_method_option_schema(schema);
 
     for (const auto& [id, value] : options.values()) {
-        const auto* spec = find_spec(schema, id);
-
-        if (spec == nullptr) {
-            throw std::invalid_argument{"unknown method option '" + id + "'"};
-        }
-
-        if (!value_matches_type(value, spec->type)) {
-            throw std::invalid_argument{"method option '" + id + "' has type '" +
-                                        std::string{to_string(value_type(value))} +
-                                        "', expected '" + std::string{to_string(spec->type)} + "'"};
-        }
-
-        if (!spec->choices.empty() && !choices_contain(spec->choices, value)) {
-            throw std::invalid_argument{"method option '" + id +
-                                        "' is not one of the allowed choices"};
-        }
-        validate_bounds(*spec, value);
+        validate_method_option(schema, id, value);
     }
 
     for (const auto& option : schema) {

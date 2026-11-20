@@ -16,6 +16,8 @@ auto to_string(const RequestErrorKind value) -> std::string_view {
         return "unknown_parameter_set";
     case RequestErrorKind::incompatible_parameter_set:
         return "incompatible_parameter_set";
+    case RequestErrorKind::invalid_method_option:
+        return "invalid_method_option";
     case RequestErrorKind::invalid_execution:
         return "invalid_execution";
     }

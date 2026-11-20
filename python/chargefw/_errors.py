@@ -165,9 +165,11 @@ class RequestError(ChargeFWError, ValueError):
     ``kind`` says which part of the request to change: ``"unknown_method"`` for a method ID that is
     not registered, ``"unknown_parameter_set"`` for a parameter-set ID that is not known,
     ``"incompatible_parameter_set"`` for a set that does not go with the method, because it is for
-    another method, the method takes none, or no method is named, and ``"invalid_execution"`` for a
-    radius below the smallest one. More kinds may be added. ``reason``, which is also the message,
-    says why. ``option`` is the ID of the method option the error concerns, or ``None``.
+    another method, the method takes none, or no method is named, ``"invalid_method_option"`` for
+    an option the method does not have or a value it does not declare for it, and
+    ``"invalid_execution"`` for a radius below the smallest one. More kinds may be added.
+    ``reason``, which is also the message, says why. ``option`` is the ID of the method option an
+    ``"invalid_method_option"`` error concerns, or ``None`` when it concerns no single option.
     """
 
     def __init__(self, reason: str, *, kind: RequestErrorKind, option: str | None = None) -> None:

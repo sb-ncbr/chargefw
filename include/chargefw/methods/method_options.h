@@ -72,6 +72,11 @@ template <typename T> auto MethodOptions::get(const std::string_view id) const -
 
 [[nodiscard]] auto make_default_options(std::span<const MethodOptionSpec> schema) -> MethodOptions;
 
+// Checks one value against a valid schema: that the schema has the option, and that the value has
+// its type, is one of its choices, and lies within its bounds. Otherwise std::invalid_argument.
+auto validate_method_option(std::span<const MethodOptionSpec> schema, std::string_view id,
+                            const MethodOptionValue& value) -> void;
+
 auto validate_method_options(std::span<const MethodOptionSpec> schema, const MethodOptions& options)
     -> void;
 

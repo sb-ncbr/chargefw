@@ -104,14 +104,20 @@ auto validate_assessment_method_options(const AssessmentRequest& request) -> voi
         return;
     }
     if (!request.method_id.has_value()) {
-        throw std::invalid_argument{"method options require a method"};
+        throw RequestError{RequestErrorKind::invalid_method_option,
+                           "method options require a method"};
     }
     const auto& method = requested_method(*request.method_id);
-    auto options = methods::make_default_options(method.option_schema());
+    // What the method itself declares is checked first and outside the catch: an error there is
+    // not the request's.
+    static_cast<void>(methods::make_default_options(method.option_schema()));
     for (const auto& [id, value] : request.method_options.values()) {
-        options.set(id, value);
+        try {
+            methods::validate_method_option(method.option_schema(), id, value);
+        } catch (const std::invalid_argument& error) {
+            throw RequestError{RequestErrorKind::invalid_method_option, error.what(), id};
+        }
     }
-    methods::validate_method_options(method.option_schema(), options);
 }
 
 auto validate_unique_parameter_set_ids(const AssessmentRequest& request) -> void {

@@ -864,6 +864,31 @@ TEST_CASE("assessment rejects invalid requests", "[calculation][calculation]") {
         }
     }
 
+    // A method option names the option, unless the error concerns no single one.
+    for (const auto& [request, option] :
+         {std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_id = "peoe",
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"iters", 99}}}},
+                    std::optional<std::string>{"iters"}},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_id = "peoe",
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"missing", 1}}}},
+                    std::optional<std::string>{"missing"}},
+          std::pair{calculation::AssessmentRequest{.molecules = water,
+                                                   .method_options =
+                                                       methods::MethodOptions{{{"iters", 2}}}},
+                    std::optional<std::string>{}}}) {
+        try {
+            static_cast<void>(calculation::assess(request));
+            FAIL_CHECK("an invalid method option was accepted");
+        } catch (const calculation::RequestError& error) {
+            CHECK(error.kind() == Kind::invalid_method_option);
+            CHECK(error.option() == option);
+        }
+    }
+
     // The error says which part of the request to change, and is still a std::invalid_argument.
     // An unknown method is the same error whichever check meets it first, here also the check of
     // its options.

@@ -18,6 +18,9 @@ enum class RequestErrorKind : std::uint8_t {
     // The parameter set does not go with the method: it is for another method, the method takes
     // none, or the request names no method.
     incompatible_parameter_set,
+    // A method option that the method does not declare, a value of another type or outside what
+    // the method declares for it, or options for a request that names no method.
+    invalid_method_option,
     // The execution mode, radius, or atom thresholds do not go together or are out of range.
     invalid_execution,
 };

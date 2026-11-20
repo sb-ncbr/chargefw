@@ -26,7 +26,11 @@ type ParseErrorKind = Literal[
     "no_records", "invalid_encoding", "malformed", "unsupported", "inconsistent_models"
 ]
 type RequestErrorKind = Literal[
-    "unknown_method", "unknown_parameter_set", "incompatible_parameter_set", "invalid_execution"
+    "unknown_method",
+    "unknown_parameter_set",
+    "incompatible_parameter_set",
+    "invalid_method_option",
+    "invalid_execution",
 ]
 type OutputErrorKind = Literal[
     "missing_coordinates",

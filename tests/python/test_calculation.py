@@ -7,6 +7,7 @@ import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from fractions import Fraction
 from pathlib import Path
 from threading import Lock
 from typing import Any, cast
@@ -124,6 +125,30 @@ def test_invalid_request_is_a_request_error_and_unsupported_one_a_rejection() ->
     assert chargefw.assess(water(), **cast(Any, unsupported)).default_plan is None
     with pytest.raises(chargefw.NoExecutablePlanError):
         chargefw.calculate(water(), **cast(Any, unsupported))
+
+
+def test_invalid_method_option_names_the_option() -> None:
+    # An option the method lacks, and values of the wrong type, outside the bounds, outside the
+    # choices, and not finite, which is checked before the native call.
+    for method, options, option in (
+        ("peoe", {"no-such-option": 1}, "no-such-option"),
+        ("peoe", {"iters": "many"}, "iters"),
+        ("peoe", {"iters": 99}, "iters"),
+        ("peoe", {"initial_charges": "random"}, "initial_charges"),
+        ("denr", {"step": float("nan")}, "step"),
+        ("denr", {"step": Fraction(10**500, 3)}, "step"),
+    ):
+        for function in (chargefw.assess, chargefw.calculate):
+            with pytest.raises(chargefw.RequestError) as raised:
+                cast(Any, function)(water(), method=method, method_options=options)
+            assert (raised.value.kind, raised.value.option) == ("invalid_method_option", option)
+    # Options without a method concern no single option.
+    with pytest.raises(chargefw.RequestError) as unnamed:
+        chargefw.calculate(water(), method_options={"iters": 2})
+    assert (unnamed.value.kind, unnamed.value.option) == ("invalid_method_option", None)
+    # The shape of the argument is not the request's content.
+    with pytest.raises(TypeError):
+        chargefw.calculate(water(), method="peoe", method_options=cast(Any, ["iters"]))
 
 
 def test_all_ions_selects_noncommon_template_in_assessment_and_calculation() -> None:
