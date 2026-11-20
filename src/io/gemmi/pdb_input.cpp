@@ -10,6 +10,7 @@
 #include <chargefw/core/bond.h>
 
 #include <gemmi/align.hpp>
+#include <gemmi/calculate.hpp>
 #include <gemmi/pdb.hpp>
 #include <gemmi/polyheur.hpp>
 #include <gemmi/to_mmcif.hpp>
@@ -239,8 +240,9 @@ PdbReader::PdbReader(std::istream& input, std::string source_name,
     }
 
     auto structure = ::gemmi::read_pdb_string(contents, source_name);
-    if (structure.models.empty()) {
-        throw std::runtime_error{"structural input contains no models"};
+    // Gemmi gives a file without MODEL records one model, even when it has no atoms.
+    if (::gemmi::count_atom_sites(structure) == 0) {
+        throw ParseError{"no PDB ATOM or HETATM record found", {.source_name = source_name}};
     }
     ::gemmi::add_entity_types(structure, false);
     // The ID code of the HEADER record, such as 1CBN; otherwise the file name without .pdb.

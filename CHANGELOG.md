@@ -9,7 +9,8 @@
   gzip-compressed files whatever their name.
 - A MOL, SDF, or MOL2 input with no molecule record, such as an empty file or an SDF file read as
   MOL2, is a `ParseError`. It used to read as zero molecules and fail later in the calculation or
-  output.
+  output. A PDB file without `ATOM` or `HETATM` records is reported as such, instead of as a
+  source mapping mismatch.
 
 ### Output
 

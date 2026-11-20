@@ -640,9 +640,13 @@ END
 }
 
 TEST_CASE("PDB input rejects empty and incompatible selected models", "[io][pdb]") {
-    {
-        std::istringstream input{"END\n"};
-        CHECK_THROWS_AS(io::PdbReader{input}, std::exception);
+    for (const auto* const text : {"", "HEADER    TEST\nEND\n", "MODEL        1\nENDMDL\nEND\n"}) {
+        CAPTURE(text);
+        std::istringstream input{text};
+        const auto error = chargefw::test::thrown<io::ParseError>(
+            [&] { static_cast<void>(io::PdbReader{input, "input.pdb", {}}); });
+        REQUIRE(error.has_value());
+        CHECK(error->location().source_name == "input.pdb");
     }
 
     {
