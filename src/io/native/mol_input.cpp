@@ -37,7 +37,7 @@ constexpr std::string_view v30_prefix{"M  V30 "};
     if (normalized.empty() || normalized == "*" || normalized == "A" || normalized == "Q" ||
         normalized == "L" || normalized == "LP" || normalized == "R" || normalized == "R#" ||
         // A V3000 atom list, [C,N] or NOT [C,N].
-        normalized.starts_with('[') || normalized == "NOT") {
+        (normalized.starts_with('[') && normalized.ends_with(']')) || normalized == "NOT") {
         throw ParseError{ParseErrorKind::unsupported,
                          "unsupported query atom '" + std::string{normalized} + "'",
                          {}};

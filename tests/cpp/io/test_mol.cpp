@@ -838,8 +838,12 @@ TEST_CASE("native readers give the kind of refusal", "[io][native]") {
     REQUIRE(v3000_error.has_value());
     CHECK(v3000_error->kind() == io::ParseErrorKind::unsupported);
 
-    // An atom list is a query atom, not an unknown element.
-    for (const std::string_view symbol : {"[C,N]", "NOT [C,N]"}) {
+    // An atom list is a query atom, not an unknown element; one that is not closed is broken.
+    using Kind = io::ParseErrorKind;
+    for (const auto& [symbol, expected] :
+         {std::pair<std::string_view, Kind>{"[C,N]", Kind::unsupported},
+          {"NOT [C,N]", Kind::unsupported},
+          {"[C,N", Kind::malformed}}) {
         CAPTURE(symbol);
         std::istringstream atom_list{"query\n\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
                                      "M  V30 BEGIN CTAB\nM  V30 COUNTS 1 0 0 0 0\n"
@@ -849,7 +853,7 @@ TEST_CASE("native readers give the kind of refusal", "[io][native]") {
         const auto error = chargefw::test::thrown<io::ParseError>(
             [&] { static_cast<void>(io::parse_mol(atom_list, {})); });
         REQUIRE(error.has_value());
-        CHECK(error->kind() == io::ParseErrorKind::unsupported);
+        CHECK(error->kind() == expected);
     }
 }
 
