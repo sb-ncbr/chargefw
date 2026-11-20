@@ -1,3 +1,5 @@
+#include "support/test_exceptions.h"
+
 #include <chargefw/charges/atomic_charges.h>
 #include <chargefw/charges/charge_set.h>
 #include <chargefw/core/atom.h>
@@ -8,6 +10,7 @@
 #include <chargefw/io/charge_result.h>
 #include <chargefw/io/json_output.h>
 #include <chargefw/io/mmcif_input.h>
+#include <chargefw/io/output_error.h>
 #include <chargefw/methods/method_prerequisites.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
@@ -121,7 +124,12 @@ TEST_CASE("JSON output rejects text that is not UTF-8 without writing", "[io][js
     const auto result = io::make_failed_request_result({}, {}, "caf\xe9.mol");
     auto output = std::ostringstream{};
 
-    CHECK_THROWS_AS(io::JsonWriter{output}.write(result), std::invalid_argument);
+    // The text may be anywhere in the result, so the refusal names no molecule.
+    const auto error =
+        chargefw::test::thrown<io::OutputError>([&] { io::JsonWriter{output}.write(result); });
+    REQUIRE(error.has_value());
+    CHECK(error->kind() == io::OutputErrorKind::unrepresentable);
+    CHECK_FALSE(error->molecule_index().has_value());
     CHECK(output.str().empty());
 }
 

@@ -3,6 +3,7 @@
 #include "io/component.h"
 #include "io/record_assignments.h"
 
+#include <chargefw/io/output_error.h>
 #include <chargefw/version.h>
 
 #include <nlohmann/json.hpp>
@@ -305,8 +306,9 @@ auto JsonWriter::write(const ChargeCalculationResult& result,
         if (error.id != 316) {
             throw;
         }
-        throw std::invalid_argument{"result JSON cannot hold text that is not valid UTF-8, such "
-                                    "as a file name in another encoding"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "result JSON cannot hold text that is not valid UTF-8, such as a file "
+                          "name in another encoding"};
     }
     std::print(*output_, "{}\n", serialized);
     if (!*output_) {
