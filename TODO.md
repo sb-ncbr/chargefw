@@ -41,14 +41,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Errors
 
-- [ ] Give kinds to request errors, which are plain `std::invalid_argument` and `ValueError`: an
-  unknown method, a parameter set of another method, a cover threshold below the cutoff threshold,
-  and an invalid method option, which result JSON reports as `invalid_input_or_request`; output that
-  a writer never supports, such as PQR for a molecule not read from PDB or mmCIF, or MOL2 for a
-  failed calculation; a parameter-set directory that does not exist or has duplicate IDs, and a set
-  that cannot be written; and molecules that `chargefw.io.rdkit.from_mol()` and
-  `chargefw.io.gemmi.from_structure()` refuse. Design first: which kinds, and whether one type
-  covers calculation requests, writer requests, and toolkit conversion.
+- [ ] Give kinds to the parameter-set errors that are still plain `std::invalid_argument` and
+  `ValueError`: a parameter-set directory that does not exist or has duplicate IDs, and a set that
+  cannot be written.
 - [ ] Check the fitting errors against the kind, reason, and location of `ParseError` and
   `OutputError`: `EvaluationError`, `CompressionError`, and `NonFiniteNormalEquations`.
 

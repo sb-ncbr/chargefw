@@ -40,6 +40,18 @@
   a refusal of the input is no longer raised as `ParseError`.
 - An mmCIF formal charge outside -128 to 127 is an error; it was read as a different charge.
 
+### Calculation
+
+- A request for an assessment or a calculation that is invalid in itself is reported as
+  `RequestError`, with a kind: `unknown_method`, `unknown_parameter_set`,
+  `incompatible_parameter_set`, `invalid_method_option`, `invalid_execution`, or
+  `invalid_fixed_ions`. It is `chargefw.RequestError` in Python, with `kind`, `reason`, and
+  `option`, and `calculation::RequestError` in C++. It is a `ValueError` in Python and a
+  `std::invalid_argument` in C++, as most of these errors were, so handlers for those keep working.
+  In Python, a radius or a real-valued method option too large for a float raised `OverflowError`
+  and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
+  and the exit statuses of the command line are unchanged.
+
 ### Output
 
 - A result that a format cannot hold, a document or RDKit molecule that changed since it was read,

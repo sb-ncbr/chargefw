@@ -242,7 +242,11 @@ and conformer counts, the assignments, and the method and parameter set. It cann
 the records you calculated, so pass the same records whose molecules you calculated.
 
 When the request itself fails, `assess()` or `calculate()` throws `std::invalid_argument` and there is
-no `ExecutionResult`. To still write result JSON for the records, as the command line does, create the
+no `ExecutionResult`. A request that is invalid in itself throws
+`calculation::RequestError`, a `std::invalid_argument` declared in
+`chargefw/calculation/request_error.h`: `kind()` is one of the [kinds of an invalid
+request](../guide/results.md#when-a-request-is-invalid), `reason()` is the message, and `option()`
+the ID of the method option the error concerns, when it concerns one. To still write result JSON for the records, as the command line does, create the
 result with `make_failed_request_result()` and the exception's message. Its `status()` is
 `ResultStatus::invalid_input_or_request` and `execution()` is null.
 `charges()` gives the charges of a successful calculation, and is null otherwise.
@@ -427,7 +431,8 @@ the catalog. Leave it empty for ordinary calculations.
 
 Each source must refer to a different atom, have a finite charge, and refer to an atom without bonds.
 Every affected molecule needs at least one atom that is not a source, and at least one conformer, with
-finite coordinates throughout. No atom that is not a source may sit exactly at a source's position. Invalid sources throw `std::invalid_argument`. With
+finite coordinates throughout. No atom that is not a source may sit exactly at a source's position. Invalid sources throw
+`calculation::RequestError` with kind `invalid_fixed_ions`. With
 sources, only methods that support fixed ions are assessed, and the formal charges of the source atoms do
 not count toward the charge of the calculated atoms. A successful result contains the fixed charges at
 their atoms, and `ExecutionResult::effective` records the sources.

@@ -159,11 +159,11 @@ class OutputError(ChargeFWError, ValueError):
 
 
 class RequestError(ChargeFWError, ValueError):
-    """A request for an assessment or a calculation is invalid, whatever the method.
+    """A request for an assessment or a calculation is invalid in itself.
 
-    It is raised before any method or parameter set is considered. A valid request that a method or
-    parameter set cannot satisfy is not this error: ``assess()`` reports it as a rejection and
-    ``calculate()`` raises ``NoExecutablePlanError``.
+    It is raised before any method or parameter set is assessed for the molecules. A valid request
+    that a method or parameter set cannot satisfy is not this error: ``assess()`` reports it as a
+    rejection and ``calculate()`` raises ``NoExecutablePlanError``.
 
     ``kind`` says which part of the request to change: ``"unknown_method"`` for a method ID that is
     not registered, ``"unknown_parameter_set"`` for a parameter-set ID that is not known,

@@ -31,8 +31,8 @@ enum class RequestErrorKind : std::uint8_t {
 
 [[nodiscard]] auto to_string(RequestErrorKind value) -> std::string_view;
 
-// A request that is invalid before any method or parameter set is considered, so that no choice
-// of them could satisfy it. A valid request that a method or parameter set cannot satisfy is not
+// A request that is invalid in itself, found before any method or parameter set is assessed for
+// the molecules. A valid request that a method or parameter set cannot satisfy is not
 // an error: the assessment reports it as a rejection. kind() says which part of the request to
 // change and reason(), which is also what(), why. option() is the ID of the method option the
 // error concerns, when it concerns one.

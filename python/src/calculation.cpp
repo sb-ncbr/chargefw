@@ -438,7 +438,7 @@ auto NativePlan::estimate(const std::optional<std::size_t> max_threads) const
 }
 
 void bind_calculation(nb::module_& module) {
-    // A request that is invalid before any method is considered becomes chargefw.RequestError.
+    // A request that is invalid in itself becomes chargefw.RequestError.
     nb::register_exception_translator([](const std::exception_ptr& error, void* /*unused*/) {
         try {
             std::rethrow_exception(error);
