@@ -302,10 +302,15 @@ def test_fixed_ions_validation_empty_and_method_support() -> None:
     for invalid in ("MG", b"MG", ["MG", 12]):
         with pytest.raises(TypeError):
             chargefw.assess(molecules, fixed_ions=cast(Any, invalid))
-    with pytest.raises(ValueError):
-        chargefw.assess(molecules, fixed_ions=["mg"])
-    with pytest.raises(ValueError):
-        chargefw.assess(chargefw.MoleculeCollection([]), fixed_ions=["bad"])
+    # An ion name that is not known, and a molecule without residues to find the ions by.
+    for invalid_molecules, names in (
+        (molecules, ["mg"]),
+        (chargefw.MoleculeCollection([]), ["bad"]),
+        (water(), ["MG"]),
+    ):
+        with pytest.raises(chargefw.RequestError) as caught:
+            chargefw.assess(invalid_molecules, fixed_ions=names)
+        assert caught.value.kind == "invalid_fixed_ions"
 
     absent = chargefw.calculate(molecules, method="formal", fixed_ions=["CA"])
     assert absent.requested.fixed_ions == ("CA",)

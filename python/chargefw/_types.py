@@ -31,6 +31,7 @@ type RequestErrorKind = Literal[
     "incompatible_parameter_set",
     "invalid_method_option",
     "invalid_execution",
+    "invalid_fixed_ions",
 ]
 type OutputErrorKind = Literal[
     "missing_coordinates",

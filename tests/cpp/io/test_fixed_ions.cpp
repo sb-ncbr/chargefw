@@ -1,6 +1,7 @@
 #include "io/fixed_ions.h"
 
 #include <chargefw/calculation/calculation.h>
+#include <chargefw/calculation/request_error.h>
 #include <chargefw/core/atom.h>
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
@@ -155,14 +156,14 @@ TEST_CASE("fixed calcium recognition uses component identity, element, and cardi
     CHECK(detail::resolve_fixed_ions(std::vector{singleton}, selected).sources.empty());
     const auto carbon = ion_record("CA", 6, "CA", "1");
     CHECK_THROWS_AS(detail::resolve_fixed_ions(std::vector{carbon}, selected),
-                    std::invalid_argument);
+                    chargefw::calculation::RequestError);
 
     calcium.molecule =
         chargefw::core::Molecule{{chargefw::core::Atom{20}, chargefw::core::Atom{20}}};
     calcium.import_metadata->atoms.push_back(calcium.import_metadata->atoms.front());
     calcium.import_metadata->components[0].atom_indices.push_back(1);
     CHECK_THROWS_AS(detail::resolve_fixed_ions(std::vector{calcium}, selected),
-                    std::invalid_argument);
+                    chargefw::calculation::RequestError);
 }
 
 TEST_CASE("private fixed ions preserve atom order within one record", "[io][fixed-charge]") {
@@ -226,7 +227,8 @@ TEST_CASE("private fixed ions handle empty, absent, and unknown selections", "[i
     CHECK(absent_result.sources.empty());
     for (const std::string bad : {"", "mg", "Mg"}) {
         const std::vector<std::string> unknown{bad};
-        CHECK_THROWS_AS(detail::resolve_fixed_ions(records, unknown), std::invalid_argument);
+        CHECK_THROWS_AS(detail::resolve_fixed_ions(records, unknown),
+                        chargefw::calculation::RequestError);
     }
 }
 

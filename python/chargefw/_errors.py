@@ -166,10 +166,11 @@ class RequestError(ChargeFWError, ValueError):
     not registered, ``"unknown_parameter_set"`` for a parameter-set ID that is not known,
     ``"incompatible_parameter_set"`` for a set that does not go with the method, because it is for
     another method, the method takes none, or no method is named, ``"invalid_method_option"`` for
-    an option the method does not have or a value it does not declare for it, and
+    an option the method does not have or a value it does not declare for it,
     ``"invalid_execution"`` for an execution mode, radius, and atom thresholds that do not go
-    together or are out of range, such as cutoff execution without a radius. More kinds may be
-    added.
+    together or are out of range, such as cutoff execution without a radius, and
+    ``"invalid_fixed_ions"`` for fixed ions that cannot be taken out of the molecules, such as an
+    ion name that is not known or molecules without residues. More kinds may be added.
     ``reason``, which is also the message, says why. ``option`` is the ID of the method option an
     ``"invalid_method_option"`` error concerns, or ``None`` when it concerns no single option.
     """

@@ -20,6 +20,8 @@ auto to_string(const RequestErrorKind value) -> std::string_view {
         return "invalid_method_option";
     case RequestErrorKind::invalid_execution:
         return "invalid_execution";
+    case RequestErrorKind::invalid_fixed_ions:
+        return "invalid_fixed_ions";
     }
     throw std::logic_error{"unknown request error kind"};
 }

@@ -23,6 +23,10 @@ enum class RequestErrorKind : std::uint8_t {
     invalid_method_option,
     // The execution mode, radius, or atom thresholds do not go together or are out of range.
     invalid_execution,
+    // The fixed ions cannot be taken out of the molecules: an ion name that is not known, an atom
+    // that does not exist, is listed twice, is bonded, or is no single-atom ion, or a molecule
+    // left without residues, coordinates, or any other atom.
+    invalid_fixed_ions,
 };
 
 [[nodiscard]] auto to_string(RequestErrorKind value) -> std::string_view;
