@@ -1,10 +1,12 @@
 """Focused calculation facade and result-model checks."""
 
 import gc
+import os
 import warnings
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from pathlib import Path
 from threading import Lock
 from typing import Any, cast
 from unittest.mock import patch
@@ -1110,6 +1112,19 @@ def test_parameter_sets_read_from_files_with_other_values_are_distinct(tmp_path:
     assert chargefw.parameter_sets["EEM_Baek1991"] == chargefw.parameter_sets["EEM_Baek1991"]
 
 
+@pytest.mark.skipif(os.name != "posix", reason="needs file names of arbitrary bytes")
+def test_parameter_set_file_name_need_not_be_text(tmp_path: Path) -> None:
+    # Such a name still loads, and still names the file in an error.
+    odd_name = Path(os.fsdecode(os.fsencode(tmp_path) + b"/\xff.json"))
+    try:
+        odd_name.write_text('{"metadata": {"id": "broken"}}')
+    except OSError:
+        pytest.skip("the file system does not allow such names")
+    with pytest.raises(chargefw.ParseError) as odd:
+        chargefw.read_parameter_set(odd_name)
+    assert odd.value.kind == "malformed" and odd.value.source_name == str(odd_name)
+
+
 def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path: Any) -> None:
     bundled_id = next(iter(chargefw.parameter_sets))
     with pytest.raises(ValueError, match="bundled"):
@@ -1120,6 +1135,16 @@ def test_parameter_set_read_from_file_rejects_bundled_ids_and_bad_files(tmp_path
     with pytest.raises(chargefw.ParseError) as broken:
         chargefw.read_parameter_set(malformed)
     assert broken.value.kind == "malformed"
+    # The file is named once, in the message and not in the reason.
+    assert broken.value.source_name == str(malformed)
+    assert str(broken.value) == f"{malformed}: {broken.value.reason}"
+
+    # A file of a later format version is unsupported, whatever else it has.
+    later = tmp_path / "later.json"
+    later.write_text('{"metadata": {"format_version": 2, "method": "eem"}, "units": {}}')
+    with pytest.raises(chargefw.ParseError) as unsupported:
+        chargefw.read_parameter_set(later)
+    assert unsupported.value.kind == "unsupported"
 
     unknown_method = write_eem_set(tmp_path / "unknown.json", "water-unknown", 2.0)
     unknown_method.write_text(unknown_method.read_text().replace('"eem"', '"no-such-method"'))

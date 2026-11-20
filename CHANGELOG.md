@@ -25,6 +25,12 @@
   molecule JSON reader also for errors outside the molecules; they threw `std::runtime_error`. A
   reader whose stream fails throws a `std::runtime_error` that is not a `ParseError`, where the
   MOL, SDF, and MOL2 readers reported bad or empty input.
+- A parameter-set file of a format version ChargeFW does not read is reported as unsupported,
+  whatever else the file has; in Python, `ParseError.kind` is `"unsupported"` for it.
+- Breaking change: in C++, the parameter-set loaders throw `parameters::ParseError`, a
+  `std::runtime_error` with a kind, for a file whose content they refuse, and `std::runtime_error`
+  for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
+  longer catches them: catch `parameters::ParseError`, then `std::runtime_error`.
 - Breaking change: in C++, `io::ParseError` is constructed with a `ParseErrorKind` as its first
   argument. In Python, `ParseError` requires the keyword argument `kind`, and an exception from a
   reader that is not a refusal of the input is no longer raised as `ParseError`.

@@ -187,9 +187,10 @@ def read_parameter_set(path: str | os.PathLike[str]) -> ParameterSet:
             ) from None
     try:
         native = _native_parameters._parse_parameter_set_catalog(text)
-    except ValueError as error:
+    except ParseError as error:
+        # The path is added here: a file name need not be text the native reader can take.
         raise ParseError(
-            f"{source}: {error}", kind="malformed", reason=str(error), source_name=source
+            f"{source}: {error.reason}", kind=error.kind, reason=error.reason, source_name=source
         ) from None
     result = _parameter_set_from_catalog(native, source)
     _check_custom_parameter_id(result.id, source)

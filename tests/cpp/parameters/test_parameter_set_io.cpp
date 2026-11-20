@@ -1,8 +1,10 @@
+#include "support/test_exceptions.h"
 #include "support/test_parameters.h"
 
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameterization/parameter_vector.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
+#include <chargefw/parameters/io/parse_error.h>
 #include <chargefw/parameters/models/atom_parameters.h>
 #include <chargefw/parameters/models/bond_parameters.h>
 #include <chargefw/parameters/models/common_parameters.h>
@@ -246,25 +248,25 @@ TEST_CASE("parameter set rejects malformed JSON", "[parameters][io]") {
         std::istringstream input{std::string{missing_id_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
-    CHECK_THROWS_AS(load_missing_id(), std::invalid_argument);
+    CHECK_THROWS_AS(load_missing_id(), parameters::ParseError);
 
     const auto load_bad_length = [] {
         std::istringstream input{std::string{bad_length_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
-    CHECK_THROWS_AS(load_bad_length(), std::invalid_argument);
+    CHECK_THROWS_AS(load_bad_length(), parameters::ParseError);
 
     const auto load_unknown_element = [] {
         std::istringstream input{std::string{unknown_element_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
-    CHECK_THROWS_AS(load_unknown_element(), std::invalid_argument);
+    CHECK_THROWS_AS(load_unknown_element(), parameters::ParseError);
 
     const auto load_unknown_classification = [] {
         std::istringstream input{std::string{unknown_classification_json()}};
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
-    CHECK_THROWS_MATCHES(load_unknown_classification(), std::invalid_argument,
+    CHECK_THROWS_MATCHES(load_unknown_classification(), parameters::ParseError,
                          snitch::matchers::with_what_contains{"atom.data[0].key.classifier"});
 
     const auto load_section = [](const std::string_view section) {
@@ -276,13 +278,13 @@ TEST_CASE("parameter set rejects malformed JSON", "[parameters][io]") {
     CHECK_THROWS_MATCHES(
         load_section(R"("atom": {"names": ["A"], "data": [{"key": )"
                      R"({"element": "H", "classifier": "plain", "type": "1"}, "values": [1.0]}]})"),
-        std::invalid_argument, snitch::matchers::with_what_contains{"atom.data[0].key.type"});
+        parameters::ParseError, snitch::matchers::with_what_contains{"atom.data[0].key.type"});
     CHECK_THROWS_MATCHES(
         load_section(R"("bond": {"names": ["B"], "data": [{"key": {"atoms": [)"
                      R"({"element": "H", "classifier": "plain", "type": "*"}, )"
                      R"({"element": "H", "classifier": "plain", "type": "*"}], )"
                      R"("bond": {"classifier": "plain", "type": "1"}}, "values": [1.0]}]})"),
-        std::invalid_argument, snitch::matchers::with_what_contains{"bond.data[0].key.bond.type"});
+        parameters::ParseError, snitch::matchers::with_what_contains{"bond.data[0].key.bond.type"});
 }
 
 TEST_CASE("parameter set rejects content this version does not read", "[parameters][io]") {
@@ -308,9 +310,54 @@ TEST_CASE("parameter set rejects content this version does not read", "[paramete
     };
     for (const auto& [metadata, rest] : rejected) {
         CAPTURE(metadata, rest);
-        CHECK_THROWS_AS(load(metadata, rest), std::invalid_argument);
+        CHECK_THROWS_AS(load(metadata, rest), parameters::ParseError);
     }
-    CHECK_THROWS_MATCHES(load("", atom(R"(, "charge": 1)", "")), std::invalid_argument,
+
+    // The kind is which format the reader reads, not which check comes first. A file of another
+    // version is unsupported whatever else it has, here a member that version 1 lacks and no ID.
+    const auto refusal = [](const std::string& text, std::string source_name = {}) {
+        std::istringstream input{text};
+        const auto error = chargefw::test::thrown<parameters::ParseError>([&] {
+            static_cast<void>(parameters::load_parameter_set_json(input, std::move(source_name)));
+        });
+        REQUIRE(error.has_value());
+        return *error;
+    };
+    const auto later =
+        refusal(R"({"metadata": {"format_version": 2, "method": "eem"}, "units": {}})");
+    CHECK(later.kind() == parameters::ParseErrorKind::unsupported);
+    CHECK(refusal(R"({"metadata": {"format_version": "2", "id": "x", "method": "eem"}})").kind() ==
+          parameters::ParseErrorKind::malformed);
+
+    // The source is named once, in what() and not in the reason.
+    const std::string wrong_type{R"({"metadata": {"id": 7, "method": "eem"}})"};
+    const auto unnamed = refusal(wrong_type);
+    const auto named = refusal(wrong_type, "my_set.json");
+    CHECK(named.kind() == parameters::ParseErrorKind::malformed);
+    CHECK(named.reason() == unnamed.reason());
+    CHECK(named.reason().starts_with("metadata.id: "));
+    CHECK(named.source_name() == "my_set.json");
+    CHECK(std::string_view{named.what()} == "my_set.json: " + named.reason());
+    CHECK(std::string_view{unnamed.what()} == unnamed.reason());
+
+    // An empty stream is refused for its content; a stream that failed is not.
+    CHECK(refusal("").kind() == parameters::ParseErrorKind::malformed);
+    for (const auto state : {std::ios::failbit, std::ios::badbit}) {
+        std::istringstream input{wrong_type};
+        input.setstate(state);
+        auto refused = false;
+        auto failed = false;
+        try {
+            static_cast<void>(parameters::load_parameter_set_json(input));
+        } catch (const parameters::ParseError&) {
+            refused = true;
+        } catch (const std::runtime_error&) {
+            failed = true;
+        }
+        CHECK(failed);
+        CHECK_FALSE(refused);
+    }
+    CHECK_THROWS_MATCHES(load("", atom(R"(, "charge": 1)", "")), parameters::ParseError,
                          snitch::matchers::with_what_contains{"atom.data[0].key"});
 
     // Metadata may hold other members; format version 1 is the default.
@@ -325,9 +372,9 @@ TEST_CASE("parameter set rejects priorities outside uint16 range", "[parameters]
         static_cast<void>(parameters::load_parameter_set_json(input));
     };
 
-    CHECK_THROWS_AS(load("-1"), std::invalid_argument);
-    CHECK_THROWS_AS(load("65536"), std::invalid_argument);
-    CHECK_THROWS_AS(load("4294967297"), std::invalid_argument);
+    CHECK_THROWS_AS(load("-1"), parameters::ParseError);
+    CHECK_THROWS_AS(load("65536"), parameters::ParseError);
+    CHECK_THROWS_AS(load("4294967297"), parameters::ParseError);
     CHECK_NOTHROW(load("0"));
     CHECK_NOTHROW(load("65535"));
 }

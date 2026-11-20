@@ -296,8 +296,9 @@ except chargefw.ParseError as error:
 
 `kind` is the cause as a code, one of the [kinds of the format
 reference](../reference/formats.md#format-overview), and `reason` says why as text. For a parameter
-set, `kind` is `"unsupported"` when the set is for a method ChargeFW does not have,
-`"invalid_encoding"` when the file is not UTF-8, and otherwise `"malformed"`.
+set, `kind` is `"unsupported"` when the set is for a method ChargeFW does not have or in a format
+version this version of ChargeFW does not read, `"invalid_encoding"` when the file is not UTF-8, and
+otherwise `"malformed"`.
 
 `source_name`, `line`, `record_index`, and `record_id` say where, as far as the reader knows. `line`
 counts from one and `record_index` from zero. MOL, SDF, and MOL2 files give the line and the record;

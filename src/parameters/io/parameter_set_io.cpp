@@ -2,6 +2,8 @@
 #include <chargefw/parameters/io/parameter_data_paths.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
 
+#include <chargefw/parameters/io/parse_error.h>
+
 #include "parameters/parameter_helpers.h"
 
 #include <nlohmann/json.hpp>
@@ -34,11 +36,8 @@ using Json = nlohmann::json;
 }
 
 [[noreturn]] auto throw_error(const std::string& context, const std::string& message) -> void {
-    if (context.empty()) {
-        throw std::invalid_argument{message};
-    }
-
-    throw std::invalid_argument{context + ": " + message};
+    throw ParseError{ParseErrorKind::malformed,
+                     context.empty() ? message : context + ": " + message};
 }
 
 [[nodiscard]] auto child_context(const std::string& context, const std::string_view child)
@@ -185,16 +184,6 @@ auto ensure_array(const Json& value, const std::string& context) -> void {
     metadata.name = optional_string_member(metadata_json, "name", metadata_context);
     metadata.publication = optional_string_member(metadata_json, "publication", metadata_context);
     metadata.notes = optional_string_member(metadata_json, "notes", metadata_context);
-
-    // The format version this reader reads; files without one are version 1.
-    // NOLINTNEXTLINE(readability-redundant-nested-if): merging would repeat the declared member.
-    if (const auto* format_version = optional_member(metadata_json, "format_version")) {
-        if (!format_version->is_number_integer() || format_version->get<std::int64_t>() != 1) {
-            throw_error(child_context(metadata_context, "format_version"),
-                        "unsupported format version " + format_version->dump() +
-                            "; this version of ChargeFW reads format version 1");
-        }
-    }
 
     if (const auto* priority = optional_member(metadata_json, "priority")) {
         metadata.priority = require_uint16(*priority, child_context(metadata_context, "priority"));
@@ -402,9 +391,32 @@ template <typename Entry, typename KeyParser>
     return entries;
 }
 
+// The format version first: which members a file may have depends on it, so a file of another
+// version is refused as that, whatever else this reader would not accept of it. Files without a
+// version are version 1.
+auto require_format_version(const Json& root, const std::string& context) -> void {
+    const auto* metadata = optional_member(root, "metadata");
+    const auto* version =
+        metadata != nullptr ? optional_member(*metadata, "format_version") : nullptr;
+    if (version == nullptr) {
+        return;
+    }
+    const auto version_context =
+        child_context(child_context(context, "metadata"), "format_version");
+    if (!version->is_number_integer()) {
+        throw_error(version_context, "expected integer, got " + json_type_name(*version));
+    }
+    if (version->get<std::int64_t>() != 1) {
+        throw ParseError{ParseErrorKind::unsupported,
+                         version_context + ": unsupported format version " + version->dump() +
+                             "; this version of ChargeFW reads format version 1"};
+    }
+}
+
 [[nodiscard]] auto parse_parameter_set(const Json& root, const std::string& context)
     -> ParameterSet {
     ensure_object(root, context);
+    require_format_version(root, context);
     ensure_known_members(root, {"metadata", "common", "atom", "bond"}, context);
 
     auto metadata = parse_metadata(root, context);
@@ -416,15 +428,31 @@ template <typename Entry, typename KeyParser>
     return ParameterSet{std::move(metadata), std::move(common), std::move(atom), std::move(bond)};
 }
 
-[[nodiscard]] auto load_parameter_set_json_document(std::istream& input, const std::string& context)
-    -> ParameterSet {
+} // namespace
+
+auto load_parameter_set_json(std::istream& input, std::string source_name) -> ParameterSet {
+    // A stream that failed other than by reaching its end was not refused for its content.
+    const auto require_readable = [&input] {
+        if (input.bad() || (input.fail() && !input.eof())) {
+            throw std::runtime_error{"failed to read the parameter set"};
+        }
+    };
+    require_readable();
     try {
         const auto root = Json::parse(input);
-        return parse_parameter_set(root, context);
+        return parse_parameter_set(root, {});
+    } catch (const ParseError& error) {
+        throw ParseError{error.kind(), error.reason(), std::move(source_name)};
     } catch (const nlohmann::json::exception& error) {
-        throw_error(context, error.what());
+        require_readable();
+        throw ParseError{ParseErrorKind::malformed, error.what(), std::move(source_name)};
+    } catch (const std::invalid_argument& error) {
+        // A value a parameter set cannot hold, which its types refuse.
+        throw ParseError{ParseErrorKind::malformed, error.what(), std::move(source_name)};
     }
 }
+
+namespace {
 
 [[nodiscard]] auto json_files_in_directory(const std::filesystem::path& directory)
     -> std::vector<std::filesystem::path> {
@@ -666,18 +694,14 @@ template <typename Entry>
 
 } // namespace
 
-auto load_parameter_set_json(std::istream& input) -> ParameterSet {
-    return load_parameter_set_json_document(input, "parameter JSON");
-}
-
 auto load_parameter_set_json_file(const std::filesystem::path& path) -> ParameterSet {
     std::ifstream input{path};
 
     if (!input) {
-        throw std::invalid_argument{"failed to open parameter file '" + path.string() + "'"};
+        throw std::runtime_error{"failed to open parameter file '" + path.string() + "'"};
     }
 
-    return load_parameter_set_json_document(input, "parameter file '" + path.string() + "'");
+    return load_parameter_set_json(input, path.string());
 }
 
 auto save_parameter_set_json(const ParameterSet& set, std::ostream& output) -> void {

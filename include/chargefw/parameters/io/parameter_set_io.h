@@ -5,11 +5,16 @@
 #include <filesystem>
 #include <istream>
 #include <ostream>
+#include <string>
 #include <vector>
 
 namespace chargefw::parameters {
 
-[[nodiscard]] auto load_parameter_set_json(std::istream& input) -> ParameterSet;
+// Reads one parameter set. Content the reader refuses throws ParseError, which names the source
+// when one is given; the file loader gives the path. A file that cannot be opened throws
+// std::runtime_error.
+[[nodiscard]] auto load_parameter_set_json(std::istream& input, std::string source_name = {})
+    -> ParameterSet;
 
 [[nodiscard]] auto load_parameter_set_json_file(const std::filesystem::path& path) -> ParameterSet;
 
