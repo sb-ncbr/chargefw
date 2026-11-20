@@ -86,11 +86,14 @@ class OutputError(ChargeFWError, ValueError):
     """A result cannot be written in the requested format, or charges cannot be added to a target.
 
     ``kind`` is the cause as a code: ``"missing_coordinates"`` for a molecule without coordinates in
-    a format that needs them, ``"unsupported_shape"`` for a number of molecules, conformers, or
-    atoms the format cannot hold, ``"unrepresentable"`` for a value the format cannot hold,
-    ``"target_mismatch"`` for a document or toolkit molecule that is not the one that was read, and
-    ``"existing_charges"`` for charges already in the target that block the request. More kinds may
-    be added. ``reason`` is why as text; the message of the error says where before it.
+    a format that needs them, ``"unsupported_shape"`` for a number of results, molecules,
+    conformers, or atoms the format cannot hold, ``"unrepresentable"`` for a value the format cannot
+    hold,
+    ``"target_mismatch"`` for a document or toolkit molecule that is not the one that was read,
+    ``"existing_charges"`` for charges already in the target that block the request,
+    ``"no_charges"`` for a failed calculation, and ``"unsupported_source"`` for molecules that were
+    not read from the input the format needs, such as PQR for a molecule read from SDF. More kinds
+    may be added. ``reason`` is why as text; the message of the error says where before it.
 
     ``molecule_index`` is the input molecule the error concerns, or ``None`` when it concerns the
     result as a whole. The other fields say where in the molecule, as for an issue:

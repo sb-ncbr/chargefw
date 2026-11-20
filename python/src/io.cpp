@@ -281,7 +281,8 @@ auto dumps(const std::vector<NativeExecutionResult*>& native_results, const std:
         return output.str();
     }
     if (native_results.size() != 1) {
-        throw std::invalid_argument{"output format " + format + " holds one calculation result"};
+        throw io::OutputError{io::OutputErrorKind::unsupported_shape,
+                              "output format " + format + " holds one calculation result"};
     }
     const auto& result = native_results.front()->result();
     if (format == "result-json") {

@@ -175,6 +175,8 @@ def attach_charges(
         raise ValueError("property_name must not be empty")
     replace = _replace_existing(if_exists)
 
+    if result.status != "success":
+        raise OutputError("RDKit attachment requires a successful calculation", kind="no_charges")
     assignment = _assignment(result, molecule_index, conformer_index)
     source = result.molecules[molecule_index]
     if molecule.GetNumAtoms() != source.atom_count:

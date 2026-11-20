@@ -61,10 +61,12 @@ namespace {
 
 auto validate_result(const ChargeCalculationResult& result) -> void {
     if (result.charges() == nullptr) {
-        throw std::invalid_argument{"MOL2 output requires a successful calculation"};
+        throw OutputError{OutputErrorKind::no_charges,
+                          "MOL2 output requires a successful calculation"};
     }
     if (result.inputs().empty()) {
-        throw std::invalid_argument{"MOL2 output requires at least one molecule record"};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "MOL2 output requires at least one molecule"};
     }
 
     for (std::size_t molecule_index = 0; molecule_index < result.inputs().size();

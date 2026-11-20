@@ -278,7 +278,12 @@ TEST_CASE("result-owned MOL2 rejects failed results and invalid values before ou
             {generated_record()}, {},
             {.status = chargefw::calculation::ExecutionStatus::cancelled});
         auto output = std::ostringstream{};
-        CHECK_THROWS_AS(io::Mol2Writer{output}.write(cancelled), std::invalid_argument);
+        try {
+            io::Mol2Writer{output}.write(cancelled);
+            FAIL_CHECK("a failed calculation was written");
+        } catch (const io::OutputError& error) {
+            CHECK(error.kind() == io::OutputErrorKind::no_charges);
+        }
         CHECK(output.str().empty());
     }
 

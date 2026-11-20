@@ -319,14 +319,15 @@ of these kinds, which Python gives as `OutputError.kind` and C++ as `OutputError
 | Kind | The result or target | What to do |
 | --- | --- | --- |
 | `missing_coordinates` | has a molecule without coordinates, which MOL2, mmCIF, and PQR need | Write result JSON, or calculate for molecules with coordinates |
-| `unsupported_shape` | has a number of molecules, conformers, or atoms the format cannot hold, such as several models in PQR | Write another format, or read only the first model |
+| `unsupported_shape` | has a number of results, molecules, conformers, or atoms the format cannot hold, such as several models in PQR | Write another format, or read only the first model |
 | `unrepresentable` | has a value the format cannot hold, such as a chain ID of two characters in PQR or a charge above 10 in mmCIF | Write another format, or change the value in the input |
 | `target_mismatch` | is a document or toolkit molecule that is not the one that was read | Add the charges to the unchanged document or molecule |
 | `existing_charges` | already has charges that block the request | Replace them, or append to them where the format allows |
+| `no_charges` | is of a failed calculation, which has no charges | Write result JSON, which holds the reasons of the failure |
+| `unsupported_source` | has molecules that were not read from the input the format needs, such as PQR for a molecule read from SDF | Write another format, or read the molecules from PDB or mmCIF |
 
 Later versions may add kinds. When the error concerns one molecule, it names it and, where it
-concerns them, its conformer and atoms. A request that a writer never supports, such as PQR for a
-molecule read from SDF, is an ordinary invalid-argument error without a kind.
+concerns them, its conformer and atoms.
 
 ### MOL2
 

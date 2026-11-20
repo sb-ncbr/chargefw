@@ -39,6 +39,8 @@ type OutputErrorKind = Literal[
     "unrepresentable",
     "target_mismatch",
     "existing_charges",
+    "no_charges",
+    "unsupported_source",
 ]
 type ImportIssueKind = Literal[
     "partial_charges_ignored",

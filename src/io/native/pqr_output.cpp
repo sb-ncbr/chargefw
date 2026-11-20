@@ -92,7 +92,8 @@ auto require_insertion_code(const std::string_view code, const std::size_t atom_
 
 auto validate_result(const ChargeCalculationResult& result) -> void {
     if (result.charges() == nullptr) {
-        throw std::invalid_argument{"PQR output requires a successful calculation"};
+        throw OutputError{OutputErrorKind::no_charges,
+                          "PQR output requires a successful calculation"};
     }
     // The source first: input that is not a structure is never written as PQR, however many
     // molecules it has.
@@ -101,7 +102,8 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
                    (record.import_metadata->format == MolecularSourceFormat::pdb ||
                     record.import_metadata->format == MolecularSourceFormat::mmcif);
         })) {
-        throw std::invalid_argument{"PQR output requires a structure read from PDB or mmCIF"};
+        throw OutputError{OutputErrorKind::unsupported_source,
+                          "PQR output requires a structure read from PDB or mmCIF"};
     }
     if (result.inputs().size() != 1) {
         throw OutputError{OutputErrorKind::unsupported_shape,

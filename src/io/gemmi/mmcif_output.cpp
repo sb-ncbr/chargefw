@@ -218,8 +218,9 @@ struct OutputAssignments {
                                     const ImportedMoleculeRecord& record) -> BlockMapping {
     if (!record.import_metadata.has_value() ||
         record.import_metadata->format != MolecularSourceFormat::mmcif) {
-        throw std::invalid_argument{
-            "charge attachment requires unchanged mmCIF-imported calculation inputs"};
+        throw OutputError{
+            OutputErrorKind::unsupported_source,
+            "charges can be added only to the mmCIF document the molecules were read from"};
     }
     if (record.identity.record_id.empty() ||
         record.identity.record_id.display_string() != block.name) {
@@ -753,17 +754,20 @@ using ResultSpan = std::span<const ChargeCalculationResult* const>;
 // Results that can be written at all: successful, and with molecules.
 auto require_results(const ResultSpan results) -> void {
     if (results.empty()) {
-        throw std::invalid_argument{"mmCIF output requires at least one calculation result"};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "mmCIF output requires at least one calculation result"};
     }
     for (const auto* result : results) {
         if (result == nullptr) {
             throw std::invalid_argument{"mmCIF output requires calculation results, not null"};
         }
         if (result->charges() == nullptr) {
-            throw std::invalid_argument{"mmCIF output requires a successful calculation"};
+            throw OutputError{OutputErrorKind::no_charges,
+                              "mmCIF output requires a successful calculation"};
         }
         if (result->inputs().empty()) {
-            throw std::invalid_argument{"mmCIF output requires at least one molecule record"};
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "mmCIF output requires at least one molecule"};
         }
     }
 }
@@ -1102,15 +1106,17 @@ auto MmcifWriter::annotate(const ResultSpan results, const ExistingCharges exist
     if (text == nullptr || !std::ranges::all_of(results, [&](const auto* result) {
             return std::ranges::all_of(result->inputs(), same_source);
         })) {
-        throw std::invalid_argument{
-            "mmCIF annotation requires molecules read from one PDB or mmCIF input"};
+        throw OutputError{OutputErrorKind::unsupported_source,
+                          "mmCIF annotation requires molecules read from one PDB or mmCIF input"};
     }
     validate_results_output(results);
     if (first_metadata->format == MolecularSourceFormat::pdb) {
         // A PDB input is one molecule and has no charges; the document is its conversion.
         if (first_inputs.size() != 1) {
-            throw std::invalid_argument{
-                "mmCIF annotation of PDB input requires results for one molecule"};
+            throw OutputError{OutputErrorKind::unsupported_shape,
+                              "mmCIF annotation of PDB input requires results for one molecule, "
+                              "but the input has " +
+                                  std::to_string(first_inputs.size())};
         }
         auto converted = gemmi::pdb_conversion::convert(*text, first_inputs.front());
         append_charge_sets(converted.document.blocks.front(), results, 0, converted.atom_site_ids);

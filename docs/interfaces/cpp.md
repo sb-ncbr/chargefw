@@ -218,10 +218,8 @@ try {
 reference](../reference/formats.md#charge-output); later versions may add kinds, so give a `switch`
 over them a `default` branch. `reason()` says why as text. `molecule_index()` is the input molecule
 the error concerns, counted from zero, or empty when it concerns the whole result, and `location()`
-gives the conformer, atoms, and bonds as for an issue. A request that a writer never supports, such
-as MOL2, mmCIF, or PQR output for a failed calculation, or PQR for a molecule read from SDF, throws
-a `std::invalid_argument` that is not an `OutputError`. `JsonWriter` writes a failed result, with
-its reasons.
+gives the conformer, atoms, and bonds as for an issue. `JsonWriter` writes a failed result, with its
+reasons.
 
 `chargefw/io/all.h` includes all readers and writers, for applications. They are all in
 `chargefw::io`.

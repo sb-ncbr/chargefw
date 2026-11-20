@@ -661,23 +661,18 @@ HETATM waterO O O  . HOH B 2 . 5.1 5.0 5.0 2
                               {"mmcif_pdbx.dic", "5.0"}, {"mmcif_charges_v11.dic", "1.1"}});
 
     // A molecule that was not read from mmCIF has no structure to annotate.
-    // Input that is not a structure file is a wrong request, also when the format could not hold
-    // it for another reason, here for lack of coordinates.
+    // Refused for its source, also when the format could not hold it for another reason, here for
+    // lack of coordinates.
     auto coordinate_free = generated_record();
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};
     for (const auto& record : {generated_record(), coordinate_free}) {
         const auto generated = calculation_result({record}, formal(2));
-        auto refused = false;
-        auto wrong_request = false;
         try {
             io::MmcifWriter{rejected}.annotate(std::array{&generated});
-        } catch (const io::OutputError&) {
-            refused = true;
-        } catch (const std::invalid_argument&) {
-            wrong_request = true;
+            FAIL_CHECK("a molecule that was not read from a file was annotated");
+        } catch (const io::OutputError& error) {
+            CHECK(error.kind() == io::OutputErrorKind::unsupported_source);
         }
-        CHECK(wrong_request);
-        CHECK_FALSE(refused);
     }
 }
 
@@ -797,7 +792,7 @@ TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range c
         {generated_record("cancelled")}, {},
         {.status = chargefw::calculation::ExecutionStatus::cancelled});
     auto output = std::ostringstream{};
-    CHECK_THROWS_AS(io::MmcifWriter{output}.write(cancelled), std::invalid_argument);
+    CHECK_THROWS_AS(io::MmcifWriter{output}.write(cancelled), io::OutputError);
 
     auto coordinate_free = generated_record("missing");
     coordinate_free.molecule = core::Molecule{{core::Atom{6}, core::Atom{8}}};

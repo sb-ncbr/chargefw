@@ -120,8 +120,9 @@ def test_pqr_requires_structural_input() -> None:
     pqr = chargefw.io.dumps(chargefw.calculate(structure, method="formal"), format="pqr")
     assert "ATOM      2  H1  HOH A    1" in pqr
 
-    with pytest.raises(ValueError, match="PDB or mmCIF"):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.dumps(chargefw.calculate(water(), method="formal"), format="pqr")
+    assert refused.value.kind == "unsupported_source"
 
 
 def test_mmcif_holds_one_charge_set_per_result() -> None:
@@ -141,8 +142,10 @@ def test_mmcif_holds_one_charge_set_per_result() -> None:
     ]
     assert type_ids == ["1"] * 6 + ["2"] * 6
 
-    with pytest.raises(ValueError, match="one calculation result"):
-        chargefw.io.dumps([formal, qeq], format="mol2")
+    for results, format_name in (([formal, qeq], "mol2"), ([], "mol2"), ([], "mmcif")):
+        with pytest.raises(chargefw.OutputError) as refused:
+            chargefw.io.dumps(results, format=cast(Any, format_name))
+        assert refused.value.kind == "unsupported_shape"
     for rejected in (
         [formal, chargefw.calculate(water(), method="qeq")],
         [formal, chargefw.calculate(molecule, method="formal")],
@@ -227,12 +230,12 @@ def test_annotate_adds_charges_to_the_mmcif_input_without_the_collection(
         for value in appended.find_values("_sb_ncbr_partial_atomic_charges_meta.method")
     ] == ["formal", "dummy"]
 
-    # A wrong request, not a result the format cannot hold.
-    with pytest.raises(ValueError) as wrong_request:
+    # Molecules that were not read from a file have no file to annotate.
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.annotate(
             tmp_path / "rejected.cif", chargefw.calculate(water(), method="formal")
         )
-    assert not isinstance(wrong_request.value, chargefw.OutputError)
+    assert refused.value.kind == "unsupported_source"
     assert not (tmp_path / "rejected.cif").exists()
 
 
@@ -250,10 +253,11 @@ def test_annotate_writes_a_pdb_input_as_mmcif_with_charges_for_the_selection(
 
     # One PDB input is one molecule; a result for it twice has no place in the file.
     molecule = chargefw.io.read(ANNOTATION_PDB, format="pdb")[0]
-    with pytest.raises(ValueError):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw.io.annotate(
             tmp_path / "twice.cif", chargefw.calculate([molecule, molecule], method="formal")
         )
+    assert refused.value.kind == "unsupported_shape"
     assert not (tmp_path / "twice.cif").exists()
 
 
@@ -327,8 +331,9 @@ def test_failed_result_json_preserves_input_identity() -> None:
         assert index in molecule_indices
         assert set(molecule_indices) <= {index, None}
     for format_name in ("mol2", "mmcif"):
-        with pytest.raises(ValueError, match="successful calculation"):
+        with pytest.raises(chargefw.OutputError) as refused:
             chargefw.io.dumps(failed_result, format=cast(Any, format_name))
+        assert refused.value.kind == "no_charges"
 
 
 def test_import_metadata_follows_reordered_and_recombined_molecules() -> None:

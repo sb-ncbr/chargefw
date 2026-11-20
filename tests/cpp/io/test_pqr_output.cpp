@@ -15,6 +15,7 @@
 #include <snitch/snitch.hpp>
 
 #include <format>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -148,34 +149,33 @@ TEST_CASE("PQR rejects input that PQR readers would misread, before output", "[i
                                        {},
                                        {core::Conformer{{core::Position{0.0, 0.0, 0.0}}}}},
             .identity = {.source_name = "input.sdf"}};
-        // Input that is not a structure is a wrong request, for one molecule or several; several
-        // molecules of a structure are a result PQR cannot hold.
-        const auto refused_as_output = [](const io::ChargeCalculationResult& result) {
+        // Input that is not a structure is refused for its source, for one molecule or several;
+        // several molecules of a structure for their number.
+        const auto refusal = [](const io::ChargeCalculationResult& result) {
             auto output = std::ostringstream{};
-            auto refused = false;
-            auto wrong_request = false;
+            auto kind = std::optional<io::OutputErrorKind>{};
             try {
                 io::PqrWriter{output}.write(result);
-            } catch (const io::OutputError&) {
-                refused = true;
-            } catch (const std::invalid_argument&) {
-                wrong_request = true;
+            } catch (const io::OutputError& error) {
+                kind = error.kind();
             }
-            CHECK(refused != wrong_request); // One of the two: the writer must not accept it.
             CHECK(output.str().empty());
-            return refused;
+            return kind;
         };
         const std::string water{"ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  "
                                 "0.00           O\nEND\n"};
-        CHECK_FALSE(refused_as_output(calculation_result({record}, formal(1))));
+        CHECK(refusal(calculation_result({record}, formal(1))) ==
+              io::OutputErrorKind::unsupported_source);
         const auto two = [] {
             const auto zero = charges::AtomicCharges{std::vector<double>(1, 0.0)};
             return charges::ChargeSet{"formal",
                                       {{.target = {.molecule_index = 0}, .charges = zero},
                                        {.target = {.molecule_index = 1}, .charges = zero}}};
         };
-        CHECK_FALSE(refused_as_output(calculation_result({record, record}, two())));
-        CHECK(refused_as_output(calculation_result({read_pdb(water), read_pdb(water)}, two())));
+        CHECK(refusal(calculation_result({record, record}, two())) ==
+              io::OutputErrorKind::unsupported_source);
+        CHECK(refusal(calculation_result({read_pdb(water), read_pdb(water)}, two())) ==
+              io::OutputErrorKind::unsupported_shape);
     }
 
     {

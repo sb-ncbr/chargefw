@@ -48,6 +48,10 @@ auto to_string(const OutputErrorKind value) -> std::string_view {
         return "target_mismatch";
     case OutputErrorKind::existing_charges:
         return "existing_charges";
+    case OutputErrorKind::no_charges:
+        return "no_charges";
+    case OutputErrorKind::unsupported_source:
+        return "unsupported_source";
     }
     throw std::logic_error{"unknown output error kind"};
 }

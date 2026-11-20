@@ -15,8 +15,8 @@ namespace chargefw::io {
 enum class OutputErrorKind : std::uint8_t {
     // The format needs coordinates and a molecule has none.
     missing_coordinates,
-    // The format cannot hold the number of molecules, conformers, or atoms, such as several
-    // molecules in PQR or a molecule without atoms.
+    // The format cannot hold the number of results, molecules, conformers, or atoms, such as
+    // several molecules in PQR or a molecule without atoms.
     unsupported_shape,
     // The format cannot hold a value, such as a chain ID of two characters in PQR.
     unrepresentable,
@@ -24,18 +24,21 @@ enum class OutputErrorKind : std::uint8_t {
     target_mismatch,
     // The target already has charges that were not to be replaced, or that cannot be added to.
     existing_charges,
+    // The calculation failed, so there are no charges to write.
+    no_charges,
+    // The format is written only for molecules read from other input, such as PQR, which needs a
+    // structure read from PDB or mmCIF.
+    unsupported_source,
 };
 
 [[nodiscard]] auto to_string(OutputErrorKind value) -> std::string_view;
 
-// A result that a writer cannot write in its format, although the format supports results of this
-// kind of input. kind() gives the cause as a code and reason() as text, with the value and what the
-// format requires. molecule_index() is the input molecule the refusal concerns, counted from zero,
-// or nothing when it concerns the result as a whole, such as too many molecules for the format;
-// location() gives the conformer, atoms, and bonds. what() gives where and why, counted from one,
-// such as "molecule 1, atom 5: PQR output cannot write chain ID 'AB': ...". A request the writer
-// never supports, such as a failed calculation, is a std::invalid_argument that is not an
-// OutputError.
+// A result that a writer cannot write in its format. kind() gives the cause as a code and reason()
+// as text, with the value and what the format requires. molecule_index() is the input molecule the
+// refusal concerns, counted from zero, or nothing when it concerns the result as a whole, such as
+// too many molecules for the format; location() gives the conformer, atoms, and bonds. what() gives
+// where and why, counted from one, such as "molecule 1, atom 5: PQR output cannot write chain ID
+// 'AB': ...".
 class OutputError : public std::invalid_argument {
   public:
     OutputError(OutputErrorKind kind, std::string reason,

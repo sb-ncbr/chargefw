@@ -180,8 +180,9 @@ def test_conversion_without_conformers_supports_coordinate_independent_methods()
     np.testing.assert_array_equal(result.assignments[0].values, [0.0, 0.0])
     with pytest.raises(chargefw.NoExecutablePlanError) as raised:
         chargefw.calculate(molecule, method="eem")
-    with pytest.raises(IndexError):
+    with pytest.raises(chargefw.OutputError) as refused:
         chargefw_rdkit.attach_charges(target, raised.value.result)
+    assert refused.value.kind == "no_charges"
     assert not any(atom.properties for atom in target.atoms)
     assert not target.properties
 

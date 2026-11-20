@@ -40,12 +40,15 @@
 ### Output
 
 - A result that a format cannot hold, a document or RDKit molecule that changed since it was read,
-  and charges already present are reported as `OutputError`, with a kind: `missing_coordinates`,
-  `unsupported_shape`, `unrepresentable`, `target_mismatch`, or `existing_charges`. When it concerns
-  one molecule, it names it and, where it concerns them, its conformer and atoms. It is a
-  `ValueError` in Python and a `std::invalid_argument` in C++, as these errors were, so existing
-  handlers keep working. The messages changed: those for one molecule start with the molecule and
-  atoms, counted from one.
+  charges already present, a failed calculation, and molecules that were not read from the input
+  the format needs are reported as `OutputError`, with a kind: `missing_coordinates`,
+  `unsupported_shape`, `unrepresentable`, `target_mismatch`, `existing_charges`, `no_charges`, or
+  `unsupported_source`. When it concerns one molecule, it names it and, where it concerns them, its
+  conformer and atoms. It is a `ValueError` in Python and a `std::invalid_argument` in C++, as
+  these errors were, so existing handlers keep working, with one exception: the RDKit
+  `attach_charges()` raised `IndexError` for a failed calculation and now raises `OutputError` with
+  kind `no_charges`; an invalid `molecule_index` is still an `IndexError`. The messages changed:
+  those for one molecule start with the molecule and atoms, counted from one.
 - Adding charges to a Gemmi document whose `_atom_site.pdbx_formal_charge` was changed to text that
   is not an integer, such as `0.0`, is refused as a changed document, as reading such a file is
   refused.

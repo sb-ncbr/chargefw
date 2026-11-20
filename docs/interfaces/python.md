@@ -413,11 +413,11 @@ is the molecule the error concerns, or `None` when it concerns the whole result.
 concerns them, `conformer_index`, `atom_index`, `other_atom_index`, `bond_index`, `atom_indices`,
 and `bond_indices` say where in the molecule, as for an [issue](../reference/python-api.md#issues).
 All count from zero; the message counts from one. The `attach_charges()` functions for
-[RDKit](#rdkit) and [Gemmi](#gemmi) raise it too, for a target that changed or already has charges.
+[RDKit](#rdkit) and [Gemmi](#gemmi) raise it too, for a target that changed or already has charges,
+or for a failed calculation.
 
-An unsupported format, MOL2, mmCIF, or PQR output for a failed calculation, or a format that the
-input never allows, such as PQR for a molecule read from SDF, raises a `ValueError` that is not an
-`OutputError`. A failed result can still be written as result JSON, with its reasons.
+A format name that ChargeFW does not know raises a `ValueError` that is not an `OutputError`. A
+failed result can still be written as result JSON, with its reasons.
 
 Record and atom IDs are strings or 64-bit integers; NumPy integers are converted to Python integers.
 Result JSON keeps integer IDs as numbers. MOL2 and mmCIF write them as text where the format needs a name.
