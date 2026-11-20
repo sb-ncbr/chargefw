@@ -339,8 +339,9 @@ atom whose fragment failed, and `None` when the whole molecule failed.
 Python warnings for cautions that can make the charges wrong; see
 [Warnings](../interfaces/python.md#warnings). `ChargeFWWarning` derives from `UserWarning`, and
 `InputWarning` and `ChargeWarning` from `ChargeFWWarning`. `InputWarning` is raised for the
-`ImportIssue` kinds `"unbonded_residue_atoms"`, `"symmetry_connections_ignored"`, and
-`"bond_orders_unknown"` and for every `InputIssue`; `ChargeWarning` for every `ChargeIssue`.
+`ImportIssue` kinds `"unbonded_residue_atoms"`, `"symmetry_connections_ignored"`,
+`"bond_orders_unknown"`, and `"unknown_component_atoms"` and for every `InputIssue`;
+`ChargeWarning` for every `ChargeIssue`.
 
 ## Methods and parameter sets
 

@@ -815,7 +815,7 @@ TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
 TEST_CASE("A component dictionary gives PDB residues the bonds that nothing else does",
           "[io][pdb][components]") {
     // The ligand entry lacks N1. The alanine entry differs from the built-in template: a single
-    // carbonyl bond, and a hydrogen HZ9 on CB that the template does not have.
+    // carbonyl bond, a hydrogen HZ9 on CB that the template does not have, and no CA.
     std::istringstream dictionary_text{"chargefw-ccd 1 2026.11.13\n"
                                        "LIG 3 2\n"
                                        "C1 C 0\n"
@@ -840,6 +840,7 @@ ATOM      5  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
 ATOM      6  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
 ATOM      7  CB  ALA A   2       0.000   3.000   0.000  1.00 20.00           C
 ATOM      8  HZ9 ALA A   2       0.000   4.000   0.000  1.00 20.00           H
+ATOM      9  CA  ALA A   2       0.000   1.500   0.000  1.00 20.00           C
 CONECT    1    2
 CONECT    3    4
 END
@@ -864,6 +865,15 @@ END
         }
         return std::vector<std::size_t>{};
     };
+    // The atoms reported as absent from the dictionary entries of their residues.
+    const auto unknown_atoms = [](const io::ImportedMoleculeRecord& record) {
+        for (const auto& warning : record.import_warnings) {
+            if (warning.kind == io::ImportIssueKind::unknown_component_atoms) {
+                return warning.location.atom_indices;
+            }
+        }
+        return std::vector<std::size_t>{};
+    };
 
     {
         // Hybrid fills gaps bond by bond. The dictionary gives the order of one CONECT pair and
@@ -882,6 +892,9 @@ END
         // template lacks.
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
         CHECK(order(record, 6, 7) == BondOrder::SINGLE);
+        // N1 is not in the ligand's entry, although the file bonds it. Alanine has a built-in
+        // template, which names its atoms: CA is not reported, although its entry lacks it.
+        CHECK(unknown_atoms(record) == std::vector<std::size_t>{3});
     }
     {
         // A bond the file states with an order keeps it: a LINK record is a single bond, although
@@ -904,6 +917,7 @@ END
         CHECK_FALSE(order(record, 2, 3).has_value());
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
         CHECK_FALSE(order(record, 6, 7).has_value());
+        CHECK(unknown_atoms(record) == std::vector<std::size_t>{3});
     }
     {
         // Explicit bonds are those of the file, whatever the dictionary has.
@@ -912,6 +926,7 @@ END
         CHECK(record.molecule.bond_count() == 2);
         CHECK(order(record, 0, 1) == BondOrder::SINGLE);
         CHECK(unknown_orders(record).size() == 2);
+        CHECK(unknown_atoms(record).empty());
     }
     {
         // Without a dictionary, hybrid reads the file as before.

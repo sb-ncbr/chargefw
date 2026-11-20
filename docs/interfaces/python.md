@@ -255,7 +255,7 @@ script.py:4: InputWarning: molecule 1 ('1CRN'): the molecule contains carbon but
 
 | Warning | Raised for |
 | --- | --- |
-| `chargefw.InputWarning` | `hydrogens_missing` and `atoms_too_close` by `calculate()`; `unbonded_residue_atoms`, `symmetry_connections_ignored`, and `bond_orders_unknown` by reading |
+| `chargefw.InputWarning` | `hydrogens_missing` and `atoms_too_close` by `calculate()`; `unbonded_residue_atoms`, `symmetry_connections_ignored`, `bond_orders_unknown`, and `unknown_component_atoms` by reading |
 | `chargefw.ChargeWarning` | `charge_out_of_range` by `calculate()`: the charges are probably wrong |
 
 Both derive from `chargefw.ChargeFWWarning`. A call that finds the same problem in several molecules
