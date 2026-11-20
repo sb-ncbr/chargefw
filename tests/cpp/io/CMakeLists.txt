@@ -36,6 +36,10 @@ chargefw_add_snitch_test(test_mmcif_output
 )
 target_link_libraries(test_mmcif_output PRIVATE gemmi::gemmi_cpp)
 
+chargefw_add_snitch_test(test_component_dictionary
+        test_component_dictionary.cpp
+)
+
 chargefw_add_snitch_test(test_fixed_ions
         test_fixed_ions.cpp
 )

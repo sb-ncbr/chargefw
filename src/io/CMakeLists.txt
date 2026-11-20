@@ -2,6 +2,7 @@ target_sources(chargefw_objects
         PRIVATE
         charge_result.cpp
         component.h
+        component_dictionary.cpp
         text_encoding.h
         native/bond_format.h
         native/json_output.cpp
@@ -53,6 +54,7 @@ target_sources(chargefw_objects
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/output_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/parse_error.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/charge_result.h
+        ${PROJECT_SOURCE_DIR}/include/chargefw/io/component_dictionary.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/conformer_selection.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/all.h
         ${PROJECT_SOURCE_DIR}/include/chargefw/io/structure_options.h

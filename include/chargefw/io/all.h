@@ -4,6 +4,7 @@
 // Prefer including only the individual headers in library code.
 
 #include <chargefw/io/charge_result.h>
+#include <chargefw/io/component_dictionary.h>
 #include <chargefw/io/conformer_selection.h>
 #include <chargefw/io/json_input.h>
 #include <chargefw/io/json_output.h>
