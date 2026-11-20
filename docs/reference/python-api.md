@@ -511,7 +511,7 @@ cancellation](../interfaces/python.md#progress-and-cancellation).
 | `chargefw.NoExecutablePlanError` | No method and parameter set apply with the requested settings |
 | `chargefw.NumericalFailureError` | The calculation failed, for example did not converge |
 | `chargefw.CalculationCancelledError` | The observer cancelled the calculation |
-| `chargefw.parameterization.EvaluationError` | A calculation for parameter values failed during fitting or evaluation |
+| `chargefw.parameterization.EvaluationError` | A calculation for parameter values failed during fitting or evaluation. `failure` holds what the method reported, with its `kind`, `message`, `molecule_index`, and `conformer_index`, or is `None` when no calculation of a method failed |
 
 Invalid arguments raise `TypeError` or `ValueError`, files that cannot be opened or written raise
 `OSError`, and a calculation that runs out of memory raises `MemoryError`.

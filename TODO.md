@@ -44,8 +44,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Give kinds to the parameter-set errors that are still plain `std::invalid_argument` and
   `ValueError`: a parameter-set directory that does not exist or has duplicate IDs, and a set that
   cannot be written.
-- [ ] Check the fitting errors against the kind, reason, and location of `ParseError` and
-  `OutputError`: `EvaluationError`, `CompressionError`, and `NonFiniteNormalEquations`.
 
 ## Integrations
 

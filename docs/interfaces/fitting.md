@@ -300,6 +300,12 @@ earlier fit can leave it, is fine), that the charges can be calculated, and that
 changes at least one charge. Otherwise it raises `ValueError` naming the slots, or
 `chargefw.parameterization.EvaluationError` if the charges cannot be calculated.
 
+When a method could not calculate the charges for the values, the error's `failure` says what the
+method reported, as fields: its `kind`, such as `"no_solution"`, the reason in `message`, and
+`molecule_index` and `conformer_index`, counted from zero. It tells you where those values failed;
+other values may fail elsewhere or not at all. `failure` is `None` for an error that comes from no
+failed calculation, such as sums of the fit that are not finite numbers.
+
 During the fit, values for which the calculation fails, for example because the system becomes
 unstable, are rejected, and the fit tries a smaller step. `result.failed_evaluations` counts them.
 

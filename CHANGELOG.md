@@ -52,6 +52,12 @@
   and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
   and the exit statuses of the command line are unchanged.
 
+### Fitting
+
+- `chargefw.parameterization.EvaluationError` has `failure`: what the method reported when it
+  could not calculate the charges for the values, with its `kind`, `message`, `molecule_index`, and
+  `conformer_index`, or `None` when no calculation of a method failed. The messages are unchanged.
+
 ### Output
 
 - A result that a format cannot hold, a document or RDKit molecule that changed since it was read,
