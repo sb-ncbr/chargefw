@@ -288,9 +288,9 @@ Molecules or a parameter set that `chargefw.io.read()`, `chargefw.io.parse()`, o
 try:
     molecules = chargefw.io.read("ligands.sdf", format="sdf")
 except chargefw.ParseError as error:
-    print(error.kind)       # malformed
-    print(error.reason)     # unknown element symbol 'Xx'
-    print(error.line)       # 5
+    print(error.kind)  # malformed
+    print(error.reason)  # unknown element symbol 'Xx'
+    print(error.line)  # 5
     print(error.line_text)  #     0.0000    0.0000    0.0000 Xx  0  0
 ```
 
@@ -402,9 +402,9 @@ anything is written:
 try:
     chargefw.io.write("ligands.mol2", result, format="mol2")
 except chargefw.OutputError as error:
-    print(error.kind)            # missing_coordinates
+    print(error.kind)  # missing_coordinates
     print(error.molecule_index)  # 2
-    print(error)                 # molecule 3: MOL2 output requires coordinates
+    print(error)  # molecule 3: MOL2 output requires coordinates
 ```
 
 `kind` is the cause as a code, one of the [kinds of the format
