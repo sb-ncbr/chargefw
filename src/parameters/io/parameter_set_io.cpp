@@ -521,8 +521,8 @@ auto append_parameter_sets_from_directory_if_present(std::vector<ParameterSet>& 
 
     if (!std::filesystem::is_directory(directory)) {
         // Keep the default-path diagnostic rather than the generic directory-loader message.
-        throw std::invalid_argument{"default parameter path '" + directory.string() +
-                                    "' is not a directory"};
+        throw std::runtime_error{"default parameter path '" + directory.string() +
+                                 "' is not a directory"};
     }
 
     append_parameter_sets_from_directory(parameter_sets, ids, directory);
@@ -731,8 +731,13 @@ auto load_default_parameter_sets() -> std::vector<ParameterSet> {
     std::vector<ParameterSet> parameter_sets;
     std::set<std::string> ids;
 
-    for (const auto& directory : default_parameter_directories()) {
-        append_parameter_sets_from_directory_if_present(parameter_sets, ids, directory);
+    try {
+        for (const auto& directory : default_parameter_directories()) {
+            append_parameter_sets_from_directory_if_present(parameter_sets, ids, directory);
+        }
+    } catch (const std::invalid_argument& error) {
+        // Two bundled files with one ID: the installation is wrong, not an argument.
+        throw std::runtime_error{error.what()};
     }
 
     if (parameter_sets.empty()) {
@@ -740,7 +745,7 @@ auto load_default_parameter_sets() -> std::vector<ParameterSet> {
         for (const auto& directory : default_parameter_directories()) {
             searched += (searched.empty() ? "'" : ", '") + directory.string() + "'";
         }
-        throw std::invalid_argument{"no bundled parameter sets were found in " + searched};
+        throw std::runtime_error{"no bundled parameter sets were found in " + searched};
     }
 
     sort_parameter_sets(parameter_sets);

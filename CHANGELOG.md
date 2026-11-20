@@ -34,6 +34,9 @@
   `std::runtime_error` with a kind, for a file whose content they refuse, and `std::runtime_error`
   for a file that cannot be opened. Both were `std::invalid_argument`, so a handler for that no
   longer catches them: catch `parameters::ParseError`, then `std::runtime_error`.
+- An installation whose bundled parameter sets are missing or have a repeated ID is reported as a
+  `std::runtime_error` in C++ and a `RuntimeError` in Python. It was `std::invalid_argument` and
+  `ValueError`, as if an argument were wrong.
 - Breaking change: in C++, `io::ParseError` is constructed with a `ParseErrorKind` as its first
   argument. In Python, `ParseError` is constructed from the reason and the keyword argument `kind`,
   and writes its message from the reason and the location; an exception from a reader that is not

@@ -476,7 +476,8 @@ from a `std::istream`, with an optional name for the stream. A file whose conten
 `<chargefw/parameters/io/parse_error.h>`: its `kind()` is `malformed`, or `unsupported` for a file
 of another format version, `reason()` says why, starting with the member of the file, and
 `source_name()` names the file. A file that cannot be opened throws a `std::runtime_error` that is
-not a `ParseError`, so catch `ParseError` first. `save_parameter_set_json()` writes a set to a
+not a `ParseError`, so catch `ParseError` first. So does an installation whose bundled sets are
+missing. `save_parameter_set_json()` writes a set to a
 `std::ostream` in the same format, which loads back as an equal set. The format lists the parameter
 names once for all atom entries and once for all bond entries, so writing a set whose entries have
 different names throws `std::invalid_argument`. These functions are declared in

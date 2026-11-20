@@ -39,12 +39,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
   `README.md`.
 
-## Errors
-
-- [ ] Give kinds to the parameter-set errors that are still plain `std::invalid_argument` and
-  `ValueError`: a parameter-set directory that does not exist or has duplicate IDs, and a set that
-  cannot be written.
-
 ## Integrations
 
 - [ ] ACC III migration: ChargeFW provides the reading options, method and parameter catalogs,

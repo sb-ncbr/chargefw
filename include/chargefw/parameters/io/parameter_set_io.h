@@ -25,9 +25,13 @@ namespace chargefw::parameters {
 // and nothing is written. A section without entries is omitted.
 auto save_parameter_set_json(const ParameterSet& set, std::ostream& output) -> void;
 
+// The sets of the .json files in `directory`. A directory that does not exist and two files with
+// the same parameter-set ID throw std::invalid_argument.
 [[nodiscard]] auto load_parameter_sets_json_directory(const std::filesystem::path& directory)
     -> std::vector<ParameterSet>;
 
+// The bundled sets. An installation without them, or with two sets of the same ID, throws
+// std::runtime_error.
 [[nodiscard]] auto load_default_parameter_sets() -> std::vector<ParameterSet>;
 
 } // namespace chargefw::parameters
