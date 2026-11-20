@@ -28,8 +28,10 @@ struct InputArguments {
     std::string structural_selection = "all";
     std::string structural_bonds = "hybrid";
     std::string conformer_selection = "all";
+    std::string components;
     CLI::Option* structural_selection_option = nullptr;
     CLI::Option* structural_bonds_option = nullptr;
+    CLI::Option* components_option = nullptr;
 };
 
 struct SelectionArguments {

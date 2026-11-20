@@ -2,6 +2,7 @@
 
 #include "io/fixed_ions.h"
 
+#include <chargefw/io/component_dictionary.h>
 #include <chargefw/io/parse_error.h>
 #include <chargefw/methods/method_registry.h>
 #include <chargefw/parameters/io/parameter_set_io.h>
@@ -16,6 +17,7 @@
 #include <format>
 #include <fstream>
 #include <istream>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <sstream>
@@ -249,6 +251,10 @@ void add_input_options(CLI::App& command, InputArguments& arguments) {
                            "PDB/mmCIF connectivity: none, explicit, templates, or hybrid");
     command.add_option("--conformers", arguments.conformer_selection,
                        "Conformers to read: first or all");
+    arguments.components_option = command.add_option(
+        "--components", arguments.components,
+        "PDB/mmCIF component dictionary for bonds and bond orders within residues, with "
+        "--bonds templates or hybrid");
 }
 
 void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
@@ -283,13 +289,24 @@ void add_selection_options(CLI::App& command, SelectionArguments& arguments) {
 }
 
 auto import_input(const InputArguments& arguments) -> ImportedCollection {
-    const auto options = io::StructureOptions{
+    auto options = io::StructureOptions{
         .selection = io::record_selection_from_string(arguments.structural_selection),
         .bonds = io::bond_strategy_from_string(arguments.structural_bonds),
         .conformers = io::conformer_selection_from_string(arguments.conformer_selection)};
+    // The file is opened only where it is used: for PDB or mmCIF input, which read_collection()
+    // refuses the option without, and for the strategies that take bonds from a dictionary.
+    const auto extension = lowercase_extension(uncompressed_path(arguments.path));
+    const auto structural = extension == ".pdb" || extension == ".cif" || extension == ".mmcif";
+    if (arguments.components_option->count() > 0 && structural &&
+        (options.bonds == io::BondStrategy::templates ||
+         options.bonds == io::BondStrategy::hybrid)) {
+        options.components = std::make_shared<const io::ComponentDictionary>(
+            io::ComponentDictionary::read(arguments.components));
+    }
     return read_collection(arguments.path, options,
                            arguments.structural_selection_option->count() > 0 ||
-                               arguments.structural_bonds_option->count() > 0);
+                               arguments.structural_bonds_option->count() > 0 ||
+                               arguments.components_option->count() > 0);
 }
 
 auto make_request(core::MoleculeCollection molecules, const SelectionArguments& arguments,
