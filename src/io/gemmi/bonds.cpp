@@ -86,20 +86,19 @@ class BondAccumulator {
     std::vector<std::size_t> aromatic_bonds_; // Indices in bonds_.
 };
 
-// Residues of a model by chain name and sequence ID, in model order, so that each connection
-// partner is found without scanning every chain and residue.
+// The selected residues of a model by chain name and sequence ID, in model order, so that each
+// connection partner is found without scanning every chain and residue.
 class ResidueIndex {
   public:
-    explicit ResidueIndex(const ::gemmi::Model& model) {
-        for (const auto& chain : model.chains) {
-            for (const auto& residue : chain.residues) {
-                residues_[key(chain.name, residue.seqid)].push_back(std::addressof(residue));
-            }
+    explicit ResidueIndex(const selection::SelectedModel& selected) {
+        for (const auto& residue : selected.residues()) {
+            residues_[key(residue.chain_name, residue.residue->seqid)].push_back(
+                std::addressof(residue));
         }
     }
 
     [[nodiscard]] auto find(const std::string_view chain_name, const ::gemmi::SeqId& seqid) const
-        -> std::span<const ::gemmi::Residue* const> {
+        -> std::span<const selection::SelectedResidue* const> {
         const auto found = residues_.find(key(chain_name, seqid));
         if (found == residues_.end()) {
             return {};
@@ -117,22 +116,35 @@ class ResidueIndex {
                 static_cast<char>(static_cast<unsigned char>(seqid.icode) | 0x20U)};
     }
 
-    std::map<Key, std::vector<const ::gemmi::Residue*>> residues_;
+    std::map<Key, std::vector<const selection::SelectedResidue*>> residues_;
 };
 
+// The selected atom a connection names. A residue and its atoms are matched by the names the
+// selection gives them: an mmCIF connection uses label names, and Gemmi's own names are author
+// names. Atoms that were not selected, such as other alternate locations, are not looked at.
 [[nodiscard]] auto selected_atom_index(const ResidueIndex& residues,
                                        const selection::SelectedModel& selected,
                                        const ::gemmi::AtomAddress& address)
     -> std::optional<std::size_t> {
+    const auto find_atom = [&](const selection::SelectedResidue& residue, const auto& location) {
+        const auto atom = std::ranges::find_if(residue.atoms, [&](const auto& candidate) {
+            return candidate.name == address.atom_name &&
+                   location(*selected.atoms()[candidate.index]);
+        });
+        return atom != residue.atoms.end() ? std::optional{atom->index} : std::nullopt;
+    };
     const auto candidates = residues.find(address.chain_name, address.res_id.seqid);
     // As Model::find_cra(address, true): the first residue with the given name decides.
     for (const auto* residue : candidates) {
-        if (residue->name != address.res_id.name) {
+        if (residue->component_name != address.res_id.name) {
             continue;
         }
         if (!address.atom_name.empty()) {
-            if (const auto* atom = residue->find_atom(address.atom_name, address.altloc)) {
-                return selected.atom_index(atom);
+            const auto index = find_atom(*residue, [&](const ::gemmi::Atom& atom) {
+                return atom.altloc_matches(address.altloc);
+            });
+            if (index.has_value()) {
+                return index;
             }
         }
         break;
@@ -142,14 +154,14 @@ class ResidueIndex {
     }
 
     for (const auto* residue : candidates) {
-        if (!address.res_id.name.empty() && residue->name != address.res_id.name) {
+        if (!address.res_id.name.empty() && residue->component_name != address.res_id.name) {
             continue;
         }
-        for (const auto& atom : residue->atoms) {
-            if (atom.name == address.atom_name &&
-                (address.altloc == '\0' || atom.altloc == address.altloc)) {
-                return selected.atom_index(std::addressof(atom));
-            }
+        const auto index = find_atom(*residue, [&](const ::gemmi::Atom& atom) {
+            return address.altloc == '\0' || atom.altloc == address.altloc;
+        });
+        if (index.has_value()) {
+            return index;
         }
     }
     return std::nullopt;
@@ -174,7 +186,7 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
         return 0;
     }
 
-    const auto residues = ResidueIndex{structure.models.front()};
+    const auto residues = ResidueIndex{selected};
     auto skipped = std::size_t{0};
     for (const auto& connection : structure.connections) {
         if (!is_bond(connection)) {

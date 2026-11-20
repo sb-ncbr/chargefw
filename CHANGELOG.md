@@ -15,6 +15,9 @@
   `ParseError` that names the residue and the atom. Such a file repeats an atom, or has several
   residues under one name, chain, number, and insertion code. mmCIF input used to read the first atom of each name and
   leave out the others without a warning; PDB input was refused without saying where.
+- An mmCIF `_struct_conn` connection is read where the author name of the atom or its residue
+  (`auth_atom_id`, `auth_comp_id`) differs from the label name. The bond used to be left out
+  without a warning.
 - `ParseError` says why the input was refused as a kind: `no_records`, `invalid_encoding`,
   `malformed`, `unsupported`, or `inconsistent_models`. Python has it as `ParseError.kind`, C++ as
   `ParseError::kind()`.

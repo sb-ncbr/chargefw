@@ -102,7 +102,7 @@ SelectedModel::SelectedModel(const ::gemmi::Model& model, const RecordSelection 
                 sites_.push_back(::gemmi::const_CRA{.chain = std::addressof(chain),
                                                     .residue = std::addressof(residue),
                                                     .atom = std::addressof(atom)});
-                selected.atoms.push_back({atom.name, atom_index});
+                selected.atoms.push_back({std::move(name), atom_index});
                 atom_indices_.emplace(std::addressof(atom), atom_index);
                 serial_indices_.emplace(atom.serial, atom_index++);
             }
