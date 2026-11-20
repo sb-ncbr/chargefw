@@ -40,7 +40,6 @@ class SelectedModel {
     [[nodiscard]] auto atoms() const -> const std::vector<const ::gemmi::Atom*>&;
     [[nodiscard]] auto sites() const -> const std::vector<::gemmi::const_CRA>&;
     [[nodiscard]] auto residues() const -> const std::vector<SelectedResidue>&;
-    [[nodiscard]] auto atom_index(const ::gemmi::Atom* atom) const -> std::optional<std::size_t>;
     [[nodiscard]] auto atom_index_by_serial(int serial) const -> std::optional<std::size_t>;
     void normalize_component_names(std::span<const SourceAtomReference> source_atoms);
 
@@ -48,7 +47,6 @@ class SelectedModel {
     std::vector<const ::gemmi::Atom*> atoms_;
     std::vector<::gemmi::const_CRA> sites_;
     std::vector<SelectedResidue> residues_;
-    std::unordered_map<const ::gemmi::Atom*, std::size_t> atom_indices_;
     std::unordered_map<int, std::size_t> serial_indices_;
 };
 

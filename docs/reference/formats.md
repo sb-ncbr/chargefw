@@ -222,10 +222,10 @@ alternate location. Residues in different PDB segments or mmCIF label chains are
 alternatives. For each atom name in a residue, only one alternate location is read: the first one in
 the file. Its alternate-location code is kept and written to the output.
 
-An atom name that repeats in a residue with the same alternate location, or with none, is an error.
-Either the file repeats an atom, or several residues share one name, chain, number, and insertion
-code, as in a file whose insertion codes were lost or whose molecules have no chain IDs. Remove the
-repeated atom, or give each residue its own labels.
+If two rows give the same atom name in a residue and the same alternate location (including a blank
+location), ChargeFW refuses the file and identifies the repeated atom. If a row was duplicated,
+remove the extra row. If two residues became indistinguishable because their insertion codes were
+lost, restore the insertion codes.
 
 ### Connectivity
 

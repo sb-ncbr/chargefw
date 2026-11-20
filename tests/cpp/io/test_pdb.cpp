@@ -627,6 +627,8 @@ TEST_CASE("PDB input rejects an atom repeated at one alternate location", "[io][
         CHECK(error->kind() == io::ParseErrorKind::malformed);
         CHECK(error->reason().contains("LIG A 1"));
         CHECK(error->reason().contains("C1"));
+        CHECK(error->reason().contains(locations.back() == ' ' ? "no alternate location"
+                                                               : "alternate location B"));
     }
 }
 
