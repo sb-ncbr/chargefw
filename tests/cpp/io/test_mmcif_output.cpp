@@ -734,10 +734,11 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
     CHECK(::gemmi::cif::as_string(charge_rows[2][0]) == "3");
     CHECK(::gemmi::cif::as_string(charge_rows[0][1]) == ::gemmi::cif::as_string(charge_rows[2][1]));
 
-    // A suffix is skipped when a record already has that name.
+    // A suffix is skipped when a record already has that name. CIF block names are
+    // case-insensitive, so names that differ only in case also get a suffix.
     auto records = std::vector<io::ImportedMoleculeRecord>{};
     auto assignments = std::vector<charges::ChargeAssignment>{};
-    for (const auto* name : {"same", "same_2", "same", "same"}) {
+    for (const auto* name : {"same", "Same_2", "SAME", "same"}) {
         assignments.push_back({.target = {.molecule_index = records.size()},
                                .charges = charges::AtomicCharges{{0.0, 0.0}}});
         records.push_back(generated_record(name));
@@ -750,7 +751,7 @@ TEST_CASE("result-owned mmCIF broadcasts molecule charges and uses fresh unique 
     for (const auto& block : named.blocks) {
         names.push_back(block.name);
     }
-    CHECK(names == std::vector<std::string>{"same", "same_2", "same_3", "same_4"});
+    CHECK(names == std::vector<std::string>{"same", "Same_2", "SAME_3", "same_4"});
 }
 
 TEST_CASE("result-owned mmCIF rejects failed results geometry and out-of-range charges",

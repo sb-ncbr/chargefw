@@ -350,7 +350,9 @@ options or the execution mode that could tell them apart.
 
 For every molecule, ChargeFW writes a new data block with `_entry`, `_audit_conform`, `_atom_site`,
 the bond categories described below, and the charge categories; nothing else from the input file is
-copied. Author and label names are written as they were read. Missing names are replaced by
+copied. The block is named after the molecule. CIF block names are case-insensitive, so a name
+already used in the file, in any case, gets a suffix: `water`, `Water`, and `water` become
+`data_water`, `data_Water_2`, and `data_water_3`. Author and label names are written as they were read. Missing names are replaced by
 generated atom names, residue `UNL`, chain `A`, and entity `1`. Atom IDs and model numbers are
 numbered anew, and each charge refers to the new `_atom_site.id` of its atom. Charges from a method
 that does not use coordinates are written for every model. ChargeFW does not write failed results,

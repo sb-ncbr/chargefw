@@ -15,6 +15,7 @@
 #include <gemmi/elem.hpp>
 #include <gemmi/numb.hpp>
 #include <gemmi/to_cif.hpp>
+#include <gemmi/util.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -106,18 +107,21 @@ auto ensure_dictionary(::gemmi::cif::Block& block) -> void;
     return candidate;
 }
 
-// Block names must be unique, so repeated names get _2, _3, and so on. Remembering used names and
-// the next suffix per name keeps this linear in the number of records, which often share a name.
+// Block names must be unique, so repeated names get _2, _3, and so on. CIF block names are
+// case-insensitive, so names are compared in lowercase and keep their spelling. Remembering used
+// names and the next suffix per name keeps this linear in the number of records, which often share
+// a name.
 class BlockNames {
   public:
     [[nodiscard]] auto unique(std::string candidate) -> std::string {
-        if (used_.insert(candidate).second) {
+        auto key = ::gemmi::to_lower(candidate);
+        if (used_.insert(key).second) {
             return candidate;
         }
-        auto& suffix = next_suffix_.try_emplace(candidate, 2).first->second;
+        auto& suffix = next_suffix_.try_emplace(std::move(key), 2).first->second;
         while (true) {
             auto name = candidate + "_" + std::to_string(suffix++);
-            if (used_.insert(name).second) {
+            if (used_.insert(::gemmi::to_lower(name)).second) {
                 return name;
             }
         }

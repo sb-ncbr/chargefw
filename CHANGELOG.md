@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Output
+
+- mmCIF output gives a suffix to a molecule whose name differs from an earlier one only in case,
+  such as `water` and `Water`, which now become `data_water` and `data_Water_2`. CIF block names
+  are case-insensitive, and Gemmi refused the files with `data_water` and `data_Water`.
+
 ## 3.0.0rc6
 
 ### Input
