@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from importlib import import_module
+from os import PathLike
 from typing import Any, Literal, cast
 
 from .._calculation import CalculationResult
@@ -11,6 +12,7 @@ from .._chargefw import io as _native_io
 from .._core import MoleculeCollection
 from . import (
     BondStrategy,
+    ComponentDictionary,
     ConformerSelection,
     ExistingCharges,
     RecordSelection,
@@ -55,13 +57,15 @@ def from_structure(
     selection: RecordSelection = "all",
     bonds: StructureBondStrategy = "hybrid",
     conformers: ConformerSelection = "all",
+    components: ComponentDictionary | str | PathLike[str] | None = None,
 ) -> MoleculeCollection:
     """Convert an in-memory ``gemmi.Structure`` to a one-molecule collection.
 
     With ``bonds="hybrid"``, residues get their template bonds, and the covalent and disulfide links
     in ``structure.connections`` are added as single bonds. ``"templates"`` leaves the links out.
-    Residues without a template, such as ligands and modified residues, get no bonds within them;
-    the links still connect them to other residues. PDB ``CONECT`` records (``conect_map``) are not
+    Residues without a template, such as ligands and modified residues, get no bonds within them
+    unless ``components`` gives a component dictionary; the links still connect them to other
+    residues. PDB ``CONECT`` records (``conect_map``) are not
     used. For the bonds the file records, use ``from_document()`` for mmCIF or
     ``chargefw.io.read()``.
     """
@@ -84,6 +88,7 @@ def from_structure(
         selection=selection,
         bonds=bonds,
         conformers=conformers,
+        components=components,
     )
 
 
@@ -94,6 +99,7 @@ def from_document(
     selection: RecordSelection = "all",
     bonds: BondStrategy = "hybrid",
     conformers: ConformerSelection = "all",
+    components: ComponentDictionary | str | PathLike[str] | None = None,
 ) -> MoleculeCollection:
     """Convert a ``gemmi.cif.Document`` through ChargeFW's mmCIF parser."""
 
@@ -107,6 +113,7 @@ def from_document(
         selection=selection,
         bonds=bonds,
         conformers=conformers,
+        components=components,
     )
 
 

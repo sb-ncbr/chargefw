@@ -53,6 +53,11 @@ class MoleculePayload(TypedDict):
     import_warnings: list[ImportIssuePayload]
     native_input_metadata: _NativeInputMetadata
 
+class _ComponentDictionary:
+    def __init__(self, contents: bytes, source_name: str) -> None: ...
+    @property
+    def version(self) -> str: ...
+
 def _parse(
     contents: str,
     source_name: str,
@@ -60,6 +65,7 @@ def _parse(
     selection: Literal["all", "polymers-and-ligands", "polymers"],
     bonds: Literal["none", "explicit", "templates", "hybrid"],
     conformers: Literal["first", "all"],
+    components: _ComponentDictionary | None,
 ) -> list[MoleculePayload]: ...
 def _dumps(
     results: list[_NativeExecutionResult],

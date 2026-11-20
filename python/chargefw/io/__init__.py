@@ -74,6 +74,64 @@ _OPTION_VALUES: dict[str, tuple[str, ...]] = {
 }
 
 
+def _file_bytes(path: Path) -> bytes:
+    """The contents of a file, decompressed when it is gzip-compressed."""
+
+    data = path.read_bytes()
+    if data.startswith(b"\x1f\x8b"):
+        try:
+            data = gzip.decompress(data)
+        except (OSError, EOFError, zlib.error) as error:
+            raise ParseError(str(error), kind="malformed", source_name=str(path)) from None
+    return data
+
+
+class ComponentDictionary:
+    """Bonds of chemical components by residue name, for reading PDB and mmCIF files.
+
+    ``path`` is the data file of the ``chargefw-ccd`` package, ``chargefw_ccd.path()``. Pass the
+    object as ``components`` to the reading functions; one object serves any number of calls.
+    """
+
+    __slots__ = ("_native",)
+
+    def __init__(self, path: str | PathLike[str]) -> None:
+        if not isinstance(path, (str, PathLike)):
+            raise TypeError("path must be a string or path-like value")
+        source_path = Path(path)
+        self._native = _native_io._ComponentDictionary(_file_bytes(source_path), str(source_path))
+
+    @property
+    def version(self) -> str:
+        """The version of the package the file came from, such as ``"2026.11.13"``."""
+
+        return self._native.version
+
+    def __repr__(self) -> str:
+        return f"<chargefw.io.ComponentDictionary version {self.version}>"
+
+
+def _native_components(
+    components: ComponentDictionary | str | PathLike[str] | None,
+    format: InputFormat,
+    bonds: BondStrategy,
+) -> _native_io._ComponentDictionary | None:
+    """Check ``components`` against the other options and load a dictionary given as a path."""
+
+    if components is None:
+        return None
+    if format not in _STRUCTURAL_FORMATS:
+        raise ValueError("components is only supported for PDB and mmCIF input")
+    if not isinstance(components, (ComponentDictionary, str, PathLike)):
+        raise TypeError("components must be a ComponentDictionary or the path of its file")
+    # The other strategies take no bonds from a dictionary, so its file is not opened for them.
+    if bonds not in ("templates", "hybrid"):
+        return None
+    if isinstance(components, ComponentDictionary):
+        return components._native
+    return ComponentDictionary(components)._native
+
+
 class _ImportedMolecule(Molecule):
     __slots__ = ("_import_warnings", "_native_input_metadata")
 
@@ -213,10 +271,11 @@ def parse(
     selection: RecordSelection = "all",
     bonds: BondStrategy | None = None,
     conformers: ConformerSelection = "all",
+    components: ComponentDictionary | str | PathLike[str] | None = None,
 ) -> MoleculeCollection:
     """Parse molecular text using an explicitly selected native reader."""
 
-    collection = _parse(contents, format, source_name, selection, bonds, conformers)
+    collection = _parse(contents, format, source_name, selection, bonds, conformers, components)
     # Raised here rather than in a helper, so that the traceback ends at this function.
     for message, category in _import_warnings(collection):
         warnings.warn(message, category, stacklevel=2)
@@ -230,6 +289,7 @@ def _parse(
     selection: RecordSelection,
     bonds: BondStrategy | None,
     conformers: ConformerSelection,
+    components: ComponentDictionary | str | PathLike[str] | None,
 ) -> MoleculeCollection:
     if not isinstance(contents, str):
         raise TypeError("contents must be a string")
@@ -237,11 +297,12 @@ def _parse(
         raise TypeError("source_name must be a string")
     _validate_options(format, selection, bonds, conformers)
     bond_strategy = "hybrid" if bonds is None else bonds
+    dictionary = _native_components(components, format, bond_strategy)
     # Input a reader refuses raises ParseError. Any other exception from a reader is not a refusal
     # of the input.
     try:
         payloads = _native_io._parse(
-            contents, source_name, format, selection, bond_strategy, conformers
+            contents, source_name, format, selection, bond_strategy, conformers, dictionary
         )
     except ParseError as error:
         if error.line is not None:
@@ -287,18 +348,14 @@ def read(
     selection: RecordSelection = "all",
     bonds: BondStrategy | None = None,
     conformers: ConformerSelection = "all",
+    components: ComponentDictionary | str | PathLike[str] | None = None,
 ) -> MoleculeCollection:
     """Read UTF-8 molecular text, optionally gzip-compressed, with an explicitly selected reader."""
 
     if not isinstance(path, (str, PathLike)):
         raise TypeError("path must be a string or path-like value")
     source_path = Path(path)
-    data = source_path.read_bytes()
-    if data.startswith(b"\x1f\x8b"):
-        try:
-            data = gzip.decompress(data)
-        except (OSError, EOFError, zlib.error) as error:
-            raise ParseError(str(error), kind="malformed", source_name=str(source_path)) from None
+    data = _file_bytes(source_path)
     try:
         # Lines end with LF, CRLF, or CR, as when reading text in Python.
         contents = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
@@ -318,6 +375,7 @@ def read(
         selection,
         bonds,
         conformers,
+        components,
     )
     # Raised here rather than in a helper, so that the traceback ends at this function.
     for message, category in _import_warnings(collection):
@@ -399,6 +457,7 @@ __all__ = [
     "ConformerSelection",
     "IfExists",
     "ExistingCharges",
+    "ComponentDictionary",
     "parse",
     "read",
     "dumps",

@@ -34,6 +34,8 @@ Examples = "https://chargefw.readthedocs.io/en/latest/examples/index.html"
 Repository = "https://github.com/sb-ncbr/chargefw"
 
 [project.optional-dependencies]
+# The component dictionary, for bonds of residues without a built-in template.
+ccd = ["chargefw-ccd>=2026.11.13"]
 gemmi = ["gemmi==0.7.4"]
 parameterization = ["scipy>=1.18"]
 rdkit = ["rdkit>=2024.9"]
