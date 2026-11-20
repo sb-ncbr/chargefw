@@ -4,6 +4,7 @@
 #include "io/output_helpers.h"
 
 #include <chargefw/core/periodic_table.h>
+#include <chargefw/io/output_error.h>
 
 #include <algorithm>
 #include <cctype>
@@ -30,8 +31,9 @@ namespace {
     return std::string{detail::first_known_label(author, label, fallback)};
 }
 
-[[nodiscard]] auto atom_description(const std::size_t atom_index) -> std::string {
-    return "atom " + std::to_string(atom_index + 1);
+// Where a refusal of one atom is. PQR output has one molecule, at index 0.
+[[nodiscard]] auto at_atom(const std::size_t atom_index) -> core::IssueLocation {
+    return core::IssueLocation{.atom_index = atom_index, .atom_indices = {atom_index}};
 }
 
 // APBS reads PQR as whitespace-separated words and treats '#' and '%' as comment characters, so a
@@ -42,9 +44,11 @@ auto require_word(const std::string_view value, const std::string_view field,
             return std::isspace(character) != 0 || std::iscntrl(character) != 0 ||
                    character == '#' || character == '%';
         })) {
-        throw std::invalid_argument{"PQR output cannot write " + std::string{field} + " '" +
-                                    std::string{value} + "' of " + atom_description(atom_index) +
-                                    ": it contains whitespace, a control character, '#', or '%'"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "PQR output cannot write " + std::string{field} + " '" +
+                              std::string{value} +
+                              "': it contains whitespace, a control character, '#', or '%'",
+                          0, at_atom(atom_index)};
     }
 }
 
@@ -53,10 +57,10 @@ auto require_word(const std::string_view value, const std::string_view field,
 auto require_chain(const std::string_view chain, const std::size_t atom_index) -> void {
     require_word(chain, "chain ID", atom_index);
     if (chain.size() != 1 || std::isdigit(static_cast<unsigned char>(chain.front())) != 0) {
-        throw std::invalid_argument{"PQR output cannot write chain ID '" + std::string{chain} +
-                                    "' of " + atom_description(atom_index) +
-                                    ": PQR readers such as APBS require a single non-numeric "
-                                    "character"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "PQR output cannot write chain ID '" + std::string{chain} +
+                              "': PQR readers such as APBS require a single non-numeric character",
+                          0, at_atom(atom_index)};
     }
 }
 
@@ -67,20 +71,22 @@ auto require_residue_number(const std::string& sequence, const std::size_t atom_
     const auto* end = sequence.data() + sequence.size();
     const auto [parsed, error] = std::from_chars(sequence.data(), end, value);
     if (error != std::errc{} || parsed != end) {
-        throw std::invalid_argument{
-            "PQR output cannot write residue number '" + sequence + "' of " +
-            atom_description(atom_index) +
-            ": it is not an integer; read the structure from mmCIF, which numbers residues in "
-            "decimal"};
+        throw OutputError{
+            OutputErrorKind::unrepresentable,
+            "PQR output cannot write residue number '" + sequence +
+                "': it is not an integer; read the structure from mmCIF, which numbers residues in "
+                "decimal",
+            0, at_atom(atom_index)};
     }
 }
 
 auto require_insertion_code(const std::string_view code, const std::size_t atom_index) -> void {
     if (!code.empty() &&
         (code.size() != 1 || std::isalpha(static_cast<unsigned char>(code.front())) == 0)) {
-        throw std::invalid_argument{"PQR output cannot write insertion code '" + std::string{code} +
-                                    "' of " + atom_description(atom_index) +
-                                    ": it is not a single letter"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "PQR output cannot write insertion code '" + std::string{code} +
+                              "': it is not a single letter",
+                          0, at_atom(atom_index)};
     }
 }
 
@@ -88,30 +94,38 @@ auto validate_result(const ChargeCalculationResult& result) -> void {
     if (result.charges() == nullptr) {
         throw std::invalid_argument{"PQR output requires a successful calculation"};
     }
+    // The source first: input that is not a structure is never written as PQR, however many
+    // molecules it has.
+    if (!std::ranges::all_of(result.inputs(), [](const ImportedMoleculeRecord& record) {
+            return record.import_metadata.has_value() &&
+                   (record.import_metadata->format == MolecularSourceFormat::pdb ||
+                    record.import_metadata->format == MolecularSourceFormat::mmcif);
+        })) {
+        throw std::invalid_argument{"PQR output requires a structure read from PDB or mmCIF"};
+    }
     if (result.inputs().size() != 1) {
-        throw std::invalid_argument{"PQR output requires exactly one molecule, but the input has " +
-                                    std::to_string(result.inputs().size())};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "PQR output requires exactly one molecule, but the input has " +
+                              std::to_string(result.inputs().size())};
     }
 
     const auto& record = result.inputs().front();
-    if (!record.import_metadata.has_value() ||
-        (record.import_metadata->format != MolecularSourceFormat::pdb &&
-         record.import_metadata->format != MolecularSourceFormat::mmcif)) {
-        throw std::invalid_argument{"PQR output requires a structure read from PDB or mmCIF"};
-    }
 
     const auto& molecule = record.molecule;
     if (molecule.atom_count() == 0) {
         throw std::invalid_argument{"PQR output requires at least one atom"};
     }
     if (molecule.conformer_count() == 0) {
-        throw std::invalid_argument{"PQR output requires coordinates"};
+        throw OutputError{OutputErrorKind::missing_coordinates, "PQR output requires coordinates",
+                          0};
     }
     // PQR readers such as APBS ignore MODEL records and would combine all models into one system.
     if (molecule.conformer_count() > 1) {
-        throw std::invalid_argument{"PQR output requires one conformer, but the molecule has " +
-                                    std::to_string(molecule.conformer_count()) +
-                                    "; read the structure with only the first conformer or model"};
+        throw OutputError{OutputErrorKind::unsupported_shape,
+                          "PQR output requires one conformer, but the molecule has " +
+                              std::to_string(molecule.conformer_count()) +
+                              "; read the structure with only the first conformer or model",
+                          0};
     }
 
     const auto assignments = result.charges()->assignments();
@@ -128,17 +142,20 @@ auto append_atom_line(std::string& text, const ImportedMoleculeRecord& record,
     const auto symbol = core::element_symbol(atomic_number);
     const auto radius = core::periodic_table().element(atomic_number).van_der_waals_radius;
     if (!(radius > 0.0)) {
-        throw std::invalid_argument{"PQR output has no van der Waals radius for element " +
-                                    std::string{symbol} + " (" + atom_description(atom_index) +
-                                    ")"};
+        throw OutputError{OutputErrorKind::unrepresentable,
+                          "PQR output has no van der Waals radius for element " +
+                              std::string{symbol},
+                          0, at_atom(atom_index)};
     }
     const auto& position = record.molecule.conformer(0)[atom_index];
     if (!std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z)) {
-        throw std::invalid_argument{"PQR coordinates must be finite"};
+        throw OutputError{OutputErrorKind::unrepresentable, "PQR coordinates must be finite", 0,
+                          at_atom(atom_index)};
     }
     const auto charge = assignment.charges[atom_index];
     if (!std::isfinite(charge)) {
-        throw std::invalid_argument{"PQR charges must be finite"};
+        throw OutputError{OutputErrorKind::unrepresentable, "PQR charges must be finite", 0,
+                          at_atom(atom_index)};
     }
 
     const auto generated_name = std::string{symbol} + std::to_string(atom_index + 1);
