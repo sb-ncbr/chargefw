@@ -124,6 +124,22 @@ TEST_CASE("native numeric parsing is complete and locale independent", "[io][nat
     }
 }
 
+TEST_CASE("MOL and SDF read uppercase two-letter elements", "[io][mol]") {
+    std::istringstream sdf{"MSE\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
+                           "    0.0000    0.0000    0.0000 SE  0  0\nM  END\n$$$$\n"};
+    const auto record = io::SdfReader{sdf, "MSE.sdf"}.next();
+    REQUIRE(record.has_value());
+    CHECK(record->molecule.atom(0).atomic_number() == 34);
+
+    std::istringstream mol{
+        "chloride\n\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"
+        "M  V30 BEGIN CTAB\nM  V30 COUNTS 1 0 0 0 0\nM  V30 BEGIN ATOM\n"
+        "M  V30 1 CL 0 0 0 0 CHG=-1\nM  V30 END ATOM\nM  V30 END CTAB\nM  END\n"};
+    const auto chloride = io::parse_mol(mol, {});
+    CHECK(chloride.molecule.atom(0).atomic_number() == 17);
+    CHECK(chloride.molecule.atom(0).formal_charge() == -1);
+}
+
 TEST_CASE("native molecular mappings retain original atom tokens", "[io][mol]") {
     auto mol_record = [] {
         std::istringstream input{"mapping\nchargefw\n\n"
@@ -843,6 +859,9 @@ TEST_CASE("native readers give the kind of refusal", "[io][native]") {
     for (const auto& [symbol, expected] :
          {std::pair<std::string_view, Kind>{"[C,N]", Kind::unsupported},
           {"NOT [C,N]", Kind::unsupported},
+          {"LP", Kind::unsupported},
+          {"XX", Kind::malformed},
+          {"cl", Kind::malformed},
           {"[C,N", Kind::malformed}}) {
         CAPTURE(symbol);
         std::istringstream atom_list{"query\n\n\n  0  0  0  0  0  0  0  0  0  0999 V3000\n"

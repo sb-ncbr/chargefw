@@ -4,6 +4,8 @@
 
 ### Input
 
+- MOL and SDF input now accepts uppercase two-letter element symbols, such as `SE` in PDB ligand
+  downloads.
 - PDB and mmCIF input can take the bonds of ligands and modified residues from a component
   dictionary, the bonds of the wwPDB Chemical Component Dictionary in the new `chargefw-ccd`
   package (`pip install "chargefw[ccd]"`). Name its file with `components` in

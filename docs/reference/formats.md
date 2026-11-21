@@ -74,6 +74,9 @@ skipped. From each record, ChargeFW reads:
 - formal charges: in V3000 from the `CHG=` attribute of the atoms, in V2000 from `M  CHG` lines or,
   in a record without `M  CHG` and `M  RAD` lines, from the charge field of the atom lines.
 
+Two-letter element symbols can also be uppercase, as in PDB ligand downloads: `SE` and `Se` both
+mean selenium.
+
 Everything else in a record is ignored without a warning, for example isotopes, stereochemistry,
 atom aliases, S-groups, and V3000 blocks other than `ATOM` and `BOND`. Because S-groups are ignored,
 a polymer repeat unit is calculated as the atoms written in the file.
