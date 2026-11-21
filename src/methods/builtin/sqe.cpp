@@ -3,6 +3,7 @@
 #include "methods/builtin/prerequisite_helpers.h"
 #include "methods/builtin/sqe_system.h"
 #include "methods/linear_algebra/dense_solve.h"
+#include "methods/parallel_rows.h"
 
 #include "methods/fixed_source_validation.h"
 
@@ -90,7 +91,8 @@ auto sqe_core::build_system(const CalculationInput& input,
         }
     }
 
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
+    // Row i fills J(i, j) and J(j, i) for j > i, so rows write different entries.
+    methods::detail::for_each_row(atom_count, [&](const std::size_t atom_index) {
         const auto i = static_cast<Eigen::Index>(atom_index);
         charge_matrix(i, i) = hardness[atom_index];
         charge_rhs(i) = -electronegativity[atom_index];
@@ -108,7 +110,7 @@ auto sqe_core::build_system(const CalculationInput& input,
             charge_matrix(i, j) = value;
             charge_matrix(j, i) = value;
         }
-    }
+    });
 
     if (!initial_charge_values.empty()) {
         charge_rhs -= charge_matrix * initial_charges;
@@ -131,8 +133,9 @@ auto sqe_core::build_system(const CalculationInput& input,
     auto& split_rhs = system.split_rhs;
     split_matrix.resize(m, m);
     split_rhs.resize(m);
-    for (Eigen::Index a = 0; a < m; ++a) {
-        const auto [i, j] = system.bonds[static_cast<std::size_t>(a)];
+    methods::detail::for_each_row(bond_count, [&](const std::size_t bond_index) {
+        const auto a = static_cast<Eigen::Index>(bond_index);
+        const auto [i, j] = system.bonds[bond_index];
         split_rhs(a) = charge_rhs(i) - charge_rhs(j);
         for (Eigen::Index b = a; b < m; ++b) {
             const auto [k, l] = system.bonds[static_cast<std::size_t>(b)];
@@ -141,8 +144,8 @@ auto sqe_core::build_system(const CalculationInput& input,
             split_matrix(a, b) = value;
             split_matrix(b, a) = value;
         }
-        split_matrix(a, a) += kappa[static_cast<std::size_t>(a)];
-    }
+        split_matrix(a, a) += kappa[bond_index];
+    });
 
     return system;
 }

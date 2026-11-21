@@ -3,6 +3,7 @@
 #include "methods/builtin/eem_system.h"
 #include "methods/fixed_source_validation.h"
 #include "methods/linear_algebra/dense_solve.h"
+#include "methods/parallel_rows.h"
 
 #include <chargefw/core/molecule.h>
 #include <chargefw/core/position.h>
@@ -62,7 +63,8 @@ auto eem_core::build_system(const CalculationInput& input) -> System {
     auto& A = system.matrix;
     auto& b = system.rhs;
 
-    for (std::size_t atom_index = 0; atom_index < atom_count; ++atom_index) {
+    // Row i fills A(i, j) and A(j, i) for j > i, so rows write different entries.
+    methods::detail::for_each_row(atom_count, [&](const std::size_t atom_index) {
         const auto i = static_cast<Eigen::Index>(atom_index);
 
         A(i, i) = B_parameter[atom_index];
@@ -80,7 +82,7 @@ auto eem_core::build_system(const CalculationInput& input) -> System {
             A(i, j) = value;
             A(j, i) = value;
         }
-    }
+    });
 
     set_charge_constraint(A, b, input.target_charge());
 
