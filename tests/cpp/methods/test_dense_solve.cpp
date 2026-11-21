@@ -2,6 +2,7 @@
 
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
+#include <Eigen/LU>
 
 #include <snitch/snitch.hpp>
 
@@ -34,6 +35,29 @@ auto factorize(Eigen::MatrixXd matrix, const int threads) -> Eigen::MatrixXd {
     return matrix;
 }
 
+// Like the equations of a charge-constrained method: a small diagonal, so that rows are swapped,
+// and a last row and column of ones with a zero corner.
+auto make_constrained(const Eigen::Index size) -> Eigen::MatrixXd {
+    Eigen::MatrixXd matrix(size, size);
+    for (Eigen::Index column = 0; column < size; ++column) {
+        for (Eigen::Index row = 0; row < size; ++row) {
+            const auto distance = static_cast<double>(row > column ? row - column : column - row);
+            matrix(row, column) = 1.0 / (1.0 + distance + static_cast<double>((row + column) % 5));
+        }
+        matrix(column, column) = 0.1 * static_cast<double>(1 + column % 3);
+    }
+    matrix.row(size - 1).setOnes();
+    matrix.col(size - 1).setOnes();
+    matrix(size - 1, size - 1) = 0.0;
+    return matrix;
+}
+
+auto lu_solve(Eigen::MatrixXd matrix, const Eigen::MatrixXd& rhs, const int threads)
+    -> Eigen::MatrixXd {
+    oneapi::tbb::task_arena arena{threads};
+    return arena.execute([&] { return linear_algebra::InPlaceLu{matrix}.solve(rhs); });
+}
+
 } // namespace
 
 TEST_CASE("the Cholesky factor of a large matrix solves its system for any number of threads",
@@ -62,4 +86,19 @@ TEST_CASE("a large matrix that is not positive definite has no Cholesky factor",
     matrix(blocked_size - 2, blocked_size - 2) = -1.0;
 
     CHECK_FALSE(linear_algebra::cholesky_in_place(matrix));
+}
+
+TEST_CASE("the LU factors of a large matrix solve its systems for any number of threads",
+          "[methods][linear-algebra]") {
+    const auto matrix = make_constrained(blocked_size);
+    Eigen::MatrixXd rhs(blocked_size, 2);
+    rhs.col(0) = Eigen::VectorXd::LinSpaced(blocked_size, -1.0, 1.0);
+    rhs.col(1) = Eigen::VectorXd::LinSpaced(blocked_size, 2.0, 0.5);
+
+    const auto solution = lu_solve(matrix, rhs, 1);
+    const Eigen::MatrixXd expected = matrix.partialPivLu().solve(rhs);
+    const auto scale = expected.cwiseAbs().maxCoeff();
+    CHECK((solution - expected).cwiseAbs().maxCoeff() < 1e-9 * scale);
+
+    CHECK(lu_solve(matrix, rhs, 4) == solution);
 }

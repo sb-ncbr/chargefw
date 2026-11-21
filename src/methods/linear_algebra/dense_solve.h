@@ -1,17 +1,18 @@
 #pragma once
 
 #include <Eigen/Core>
-#include <Eigen/LU>
 
 namespace chargefw::methods::linear_algebra {
 
 // The dense factorizations are defined in dense_lu.cpp and dense_cholesky.cpp, so that Eigen's
 // blocked LU and Cholesky code, with the matrix-product kernels they use, is compiled in those two
-// files instead of in every method that solves a system.
+// files instead of in every method that solves a system. Both factorize a matrix of 1,500 or more
+// rows block by block on the threads of the current oneTBB arena, with factors that do not depend
+// on the number of threads.
 
 // Partial-pivoting LU factors of a square matrix. The matrix is overwritten by its factors instead
 // of copied, which halves peak memory and cache footprint for large dense systems; it must outlive
-// the factorization.
+// the factorization. A singular matrix is not detected: its solutions are not finite.
 class InPlaceLu {
   public:
     explicit InPlaceLu(Eigen::MatrixXd& matrix);
@@ -20,7 +21,10 @@ class InPlaceLu {
     [[nodiscard]] auto solve(const Eigen::MatrixXd& rhs) const -> Eigen::MatrixXd;
 
   private:
-    Eigen::PartialPivLU<Eigen::Ref<Eigen::MatrixXd>> lu_;
+    // L below the diagonal, with a unit diagonal, and U on and above it, of the matrix with its
+    // rows permuted.
+    const Eigen::MatrixXd* factors_;
+    Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic, int> row_permutation_;
 };
 
 // Solves matrix * x = rhs with partial-pivoting LU, overwriting the matrix by its factors.
