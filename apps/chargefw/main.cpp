@@ -158,7 +158,7 @@ auto run(std::span<char*> arguments) -> int {
     calculate->add_option("output", output_directory, "Output directory")->required();
     chargefw::cli::add_selection_options(*calculate, calculate_selection);
     calculate->add_option("--threads", calculate_selection.max_threads,
-                          "Maximum calculation threads; 0 uses the oneTBB default");
+                          "Maximum calculation threads; 0 uses one per processor core");
     calculate->add_flag("--progress", progress, "Show calculation progress on standard error");
     calculate->add_flag("--output-mol2", calculate_output.mol2, "Write generated MOL2 output");
     calculate->add_flag("--output-mmcif", calculate_output.mmcif, "Write generated mmCIF output");
@@ -175,7 +175,7 @@ auto run(std::span<char*> arguments) -> int {
     chargefw::cli::add_input_options(*applicability, applicability_input);
     chargefw::cli::add_selection_options(*applicability, applicability_selection);
     applicability->add_option("--threads", applicability_selection.max_threads,
-                              "Thread limit for plan estimates; 0 uses the oneTBB default");
+                              "Thread limit for plan estimates; 0 uses one per processor core");
     methods->add_option("method", method_info, "Show details for a method ID");
     auto* parameter_set_option = parameters->add_option("parameter-set", parameter_set_info,
                                                         "Show details for a parameter-set ID");

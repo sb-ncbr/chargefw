@@ -135,7 +135,7 @@ A malformed record in the input stops the command before any calculation.
 | `--radius ANGSTROM` | Fragment radius, at least 8 Å; required with `--execution cutoff` or `cover` (`auto` defaults to 12 Å) |
 | `--cutoff-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cutoff for [expensive methods](../guide/large-structures.md#what-chargefw-does-by-default) (default 20,000 atoms) |
 | `--cover-threshold COUNT\|unlimited` | Size of the largest molecule above which `auto` uses cover for expensive methods (default 80,000 atoms) |
-| `--threads COUNT` | Maximum number of threads (default `0`, all available cores) |
+| `--threads COUNT` | Maximum number of threads (default `0`, one per available processor core) |
 
 ### Output and progress
 

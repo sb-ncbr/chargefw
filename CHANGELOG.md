@@ -96,6 +96,11 @@
   In Python, a radius or a real-valued method option too large for a float raised `OverflowError`
   and now raises `RequestError`, which a handler for `OverflowError` does not catch. Result JSON
   and the exit statuses of the command line are unchanged.
+- Without a thread limit, a calculation uses one thread per processor core it is allowed to use,
+  instead of one per hardware thread: 8 threads instead of 16 on a processor with 8 cores and
+  hyper-threading. A second thread per core made cutoff and cover 10 to 20% faster and full
+  execution of one molecule no faster, while using every hardware thread of the machine. Pass a
+  higher `threads` or `--threads` to get it back.
 
 ### Fitting
 
