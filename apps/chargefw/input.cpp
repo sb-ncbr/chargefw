@@ -162,10 +162,10 @@ auto with_refused_line(const io::ParseError& error, std::istream& input) -> std:
 }
 
 auto read_collection(std::istream& input, const std::string& input_path,
-                     const io::StructureOptions structural_options,
+                     const io::StructureOptions& structural_options,
                      bool structural_options_requested) -> ImportedCollection;
 
-auto read_collection(const std::string& input_path, const io::StructureOptions structural_options,
+auto read_collection(const std::string& input_path, const io::StructureOptions& structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     // Binary, as the readers take LF and CRLF themselves and some return to an earlier position,
     // which a Windows text stream does not do reliably for a file with LF line endings.
@@ -192,7 +192,7 @@ auto read_collection(const std::string& input_path, const io::StructureOptions s
 }
 
 auto read_collection(std::istream& input, const std::string& input_path,
-                     const io::StructureOptions structural_options,
+                     const io::StructureOptions& structural_options,
                      const bool structural_options_requested) -> ImportedCollection {
     const auto extension = lowercase_extension(uncompressed_path(input_path));
     if (structural_options_requested && (extension == ".sdf" || extension == ".mol" ||

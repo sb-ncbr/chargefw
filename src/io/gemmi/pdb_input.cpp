@@ -133,7 +133,7 @@ struct PdbSource {
 }
 
 [[nodiscard]] auto
-source_models(const ::gemmi::Structure& structure, const StructureOptions options,
+source_models(const ::gemmi::Structure& structure, const StructureOptions& options,
               const std::span<const gemmi::selection::SelectedModel> selected_models,
               const std::vector<PdbSourceModel>& source)
     -> std::vector<gemmi::structure_import::SourceModelMapping> {
@@ -180,7 +180,7 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
 }
 
 [[nodiscard]] auto read_record(std::string contents, std::string source_name,
-                               const ::chargefw::io::StructureOptions options)
+                               const ::chargefw::io::StructureOptions& options)
     -> ImportedMoleculeRecord {
     if (const auto line = io::detail::first_non_ascii_line(contents)) {
         throw ParseError{ParseErrorKind::invalid_encoding,
@@ -231,7 +231,7 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
 } // namespace
 
 PdbReader::PdbReader(std::istream& input, std::string source_name,
-                     const ::chargefw::io::StructureOptions options) {
+                     const ::chargefw::io::StructureOptions& options) {
     io::detail::require_readable(input);
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     io::detail::require_readable(input);

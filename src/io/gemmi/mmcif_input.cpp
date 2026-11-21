@@ -163,8 +163,8 @@ struct MmcifReader::Impl {
 };
 
 MmcifReader::MmcifReader(std::istream& input, std::string source_name,
-                         const ::chargefw::io::StructureOptions options)
-    : impl_{std::make_unique<Impl>(input, std::move(source_name), options)} {}
+                         ::chargefw::io::StructureOptions options)
+    : impl_{std::make_unique<Impl>(input, std::move(source_name), std::move(options))} {}
 
 MmcifReader::MmcifReader(MmcifReader&&) noexcept = default;
 auto MmcifReader::operator=(MmcifReader&&) noexcept -> MmcifReader& = default;
@@ -212,8 +212,8 @@ auto require_readable_formal_charges(::gemmi::cif::Block& block) -> void {
 } // namespace
 
 MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
-                        const ::chargefw::io::StructureOptions options)
-    : source_{std::move(source_name)}, options_{options} {
+                        ::chargefw::io::StructureOptions options)
+    : source_{std::move(source_name)}, options_{std::move(options)} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
     io::detail::require_readable(input);
     auto text =

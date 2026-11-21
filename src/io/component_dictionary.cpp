@@ -72,9 +72,8 @@ class Lines {
     [[nodiscard]] auto number(const std::string_view field, const std::string_view what) const
         -> std::size_t {
         auto value = std::size_t{};
-        const auto* const end = field.data() + field.size();
-        const auto [parsed, error] = std::from_chars(field.data(), end, value);
-        if (error != std::errc{} || parsed != end) {
+        const auto [end, error] = std::from_chars(field.data(), field.data() + field.size(), value);
+        if (error != std::errc{} || end != field.data() + field.size()) {
             fail(ParseErrorKind::malformed,
                  std::string{what} + " '" + std::string{field} + "' is not a number");
         }
@@ -189,7 +188,7 @@ ComponentDictionary::ComponentDictionary(std::string text, const std::string& so
     if (const auto line = detail::first_non_ascii_line(text_)) {
         throw ParseError{ParseErrorKind::invalid_encoding,
                          "a character that is not ASCII",
-                         {.source_name = source_name, .line = *line}};
+                         {.source_name = source_name, .line = line}};
     }
     auto lines = Lines{text_, source_name};
     // The first word decides whether this is a dictionary at all, before its line is judged.
