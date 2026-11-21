@@ -35,7 +35,9 @@ enum class ExplicitBondOrders : std::uint8_t {
 // bonds were not read.
 // The dictionary, when given, adds the bonds within residues that have no built-in template; under
 // hybrid, only within those the file states no bond within either. Under hybrid it also gives the
-// order of a pair listed in unknown_order_indices, in a residue without a built-in template.
+// orders of the pairs listed in unknown_order_indices, in a residue without a built-in template
+// whose entry has the same bonds between non-hydrogen atoms as the file. An entry that contradicts
+// an element of the residue is not used at all.
 [[nodiscard]] auto
 assign(const selection::SelectedModel& model, BondStrategy strategy,
        const ComponentDictionary* dictionary, std::vector<core::Bond> explicit_bonds,

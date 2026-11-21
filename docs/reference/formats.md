@@ -260,12 +260,18 @@ has:
   from the dictionary. Neither does a residue that the file bonds, even when the file lists only
   some of its bonds: one PDB `CONECT` or `LINK` record between two of its atoms is enough, and so
   is one mmCIF `_chem_comp_bond` row for its residue name, also a row that ChargeFW cannot read a
-  bond from. A link to another residue does not count. In a PDB residue without a template, a bond
-  that would be reported in `bond_orders_unknown` takes its order from the dictionary when the
-  residue's entry has that bond, and is then not reported; one the entry does not have stays
-  single and reported. A bond the file gives with an order, such as a PDB `LINK` record, which is
-  a single bond, keeps it; and
+  bond from. A link to another residue does not count. A PDB residue without a template whose
+  bonds come from the file takes bond orders from its entry when the entry matches it: the entry
+  names every non-hydrogen atom of the residue and bonds these atoms in the same pairs as the
+  file, and each hydrogen it names has the partner the file gives it. The bonds that would be
+  reported in `bond_orders_unknown` then take the entry's orders and are not reported. When the
+  entry does not match, none of the residue's bonds takes an order from it; they stay single and
+  reported. A bond the file gives with an order, such as a PDB `LINK` record, which is a single
+  bond, keeps it; and
 - with `none` and `explicit`, the dictionary is not used.
+
+With either setting, a residue takes nothing from an entry that gives one of its atom names another
+element than the atom has in the file; hydrogen and deuterium count as one element.
 
 ChargeFW uses the bond orders of an entry as they are, whatever the formal charges and hydrogens of
 the residue in the file. An atom the dictionary marks as leaving, such as `OXT`, is bonded when the

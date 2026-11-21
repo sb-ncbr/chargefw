@@ -152,12 +152,17 @@ does not replace the other sources of bonds:
 - A residue with a template keeps the template's bonds and takes none from the dictionary.
 - A residue that the file bonds keeps the file's bonds and takes none from the dictionary, even when
   the file lists only some of them. The atom names in a prepared file need not mean the atoms that
-  the dictionary gives those names. For a PDB file, the dictionary still gives the order of a
-  `CONECT` bond whose order is unknown, when its entry has that bond.
+  the dictionary gives those names. For a PDB file, the dictionary still gives the orders of
+  `CONECT` bonds whose order is unknown, when its entry has the same bonds between non-hydrogen
+  atoms as the file. Otherwise the [`bond_orders_unknown`
+  warning](../reference/formats.md#connectivity) stays.
 - A residue with neither takes the bonds of its entry.
 
 With `bonds="templates"`, ChargeFW does not read the bonds in the file, and every residue without a
 template takes the bonds of its entry.
+
+With either setting, a residue takes nothing from an entry that gives one of its atom names another
+element than the atom has in the file.
 - It does not link residues. In 1EHZ, `_struct_conn` rows in the file supply the bonds between the
   modified nucleotides and their neighbors.
 
