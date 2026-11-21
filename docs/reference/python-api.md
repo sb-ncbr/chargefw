@@ -17,15 +17,16 @@ attributes as keyword arguments.
 | `chargefw.assess(molecules, *, method=None, parameter_set=None, ...)` | `Assessment`; the same arguments as `calculate()` except `observer` |
 | `chargefw.read_parameter_set(path)` | `ParameterSet` read from your own JSON file |
 | `chargefw.write_parameter_set(path, parameter_set)` | Writes a parameter set as JSON |
-| `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a file |
-| `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all")` | `MoleculeCollection` read from a string |
+| `chargefw.io.read(path, *, format, selection="all", bonds=None, conformers="all", components=None)` | `MoleculeCollection` read from a file |
+| `chargefw.io.parse(contents, *, format, source_name="", selection="all", bonds=None, conformers="all", components=None)` | `MoleculeCollection` read from a string |
+| `chargefw.io.ComponentDictionary(path)` | A component dictionary loaded from the data file of `chargefw-ccd`, to pass as `components`; `version` is its version, such as `"2026.11.13"` |
 | `chargefw.io.write(path, result, *, format)` | Writes a result to a file; for mmCIF, also a list of results |
 | `chargefw.io.dumps(result, *, format)` | The same output as a string |
 | `chargefw.io.annotate(path, result, *, if_exists="error")` | Writes the PDB or mmCIF input of a result, as mmCIF, with its charges added; also a list of results |
 | `chargefw.io.rdkit.from_mol(molecule, *, source_name="", bond_conversion="none")` | `Molecule` converted from an RDKit molecule |
 | `chargefw.io.rdkit.attach_charges(molecule, result, *, molecule_index=0, conformer_index=None, property_name="ChargeFWPartialCharge", if_exists="error")` | Stores charges as RDKit atom properties |
-| `chargefw.io.gemmi.from_document(document, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi mmCIF document |
-| `chargefw.io.gemmi.from_structure(structure, *, source_name="", selection="all", bonds="hybrid", conformers="all")` | `MoleculeCollection` converted from a Gemmi structure |
+| `chargefw.io.gemmi.from_document(document, *, source_name="", selection="all", bonds="hybrid", conformers="all", components=None)` | `MoleculeCollection` converted from a Gemmi mmCIF document |
+| `chargefw.io.gemmi.from_structure(structure, *, source_name="", selection="all", bonds="hybrid", conformers="all", components=None)` | `MoleculeCollection` converted from a Gemmi structure |
 | `chargefw.io.gemmi.to_document(result)` | A new Gemmi mmCIF document with the charges |
 | `chargefw.io.gemmi.attach_charges(document, result, *, if_exists="error")` | Adds the charges to an existing Gemmi document |
 

@@ -42,6 +42,15 @@ pip install --pre "chargefw[rdkit]"
 The `gemmi` extra installs exactly Gemmi 0.7.4 and replaces any other Gemmi version in the
 environment.
 
+The `ccd` extra installs `chargefw-ccd`, the bonds of the wwPDB Chemical Component Dictionary, which
+ChargeFW uses for
+[ligands and modified residues](../guide/input.md#bonds-of-ligands-and-modified-residues) when you
+name it:
+
+```bash
+pip install --pre "chargefw[ccd]"
+```
+
 Gemmi 0.7.4 has no wheel for Python 3.15, so pip builds it from source there, and that build fails
 with nanobind 3. On Python 3.15, keep nanobind below version 3 for the build. This needs pip 25.3 or
 newer, a C++ compiler, and the Python development headers (`python3-devel` on Fedora,

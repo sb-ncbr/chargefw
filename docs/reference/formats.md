@@ -247,6 +247,28 @@ bond covered by a template does not count; under `explicit`, every such `CONECT`
 warning does not mean that every reported bond should be double or triple, only that its order was
 not supplied.
 
+`components` (`--components` on the command line) names a component dictionary, the data file of
+the `chargefw-ccd` package, which lists the atoms and bonds of residues by residue name.
+[Bonds of ligands and modified residues](../guide/input.md#bonds-of-ligands-and-modified-residues)
+shows how to use one. It gives bonds within a residue only, between atoms with the names its entry
+has:
+
+- with `templates`, a residue without a template takes the bonds of its entry. A residue with a
+  template takes the template's bonds alone;
+- with `hybrid`, the dictionary adds, in every residue, the bonds that neither a template nor the
+  file gives, after the others. Bonds read from an mmCIF file keep their positions. A bond within a
+  PDB residue that would be reported in `bond_orders_unknown` takes its order from the dictionary
+  when the residue's entry has that bond, and is then not reported; one the entry does not have
+  stays single and reported. A bond the file gives with an order, such as a PDB `LINK`
+  record, which is a single bond, keeps it; and
+- with `none` and `explicit`, the dictionary is not used.
+
+ChargeFW uses the bond orders of an entry as they are, whatever the formal charges and hydrogens of
+the residue in the file. An atom the dictionary marks as leaving, such as `OXT`, is bonded when the
+file has it. In a residue without a template, atoms that the residue's entry does not have are
+reported in `unknown_component_atoms`, also when the file bonds them. A residue name that the
+dictionary does not have gets no bonds from it.
+
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
 
