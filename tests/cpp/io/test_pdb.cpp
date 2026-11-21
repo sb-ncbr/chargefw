@@ -865,10 +865,10 @@ END
         }
         return std::vector<std::size_t>{};
     };
-    // The atoms reported as absent from the dictionary entries of their residues.
-    const auto unknown_atoms = [](const io::ImportedMoleculeRecord& record) {
+    // The atoms reported as having no bonds.
+    const auto unbonded_atoms = [](const io::ImportedMoleculeRecord& record) {
         for (const auto& warning : record.import_warnings) {
-            if (warning.kind == io::ImportIssueKind::unknown_component_atoms) {
+            if (warning.kind == io::ImportIssueKind::unbonded_residue_atoms) {
                 return warning.location.atom_indices;
             }
         }
@@ -892,9 +892,9 @@ END
         // template lacks.
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
         CHECK(order(record, 6, 7) == BondOrder::SINGLE);
-        // N1 is not in the ligand's entry, although the file bonds it. Alanine has a built-in
-        // template, which names its atoms: CA is not reported, although its entry lacks it.
-        CHECK(unknown_atoms(record) == std::vector<std::size_t>{3});
+        // Every atom has a bond, so nothing is reported: N1 and the alanine CA are not in their
+        // entries, but the file bonds one and the built-in template the other.
+        CHECK(unbonded_atoms(record).empty());
         REQUIRE(record.import_metadata.has_value());
         CHECK(record.import_metadata->policy.components == "2026.11.13");
     }
@@ -919,7 +919,8 @@ END
         CHECK_FALSE(order(record, 2, 3).has_value());
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
         CHECK_FALSE(order(record, 6, 7).has_value());
-        CHECK(unknown_atoms(record) == std::vector<std::size_t>{3});
+        // The atoms that no template names are left without bonds and reported.
+        CHECK(unbonded_atoms(record) == std::vector<std::size_t>{3, 7});
     }
     {
         // Explicit bonds are those of the file, whatever the dictionary has.
@@ -928,12 +929,11 @@ END
         CHECK(record.molecule.bond_count() == 2);
         CHECK(order(record, 0, 1) == BondOrder::SINGLE);
         CHECK(unknown_orders(record).size() == 2);
-        CHECK(unknown_atoms(record).empty());
         CHECK_FALSE(record.import_metadata->policy.components.has_value());
     }
     {
-        // The record names the dictionary only when it took something from it. The alanine
-        // carbonyl is the template's, so the dictionary changes nothing here.
+        // The record names the dictionary it was read with, also when the dictionary adds nothing:
+        // the alanine carbonyl is the template's.
         const auto carbonyl =
             R"pdb(ATOM      1  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
 ATOM      2  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
@@ -942,20 +942,6 @@ END
         const auto record =
             read_first(carbonyl, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
         CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
-        CHECK_FALSE(record.import_metadata->policy.components.has_value());
-    }
-    {
-        // An order the dictionary gives to a CONECT pair counts, also when it is single.
-        const auto single =
-            R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
-HETATM    2  C2  LIG A   1       5.000   1.500   0.000  1.00 20.00           C
-CONECT    1    2
-END
-)pdb";
-        const auto record =
-            read_first(single, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
-        CHECK(order(record, 0, 1) == BondOrder::SINGLE);
-        CHECK(unknown_orders(record).empty());
         CHECK(record.import_metadata->policy.components == "2026.11.13");
     }
     {

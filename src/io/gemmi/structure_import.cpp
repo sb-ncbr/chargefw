@@ -1,7 +1,6 @@
 #include "structure_import.h"
 
 #include "bonds.h"
-#include "component_templates.h"
 #include "selection.h"
 
 #include "io/component.h"
@@ -20,12 +19,10 @@
 #include <iterator>
 #include <numeric>
 #include <optional>
-#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace chargefw::io::gemmi::structure_import {
@@ -244,123 +241,69 @@ void share_equal_labels(const std::span<SourceAtomReference> sites,
     return result;
 }
 
-// A warning about atoms of residues: `select` gives the atoms of a residue that it concerns. The
-// message counts the atoms and residues, names the first residues, and ends with `explanation`.
-template <typename Select>
-[[nodiscard]] auto residue_atoms_issue(const ImportIssueKind kind,
-                                       const std::span<const SourceComponentInstance> components,
-                                       const std::span<const SourceAtomReference> atoms,
-                                       const Select& select, const std::string_view singular,
-                                       const std::string_view plural,
-                                       const std::string_view explanation)
-    -> std::optional<ImportIssue> {
-    constexpr std::size_t listed_residue_limit = 3;
-    std::size_t residue_count = 0;
-    std::vector<std::string> examples;
-    auto all_selected = std::vector<std::size_t>{};
-    for (const auto& component : components) {
-        const std::vector<std::size_t> selected = select(component);
-        if (selected.empty()) {
-            continue;
-        }
-        all_selected.insert(all_selected.end(), selected.begin(), selected.end());
-        ++residue_count;
-        if (examples.size() < listed_residue_limit) {
-            examples.push_back(describe_residue(component, selected, atoms));
-        }
-    }
-    if (all_selected.empty()) {
-        return std::nullopt;
-    }
-    const auto atom_count = all_selected.size();
-    // The first atom of the first residue the message lists.
-    const auto named_atom = all_selected.front();
-    std::ranges::sort(all_selected);
-
-    auto message = std::format("{} {} in {} {} {}, for example ", atom_count,
-                               atom_count == 1 ? "atom" : "atoms", residue_count,
-                               residue_count == 1 ? "residue" : "residues",
-                               atom_count == 1 ? singular : plural);
-    for (std::size_t index = 0; index < examples.size(); ++index) {
-        message += (index == 0 ? "" : ", ") + examples[index];
-    }
-    message += ": ";
-    message += explanation;
-    return ImportIssue{
-        .kind = kind,
-        .message = std::move(message),
-        .line = std::nullopt,
-        .location = {.atom_index = named_atom, .atom_indices = std::move(all_selected)}};
-}
-
 // Reports atoms without any bond in residues of two or more atoms: a single-atom residue, such as
-// an ion, is unbonded by design, but an unbonded atom in a larger residue usually means that
-// neither the file nor a residue template supplied its bonds.
+// an ion, is unbonded by design, but an unbonded atom in a larger residue usually means that no
+// source supplied its bonds. `dictionary` is the component dictionary that was one of the sources
+// under `bond_strategy`, if any.
 [[nodiscard]] auto unbonded_residue_atoms(const std::span<const core::Bond> bonds,
                                           const std::span<const SourceComponentInstance> components,
-                                          const std::span<const SourceAtomReference> atoms)
+                                          const std::span<const SourceAtomReference> atoms,
+                                          const BondStrategy bond_strategy,
+                                          const ComponentDictionary* const dictionary)
     -> std::optional<ImportIssue> {
+    constexpr std::size_t listed_residue_limit = 3;
     auto bonded = std::vector<bool>(atoms.size(), false);
     for (const auto& bond : bonds) {
         bonded[bond.first_atom_index()] = true;
         bonded[bond.second_atom_index()] = true;
     }
-    return residue_atoms_issue(
-        ImportIssueKind::unbonded_residue_atoms, components, atoms,
-        [&bonded](const SourceComponentInstance& component) {
-            auto unbonded = std::vector<std::size_t>{};
-            if (component.atom_indices.size() >= 2) {
-                std::ranges::copy_if(component.atom_indices, std::back_inserter(unbonded),
-                                     [&bonded](const std::size_t atom) { return !bonded[atom]; });
-            }
-            return unbonded;
-        },
-        "has no bonds", "have no bonds",
-        "neither the bonds read from the file nor the residue templates cover them");
-}
 
-// Reports atoms that the dictionary entry of their residue does not have, which therefore get no
-// bonds from it; typically hydrogens that a preparation tool named differently. Only residues
-// whose bonds the dictionary is the template for count: a residue with a built-in template is
-// described by that template, and one the dictionary does not have by unbonded_residue_atoms().
-[[nodiscard]] auto
-unknown_component_atoms(const ComponentDictionary& dictionary,
-                        const std::span<const SourceComponentInstance> components,
-                        const std::span<const SourceAtomReference> atoms)
-    -> std::optional<ImportIssue> {
-    // The atom names of each dictionary entry asked for, or nothing for a residue that does not
-    // count.
-    auto entries = std::unordered_map<std::string_view, std::optional<std::set<std::string>>>{};
-    return residue_atoms_issue(
-        ImportIssueKind::unknown_component_atoms, components, atoms,
-        [&](const SourceComponentInstance& component) {
-            auto entry = entries.find(component.component_id);
-            if (entry == entries.end()) {
-                auto names = std::optional<std::set<std::string>>{};
-                if (component_templates::find(component.component_id) == nullptr) {
-                    if (const auto found = dictionary.find(component.component_id)) {
-                        names.emplace();
-                        for (const auto& atom : found->atoms) {
-                            names->insert(atom.name);
-                        }
-                    }
-                }
-                entry = entries.emplace(component.component_id, std::move(names)).first;
-            }
-            auto unknown = std::vector<std::size_t>{};
-            if (entry->second.has_value()) {
-                std::ranges::copy_if(
-                    component.atom_indices, std::back_inserter(unknown),
-                    [&](const std::size_t atom) {
-                        return !entry->second->contains(std::string{
-                            detail::canonical_atom_name(atoms[atom].structural_labels.get(), "?")});
-                    });
-            }
-            return unknown;
-        },
-        "is not in the component dictionary entry of its residue",
-        "are not in the component dictionary entries of their residues",
-        "the dictionary gives them no bonds");
+    std::size_t residue_count = 0;
+    std::vector<std::string> examples;
+    auto all_unbonded = std::vector<std::size_t>{};
+    for (const auto& component : components) {
+        if (component.atom_indices.size() < 2) {
+            continue;
+        }
+        auto unbonded = std::vector<std::size_t>{};
+        std::ranges::copy_if(component.atom_indices, std::back_inserter(unbonded),
+                             [&bonded](const std::size_t atom) { return !bonded[atom]; });
+        if (unbonded.empty()) {
+            continue;
+        }
+        all_unbonded.insert(all_unbonded.end(), unbonded.begin(), unbonded.end());
+        ++residue_count;
+        if (examples.size() < listed_residue_limit) {
+            examples.push_back(describe_residue(component, unbonded, atoms));
+        }
+    }
+    if (all_unbonded.empty()) {
+        return std::nullopt;
+    }
+    const auto atom_count = all_unbonded.size();
+    // The first atom of the first residue the message lists.
+    const auto named_atom = all_unbonded.front();
+    std::ranges::sort(all_unbonded);
+
+    auto message =
+        std::format("{} {} in {} {} {} no bonds, for example ", atom_count,
+                    atom_count == 1 ? "atom" : "atoms", residue_count,
+                    residue_count == 1 ? "residue" : "residues", atom_count == 1 ? "has" : "have");
+    for (std::size_t index = 0; index < examples.size(); ++index) {
+        message += (index == 0 ? "" : ", ") + examples[index];
+    }
+    // What was read, not why: which sources could have bonded an atom depends on the strategy.
+    message += atom_count == 1 ? ": no bond was assigned to it with bonds="
+                               : ": no bond was assigned to them with bonds=";
+    message += ::chargefw::io::to_string(bond_strategy);
+    if (dictionary != nullptr) {
+        message += " and the component dictionary " + dictionary->version();
+    }
+    return ImportIssue{
+        .kind = ImportIssueKind::unbonded_residue_atoms,
+        .message = std::move(message),
+        .line = std::nullopt,
+        .location = {.atom_index = named_atom, .atom_indices = std::move(all_unbonded)}};
 }
 
 [[nodiscard]] auto bond_orders_unknown(std::vector<std::size_t> indices,
@@ -464,10 +407,15 @@ auto make_record(const ::gemmi::Structure& structure,
         format == MolecularSourceFormat::pdb
             ? ::chargefw::io::gemmi::bonds::ExplicitBondOrders::connectivity_only
             : ::chargefw::io::gemmi::bonds::ExplicitBondOrders::from_source;
-    auto assigned = ::chargefw::io::gemmi::bonds::assign(selected_model, bond_strategy, dictionary,
-                                                         std::move(explicit_bonds), explicit_orders,
-                                                         unknown_order_indices);
-    auto bonds = remap_bonds(std::move(assigned.bonds), source_orders.front());
+    // The dictionary is one of the sources of bonds only under these two strategies.
+    const auto* const consulted_dictionary =
+        bond_strategy == BondStrategy::templates || bond_strategy == BondStrategy::hybrid
+            ? dictionary
+            : nullptr;
+    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
+                                 selected_model, bond_strategy, dictionary,
+                                 std::move(explicit_bonds), explicit_orders, unknown_order_indices),
+                             source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};
@@ -483,8 +431,9 @@ auto make_record(const ::gemmi::Structure& structure,
                    .alternate_locations = "first-source-order",
                    .conformers = std::string{::chargefw::io::to_string(conformer_selection)},
                    .bonds = std::string{::chargefw::io::to_string(bond_strategy)},
-                   .components = assigned.dictionary_used ? std::optional{dictionary->version()}
-                                                          : std::nullopt},
+                   .components = consulted_dictionary != nullptr
+                                     ? std::optional{consulted_dictionary->version()}
+                                     : std::nullopt},
         .source_connectivity = source_connectivity,
         .components = std::move(component_instances),
     };
@@ -494,14 +443,8 @@ auto make_record(const ::gemmi::Structure& structure,
         issues.push_back(bond_orders_unknown(std::move(unknown_order_indices), bonds, metadata));
     }
     if (bond_strategy != BondStrategy::none) {
-        if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms)) {
-            issues.push_back(std::move(*diagnostic));
-        }
-    }
-    if (dictionary != nullptr &&
-        (bond_strategy == BondStrategy::templates || bond_strategy == BondStrategy::hybrid)) {
-        if (auto diagnostic =
-                unknown_component_atoms(*dictionary, metadata.components, metadata.atoms)) {
+        if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms,
+                                                     bond_strategy, consulted_dictionary)) {
             issues.push_back(std::move(*diagnostic));
         }
     }

@@ -86,9 +86,10 @@ ChargeFW then takes bonds from its residue templates for the 20 standard amino a
 A, C, G, U, DA, DC, DG, and DT, and water, under their PDB residue names, together with the bonds
 recorded in the file. Other residues, such as ligands and modified residues, need their bonds from
 the file or from a [component dictionary](#bonds-of-ligands-and-modified-residues). A file records
-bonds as mmCIF `_chem_comp_bond` rows or PDB `CONECT` records. Files written by Hydride contain them.
-A downloaded file may not: 1EHZ, [below](#bonds-of-ligands-and-modified-residues), has none for its
-modified nucleotides. Check the bond count of your file as described in
+bonds as mmCIF `_chem_comp_bond` rows or PDB `CONECT` records. Files written by Hydride contain them,
+and so do most mmCIF files downloaded from the PDB. An entry that the wwPDB has not revised recently
+may not: 1EHZ, [below](#bonds-of-ligands-and-modified-residues), has none for its modified
+nucleotides. Check the bond count of your file as described in
 [Check the molecule before calculating](#check-the-molecule-before-calculating).
 
 When bond orders matter for a ligand or modified residue, use an mmCIF file that has them in
@@ -110,7 +111,9 @@ is read: `bonds` sets where bonds come from, `selection` leaves out water or lig
 The wwPDB [Chemical Component Dictionary](https://www.wwpdb.org/data/ccd) describes every residue and
 ligand of the PDB under its residue name, with its atoms and the bonds between them. The
 `chargefw-ccd` package holds these bonds in one file, the component dictionary. Install it with the
-`ccd` extra and name the file when you read a structure.
+`ccd` extra and name the file when you read a structure. You need it for an mmCIF file without
+`_chem_comp_bond` rows, whether an older PDB entry or the output of a tool that leaves them out, and
+for the bond orders of ligands in any PDB-format file, whose `CONECT` records have none.
 
 The transfer RNA [1EHZ](https://www.rcsb.org/structure/1EHZ) has 11 kinds of modified nucleotides.
 As downloaded from the RCSB PDB, the file has no bonds within them:
@@ -151,13 +154,13 @@ The dictionary adds to the other sources of bonds and does not replace them:
   modified nucleotides and their neighbors.
 
 The dictionary matches atoms by name. In a ligand or modified residue, hydrogens that a preparation
-tool named differently from the dictionary get no bonds from it, and ChargeFW warns with
-`unknown_component_atoms`. Each entry
-describes one form of the component, usually the neutral one, and ChargeFW uses its bond orders as
-they are. Formal charges still come from your file.
+tool named differently from the dictionary get no bonds from it. If nothing else bonds them,
+ChargeFW warns with `unbonded_residue_atoms`. Each entry describes one form of the component, usually
+the neutral one, and ChargeFW uses its bond orders as they are. Formal charges still come from your
+file.
 
-A dictionary's version is the date of the newest component in it, such as `2026.11.13`. When the
-dictionary gave a molecule a bond or the order of one, the result records that version. The
+A dictionary's version is the date of the newest component in it, such as `2026.11.13`. The result
+records the version a molecule was read with. The
 [format reference](../reference/formats.md#connectivity) has the rules for each `bonds` setting.
 
 ## Check the molecule before calculating

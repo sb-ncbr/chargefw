@@ -100,9 +100,9 @@ How the atoms and conformers of a molecule correspond to its file. See
 arguments of `chargefw.io.read()` name them, such as `"all"` and `"hybrid"`, and
 `alternate_locations`, `"first-source-order"` for PDB and mmCIF, where the first
 [alternate location](formats.md#structural-selection) of each atom is read. Each is `None` where the
-reader has no such choice. `components` is the version of the component dictionary, such as
-`"2026.11.13"`, when the dictionary gave the molecule a bond or the order of one, and `None`
-otherwise.
+reader has no such choice. `components` is the version of the component dictionary the molecule
+was read with, such as `"2026.11.13"`; it is `None` when you passed none and with `bonds` set to
+`"none"` or `"explicit"`, which do not use one.
 
 ### SourceAtomReference
 
@@ -342,9 +342,8 @@ atom whose fragment failed, and `None` when the whole molecule failed.
 Python warnings for cautions that can make the charges wrong; see
 [Warnings](../interfaces/python.md#warnings). `ChargeFWWarning` derives from `UserWarning`, and
 `InputWarning` and `ChargeWarning` from `ChargeFWWarning`. `InputWarning` is raised for the
-`ImportIssue` kinds `"unbonded_residue_atoms"`, `"symmetry_connections_ignored"`,
-`"bond_orders_unknown"`, and `"unknown_component_atoms"` and for every `InputIssue`;
-`ChargeWarning` for every `ChargeIssue`.
+`ImportIssue` kinds `"unbonded_residue_atoms"`, `"symmetry_connections_ignored"`, and
+`"bond_orders_unknown"` and for every `InputIssue`; `ChargeWarning` for every `ChargeIssue`.
 
 ## Methods and parameter sets
 
