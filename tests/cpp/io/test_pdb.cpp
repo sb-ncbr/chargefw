@@ -1049,6 +1049,24 @@ HETATM    5  HX  ACD A   1       1.000   1.500   0.000  1.00 20.00           H
     CHECK(contradicted.molecule.bond_count() == 0);
     CHECK(rejected(contradicted));
 
+    // A file that bonds only some atoms of the residue is not completed: the hydrogens stay without
+    // bonds and are reported, although the entry bonds H1 and gives the file's bonds their orders.
+    const auto partial = read_first(atoms + "CONECT    1    2\nCONECT    1    3\nEND\n", options);
+    REQUIRE(partial.molecule.bond_count() == 2);
+    for (const auto& bond : partial.molecule.bonds()) {
+        // C1=O1 and C1-C2.
+        CHECK(std::min(bond.first_atom_index(), bond.second_atom_index()) == 0);
+        const auto other = std::max(bond.first_atom_index(), bond.second_atom_index());
+        CHECK((other == 1 || other == 2));
+        CHECK(bond.order() == (other == 1 ? BondOrder::DOUBLE : BondOrder::SINGLE));
+    }
+    const auto unbonded =
+        std::ranges::find(partial.import_warnings, io::ImportIssueKind::unbonded_residue_atoms,
+                          &io::ImportIssue::kind);
+    REQUIRE(unbonded != partial.import_warnings.end());
+    CHECK(unbonded->location.atom_indices == std::vector<std::size_t>{3, 4});
+    CHECK_FALSE(rejected(partial));
+
     // LIG is a name for any ligand, so the entry of that name is not used, with or without CONECT.
     auto ligand = atoms;
     for (auto at = ligand.find("ACD"); at != std::string::npos; at = ligand.find("ACD", at)) {
