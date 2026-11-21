@@ -150,7 +150,8 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
               io::MoleculeImportMetadata{.format = io::MolecularSourceFormat::sdf,
                                          .atoms = sites,
                                          .conformers = {{.position = 0, .sites = std::move(sites)}},
-                                         .policy = {.conformers = "all"},
+                                         .policy = {.conformers = "all",
+                                                    .components = "2026.11.13"},
                                          .source_connectivity = io::SourceConnectivity::present}}},
         {.method_id = std::nullopt,
          .parameter_set_id = std::nullopt,
@@ -232,6 +233,7 @@ TEST_CASE("JSON output serializes ordered records and calculation provenance", "
     const auto& imported = calculated.at("input").at("import");
     CHECK(imported.at("format") == "sdf");
     CHECK(imported.at("policy").at("conformers") == "all");
+    CHECK(imported.at("policy").at("components") == "2026.11.13");
     CHECK(imported.at("source_connectivity") == "present");
     const auto& assignment = calculated.at("assignments").at(0);
     CHECK(assignment.at("scope") == "conformer");

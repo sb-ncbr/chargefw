@@ -9,6 +9,7 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
 #include <chargefw/io/charge_result.h>
+#include <chargefw/io/component_dictionary.h>
 #include <chargefw/io/conformer_selection.h>
 #include <chargefw/io/json_input.h>
 #include <chargefw/io/json_output.h>
@@ -113,6 +114,7 @@ struct MoleculePayload {
     policy["alternate_locations"] = metadata.policy.alternate_locations;
     policy["conformers"] = metadata.policy.conformers;
     policy["bonds"] = metadata.policy.bonds;
+    policy["components"] = metadata.policy.components;
     result["policy"] = std::move(policy);
     result["source_connectivity"] = std::string{io::to_string(metadata.source_connectivity)};
     result["components"] = std::move(components);
@@ -213,8 +215,8 @@ template <typename Reader> auto read_all(Reader& reader) -> std::vector<Molecule
 }
 
 auto parse(std::string contents, std::string source_name, const std::string& format,
-           const std::string& selection, const std::string& bonds, const std::string& conformers)
-    -> nb::list {
+           const std::string& selection, const std::string& bonds, const std::string& conformers,
+           const std::shared_ptr<const io::ComponentDictionary>& components) -> nb::list {
     auto payloads = std::vector<MoleculePayload>{};
     {
         nb::gil_scoped_release release;
@@ -223,7 +225,8 @@ auto parse(std::string contents, std::string source_name, const std::string& for
             return io::StructureOptions{.selection = io::record_selection_from_string(selection),
                                         .bonds = io::bond_strategy_from_string(bonds),
                                         .conformers =
-                                            io::conformer_selection_from_string(conformers)};
+                                            io::conformer_selection_from_string(conformers),
+                                        .components = components};
         };
         switch (io::molecular_source_format_from_string(format)) {
         case io::MolecularSourceFormat::mol: {
@@ -352,8 +355,20 @@ void bind_io(nb::module_& module) {
     });
     [[maybe_unused]] const auto native_input_metadata =
         nb::class_<NativeInputMetadata>(module, "_NativeInputMetadata");
+    nb::class_<io::ComponentDictionary>(module, "_ComponentDictionary")
+        .def(
+            "__init__",
+            [](io::ComponentDictionary* self, const nb::bytes& contents,
+               const std::string& source_name) {
+                auto input = std::istringstream{std::string{contents.c_str(), contents.size()}};
+                nb::gil_scoped_release release;
+                new (self) io::ComponentDictionary{input, source_name};
+            },
+            nb::arg("contents"), nb::arg("source_name"))
+        .def_prop_ro("version", &io::ComponentDictionary::version);
     module.def("_parse", &parse, nb::arg("contents"), nb::arg("source_name"), nb::arg("format"),
-               nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"));
+               nb::arg("selection"), nb::arg("bonds"), nb::arg("conformers"),
+               nb::arg("components").none());
     module.def("_dumps", &dumps, nb::arg("results"), nb::arg("format"),
                nb::call_guard<nb::gil_scoped_release>());
     module.def("_annotate_mmcif", &annotate_mmcif, nb::arg("results"), nb::arg("if_exists"),

@@ -12,6 +12,10 @@ namespace gemmi::cif {
 struct Block;
 }
 
+namespace chargefw::io {
+class ComponentDictionary;
+}
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -25,13 +29,22 @@ enum class ExplicitBondOrders : std::uint8_t {
     from_source,
 };
 
+struct AssignedBonds {
+    std::vector<core::Bond> bonds;
+    // Whether the dictionary gave a bond or the order of one. Asking it is not enough.
+    bool dictionary_used = false;
+};
+
 // On input, unknown_order_indices lists ascending indices into explicit_bonds (PDB only).
 // On return, it lists the corresponding bonds still lacking orders, indexed in the result.
+// The dictionary, when given, adds bonds within residues: under templates those of the residues
+// without a built-in template, and under hybrid every pair that neither a template nor the file
+// bonds. Under hybrid it also gives the order of a pair listed in unknown_order_indices.
 [[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
+                          const ComponentDictionary* dictionary,
                           std::vector<core::Bond> explicit_bonds,
                           ExplicitBondOrders explicit_orders,
-                          std::vector<std::size_t>& unknown_order_indices)
-    -> std::vector<core::Bond>;
+                          std::vector<std::size_t>& unknown_order_indices) -> AssignedBonds;
 
 // Bonds stated in the file. Connections to atoms of a symmetry-related copy are not bonds of
 // the molecule; they are counted, not added.

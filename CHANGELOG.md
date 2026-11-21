@@ -4,6 +4,17 @@
 
 ### Input
 
+- PDB and mmCIF input can take the bonds of ligands and modified residues from a component
+  dictionary, the bonds of the wwPDB Chemical Component Dictionary in the new `chargefw-ccd`
+  package (`pip install "chargefw[ccd]"`). Name its file with `components` in
+  `chargefw.io.read()`, `parse()`, and the Gemmi functions, with `--components` on the command line,
+  or with `StructureOptions::components` in C++. It gives the bonds within a residue that neither a
+  residue template nor the file has, and the order of a PDB `CONECT` bond whose order is unknown.
+  Nothing is taken from it unless it is named. `chargefw.io.ComponentDictionary` loads it once for
+  many reads.
+- The new warning `unknown_component_atoms` lists atoms of a residue without a template that its
+  dictionary entry does not have. Results record the dictionary version in the import policy,
+  `components`, when the dictionary gave a bond or the order of one.
 - The command line reads gzip-compressed files, such as `structure.cif.gz`, in the format of the
   extension before `.gz`, and names the outputs as for `structure.cif`. `chargefw.io.read()` reads
   gzip-compressed files whatever their name.

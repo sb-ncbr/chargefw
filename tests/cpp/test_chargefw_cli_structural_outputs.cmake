@@ -36,6 +36,32 @@ function(expect_non_structural_options_rejected)
     file(REMOVE_RECURSE "${output_directory}")
 endfunction()
 
+# --components names the dictionary that bonds a residue without a built-in template; the result
+# records the dictionary's version.
+function(expect_component_dictionary)
+    set(input_path "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_components.pdb")
+    set(output_directory "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_components_outputs")
+    file(WRITE "${input_path}" "HETATM    1  C   FOR A   1       0.000   0.000   0.000  1.00 20.00           C\nHETATM    2  O   FOR A   1       1.200   0.000   0.000  1.00 20.00           O\nHETATM    3  H1  FOR A   1      -0.500   0.900   0.000  1.00 20.00           H\nHETATM    4  H2  FOR A   1      -0.500  -0.900   0.000  1.00 20.00           H\nEND\n")
+    file(REMOVE_RECURSE "${output_directory}")
+
+    run_cli(components 0 calculate --method formal --components "${CHARGEFW_COMPONENTS}"
+            "${input_path}" "${output_directory}")
+    file(READ "${output_directory}/chargefw_cli_components.chargefw.json" json_output)
+    expect_json(components "${json_output}" "2026.11.13.post1"
+                results 0 input import policy components)
+
+    # A file that is not a dictionary, here the input itself, is refused before reading.
+    file(REMOVE_RECURSE "${output_directory}")
+    run_cli(components_other_file 2 calculate --method formal --components "${input_path}"
+            "${input_path}" "${output_directory}")
+    if(EXISTS "${output_directory}")
+        message(FATAL_ERROR "components_other_file: output was written")
+    endif()
+
+    file(REMOVE "${input_path}")
+    file(REMOVE_RECURSE "${output_directory}")
+endfunction()
+
 # --annotate-mmcif writes the mmCIF input with charges; charges already there need --if-exists.
 function(expect_annotated_mmcif contents)
     set(input_path "${CMAKE_CURRENT_BINARY_DIR}/chargefw_cli_annotate.cif")
@@ -141,4 +167,5 @@ run_structural_input(
 expect_annotated_mmcif("data_annotate\n_note.text kept\n${water_atom_site}")
 
 expect_non_structural_options_rejected()
+expect_component_dictionary()
 expect_gzip_input("data_gzip\n${water_atom_site}")

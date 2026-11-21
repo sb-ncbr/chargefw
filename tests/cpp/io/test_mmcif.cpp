@@ -2,6 +2,7 @@
 
 #include <chargefw/core/bond.h>
 #include <chargefw/core/molecule.h>
+#include <chargefw/io/component_dictionary.h>
 #include <chargefw/io/mmcif_input.h>
 #include <chargefw/io/molecule_record.h>
 #include <chargefw/io/parse_error.h>
@@ -9,6 +10,7 @@
 #include <snitch/snitch.hpp>
 
 #include <format>
+#include <memory>
 #include <ranges>
 #include <set>
 #include <sstream>
@@ -724,4 +726,38 @@ TEST_CASE("mmCIF input rejects non-ASCII text", "[io][mmcif]") {
     const auto* location = &error->location();
     CHECK(location->line == 2);
     CHECK_FALSE(location->record_index.has_value());
+}
+
+TEST_CASE("A component dictionary adds to mmCIF bonds without replacing or moving them",
+          "[io][mmcif][components]") {
+    std::istringstream dictionary_text{"chargefw-ccd 1 2026.11.13\n"
+                                       "LIG 3 2\n"
+                                       "C1 C 0\n"
+                                       "O1 O 0\n"
+                                       "C2 C 0\n"
+                                       "0 2 1\n"
+                                       "0 1 2\n"};
+    const auto dictionary = std::make_shared<const io::ComponentDictionary>(dictionary_text);
+    // The file states C1-O1 as a single bond; the dictionary has it as double, and C1-C2 too.
+    const auto text = atom_site_header("ligand") + R"cif(
+HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1
+HETATM 2 O O1 . LIG A 1 ? 1 0 0 1 20 0 1 LIG A O1 1
+HETATM 3 C C2 . LIG A 1 ? 0 1 0 1 20 0 1 LIG A C2 1
+loop_
+_chem_comp_bond.comp_id
+_chem_comp_bond.atom_id_1
+_chem_comp_bond.atom_id_2
+_chem_comp_bond.value_order
+LIG C1 O1 SING
+)cif";
+
+    const auto molecule =
+        read_first(text, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+    REQUIRE(molecule.bond_count() == 2);
+    // The file's bond keeps its place and its order.
+    CHECK(molecule.bond(0).second_atom_index() == 1);
+    CHECK(molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
+    CHECK(molecule.bond(1).second_atom_index() == 2);
+
+    CHECK(read_first(text, {.bonds = io::BondStrategy::hybrid}).bond_count() == 1);
 }

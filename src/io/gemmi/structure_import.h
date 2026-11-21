@@ -22,8 +22,8 @@ struct SourceModelMapping {
 make_record(const ::gemmi::Structure& structure,
             std::span<const selection::SelectedModel> selected_models,
             MoleculeRecordIdentity identity, RecordSelection selection, BondStrategy bond_strategy,
-            ConformerSelection conformer_selection, std::vector<core::Bond> explicit_bonds,
-            std::string name, MolecularSourceFormat format,
+            const ComponentDictionary* dictionary, ConformerSelection conformer_selection,
+            std::vector<core::Bond> explicit_bonds, std::string name, MolecularSourceFormat format,
             std::vector<SourceModelMapping> source_models, SourceConnectivity source_connectivity,
             std::vector<std::size_t> unknown_order_indices = {}) -> ImportedMoleculeRecord;
 

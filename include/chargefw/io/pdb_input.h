@@ -16,7 +16,7 @@ namespace chargefw::io {
 class PdbReader {
   public:
     explicit PdbReader(std::istream& input, std::string source_name = {},
-                       StructureOptions options = {});
+                       const StructureOptions& options = {});
 
     PdbReader(const PdbReader&) = delete;
     auto operator=(const PdbReader&) -> PdbReader& = delete;

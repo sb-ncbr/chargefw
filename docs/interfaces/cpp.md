@@ -187,6 +187,7 @@ int main() {
 | `chargefw/io/mol_input.h`, `sdf_input.h`, `mol2_input.h` | `MolReader`, `SdfReader`, `Mol2Reader` |
 | `chargefw/io/json_input.h` | `JsonReader`, for molecule JSON 1.0 |
 | `chargefw/io/pdb_input.h`, `mmcif_input.h` | `PdbReader`, `MmcifReader`, with selection, bond, and conformer options in `StructureOptions` |
+| `chargefw/io/component_dictionary.h` | `ComponentDictionary`, a [component dictionary](../guide/input.md#bonds-of-ligands-and-modified-residues); `ComponentDictionary::read(path)` loads the data file of `chargefw-ccd`, and `StructureOptions::components` takes it as a `std::shared_ptr<const ComponentDictionary>` |
 | `chargefw/io/mol2_output.h` | `Mol2Writer` |
 | `chargefw/io/pqr_output.h` | `PqrWriter`, for one structure read from PDB or mmCIF |
 | `chargefw/io/mmcif_output.h` | `MmcifWriter`, which writes a new mmCIF document with one or more charge sets, or with `annotate()` the PDB or mmCIF input with the charges added |

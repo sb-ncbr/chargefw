@@ -37,6 +37,21 @@ For PDB and mmCIF, `selection` is `"all"` (default), `"polymers-and-ligands"`, o
 (default) or `"first"`. The [format reference](../reference/formats.md#pdb-and-mmcif-input) explains them,
 and [Preparing input](../guide/input.md) what a molecule needs before a calculation.
 
+`components` names a
+[component dictionary](../guide/input.md#bonds-of-ligands-and-modified-residues) for the bonds of
+ligands and modified residues in PDB and mmCIF input. Pass the path of its file for one call; the
+file is then loaded in that call. To read many structures, load it once and pass the object:
+
+```python
+import chargefw_ccd
+
+components = chargefw.io.ComponentDictionary(chargefw_ccd.path())
+for path in ["1EHZ.cif", "1L2Y.cif"]:
+    molecules = chargefw.io.read(path, format="mmcif", components=components)
+```
+
+Installing `chargefw[ccd]` alone does not change which bonds are read; only `components` does.
+
 ```python
 molecules = chargefw.io.read("structure.cif", format="mmcif", selection="polymers-and-ligands")
 
@@ -255,7 +270,7 @@ script.py:4: InputWarning: molecule 1 ('1CRN'): the molecule contains carbon but
 
 | Warning | Raised for |
 | --- | --- |
-| `chargefw.InputWarning` | `hydrogens_missing` and `atoms_too_close` by `calculate()`; `unbonded_residue_atoms`, `symmetry_connections_ignored`, and `bond_orders_unknown` by reading |
+| `chargefw.InputWarning` | `hydrogens_missing` and `atoms_too_close` by `calculate()`; `unbonded_residue_atoms`, `symmetry_connections_ignored`, `bond_orders_unknown`, and `unknown_component_atoms` by reading |
 | `chargefw.ChargeWarning` | `charge_out_of_range` by `calculate()`: the charges are probably wrong |
 
 Both derive from `chargefw.ChargeFWWarning`. A call that finds the same problem in several molecules
@@ -715,11 +730,11 @@ that a `gemmi.Structure` keeps in `structure.connections`. With `bonds="hybrid"`
 covalent links and disulfide bridges are added to the template bonds as single bonds.
 `bonds="templates"` leaves the links out, and `"none"` reads no bonds. PDB `CONECT` records, which
 Gemmi keeps in `structure.conect_map`, are not used. Templates cover common amino acids, nucleotides,
-and water, so a ligand or modified residue gets no bonds within it; links in `structure.connections`
-still connect it to other residues. This matters wherever bonds are used: in methods that work on
+and water, so a ligand or modified residue gets no bonds within it unless you pass a component
+dictionary as `components`; links in `structure.connections` still connect it to other residues. This matters wherever bonds are used: in methods that work on
 bonds, such as the SQE methods and the topology-based methods, and in parameter sets whose atom types
 depend on bonds. Such a calculation fails, or proceeds with the incomplete bonds without a warning. For a
-structure with ligands, use `from_document()` or `chargefw.io.read()`, or a method that uses only
+structure with ligands, pass `components`, use `from_document()` or `chargefw.io.read()`, or a method that uses only
 coordinates with a parameter set that types atoms by element alone, such as QEq.
 
 `to_document()` creates a new mmCIF document, the same as `chargefw.io.dumps(..., format="mmcif")`; it

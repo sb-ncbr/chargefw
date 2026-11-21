@@ -295,3 +295,53 @@ def test_invalid_reader_options_are_not_parse_errors() -> None:
         with pytest.raises(ValueError) as raised:
             chargefw.io.parse("", format=cast(Any, format_name), **cast(Any, option))
         assert not isinstance(raised.value, chargefw.ParseError)
+
+
+def test_component_dictionary_gives_bonds_only_when_named() -> None:
+    fixtures = Path(__file__).parents[1] / "fixtures" / "synthetic"
+    # Formaldehyde, which the dictionary has as FOR with a double C=O bond.
+    path = fixtures / "components" / "components.txt.gz"
+    pdb = (
+        "HETATM    1  C   FOR A   1       0.000   0.000   0.000  1.00 20.00           C\n"
+        "HETATM    2  O   FOR A   1       1.200   0.000   0.000  1.00 20.00           O\n"
+        "HETATM    3  H1  FOR A   1      -0.500   0.900   0.000  1.00 20.00           H\n"
+        "HETATM    4  H2  FOR A   1      -0.500  -0.900   0.000  1.00 20.00           H\n"
+        "END\n"
+    )
+
+    with pytest.warns(chargefw.InputWarning, match="unbonded_residue_atoms"):
+        unbonded = chargefw.io.parse(pdb, format="pdb")[0]
+    assert unbonded.bond_count == 0
+
+    dictionary = chargefw.io.ComponentDictionary(path)
+    assert dictionary.version == "2026.11.13.post1"
+    # One loaded dictionary, or the path of its file for a single call.
+    for components in (dictionary, path, str(path)):
+        molecule = chargefw.io.parse(pdb, format="pdb", components=components)[0]
+        assert [tuple(bond) for bond in molecule.bonds] == [(0, 1, 2), (0, 2, 1), (0, 3, 1)]
+        mapping = molecule.source_mapping
+        assert mapping is not None
+        assert mapping.policy.components == "2026.11.13.post1"
+        assert molecule.import_warnings == ()
+
+    # The other strategies read the file alone, so one dictionary can stay in every call.
+    explicit = chargefw.io.parse(pdb, format="pdb", bonds="explicit", components=dictionary)[0]
+    assert explicit.bond_count == 0
+    assert explicit.source_mapping is not None
+    assert explicit.source_mapping.policy.components is None
+    assert (
+        chargefw.io.parse(pdb, format="pdb", bonds="none", components=dictionary)[0].bond_count == 0
+    )
+
+    sdf = fixtures / "sdf" / "water_3d.sdf"
+    with pytest.raises(ValueError, match="PDB and mmCIF"):
+        chargefw.io.read(sdf, format="sdf", components=dictionary)
+    with pytest.raises(TypeError):
+        chargefw.io.parse(pdb, format="pdb", components=cast(Any, 1))
+
+    with pytest.raises(FileNotFoundError):
+        chargefw.io.ComponentDictionary(path.with_name("missing.txt.gz"))
+    with pytest.raises(chargefw.ParseError) as other_file:
+        chargefw.io.ComponentDictionary(sdf)
+    assert other_file.value.kind == "no_records"
+    assert other_file.value.source_name == str(sdf)

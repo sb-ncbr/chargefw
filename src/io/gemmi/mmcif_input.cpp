@@ -163,8 +163,8 @@ struct MmcifReader::Impl {
 };
 
 MmcifReader::MmcifReader(std::istream& input, std::string source_name,
-                         const ::chargefw::io::StructureOptions options)
-    : impl_{std::make_unique<Impl>(input, std::move(source_name), options)} {}
+                         ::chargefw::io::StructureOptions options)
+    : impl_{std::make_unique<Impl>(input, std::move(source_name), std::move(options))} {}
 
 MmcifReader::MmcifReader(MmcifReader&&) noexcept = default;
 auto MmcifReader::operator=(MmcifReader&&) noexcept -> MmcifReader& = default;
@@ -212,8 +212,8 @@ auto require_readable_formal_charges(::gemmi::cif::Block& block) -> void {
 } // namespace
 
 MmcifReader::Impl::Impl(std::istream& input, std::string source_name,
-                        const ::chargefw::io::StructureOptions options)
-    : source_{std::move(source_name)}, options_{options} {
+                        ::chargefw::io::StructureOptions options)
+    : source_{std::move(source_name)}, options_{std::move(options)} {
     // Parse from memory: a buffered stream parser rejects tokens longer than its buffer.
     io::detail::require_readable(input);
     auto text =
@@ -297,9 +297,9 @@ auto MmcifReader::Impl::read_block(::gemmi::cif::Block& block, const std::size_t
         structure, selected_models,
         MoleculeRecordIdentity{
             .source_name = source_, .record_index = record_index, .record_id = block.name},
-        options_.selection, options_.bonds, options_.conformers, std::move(explicit_bonds.bonds),
-        structure.name.empty() ? block.name : structure.name, MolecularSourceFormat::mmcif,
-        std::move(source_models), source_connectivity(block));
+        options_.selection, options_.bonds, options_.components.get(), options_.conformers,
+        std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
+        MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
     record.import_metadata->source_text = text_;
     if (!explicit_bonds.aromatic_bonds.empty()) {
         record.import_warnings.push_back(

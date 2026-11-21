@@ -106,6 +106,7 @@ if(CHARGEFW_BUILD_CLI)
             NAME test_chargefw_cli_structural_outputs
             COMMAND ${CMAKE_COMMAND}
                     -DCHARGEFW_CLI=${chargefw_cli}
+                    -DCHARGEFW_COMPONENTS=${PROJECT_SOURCE_DIR}/tests/fixtures/synthetic/components/components.txt.gz
                     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_chargefw_cli_structural_outputs.cmake
     )
     add_test(

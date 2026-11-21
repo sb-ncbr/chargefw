@@ -110,6 +110,7 @@ may not have been written yet.
 | `--conformers first\|all` | Read only the first conformer or model, or all of them (default `all`) |
 | `--selection all\|polymers-and-ligands\|polymers` | PDB and mmCIF: which residues to keep; `polymers-and-ligands` leaves out water (default `all`) |
 | `--bonds none\|explicit\|templates\|hybrid` | PDB and mmCIF: where bonds come from (default `hybrid`, residue templates and bonds in the file) |
+| `--components FILE` | PDB and mmCIF: a [component dictionary](../guide/input.md#bonds-of-ligands-and-modified-residues) for the bonds of ligands and modified residues, used with `--bonds templates` and `hybrid` |
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
 options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.

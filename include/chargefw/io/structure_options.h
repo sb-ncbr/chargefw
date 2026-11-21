@@ -3,9 +3,12 @@
 #include <chargefw/io/conformer_selection.h>
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 
 namespace chargefw::io {
+
+class ComponentDictionary;
 
 enum class RecordSelection : std::uint8_t {
     all,
@@ -30,6 +33,9 @@ struct StructureOptions {
     RecordSelection selection = RecordSelection::all;
     BondStrategy bonds = BondStrategy::none;
     ConformerSelection conformers = ConformerSelection::all;
+    // Bonds within residues that the built-in templates and the file do not give, for the
+    // templates and hybrid strategies. Nothing is taken from a dictionary unless one is given here.
+    std::shared_ptr<const ComponentDictionary> components = {};
 };
 
 } // namespace chargefw::io

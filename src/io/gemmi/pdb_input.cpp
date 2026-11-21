@@ -133,7 +133,7 @@ struct PdbSource {
 }
 
 [[nodiscard]] auto
-source_models(const ::gemmi::Structure& structure, const StructureOptions options,
+source_models(const ::gemmi::Structure& structure, const StructureOptions& options,
               const std::span<const gemmi::selection::SelectedModel> selected_models,
               const std::vector<PdbSourceModel>& source)
     -> std::vector<gemmi::structure_import::SourceModelMapping> {
@@ -180,7 +180,7 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
 }
 
 [[nodiscard]] auto read_record(std::string contents, std::string source_name,
-                               const ::chargefw::io::StructureOptions options)
+                               const ::chargefw::io::StructureOptions& options)
     -> ImportedMoleculeRecord {
     if (const auto line = io::detail::first_non_ascii_line(contents)) {
         throw ParseError{ParseErrorKind::invalid_encoding,
@@ -217,9 +217,9 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
         structure, selected_models,
         MoleculeRecordIdentity{
             .source_name = std::move(source_name), .record_index = 0, .record_id = name},
-        options.selection, options.bonds, options.conformers, std::move(explicit_bonds.bonds), name,
-        MolecularSourceFormat::pdb, std::move(mappings), parsed_source.connectivity,
-        std::move(explicit_bonds.unknown_order_indices));
+        options.selection, options.bonds, options.components.get(), options.conformers,
+        std::move(explicit_bonds.bonds), name, MolecularSourceFormat::pdb, std::move(mappings),
+        parsed_source.connectivity, std::move(explicit_bonds.unknown_order_indices));
     record.import_metadata->source_text = std::make_shared<const std::string>(std::move(contents));
     if (explicit_bonds.skipped_symmetry_connections > 0) {
         record.import_warnings.push_back(
@@ -231,7 +231,7 @@ source_models(const ::gemmi::Structure& structure, const StructureOptions option
 } // namespace
 
 PdbReader::PdbReader(std::istream& input, std::string source_name,
-                     const ::chargefw::io::StructureOptions options) {
+                     const ::chargefw::io::StructureOptions& options) {
     io::detail::require_readable(input);
     std::string contents{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
     io::detail::require_readable(input);

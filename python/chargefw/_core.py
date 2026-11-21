@@ -110,6 +110,7 @@ class SourcePolicy:
     alternate_locations: str | None = None
     conformers: str | None = None
     bonds: str | None = None
+    components: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

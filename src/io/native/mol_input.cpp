@@ -433,7 +433,8 @@ auto parse_v3000(std::istream& input, std::size_t& line) -> ParsedMolecule {
         .policy = {.selection = std::nullopt,
                    .alternate_locations = std::nullopt,
                    .conformers = "all",
-                   .bonds = std::nullopt},
+                   .bonds = std::nullopt,
+                   .components = std::nullopt},
         .source_connectivity = parsed.source_connectivity,
         .components = {},
     };

@@ -1,7 +1,9 @@
 #include "bonds.h"
 
 #include "component_templates.h"
+
 #include "selection.h"
+#include <chargefw/io/component_dictionary.h>
 
 #include <chargefw/io/parse_error.h>
 #include <gemmi/chemcomp.hpp>
@@ -11,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
@@ -297,6 +300,45 @@ residue_protonation(const component_templates::ComponentTemplate& component_temp
         });
 }
 
+// Which residues take bonds from the component dictionary.
+enum class DictionaryUse : std::uint8_t {
+    // Those without a built-in template: one template per residue.
+    residues_without_template,
+    // All of them: the pairs that a built-in template does not bond.
+    every_residue,
+};
+
+[[nodiscard]] auto dictionary_bonds(const selection::SelectedModel& model,
+                                    const ComponentDictionary& dictionary, const DictionaryUse use)
+    -> std::vector<core::Bond> {
+    BondAccumulator result;
+    // A structure repeats few component names in many residues.
+    auto entries = std::unordered_map<std::string_view, std::optional<DictionaryComponent>>{};
+    for (const auto& residue : model.residues()) {
+        const auto component = residue.component();
+        if (use == DictionaryUse::residues_without_template &&
+            component_templates::find(component.name) != nullptr) {
+            continue;
+        }
+        auto entry = entries.find(component.name);
+        if (entry == entries.end()) {
+            entry = entries.emplace(component.name, dictionary.find(component.name)).first;
+        }
+        if (!entry->second.has_value()) {
+            continue;
+        }
+        const auto& atoms = entry->second->atoms;
+        for (const auto& bond : entry->second->bonds) {
+            const auto first = component.find_atom(atoms[bond.first].name);
+            const auto second = component.find_atom(atoms[bond.second].name);
+            if (first.has_value() && second.has_value()) {
+                result.add(*first, *second, bond.order);
+            }
+        }
+    }
+    return result.take();
+}
+
 [[nodiscard]] auto assign_template_bonds(const selection::SelectedModel& model)
     -> std::vector<core::Bond> {
     BondAccumulator result;
@@ -476,8 +518,9 @@ auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
 }
 
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
-            std::vector<core::Bond> explicit_bonds, const ExplicitBondOrders explicit_orders,
-            std::vector<std::size_t>& unknown_order_indices) -> std::vector<core::Bond> {
+            const ComponentDictionary* const dictionary, std::vector<core::Bond> explicit_bonds,
+            const ExplicitBondOrders explicit_orders,
+            std::vector<std::size_t>& unknown_order_indices) -> AssignedBonds {
     if (explicit_orders == ExplicitBondOrders::from_source && !unknown_order_indices.empty()) {
         throw std::logic_error{"unknown-order indices require connectivity-only input"};
     }
@@ -485,16 +528,39 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
     case BondStrategy::none:
         unknown_order_indices.clear();
         return {};
-    case BondStrategy::templates:
+    case BondStrategy::templates: {
         unknown_order_indices.clear();
-        return assign_template_bonds(model);
+        auto bonds = assign_template_bonds(model);
+        const auto template_count = bonds.size();
+        if (dictionary != nullptr) {
+            // The residues are other ones, so no pair is given twice.
+            std::ranges::move(
+                dictionary_bonds(model, *dictionary, DictionaryUse::residues_without_template),
+                std::back_inserter(bonds));
+        }
+        const auto dictionary_used = bonds.size() > template_count;
+        return {.bonds = std::move(bonds), .dictionary_used = dictionary_used};
+    }
     case BondStrategy::explicit_bonds:
-        return explicit_bonds;
+        return {.bonds = std::move(explicit_bonds)};
     case BondStrategy::hybrid: {
         // The first source to define a pair sets its order. Bonds with source orders (mmCIF) come
         // first and keep their place in the record; explicit_mmcif() has given the component bonds
         // that a template has the template's orders. Connectivity-only records (PDB CONECT) only
-        // add pairs templates do not cover.
+        // add pairs templates do not cover. The dictionary comes last and adds the pairs still
+        // missing. It also gives the order of a pair whose order the file does not state, and of
+        // no other: a bond the file gives with an order keeps it.
+        const auto from_dictionary =
+            dictionary != nullptr
+                ? dictionary_bonds(model, *dictionary, DictionaryUse::every_residue)
+                : std::vector<core::Bond>{};
+        auto dictionary_orders = std::map<std::pair<std::size_t, std::size_t>, core::BondOrder>{};
+        if (!unknown_order_indices.empty()) {
+            for (const auto& bond : from_dictionary) {
+                dictionary_orders.emplace(
+                    std::minmax(bond.first_atom_index(), bond.second_atom_index()), bond.order());
+            }
+        }
         auto first = assign_template_bonds(model);
         auto second = std::move(explicit_bonds);
         if (explicit_orders == ExplicitBondOrders::from_source) {
@@ -505,22 +571,37 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
         for (const auto& bond : first) {
             bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
         }
+        auto dictionary_used = false;
         auto retained_unknown = std::vector<std::size_t>{};
         auto unknown = unknown_order_indices.begin();
         for (std::size_t i = 0; i < second.size(); ++i) {
             const auto& bond = second[i];
+            const auto order_unknown = unknown != unknown_order_indices.end() && *unknown == i;
+            const auto known = order_unknown
+                                   ? dictionary_orders.find(std::minmax(bond.first_atom_index(),
+                                                                        bond.second_atom_index()))
+                                   : dictionary_orders.end();
             const auto index =
-                bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
-            if (unknown != unknown_order_indices.end() && *unknown == i) {
-                if (index) {
+                bonds.add(bond.first_atom_index(), bond.second_atom_index(),
+                          known != dictionary_orders.end() ? known->second : bond.order());
+            if (order_unknown) {
+                if (index && known == dictionary_orders.end()) {
                     retained_unknown.push_back(*index);
                 }
+                // The order counts as the dictionary's even when it is single, as the file's is.
+                dictionary_used =
+                    dictionary_used || (index.has_value() && known != dictionary_orders.end());
                 ++unknown;
             }
         }
         unknown_order_indices = std::move(retained_unknown);
+        for (const auto& bond : from_dictionary) {
+            const auto added =
+                bonds.add(bond.first_atom_index(), bond.second_atom_index(), bond.order());
+            dictionary_used = dictionary_used || added.has_value();
+        }
 
-        return bonds.take();
+        return {.bonds = bonds.take(), .dictionary_used = dictionary_used};
     }
     }
 
