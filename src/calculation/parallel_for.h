@@ -28,7 +28,9 @@ namespace chargefw::calculation::detail {
 [[nodiscard]] auto thread_count(std::size_t max_threads) -> std::size_t;
 
 // The callable must write only to the result associated with its index; execution order is
-// intentionally unspecified.
+// intentionally unspecified. It always runs in an arena of the thread count, also with one thread,
+// so that the parallel loops of a callable, such as those of a dense factorization, stay within
+// the limit.
 template <typename Function>
 auto parallel_for_indexed(const std::size_t count, const std::size_t max_threads,
                           Function&& function) -> void {
@@ -37,15 +39,14 @@ auto parallel_for_indexed(const std::size_t count, const std::size_t max_threads
     }
 
     const auto threads = thread_count(max_threads);
-    if (threads == 1) {
-        for (std::size_t index = 0; index < count; ++index) {
-            function(index);
-        }
-        return;
-    }
-
     oneapi::tbb::task_arena arena{static_cast<int>(threads)};
     arena.execute([&] {
+        if (threads == 1) {
+            for (std::size_t index = 0; index < count; ++index) {
+                function(index);
+            }
+            return;
+        }
         oneapi::tbb::parallel_for(std::size_t{0}, count,
                                   [&function](const std::size_t index) { function(index); });
     });

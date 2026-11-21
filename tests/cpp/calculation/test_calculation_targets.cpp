@@ -24,6 +24,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <oneapi/tbb/task_arena.h>
+
 namespace calculation = chargefw::calculation;
 namespace charges = chargefw::charges;
 namespace core = chargefw::core;
@@ -95,6 +97,21 @@ TEST_CASE("the default thread count stays within the allowed parallelism",
     CHECK(by_default >= 1);
     CHECK(by_default <= allowed);
     CHECK(calculation::detail::thread_count(1) == 1);
+}
+
+TEST_CASE("an indexed loop runs its callable within the thread limit",
+          "[calculation][calculation-targets]") {
+    for (const auto requested_threads : {std::size_t{1}, std::size_t{2}}) {
+        auto concurrency = std::vector<int>(3);
+        calculation::detail::parallel_for_indexed(
+            concurrency.size(), requested_threads, [&](const std::size_t index) {
+                concurrency[index] = oneapi::tbb::this_task_arena::max_concurrency();
+            });
+
+        const auto expected =
+            static_cast<int>(calculation::detail::thread_count(requested_threads));
+        CHECK(concurrency == std::vector<int>(3, expected));
+    }
 }
 
 TEST_CASE("calculation targets report method failures with their conformer",
