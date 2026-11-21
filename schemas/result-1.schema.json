@@ -139,7 +139,7 @@
             },
             "components": {
               "type": "string",
-              "description": "Version of the component dictionary that gave this record a bond or the order of one, such as 2026.11.13. Absent when no dictionary was given or it changed nothing."
+              "description": "Version of the component dictionary this record was read with, such as 2026.11.13. Absent when no dictionary was given and with the bond strategies none and explicit, which do not use one."
             }
           }
         },

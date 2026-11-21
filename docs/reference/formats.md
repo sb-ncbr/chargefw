@@ -265,9 +265,8 @@ has:
 
 ChargeFW uses the bond orders of an entry as they are, whatever the formal charges and hydrogens of
 the residue in the file. An atom the dictionary marks as leaving, such as `OXT`, is bonded when the
-file has it. In a residue without a template, atoms that the residue's entry does not have are
-reported in `unknown_component_atoms`, also when the file bonds them. A residue name that the
-dictionary does not have gets no bonds from it.
+file has it. An atom whose name the residue's entry does not have, and a residue whose name the
+dictionary does not have, get no bonds from it.
 
 An mmCIF connection takes its order from `_struct_conn.pdbx_value_order`: `doub` and `trip` give
 double and triple bonds, and any other value, or a missing one, gives a single bond.
@@ -572,9 +571,9 @@ fails](../guide/results.md#when-a-calculation-fails) lists the kinds.
 
 For a molecule read from a file, `input.import` records the format, the reading options (`policy`),
 and whether the file contained bonds (`source_connectivity`); failed and cancelled records keep it
-too. `policy.components` is the version of the component dictionary, such as `2026.11.13`, not its
-path. It is present only when the dictionary gave the molecule a bond or the order of one, so its
-absence does not show that no dictionary was used for reading. Molecules built in code have no `input.import`, and their atom IDs are listed once, in
+too. `policy.components` is the version of the component dictionary the file was read with, such as
+`2026.11.13`, not its path. It is absent when none was given and with `bonds` set to `none` or
+`explicit`, which do not use one. Molecules built in code have no `input.import`, and their atom IDs are listed once, in
 `input.atom_ids`. Record and atom IDs are strings or signed 64-bit integers, written as JSON strings
 or numbers.
 

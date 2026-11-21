@@ -166,8 +166,9 @@ struct ImportPolicy {
     std::optional<std::string> alternate_locations;
     std::optional<std::string> conformers;
     std::optional<std::string> bonds;
-    // The version of the component dictionary, such as "2026.11.13", when it gave the record a
-    // bond or the order of one. Empty when none was given or it changed nothing.
+    // The version of the component dictionary, such as "2026.11.13", that was a source of bonds
+    // for the record, whether or not it gave one. Empty when none was given, and with the bond
+    // strategies that do not use one.
     std::optional<std::string> components;
 
     [[nodiscard]] auto operator==(const ImportPolicy&) const -> bool = default;
@@ -214,7 +215,6 @@ enum class ImportIssueKind : std::uint8_t {
     symmetry_connections_ignored,
     unbonded_residue_atoms,
     bond_orders_unknown,
-    unknown_component_atoms,
 };
 
 // The code of the kind in result JSON, such as "partial_charges_ignored".
