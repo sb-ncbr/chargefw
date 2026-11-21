@@ -298,17 +298,9 @@ auto MmcifReader::Impl::read_block(::gemmi::cif::Block& block, const std::size_t
         MoleculeRecordIdentity{
             .source_name = source_, .record_index = record_index, .record_id = block.name},
         options_.selection, options_.bonds, options_.components.get(), options_.conformers,
-        std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
+        std::move(explicit_bonds), structure.name.empty() ? block.name : structure.name,
         MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
     record.import_metadata->source_text = text_;
-    if (!explicit_bonds.aromatic_bonds.empty()) {
-        record.import_warnings.push_back(
-            io::aromatic_bonds_issue(std::move(explicit_bonds.aromatic_bonds)));
-    }
-    if (explicit_bonds.skipped_symmetry_connections > 0) {
-        record.import_warnings.push_back(
-            gemmi::bonds::symmetry_connections_issue(explicit_bonds.skipped_symmetry_connections));
-    }
     // Either category, as the annotating writer refuses a block that has either.
     if (block.has_mmcif_category("_sb_ncbr_partial_atomic_charges.") ||
         block.has_mmcif_category("_sb_ncbr_partial_atomic_charges_meta.")) {

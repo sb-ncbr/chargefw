@@ -9,6 +9,7 @@
 #include <chargefw/core/bond.h>
 #include <chargefw/core/conformer.h>
 #include <chargefw/core/molecule.h>
+#include <chargefw/core/periodic_table.h>
 #include <chargefw/core/position.h>
 #include <chargefw/io/parse_error.h>
 
@@ -43,8 +44,15 @@ constexpr std::string_view v30_prefix{"M  V30 "};
                          {}};
     }
 
-    // Molfiles have no atom names; the symbol is the element, not a name.
-    const auto& element = common::element(normalized);
+    // Molfiles have no atom names; the symbol is the element, not a name. PDB component molfiles
+    // also write two-letter elements in capitals (SE for Se).
+    const auto upper = [](const char character) { return character >= 'A' && character <= 'Z'; };
+    auto capitalized = std::string{normalized};
+    if (capitalized.size() == 2 && upper(capitalized[0]) && upper(capitalized[1])) {
+        capitalized[1] = static_cast<char>(capitalized[1] - 'A' + 'a');
+    }
+    const auto& element =
+        common::element(core::periodic_table().contains(capitalized) ? capitalized : normalized);
     return core::Atom{element.atomic_number, formal_charge};
 }
 

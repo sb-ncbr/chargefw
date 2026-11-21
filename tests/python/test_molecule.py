@@ -333,6 +333,21 @@ def test_component_dictionary_gives_bonds_only_when_named() -> None:
         chargefw.io.parse(pdb, format="pdb", bonds="none", components=dictionary)[0].bond_count == 0
     )
 
+    # A residue with a temporary ligand name is not looked up. Here nothing else tells: each atom
+    # has a bond to a water, so none is unbonded, and no bond within the ligand lacks an order.
+    ligand = (
+        "HETATM    1  C   LIG A   1       0.000   0.000   0.000  1.00 20.00           C\n"
+        "HETATM    2  O   LIG A   1       1.200   0.000   0.000  1.00 20.00           O\n"
+        "HETATM    3  O   HOH A   2       0.000   3.000   0.000  1.00 20.00           O\n"
+        "HETATM    4  O   HOH A   3       1.200   3.000   0.000  1.00 20.00           O\n"
+        "CONECT    1    3\n"
+        "CONECT    2    4\n"
+        "END\n"
+    )
+    with pytest.warns(chargefw.InputWarning, match="component_entries_rejected"):
+        rejected = chargefw.io.parse(ligand, format="pdb", components=dictionary)[0]
+    assert rejected.bond_count == 2
+
     sdf = fixtures / "sdf" / "water_3d.sdf"
     with pytest.raises(ValueError, match="PDB and mmCIF"):
         chargefw.io.read(sdf, format="sdf", components=dictionary)
