@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <exception>
+#include <limits>
 #include <optional>
 #include <snitch/snitch.hpp>
 #include <span>
@@ -84,6 +85,16 @@ TEST_CASE("calculation targets distribute worker budget across parallelization l
                                  requested_threads, target_count, requested_threads);
         }
     }
+}
+
+TEST_CASE("the default thread count stays within the allowed parallelism",
+          "[calculation][calculation-targets]") {
+    const auto allowed = calculation::detail::thread_count(std::numeric_limits<std::size_t>::max());
+    const auto by_default = calculation::detail::thread_count(0);
+
+    CHECK(by_default >= 1);
+    CHECK(by_default <= allowed);
+    CHECK(calculation::detail::thread_count(1) == 1);
 }
 
 TEST_CASE("calculation targets report method failures with their conformer",

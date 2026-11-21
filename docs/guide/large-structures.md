@@ -29,7 +29,7 @@ in full execution, calculate them separately from large ones.
 ## How long a calculation takes
 
 These times were measured with the command line on an 8-core desktop processor (AMD Ryzen 7 9700X,
-16 threads, all used by default), including reading the input and writing the result:
+8 threads, the default), including reading the input and writing the result:
 
 | Structure | Atoms | Method | Execution | Time | Peak memory |
 | --- | --- | --- | --- | --- | --- |
@@ -38,14 +38,14 @@ These times were measured with the command line on an 8-core desktop processor (
 | 10AW, without hydrogens | 10,479 | SQE+qp | full | 6.7 s | 1.8 GB |
 | 8YAX | 40,737 | EEM | full | 4.9 min | 13 GB |
 | 8YAX | 40,737 | SQE+qp | full | 5.2 min | 25 GB |
-| 8YAX | 40,737 | EEM | cutoff, 12 Å (default) | 5.9 s | 0.16 GB |
-| 8YAX | 40,737 | EEM | cover, 12 Å | 1.0 s | 0.15 GB |
-| 8YAX | 40,737 | SQE+qp | cutoff, 12 Å (default) | 9.6 s | 0.22 GB |
-| 8YAX | 40,737 | SQE+qp | cover, 12 Å | 1.6 s | 0.21 GB |
+| 8YAX | 40,737 | EEM | cutoff, 12 Å (default) | 6.8 s | 0.10 GB |
+| 8YAX | 40,737 | EEM | cover, 12 Å | 1.2 s | 0.10 GB |
+| 8YAX | 40,737 | SQE+qp | cutoff, 12 Å (default) | 10.6 s | 0.14 GB |
+| 8YAX | 40,737 | SQE+qp | cover, 12 Å | 1.7 s | 0.14 GB |
 
 Four times as many atoms made the full calculation about 50 times slower and its memory 14 times
 larger. Cutoff and cover grow about in proportion to the number of atoms, and on this structure they
-were 30 to 300 times faster than the full calculation.
+were 30 to 250 times faster than the full calculation.
 
 ## Choosing the execution yourself
 
@@ -126,7 +126,9 @@ in full and with the approximation, and compare.
 ## Threads and estimates
 
 `--threads` on the command line, or `threads` in Python, limits the number of threads. By default,
-ChargeFW uses all available processor cores. Full execution calculates several molecules in parallel;
+ChargeFW uses one thread per processor core that it is allowed to use. A core that runs two threads at
+once (hyper-threading) counts once: a second thread per core made cutoff and cover 10 to 20% faster in
+our measurements, and you can ask for it with a higher number. Full execution calculates several molecules in parallel;
 cutoff and cover calculate one molecule at a time and its fragments in parallel.
 
 The estimates count the memory of the calculation itself, not that of the loaded structure, and the

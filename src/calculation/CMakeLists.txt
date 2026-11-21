@@ -30,6 +30,7 @@ target_sources(chargefw_objects
         parallel_for.h
         reduced_execution.h
         target_execution.h
+        thread_count.cpp
         target_input.h
         PUBLIC
         FILE_SET HEADERS

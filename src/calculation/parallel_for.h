@@ -22,13 +22,10 @@
 
 namespace chargefw::calculation::detail {
 
-// A thread limit caps oneTBB's allowed parallelism, which bounds the workers any arena can use.
-// Zero uses that parallelism.
-[[nodiscard]] inline auto thread_count(const std::size_t max_threads) -> std::size_t {
-    const auto allowed = oneapi::tbb::global_control::active_value(
-        oneapi::tbb::global_control::max_allowed_parallelism);
-    return max_threads == 0 ? allowed : std::min(max_threads, allowed);
-}
+// A thread limit is capped by oneTBB's allowed parallelism, which bounds the workers any arena can
+// use. Zero uses one thread per physical core the process may run on, within that parallelism: the
+// second thread of a core adds little to these calculations.
+[[nodiscard]] auto thread_count(std::size_t max_threads) -> std::size_t;
 
 // The callable must write only to the result associated with its index; execution order is
 // intentionally unspecified.

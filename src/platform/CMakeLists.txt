@@ -27,8 +27,10 @@ target_sources(chargefw_platform
         PRIVATE
         library_location.h
         peak_memory.h
+        processor_cores.h
         ${platform_directory}/library_location.cpp
         ${platform_directory}/peak_memory.cpp
+        ${platform_directory}/processor_cores.cpp
 )
 
 if(CHARGEFW_ENABLE_WARNINGS)
