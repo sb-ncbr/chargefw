@@ -19,6 +19,8 @@ class ComponentDictionary;
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace chargefw::io::gemmi::bonds {
@@ -42,10 +44,10 @@ struct ExplicitBonds {
     // Ascending indices in bonds of the intra-residue pairs of non-hydrogen atoms stated in PDB
     // CONECT, which gives no orders.
     std::vector<std::size_t> unknown_order_indices = {};
-    // For each of the model's selected residues, whether the file states a bond within it, read or
-    // not: a _chem_comp_bond row counts for every residue of its component, also when it names an
-    // absent atom or an order that is not read. A connection to another residue does not count.
-    std::vector<bool> residues_with_file_bonds = {};
+    // The components with a _chem_comp_bond row in an mmCIF file, also a row that names an absent
+    // atom or an order that is not read: the file then describes the residue's bonds, whether or
+    // not a bond was read.
+    std::unordered_set<std::string> components_with_bond_rows = {};
 };
 
 struct Assignment {
