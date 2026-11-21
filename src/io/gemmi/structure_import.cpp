@@ -348,11 +348,9 @@ auto make_record(const ::gemmi::Structure& structure,
                  MoleculeRecordIdentity identity, const RecordSelection selection,
                  const BondStrategy bond_strategy, const ComponentDictionary* const dictionary,
                  const ConformerSelection conformer_selection,
-                 std::vector<core::Bond> explicit_bonds,
-                 const std::vector<bool>& residues_with_file_bonds, std::string name,
+                 ::chargefw::io::gemmi::bonds::ExplicitBonds explicit_bonds, std::string name,
                  const MolecularSourceFormat format, std::vector<SourceModelMapping> source_models,
-                 const SourceConnectivity source_connectivity,
-                 std::vector<std::size_t> unknown_order_indices) -> ImportedMoleculeRecord {
+                 const SourceConnectivity source_connectivity) -> ImportedMoleculeRecord {
     if (structure.models.empty()) {
         throw std::logic_error{"structural input contains no models"};
     }
@@ -404,21 +402,16 @@ auto make_record(const ::gemmi::Structure& structure,
         conformers.emplace_back(std::move(positions), std::to_string(structure.models[index].num));
     }
 
-    const auto explicit_orders =
-        format == MolecularSourceFormat::pdb
-            ? ::chargefw::io::gemmi::bonds::ExplicitBondOrders::connectivity_only
-            : ::chargefw::io::gemmi::bonds::ExplicitBondOrders::from_source;
     // The dictionary is one of the sources of bonds only under these two strategies.
     const auto* const consulted_dictionary =
         bond_strategy == BondStrategy::templates || bond_strategy == BondStrategy::hybrid
             ? dictionary
             : nullptr;
-    auto dictionary_issue = std::optional<ImportIssue>{};
-    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                                 selected_model, bond_strategy, dictionary,
-                                 std::move(explicit_bonds), residues_with_file_bonds,
-                                 explicit_orders, unknown_order_indices, dictionary_issue),
-                             source_orders.front());
+    const auto skipped_symmetry_connections = explicit_bonds.skipped_symmetry_connections;
+    auto aromatic_bonds = std::move(explicit_bonds.aromatic_bonds);
+    auto assignment = ::chargefw::io::gemmi::bonds::assign(selected_model, bond_strategy,
+                                                           dictionary, std::move(explicit_bonds));
+    auto bonds = remap_bonds(std::move(assignment.bonds), source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};
@@ -442,8 +435,9 @@ auto make_record(const ::gemmi::Structure& structure,
     };
 
     auto issues = std::vector<ImportIssue>{};
-    if (!unknown_order_indices.empty()) {
-        issues.push_back(bond_orders_unknown(std::move(unknown_order_indices), bonds, metadata));
+    if (!assignment.unknown_order_indices.empty()) {
+        issues.push_back(
+            bond_orders_unknown(std::move(assignment.unknown_order_indices), bonds, metadata));
     }
     if (bond_strategy != BondStrategy::none) {
         if (auto diagnostic = unbonded_residue_atoms(bonds, metadata.components, metadata.atoms,
@@ -451,8 +445,15 @@ auto make_record(const ::gemmi::Structure& structure,
             issues.push_back(std::move(*diagnostic));
         }
     }
-    if (dictionary_issue) {
-        issues.push_back(std::move(*dictionary_issue));
+    if (assignment.dictionary_issue) {
+        issues.push_back(std::move(*assignment.dictionary_issue));
+    }
+    if (!aromatic_bonds.empty()) {
+        issues.push_back(io::aromatic_bonds_issue(std::move(aromatic_bonds)));
+    }
+    if (skipped_symmetry_connections > 0) {
+        issues.push_back(
+            ::chargefw::io::gemmi::bonds::symmetry_connections_issue(skipped_symmetry_connections));
     }
 
     return io::make_record(std::move(first.atoms), std::move(bonds), std::move(conformers),
