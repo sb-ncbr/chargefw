@@ -12,6 +12,7 @@ target_sources(chargefw_objects
         find_applicable_methods.h
         fixed_source_validation.cpp
         fixed_source_validation.h
+        parallel_rows.h
         parameter_issue_messages.h
         builtin_methods.h
         builtin_methods.cpp

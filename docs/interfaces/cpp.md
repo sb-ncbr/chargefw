@@ -320,8 +320,8 @@ with the `molecules()`, the possible `plans()` in selection order, the `rejectio
 [Large structures](../guide/large-structures.md) explain selection and execution.
 
 `calculation::calculate(assessment)` runs the default plan, and `calculate(plan)` a chosen one,
-without preparing or checking the molecules again. Both take a thread limit, where `0` uses all
-available cores, and an optional observer, described [below](#progress-and-cancellation). An
+without preparing or checking the molecules again. Both take a thread limit, where `0` uses one
+thread per available processor core, and an optional observer, described [below](#progress-and-cancellation). An
 assessment or a plan can be calculated repeatedly, also from several threads at once:
 
 ```cpp
@@ -437,6 +437,12 @@ finite coordinates throughout. No atom that is not a source may sit exactly at a
 sources, only methods that support fixed ions are assessed, and the formal charges of the source atoms do
 not count toward the charge of the calculated atoms. A successful result contains the fixed charges at
 their atoms, and `ExecutionResult::effective` records the sources.
+
+A method called directly, through `Method::calculate()`, has no thread limit of its own. When its
+system of equations has 1,500 or more unknowns, an expensive method uses the threads of the oneTBB
+arena it is called from. Outside any arena, that is oneTBB's default concurrency, within any limit
+your program has set for oneTBB, and not ChargeFW's one thread per core. To limit it, call it inside a
+`oneapi::tbb::task_arena` of the size you want.
 
 Code that calls a method directly, through `Method::calculate()`, passes fixed charges as a
 `std::span<const methods::FixedPointSource>` after the parameter view in

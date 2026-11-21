@@ -34,18 +34,18 @@ These times were measured with the command line on an 8-core desktop processor (
 | Structure | Atoms | Method | Execution | Time | Peak memory |
 | --- | --- | --- | --- | --- | --- |
 | [1L2Y](input.md#check-the-molecule-before-calculating) | 304 | EEM or SQE+qp | full | 0.01 s | 10 MB |
-| 10AW, without hydrogens | 10,479 | EEM | full | 5.5 s | 0.9 GB |
-| 10AW, without hydrogens | 10,479 | SQE+qp | full | 6.7 s | 1.8 GB |
-| 8YAX | 40,737 | EEM | full | 4.9 min | 13 GB |
-| 8YAX | 40,737 | SQE+qp | full | 5.2 min | 25 GB |
+| 10AW, without hydrogens | 10,479 | EEM | full | 1.5 s | 0.9 GB |
+| 10AW, without hydrogens | 10,479 | SQE+qp | full | 1.0 s | 1.8 GB |
+| 8YAX | 40,737 | EEM | full | 69 s | 13 GB |
+| 8YAX | 40,737 | SQE+qp | full | 40 s | 26 GB |
 | 8YAX | 40,737 | EEM | cutoff, 12 Å (default) | 6.8 s | 0.10 GB |
 | 8YAX | 40,737 | EEM | cover, 12 Å | 1.2 s | 0.10 GB |
 | 8YAX | 40,737 | SQE+qp | cutoff, 12 Å (default) | 10.6 s | 0.14 GB |
 | 8YAX | 40,737 | SQE+qp | cover, 12 Å | 1.7 s | 0.14 GB |
 
-Four times as many atoms made the full calculation about 50 times slower and its memory 14 times
-larger. Cutoff and cover grow about in proportion to the number of atoms, and on this structure they
-were 30 to 250 times faster than the full calculation.
+Four times as many atoms made the full calculation about 40 times slower and its memory 14 times
+larger. Cutoff and cover grow about in proportion to the number of atoms. On this structure they were
+4 to 60 times faster than the full calculation and needed less than a hundredth of its memory.
 
 ## Choosing the execution yourself
 
@@ -128,8 +128,46 @@ in full and with the approximation, and compare.
 `--threads` on the command line, or `threads` in Python, limits the number of threads. By default,
 ChargeFW uses one thread per processor core that it is allowed to use. A core that runs two threads at
 once (hyper-threading) counts once: a second thread per core made cutoff and cover 10 to 20% faster in
-our measurements, and you can ask for it with a higher number. Full execution calculates several molecules in parallel;
-cutoff and cover calculate one molecule at a time and its fragments in parallel.
+our measurements, and you can ask for it with a higher number.
+
+Full execution calculates several molecules in parallel. An expensive method also uses the threads
+within one large molecule: when its system of equations has 1,500 or more unknowns, which for most
+methods means about 1,500 atoms. Cutoff and cover calculate one molecule at a time and its
+fragments in parallel. The charges do not depend on the number of threads.
+
+More threads shorten the full calculation of one molecule, but each added thread helps less. For 10AW
+(10,479 atoms) on the processor above:
+
+| Threads | EEM | SQE+qp |
+| --- | --- | --- |
+| 1 | 6.0 s | 3.8 s |
+| 2 | 3.2 s | 2.1 s |
+| 4 | 2.0 s | 1.4 s |
+| 8 | 1.5 s | 1.0 s |
+
+### On a shared server
+
+When several calculations run on one machine, set `threads` for each of them instead of relying on the
+default, which would give every calculation all cores:
+
+- Choose the thread count so that the number of calculations running at once, times their threads,
+  is at most the number of processor cores.
+- Prefer more calculations with 2 to 4 threads each over fewer with many. In the table above, 2 threads
+  are almost twice as fast as one and 4 threads about three times, while 8 threads are four times
+  faster.
+- Check the memory before you start a calculation. The [estimate](#estimates) of a plan gives it
+  without calculating. Ask for it with the thread count you will calculate with, such as
+  `plan.estimate(threads=4)` in Python or `chargefw applicability --threads 4` on the command line.
+  Memory depends on the method and grows with the square of the atom count. As examples, the full
+  calculation of a 20,000-atom molecule needs about 3 GB with EEM and 7 GB with SQE+qp; other methods can
+  need twice that.
+- Leave the execution automatic for requests you do not control. A request for full execution of a
+  40,000-atom structure took 13 GB with EEM and 26 GB with SQE+qp in the
+  [table above](#how-long-a-calculation-takes).
+- To limit a container, give it a processor set, such as `--cpuset-cpus` in Docker. ChargeFW then
+  counts only the cores of that set.
+
+### Estimates
 
 The estimates count the memory of the calculation itself, not that of the loaded structure, and the
 operations of the method; they compare plans and do not predict seconds. Fragment sizes are

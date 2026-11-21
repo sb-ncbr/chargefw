@@ -20,3 +20,17 @@ chargefw_add_snitch_test(test_methods
 target_include_directories(test_methods PRIVATE
         ${PROJECT_SOURCE_DIR}/src
 )
+
+chargefw_add_snitch_test(test_dense_solve
+        test_dense_solve.cpp
+)
+target_include_directories(test_dense_solve PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+)
+target_link_libraries(test_dense_solve PRIVATE
+        Eigen3::Eigen
+        TBB::tbb
+)
+# Passes Eigen matrices to the library, so their alignment must match: it follows the instruction
+# set, which these options select.
+chargefw_enable_optimizations(test_dense_solve)

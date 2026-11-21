@@ -1,5 +1,6 @@
 target_sources(chargefw_objects
         PRIVATE
+        blocked_factorization.h
         dense_solve.h
         dense_lu.cpp
         dense_cholesky.cpp
