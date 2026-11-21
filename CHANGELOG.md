@@ -8,8 +8,9 @@
   dictionary, the bonds of the wwPDB Chemical Component Dictionary in the new `chargefw-ccd`
   package (`pip install "chargefw[ccd]"`). Name its file with `components` in
   `chargefw.io.read()`, `parse()`, and the Gemmi functions, with `--components` on the command line,
-  or with `StructureOptions::components` in C++. It gives the bonds within a residue that neither a
-  residue template nor the file has, and the order of a PDB `CONECT` bond whose order is unknown.
+  or with `StructureOptions::components` in C++. It gives the bonds within a residue that has no
+  residue template and no bonds in the file, and the order of a PDB `CONECT` bond whose order is
+  unknown.
   Nothing is taken from it unless it is named. `chargefw.io.ComponentDictionary` loads it once for
   many reads. Results record the version of the dictionary a molecule was read with in the import
   policy, `components`.

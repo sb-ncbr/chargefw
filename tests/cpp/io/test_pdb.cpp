@@ -812,7 +812,7 @@ TEST_CASE("PDB input rejects non-ASCII text", "[io][pdb]") {
     CHECK_FALSE(location->record_index.has_value());
 }
 
-TEST_CASE("A component dictionary gives PDB residues the bonds that nothing else does",
+TEST_CASE("A component dictionary bonds the PDB residues that nothing else does",
           "[io][pdb][components]") {
     // The ligand entry lacks N1. The alanine entry differs from the built-in template: a single
     // carbonyl bond, a hydrogen HZ9 on CB that the template does not have, and no CA.
@@ -831,7 +831,7 @@ TEST_CASE("A component dictionary gives PDB residues the bonds that nothing else
                                        "0 1 1\n"
                                        "2 3 1\n"};
     const auto dictionary = std::make_shared<const io::ComponentDictionary>(dictionary_text);
-    const auto input =
+    const auto atoms = std::string{
         R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
 HETATM    2  O1  LIG A   1       6.230   0.000   0.000  1.00 20.00           O
 HETATM    3  C2  LIG A   1       5.000   1.500   0.000  1.00 20.00           C
@@ -841,10 +841,8 @@ ATOM      6  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
 ATOM      7  CB  ALA A   2       0.000   3.000   0.000  1.00 20.00           C
 ATOM      8  HZ9 ALA A   2       0.000   4.000   0.000  1.00 20.00           H
 ATOM      9  CA  ALA A   2       0.000   1.500   0.000  1.00 20.00           C
-CONECT    1    2
-CONECT    3    4
-END
-)pdb";
+)pdb"};
+    const auto input = atoms + "CONECT    1    2\nCONECT    3    4\nEND\n";
     using chargefw::core::BondOrder;
     // The order of the bond between two atoms, or nothing when they are not bonded.
     const auto order = [](const io::ImportedMoleculeRecord& record, const std::size_t first,
@@ -876,27 +874,37 @@ END
     };
 
     {
-        // Hybrid fills gaps bond by bond. The dictionary gives the order of one CONECT pair and
-        // adds C1-C2; the other CONECT pair stays the only one of unknown order.
+        // The file bonds the ligand, so hybrid takes no pair from the dictionary, which also has
+        // C1-C2: only the order of one CONECT pair. The other stays the only one of unknown order.
         const auto record =
             read_first(input, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
         CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
-        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK_FALSE(order(record, 0, 2).has_value());
         CHECK(order(record, 2, 3) == BondOrder::SINGLE);
         const auto unknown = unknown_orders(record);
         REQUIRE(unknown.size() == 1);
         const auto& bond = record.molecule.bond(unknown.front());
         CHECK(bond.first_atom_index() == 2);
         CHECK(bond.second_atom_index() == 3);
-        // The built-in template keeps its carbonyl order, and the dictionary adds the pair the
-        // template lacks.
+        // The built-in template keeps its carbonyl order, and its residue takes nothing from the
+        // dictionary: HZ9, which only the dictionary's entry bonds, is reported.
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
-        CHECK(order(record, 6, 7) == BondOrder::SINGLE);
-        // Every atom has a bond, so nothing is reported: N1 and the alanine CA are not in their
-        // entries, but the file bonds one and the built-in template the other.
-        CHECK(unbonded_atoms(record).empty());
+        CHECK_FALSE(order(record, 6, 7).has_value());
+        CHECK(unbonded_atoms(record) == std::vector<std::size_t>{7});
         REQUIRE(record.import_metadata.has_value());
         CHECK(record.import_metadata->policy.components == "2026.11.13");
+    }
+    {
+        // A ligand the file does not bond takes the bonds of its entry. A link to another residue
+        // is not a bond within the ligand.
+        const auto linked =
+            "LINK         N1  LIG A   1                 CA  ALA A   2\n" + atoms + "END\n";
+        const auto record =
+            read_first(linked, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
+        CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
+        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK(order(record, 3, 8) == BondOrder::SINGLE);
+        CHECK(unknown_orders(record).empty());
     }
     {
         // A bond the file states with an order keeps it: a LINK record is a single bond, although
@@ -906,7 +914,7 @@ END
         const auto record =
             read_first(linked, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
         CHECK(order(record, 0, 1) == BondOrder::SINGLE);
-        CHECK(order(record, 0, 2) == BondOrder::SINGLE);
+        CHECK_FALSE(order(record, 0, 2).has_value());
         CHECK(unknown_orders(record).size() == 1);
     }
     {

@@ -98,8 +98,10 @@ When bond orders matter for a ligand or modified residue, use an mmCIF file that
 mmCIF does not recover the missing orders.
 
 When an atom of a residue with two or more atoms gets no bond at all, ChargeFW warns with
-`unbonded_residue_atoms` and names the first such residues; supply the missing bonds, in the file or
-with a component dictionary, before you use a method or parameter set that depends on bonds.
+`unbonded_residue_atoms` and names the first such residues. Supply the missing bonds before you use
+a method or parameter set that depends on bonds. A component dictionary supplies them for a residue
+that has no bonds in the file. When the file has some of the residue's bonds, add the rest to the
+file: the dictionary does not complete them.
 
 Three options, named the same in Python and on the command line, control how a PDB or mmCIF file
 is read: `bonds` sets where bonds come from, `selection` leaves out water or ligands, and
@@ -144,16 +146,22 @@ a script that passes no `components` reads. A script that passes `chargefw_ccd.p
 version of the dictionary that is installed; to reproduce a result, install the version the result
 records, for example with `pip install chargefw-ccd==2026.11.13`.
 
-The dictionary adds to the other sources of bonds and does not replace them:
+With the default `bonds="hybrid"`, the dictionary bonds the residues that nothing else does, and
+does not replace the other sources of bonds:
 
-- A residue with a template keeps the template's bonds, and a bond the file records with an order
-  keeps that order.
-- The dictionary gives the bonds within a residue that neither has. For a PDB file, it also gives the
-  order of a `CONECT` bond whose order is unknown, when its entry has that bond.
+- A residue with a template keeps the template's bonds and takes none from the dictionary.
+- A residue that the file bonds keeps the file's bonds and takes none from the dictionary, even when
+  the file lists only some of them. The atom names in a prepared file need not mean the atoms that
+  the dictionary gives those names. For a PDB file, the dictionary still gives the order of a
+  `CONECT` bond whose order is unknown, when its entry has that bond.
+- A residue with neither takes the bonds of its entry.
+
+With `bonds="templates"`, ChargeFW does not read the bonds in the file, and every residue without a
+template takes the bonds of its entry.
 - It does not link residues. In 1EHZ, `_struct_conn` rows in the file supply the bonds between the
   modified nucleotides and their neighbors.
 
-The dictionary matches atoms by name. In a ligand or modified residue, hydrogens that a preparation
+The dictionary matches atoms by name. In a residue it bonds, hydrogens that a preparation
 tool named differently from the dictionary get no bonds from it. If nothing else bonds them,
 ChargeFW warns with `unbonded_residue_atoms`. Each entry describes one form of the component, usually
 the neutral one, and ChargeFW uses its bond orders as they are. Formal charges still come from your

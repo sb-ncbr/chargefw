@@ -348,7 +348,8 @@ auto make_record(const ::gemmi::Structure& structure,
                  MoleculeRecordIdentity identity, const RecordSelection selection,
                  const BondStrategy bond_strategy, const ComponentDictionary* const dictionary,
                  const ConformerSelection conformer_selection,
-                 std::vector<core::Bond> explicit_bonds, std::string name,
+                 std::vector<core::Bond> explicit_bonds,
+                 const std::vector<bool>& residues_with_file_bonds, std::string name,
                  const MolecularSourceFormat format, std::vector<SourceModelMapping> source_models,
                  const SourceConnectivity source_connectivity,
                  std::vector<std::size_t> unknown_order_indices) -> ImportedMoleculeRecord {
@@ -412,10 +413,11 @@ auto make_record(const ::gemmi::Structure& structure,
         bond_strategy == BondStrategy::templates || bond_strategy == BondStrategy::hybrid
             ? dictionary
             : nullptr;
-    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                                 selected_model, bond_strategy, dictionary,
-                                 std::move(explicit_bonds), explicit_orders, unknown_order_indices),
-                             source_orders.front());
+    auto bonds =
+        remap_bonds(::chargefw::io::gemmi::bonds::assign(
+                        selected_model, bond_strategy, dictionary, std::move(explicit_bonds),
+                        residues_with_file_bonds, explicit_orders, unknown_order_indices),
+                    source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};

@@ -13,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -90,6 +91,43 @@ class BondAccumulator {
     std::vector<std::size_t> aromatic_bonds_; // Indices in bonds_.
 };
 
+// Which selected residues the file states a bond within.
+class InternalBonds {
+  public:
+    explicit InternalBonds(const selection::SelectedModel& model)
+        : model_{&model}, stated_(model.residues().size()) {}
+
+    // Notes a pair of atoms the file bonds, whether or not the bond is new.
+    void note(const std::size_t first, const std::size_t second) {
+        const auto* const residue = model_->sites()[first].residue;
+        if (first != second && residue == model_->sites()[second].residue) {
+            noted_.insert(residue);
+        }
+    }
+
+    // Notes a residue by its index in the model.
+    void note_residue(const std::size_t residue) {
+        stated_[residue] = true;
+    }
+
+    [[nodiscard]] auto take() -> std::vector<bool> {
+        const auto& residues = model_->residues();
+        for (std::size_t index = 0; index < residues.size() && !noted_.empty(); ++index) {
+            if (noted_.contains(residues[index].residue)) {
+                stated_[index] = true;
+            }
+        }
+        return std::move(stated_);
+    }
+
+  private:
+    const selection::SelectedModel* model_;
+    std::vector<bool> stated_;
+    // The residues of the noted pairs. Files state few bonds this way, so the residues are looked
+    // up once at the end, not indexed by atom beforehand.
+    std::unordered_set<const ::gemmi::Residue*> noted_;
+};
+
 // The selected residues of a model by chain name and sequence ID, in model order, so that each
 // connection partner is found without scanning every chain and residue.
 class ResidueIndex {
@@ -154,7 +192,7 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
 // because their partners are in different symmetry images. The second partner of such a connection
 // is an atom of a symmetry-related copy, which the molecule does not contain; its counterpart in
 // the file is a different atom.
-[[nodiscard]] auto add_structure_connections(BondAccumulator& bonds,
+[[nodiscard]] auto add_structure_connections(BondAccumulator& bonds, InternalBonds& internal,
                                              const ::gemmi::Structure& structure,
                                              const selection::SelectedModel& selected,
                                              const ConnectionOrders& orders = {}) -> std::size_t {
@@ -194,6 +232,7 @@ using ConnectionOrders = std::unordered_map<std::string, SourceOrder>;
                              {}};
         }
         const auto order = orders.find(connection.name);
+        internal.note(*first.atom, *second.atom);
         bonds.add(*first.atom, *second.atom,
                   order == orders.end() ? SourceOrder{.order = core::BondOrder::SINGLE}
                                         : order->second);
@@ -300,24 +339,19 @@ residue_protonation(const component_templates::ComponentTemplate& component_temp
         });
 }
 
-// Which residues take bonds from the component dictionary.
-enum class DictionaryUse : std::uint8_t {
-    // Those without a built-in template: one template per residue.
-    residues_without_template,
-    // All of them: the pairs that a built-in template does not bond.
-    every_residue,
-};
-
+// The dictionary's bonds between the atoms present in the residues that have no built-in template
+// and that use_residue accepts by their index in the model.
 [[nodiscard]] auto dictionary_bonds(const selection::SelectedModel& model,
-                                    const ComponentDictionary& dictionary, const DictionaryUse use)
+                                    const ComponentDictionary& dictionary,
+                                    const std::function<bool(std::size_t)>& use_residue)
     -> std::vector<core::Bond> {
     BondAccumulator result;
     // A structure repeats few component names in many residues.
     auto entries = std::unordered_map<std::string_view, std::optional<DictionaryComponent>>{};
-    for (const auto& residue : model.residues()) {
-        const auto component = residue.component();
-        if (use == DictionaryUse::residues_without_template &&
-            component_templates::find(component.name) != nullptr) {
+    const auto& residues = model.residues();
+    for (std::size_t index = 0; index < residues.size(); ++index) {
+        const auto component = residues[index].component();
+        if (component_templates::find(component.name) != nullptr || !use_residue(index)) {
             continue;
         }
         auto entry = entries.find(component.name);
@@ -406,7 +440,8 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
     }
 
     BondAccumulator result;
-    const auto skipped = add_structure_connections(result, structure, model);
+    auto internal = InternalBonds{model};
+    const auto skipped = add_structure_connections(result, internal, structure, model);
     auto unknown = std::vector<std::size_t>{};
 
     for (const auto& [serial, partners] : structure.conect_map) {
@@ -418,6 +453,7 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
         for (const auto partner : partners) {
             const auto second = model.atom_index_by_serial(partner);
             if (second.has_value()) {
+                internal.note(*first, *second);
                 const auto index = result.add(*first, *second, core::BondOrder::SINGLE);
                 const auto& first_site = model.sites()[*first];
                 const auto& second_site = model.sites()[*second];
@@ -433,7 +469,8 @@ auto explicit_pdb(const ::gemmi::Structure& structure, const selection::Selected
 
     return {.bonds = result.take(),
             .skipped_symmetry_connections = skipped,
-            .unknown_order_indices = std::move(unknown)};
+            .unknown_order_indices = std::move(unknown),
+            .residues_with_file_bonds = internal.take()};
 }
 
 auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& block,
@@ -445,6 +482,7 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
 
     const auto& residues = model.residues();
     BondAccumulator result;
+    auto internal = InternalBonds{model};
 
     struct ParsedComponentBond {
         std::string first;
@@ -453,25 +491,28 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
     };
 
     std::unordered_map<std::string, std::vector<ParsedComponentBond>> component_bonds;
+    // A component is listed here once the file has a row for it, also when no row gives a bond.
     auto rows =
-        block.find("_chem_comp_bond.", {"comp_id", "atom_id_1", "atom_id_2", "value_order"});
+        block.find("_chem_comp_bond.", {"comp_id", "atom_id_1", "atom_id_2", "?value_order"});
     for (const auto row : rows) {
-        auto component = row.str(0);
-        auto first = row.str(1);
-        auto second = row.str(2);
-        const auto order_value = row.str(3);
-        if (const auto order = bond_order(order_value)) {
-            component_bonds[std::move(component)].emplace_back(ParsedComponentBond{
-                .first = std::move(first), .second = std::move(second), .order = *order});
+        auto& bonds = component_bonds[row.str(0)];
+        if (!row.has(3)) {
+            continue;
+        }
+        if (const auto order = bond_order(row.str(3))) {
+            bonds.emplace_back(
+                ParsedComponentBond{.first = row.str(1), .second = row.str(2), .order = *order});
         }
     }
 
-    for (const auto& residue : residues) {
+    for (std::size_t residue_index = 0; residue_index < residues.size(); ++residue_index) {
+        const auto& residue = residues[residue_index];
         const auto component = residue.component();
         const auto found = component_bonds.find(std::string{component.name});
         if (found == component_bonds.end()) {
             continue;
         }
+        internal.note_residue(residue_index);
         // The rows describe a component, so they cannot follow the protonation of one residue.
         // Under hybrid, a bond that the residue's template has takes the template's order.
         const auto* const component_template =
@@ -501,11 +542,13 @@ auto explicit_mmcif(const ::gemmi::Structure& structure, ::gemmi::cif::Block& bl
             connection_orders.emplace(row.str(0), *order);
         }
     }
-    const auto skipped = add_structure_connections(result, structure, model, connection_orders);
+    const auto skipped =
+        add_structure_connections(result, internal, structure, model, connection_orders);
 
     return {.bonds = result.take(),
             .skipped_symmetry_connections = skipped,
-            .aromatic_bonds = result.aromatic_bonds()};
+            .aromatic_bonds = result.aromatic_bonds(),
+            .residues_with_file_bonds = internal.take()};
 }
 
 auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
@@ -519,6 +562,7 @@ auto symmetry_connections_issue(const std::size_t count) -> ImportIssue {
 
 auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
             const ComponentDictionary* const dictionary, std::vector<core::Bond> explicit_bonds,
+            const std::vector<bool>& residues_with_file_bonds,
             const ExplicitBondOrders explicit_orders,
             std::vector<std::size_t>& unknown_order_indices) -> std::vector<core::Bond> {
     if (explicit_orders == ExplicitBondOrders::from_source && !unknown_order_indices.empty()) {
@@ -534,7 +578,7 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
         if (dictionary != nullptr) {
             // The residues are other ones, so no pair is given twice.
             std::ranges::move(
-                dictionary_bonds(model, *dictionary, DictionaryUse::residues_without_template),
+                dictionary_bonds(model, *dictionary, [](std::size_t) { return true; }),
                 std::back_inserter(bonds));
         }
         return bonds;
@@ -545,18 +589,25 @@ auto assign(const selection::SelectedModel& model, const BondStrategy strategy,
         // The first source to define a pair sets its order. Bonds with source orders (mmCIF) come
         // first and keep their place in the record; explicit_mmcif() has given the component bonds
         // that a template has the template's orders. Connectivity-only records (PDB CONECT) only
-        // add pairs templates do not cover. The dictionary comes last and adds the pairs still
-        // missing. It also gives the order of a pair whose order the file does not state, and of
-        // no other: a bond the file gives with an order keeps it.
-        const auto from_dictionary =
-            dictionary != nullptr
-                ? dictionary_bonds(model, *dictionary, DictionaryUse::every_residue)
-                : std::vector<core::Bond>{};
+        // add pairs templates do not cover. The dictionary comes last and bonds only the residues
+        // that have no built-in template and no bond within them in the file: its atom names need
+        // not mean the atoms of a residue the file bonds itself. In such a residue it gives only
+        // the order of a pair whose order the file does not state.
+        const auto file_bonded = [&](const std::size_t residue) {
+            return residue < residues_with_file_bonds.size() && residues_with_file_bonds[residue];
+        };
+        auto from_dictionary = std::vector<core::Bond>{};
         auto dictionary_orders = std::map<std::pair<std::size_t, std::size_t>, core::BondOrder>{};
-        if (!unknown_order_indices.empty()) {
-            for (const auto& bond : from_dictionary) {
-                dictionary_orders.emplace(
-                    std::minmax(bond.first_atom_index(), bond.second_atom_index()), bond.order());
+        if (dictionary != nullptr) {
+            from_dictionary = dictionary_bonds(model, *dictionary, [&](const std::size_t residue) {
+                return !file_bonded(residue);
+            });
+            if (!unknown_order_indices.empty()) {
+                for (const auto& bond : dictionary_bonds(model, *dictionary, file_bonded)) {
+                    dictionary_orders.emplace(
+                        std::minmax(bond.first_atom_index(), bond.second_atom_index()),
+                        bond.order());
+                }
             }
         }
         auto first = assign_template_bonds(model);

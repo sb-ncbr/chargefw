@@ -255,12 +255,16 @@ has:
 
 - with `templates`, a residue without a template takes the bonds of its entry. A residue with a
   template takes the template's bonds alone;
-- with `hybrid`, the dictionary adds, in every residue, the bonds that neither a template nor the
-  file gives, after the others. Bonds read from an mmCIF file keep their positions. A bond within a
-  PDB residue that would be reported in `bond_orders_unknown` takes its order from the dictionary
-  when the residue's entry has that bond, and is then not reported; one the entry does not have
-  stays single and reported. A bond the file gives with an order, such as a PDB `LINK`
-  record, which is a single bond, keeps it; and
+- with `hybrid`, a residue takes the bonds of its entry when it has no template and the file gives
+  no bond within it. These bonds come after the others. A residue with a template takes nothing
+  from the dictionary. Neither does a residue that the file bonds, even when the file lists only
+  some of its bonds: one PDB `CONECT` or `LINK` record between two of its atoms is enough, and so
+  is one mmCIF `_chem_comp_bond` row for its residue name, also a row that ChargeFW cannot read a
+  bond from. A link to another residue does not count. In a PDB residue without a template, a bond
+  that would be reported in `bond_orders_unknown` takes its order from the dictionary when the
+  residue's entry has that bond, and is then not reported; one the entry does not have stays
+  single and reported. A bond the file gives with an order, such as a PDB `LINK` record, which is
+  a single bond, keeps it; and
 - with `none` and `explicit`, the dictionary is not used.
 
 ChargeFW uses the bond orders of an entry as they are, whatever the formal charges and hydrogens of

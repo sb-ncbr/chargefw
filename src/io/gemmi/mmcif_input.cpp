@@ -298,8 +298,9 @@ auto MmcifReader::Impl::read_block(::gemmi::cif::Block& block, const std::size_t
         MoleculeRecordIdentity{
             .source_name = source_, .record_index = record_index, .record_id = block.name},
         options_.selection, options_.bonds, options_.components.get(), options_.conformers,
-        std::move(explicit_bonds.bonds), structure.name.empty() ? block.name : structure.name,
-        MolecularSourceFormat::mmcif, std::move(source_models), source_connectivity(block));
+        std::move(explicit_bonds.bonds), explicit_bonds.residues_with_file_bonds,
+        structure.name.empty() ? block.name : structure.name, MolecularSourceFormat::mmcif,
+        std::move(source_models), source_connectivity(block));
     record.import_metadata->source_text = text_;
     if (!explicit_bonds.aromatic_bonds.empty()) {
         record.import_warnings.push_back(
