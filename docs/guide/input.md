@@ -155,8 +155,10 @@ does not replace the other sources of bonds:
   the dictionary gives those names. For a PDB file, the dictionary still gives the orders of
   `CONECT` bonds whose order is unknown, when its entry has the same bonds between non-hydrogen
   atoms as the file. Otherwise the [`bond_orders_unknown`
-  warning](../reference/formats.md#connectivity) stays.
-- A residue with neither takes the bonds of its entry.
+  warning](../reference/formats.md#connectivity) stays. If the dictionary has an entry but it does
+  not match, `component_entries_rejected` also names the residue.
+- A residue with neither takes the bonds of its entry. A residue named `LIG`, `DRG`, `INH`, or
+  `00` to `99` takes none: these names stand for any ligand, as in the output of docking programs.
 
 With `bonds="templates"`, ChargeFW does not read the bonds in the file, and every residue without a
 template takes the bonds of its entry.

@@ -413,11 +413,12 @@ auto make_record(const ::gemmi::Structure& structure,
         bond_strategy == BondStrategy::templates || bond_strategy == BondStrategy::hybrid
             ? dictionary
             : nullptr;
-    auto bonds =
-        remap_bonds(::chargefw::io::gemmi::bonds::assign(
-                        selected_model, bond_strategy, dictionary, std::move(explicit_bonds),
-                        residues_with_file_bonds, explicit_orders, unknown_order_indices),
-                    source_orders.front());
+    auto dictionary_issue = std::optional<ImportIssue>{};
+    auto bonds = remap_bonds(::chargefw::io::gemmi::bonds::assign(
+                                 selected_model, bond_strategy, dictionary,
+                                 std::move(explicit_bonds), residues_with_file_bonds,
+                                 explicit_orders, unknown_order_indices, dictionary_issue),
+                             source_orders.front());
 
     auto atom_references = source_models.front().conformer.sites;
     auto conformer_references = std::vector<SourceConformerReference>{};
@@ -449,6 +450,9 @@ auto make_record(const ::gemmi::Structure& structure,
                                                      bond_strategy, consulted_dictionary)) {
             issues.push_back(std::move(*diagnostic));
         }
+    }
+    if (dictionary_issue) {
+        issues.push_back(std::move(*dictionary_issue));
     }
 
     return io::make_record(std::move(first.atoms), std::move(bonds), std::move(conformers),

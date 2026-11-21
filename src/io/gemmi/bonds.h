@@ -18,6 +18,7 @@ class ComponentDictionary;
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace chargefw::io::gemmi::bonds {
@@ -37,12 +38,16 @@ enum class ExplicitBondOrders : std::uint8_t {
 // hybrid, only within those the file states no bond within either. Under hybrid it also gives the
 // orders of the pairs listed in unknown_order_indices, in a residue without a built-in template
 // whose entry has the same bonds between non-hydrogen atoms as the file. An entry that contradicts
-// an element of the residue is not used at all.
-[[nodiscard]] auto
-assign(const selection::SelectedModel& model, BondStrategy strategy,
-       const ComponentDictionary* dictionary, std::vector<core::Bond> explicit_bonds,
-       const std::vector<bool>& residues_with_file_bonds, ExplicitBondOrders explicit_orders,
-       std::vector<std::size_t>& unknown_order_indices) -> std::vector<core::Bond>;
+// an element of the residue is not used at all, and a residue with a temporary ligand name, such as
+// LIG, is not looked up. dictionary_issue receives the warning that names the residues that took
+// nothing from the dictionary for one of these reasons.
+[[nodiscard]] auto assign(const selection::SelectedModel& model, BondStrategy strategy,
+                          const ComponentDictionary* dictionary,
+                          std::vector<core::Bond> explicit_bonds,
+                          const std::vector<bool>& residues_with_file_bonds,
+                          ExplicitBondOrders explicit_orders,
+                          std::vector<std::size_t>& unknown_order_indices,
+                          std::optional<ImportIssue>& dictionary_issue) -> std::vector<core::Bond>;
 
 // Bonds stated in the file. Connections to atoms of a symmetry-related copy are not bonds of
 // the molecule; they are counted, not added.

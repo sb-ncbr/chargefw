@@ -10,7 +10,9 @@
   `chargefw.io.read()`, `parse()`, and the Gemmi functions, with `--components` on the command line,
   or with `StructureOptions::components` in C++. It gives the bonds within a residue that has no
   residue template and no bonds in the file, and the orders of the PDB `CONECT` bonds of a residue
-  whose entry has the same bonds.
+  whose entry has the same bonds. A residue whose entry does not fit it, or whose name is a
+  temporary ligand name such as `LIG`, takes nothing and is named in the new
+  `component_entries_rejected` import warning.
   Nothing is taken from it unless it is named. `chargefw.io.ComponentDictionary` loads it once for
   many reads. Results record the version of the dictionary a molecule was read with in the import
   policy, `components`.

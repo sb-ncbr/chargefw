@@ -817,7 +817,7 @@ TEST_CASE("A component dictionary bonds the PDB residues that nothing else does"
     // The ligand entry lacks N1. The alanine entry differs from the built-in template: a single
     // carbonyl bond, a hydrogen HZ9 on CB that the template does not have, and no CA.
     std::istringstream dictionary_text{"chargefw-ccd 1 2026.11.13\n"
-                                       "LIG 3 2\n"
+                                       "LGD 3 2\n"
                                        "C1 C 0\n"
                                        "O1 O 0\n"
                                        "C2 C 0\n"
@@ -832,10 +832,10 @@ TEST_CASE("A component dictionary bonds the PDB residues that nothing else does"
                                        "2 3 1\n"};
     const auto dictionary = std::make_shared<const io::ComponentDictionary>(dictionary_text);
     const auto atoms = std::string{
-        R"pdb(HETATM    1  C1  LIG A   1       5.000   0.000   0.000  1.00 20.00           C
-HETATM    2  O1  LIG A   1       6.230   0.000   0.000  1.00 20.00           O
-HETATM    3  C2  LIG A   1       5.000   1.500   0.000  1.00 20.00           C
-HETATM    4  N1  LIG A   1       5.000   3.000   0.000  1.00 20.00           N
+        R"pdb(HETATM    1  C1  LGD A   1       5.000   0.000   0.000  1.00 20.00           C
+HETATM    2  O1  LGD A   1       6.230   0.000   0.000  1.00 20.00           O
+HETATM    3  C2  LGD A   1       5.000   1.500   0.000  1.00 20.00           C
+HETATM    4  N1  LGD A   1       5.000   3.000   0.000  1.00 20.00           N
 ATOM      5  C   ALA A   2       0.000   0.000   0.000  1.00 20.00           C
 ATOM      6  O   ALA A   2       1.230   0.000   0.000  1.00 20.00           O
 ATOM      7  CB  ALA A   2       0.000   3.000   0.000  1.00 20.00           C
@@ -883,6 +883,12 @@ ATOM      9  CA  ALA A   2       0.000   1.500   0.000  1.00 20.00           C
         CHECK_FALSE(order(record, 0, 2).has_value());
         CHECK(order(record, 2, 3) == BondOrder::SINGLE);
         CHECK(unknown_orders(record).size() == 2);
+        // The warning names the atom to look at.
+        const auto rejected = std::ranges::find(record.import_warnings,
+                                                io::ImportIssueKind::component_entries_rejected,
+                                                &io::ImportIssue::kind);
+        REQUIRE(rejected != record.import_warnings.end());
+        CHECK(rejected->message.contains("N1"));
         // The built-in template keeps its carbonyl order, and its residue takes nothing from the
         // dictionary: HZ9, which only the dictionary's entry bonds, is reported.
         CHECK(order(record, 4, 5) == BondOrder::DOUBLE);
@@ -895,7 +901,7 @@ ATOM      9  CA  ALA A   2       0.000   1.500   0.000  1.00 20.00           C
         // A ligand the file does not bond takes the bonds of its entry. A link to another residue
         // is not a bond within the ligand.
         const auto linked =
-            "LINK         N1  LIG A   1                 CA  ALA A   2\n" + atoms + "END\n";
+            "LINK         N1  LGD A   1                 CA  ALA A   2\n" + atoms + "END\n";
         const auto record =
             read_first(linked, {.bonds = io::BondStrategy::hybrid, .components = dictionary});
         CHECK(order(record, 0, 1) == BondOrder::DOUBLE);
@@ -959,7 +965,11 @@ TEST_CASE("A component dictionary gives PDB bond orders only to a residue its en
                                        "H1 H 0\n"
                                        "0 1 2\n"
                                        "0 2 1\n"
-                                       "2 3 1\n"};
+                                       "2 3 1\n"
+                                       "LIG 2 1\n"
+                                       "C1 C 0\n"
+                                       "O1 O 0\n"
+                                       "0 1 2\n"};
     const auto options = io::StructureOptions{
         .bonds = io::BondStrategy::hybrid,
         .components = std::make_shared<const io::ComponentDictionary>(dictionary_text)};
@@ -983,6 +993,11 @@ HETATM    5  HX  ACD A   1       1.000   1.500   0.000  1.00 20.00           H
         std::string text;
         BondOrder carbonyl;
         bool orders_reported;
+    };
+    const auto rejected = [](const io::ImportedMoleculeRecord& record) {
+        return std::ranges::any_of(record.import_warnings, [](const auto& warning) {
+            return warning.kind == io::ImportIssueKind::component_entries_rejected;
+        });
     };
     const auto cases = {
         // The file's bonds between non-hydrogen atoms are the entry's.
@@ -1025,9 +1040,25 @@ HETATM    5  HX  ACD A   1       1.000   1.500   0.000  1.00 20.00           H
         CHECK(std::ranges::any_of(record.import_warnings, [](const auto& warning) {
                   return warning.kind == io::ImportIssueKind::bond_orders_unknown;
               }) == orders_reported);
+        CHECK(rejected(record) == orders_reported);
     }
 
     // An entry that contradicts an element does not bond a residue the file leaves unbonded either.
     CHECK(read_first(atoms + "END\n", options).molecule.bond_count() == 3);
-    CHECK(read_first(nitrogen + "END\n", options).molecule.bond_count() == 0);
+    const auto contradicted = read_first(nitrogen + "END\n", options);
+    CHECK(contradicted.molecule.bond_count() == 0);
+    CHECK(rejected(contradicted));
+
+    // LIG is a name for any ligand, so the entry of that name is not used, with or without CONECT.
+    auto ligand = atoms;
+    for (auto at = ligand.find("ACD"); at != std::string::npos; at = ligand.find("ACD", at)) {
+        ligand.replace(at, 3, "LIG");
+    }
+    for (const auto* const conect : {"", "CONECT    1    2\n"}) {
+        const auto record = read_first(ligand + conect + "END\n", options);
+        CHECK(std::ranges::none_of(record.molecule.bonds(), [](const auto& bond) {
+            return bond.order() == BondOrder::DOUBLE;
+        }));
+        CHECK(rejected(record));
+    }
 }

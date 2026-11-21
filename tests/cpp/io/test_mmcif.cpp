@@ -731,7 +731,7 @@ TEST_CASE("mmCIF input rejects non-ASCII text", "[io][mmcif]") {
 TEST_CASE("A component dictionary bonds only the mmCIF residues that the file does not",
           "[io][mmcif][components]") {
     std::istringstream dictionary_text{"chargefw-ccd 1 2026.11.13\n"
-                                       "LIG 3 2\n"
+                                       "LGD 3 2\n"
                                        "C1 C 0\n"
                                        "O1 O 0\n"
                                        "C2 C 0\n"
@@ -741,9 +741,9 @@ TEST_CASE("A component dictionary bonds only the mmCIF residues that the file do
     const auto options =
         io::StructureOptions{.bonds = io::BondStrategy::hybrid, .components = dictionary};
     const auto atoms = atom_site_header("ligand") + R"cif(
-HETATM 1 C C1 . LIG A 1 ? 0 0 0 1 20 0 1 LIG A C1 1
-HETATM 2 O O1 . LIG A 1 ? 1 0 0 1 20 0 1 LIG A O1 1
-HETATM 3 C C2 . LIG A 1 ? 0 1 0 1 20 0 1 LIG A C2 1
+HETATM 1 C C1 . LGD A 1 ? 0 0 0 1 20 0 1 LGD A C1 1
+HETATM 2 O O1 . LGD A 1 ? 1 0 0 1 20 0 1 LGD A O1 1
+HETATM 3 C C2 . LGD A 1 ? 0 1 0 1 20 0 1 LGD A C2 1
 )cif";
     const auto bond_rows = std::string{R"cif(loop_
 _chem_comp_bond.comp_id
@@ -756,11 +756,11 @@ _chem_comp_bond.value_order
     CHECK(read_first(atoms, options).bond_count() == 2);
 
     // The file states C1-O1 alone, as a single bond, and the ligand keeps the file's bonds.
-    const auto molecule = read_first(atoms + bond_rows + "LIG C1 O1 SING\n", options);
+    const auto molecule = read_first(atoms + bond_rows + "LGD C1 O1 SING\n", options);
     REQUIRE(molecule.bond_count() == 1);
     CHECK(molecule.bond(0).second_atom_index() == 1);
     CHECK(molecule.bond(0).order() == chargefw::core::BondOrder::SINGLE);
 
     // A row that gives no bond still describes the ligand.
-    CHECK(read_first(atoms + bond_rows + "LIG C1 C9 SING\n", options).bond_count() == 0);
+    CHECK(read_first(atoms + bond_rows + "LGD C1 C9 SING\n", options).bond_count() == 0);
 }

@@ -271,7 +271,15 @@ has:
 - with `none` and `explicit`, the dictionary is not used.
 
 With either setting, a residue takes nothing from an entry that gives one of its atom names another
-element than the atom has in the file; hydrogen and deuterium count as one element.
+element than the atom has in the file; hydrogen and deuterium count as one element. ChargeFW does
+not look up the residue names `LIG`, `DRG`, `INH`, and `00` to `99`: the wwPDB reserves them for
+ligands that have no entry yet, and programs use them for any compound. Under `hybrid`, such a
+residue keeps the bonds in the file.
+
+When a residue takes nothing from the dictionary for one of these reasons, or because its entry
+does not match its PDB bonds, the record receives one `component_entries_rejected` warning. It
+counts these residues and names up to three with the reason, such as
+`LIG A 1 (a temporary ligand name)` or `XYZ A 5 (no atom C13 in its entry)`.
 
 ChargeFW uses the bond orders of an entry as they are, whatever the formal charges and hydrogens of
 the residue in the file. An atom the dictionary marks as leaving, such as `OXT`, is bonded when the
