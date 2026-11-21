@@ -379,6 +379,17 @@ there instead of calling a decomposition or a large matrix product in a method. 
 constraint that the equalization methods add to their systems is chemistry and stays in
 `src/methods/builtin/charge_constraint.h`.
 
+**One thread limit, shared by every level.** The calculation runs its loops over molecules or
+fragments in a oneTBB arena of the thread limit (`src/calculation/parallel_for.h`), also with one
+thread. Methods get no thread count: the factorizations in `src/methods/linear_algebra/` and the
+row loops of `src/methods/parallel_rows.h` run on the arena they are called from, so molecules and
+the work within a molecule share the limit without oversubscription. Three rules keep this sound.
+Work below 1,500 rows stays serial, so fragments and small molecules are unchanged. Tasks are cut by
+fixed sizes, never by the thread count, so results are the same for any limit. Each inner loop is
+isolated (`this_task_arena::isolate`), so a thread waiting for it does not start another molecule
+and allocate that molecule's matrices beyond the memory estimate. Eigen's own parallelism stays off
+(`EIGEN_DONT_PARALLELIZE`): it needs OpenMP, does not cover Cholesky, and splits work by thread.
+
 ### Parameterization
 
 Fitting parameter values builds on the calculation without changing it. `chargefw::parameterization`

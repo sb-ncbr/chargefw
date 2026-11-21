@@ -103,9 +103,15 @@
   and the exit statuses of the command line are unchanged.
 - Without a thread limit, a calculation uses one thread per processor core it is allowed to use,
   instead of one per hardware thread: 8 threads instead of 16 on a processor with 8 cores and
-  hyper-threading. A second thread per core made cutoff and cover 10 to 20% faster and full
-  execution of one molecule no faster, while using every hardware thread of the machine. Pass a
-  higher `threads` or `--threads` to get it back.
+  hyper-threading. A second thread per core made calculations 10 to 20% faster, while using every
+  hardware thread of the machine. Pass a higher `threads` or `--threads` to get it back.
+- Full execution uses the threads within one molecule too. Methods that solve a system of
+  equations factorize a system of 1,500 or more unknowns on all threads of the calculation. EEM and
+  the SQE family also build theirs on them, for 1,500 or more atoms or bonds. On 8 cores, a 10,000-atom protein takes 1.5 s instead of
+  5.6 s with EEM and 1.0 s instead of 3.9 s with SQE+qp; a 40,000-atom structure takes 69 s and 40 s.
+  With one thread, EEM is about 8% slower than before. Charges are the same for any number of
+  threads, and differ from earlier versions only by rounding. In C++, a method called directly
+  through `Method::calculate()` uses the threads of the oneTBB arena it is called from.
 
 ### Fitting
 
