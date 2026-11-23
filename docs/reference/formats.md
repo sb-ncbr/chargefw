@@ -29,6 +29,10 @@ Malformed or unsupported data in a file is an error. So is a MOL, SDF, MOL2, PDB
 with no molecule in it, such as an empty file or an SDF file read as MOL2. MOL, SDF, and MOL2 files
 may use LF or CRLF line endings.
 
+Python and the command line read a file whole or not at all. One record that is refused, such as a
+molecule with a query atom among thousands in an SDF file, refuses the file, and you get no
+molecules from it. The error names the record; remove it from the file and read the file again.
+
 An error says why the file was refused as one of these kinds, which Python gives as
 `ParseError.kind` and C++ as `ParseError::kind()`:
 
