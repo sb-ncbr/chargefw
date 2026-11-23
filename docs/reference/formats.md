@@ -504,7 +504,10 @@ number, insertion code, and names. Remarks, `CONECT` records, and segment names 
 
 Use the converted file to view or pass on the charges, and keep the PDB file for calculations. The
 converted file has no `CONECT` bonds, so reading it can give a ligand without bonds and other
-charges than the PDB file gives.
+charges than the PDB file gives. For an mmCIF file that has the bonds of the calculation, write the
+[mmCIF output](#mmcif) instead, with `--output-mmcif` or `chargefw.io.write()`. Its bonds from
+`CONECT` records are written as single bonds, and reading it does not report
+`bond_orders_unknown` for them.
 
 Calculate all results of one file from the same input. ChargeFW refuses an mmCIF block that already
 has partial charges unless you ask it to replace them or to append to them. Appending keeps the charge
