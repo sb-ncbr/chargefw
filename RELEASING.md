@@ -145,7 +145,9 @@ same version. After an upload, any change to the source or the artifacts needs a
 It is released on its own schedule, without a version commit, a tag, or a GitHub Release.
 [`ccd.yml`](.github/workflows/ccd.yml) runs on the 3rd of each month and can be dispatched by hand. It
 downloads `components.cif.gz`, writes the data file with `packages/chargefw-ccd/generate.py`, builds
-and checks the wheel, and publishes it to TestPyPI and then PyPI. No approval is needed.
+and checks the wheel, and publishes it to TestPyPI and then PyPI. No approval is needed. Before
+publishing, it reads the structure 1EHZ, downloaded from the RCSB PDB, with the wheel and the latest
+ChargeFW on PyPI, and fails if a residue is left with atoms without bonds.
 
 The version is the date of the most recently modified component, such as `2026.11.19`. A run publishes
 only from `main` and only when the version is newer than every version on PyPI.

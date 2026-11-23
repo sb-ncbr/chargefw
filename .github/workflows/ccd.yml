@@ -83,6 +83,18 @@ jobs:
               assert file.readline() == f"chargefw-ccd 1 {sys.argv[1]}\n"
               assert sum(1 for _ in file) > 1_000_000
           ' "$VERSION"
+      # A transfer RNA with 11 kinds of modified nucleotides, whose bonds only the dictionary gives.
+      - name: Read 1EHZ with the released ChargeFW and the wheel
+        working-directory: ${{ runner.temp }}
+        run: |
+          environment/bin/python -m pip install --quiet --pre chargefw
+          curl --fail --location --retry 3 --output 1EHZ.cif https://files.rcsb.org/download/1EHZ.cif
+          environment/bin/python -I -c '
+          import chargefw, chargefw_ccd
+          molecule, = chargefw.io.read("1EHZ.cif", format="mmcif", components=chargefw_ccd.path())
+          kinds = {issue.kind for issue in molecule.import_warnings}
+          assert "unbonded_residue_atoms" not in kinds, kinds
+          '
       - name: Write the checksum manifest
         working-directory: ${{ github.workspace }}
         run: (cd dist && sha256sum ./*) > SHA256SUMS

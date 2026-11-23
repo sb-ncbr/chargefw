@@ -13,8 +13,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 - [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
 - [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
 - [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
-  READMEs and the documentation, show the Docker image as plain `sbncbr/chargefw`, and remove the image
-  tag update from `utils/release/01-prepare.sh` and RELEASING.md. The script fails if the tag is
+  READMEs, the documentation, and the ChargeFW installation in `ccd.yml`, show the Docker image as
+  plain `sbncbr/chargefw`, and remove the image tag update from `utils/release/01-prepare.sh` and
+  RELEASING.md. The script fails if the tag is
   missing from the files that show it, so change the script and the documents in one commit.
 - [ ] Point the documentation links in `README.md`, `python/README.md`, and `pyproject.toml` at
   `/en/stable/` instead of `/en/latest/` in the release commit: a published PyPI description cannot be
@@ -35,10 +36,6 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   Gemmi pins to it (`pyproject.toml`, `cmake/dependencies.cmake`, the CI and container installs, and
   the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
   `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
-
-- [ ] After the first release that reads a component dictionary, make `ccd.yml` test each new
-  `chargefw-ccd` wheel with the released ChargeFW before publishing it: 1EHZ from the PDB, read with
-  `components`, has no `unbonded_residue_atoms` warning.
 
 - [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
   `README.md`.
