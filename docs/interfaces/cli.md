@@ -114,7 +114,8 @@ may not have been written yet.
 
 The [format reference](../reference/formats.md#pdb-and-mmcif-input) describes the selection and bond
 options in detail. The structural options are an error with SDF, MOL, MOL2, or molecule JSON input.
-A malformed record in the input stops the command before any calculation.
+A record that cannot be read stops the command before any calculation; the
+[input is read whole or not at all](../reference/formats.md#format-overview).
 
 ### Choosing the model
 

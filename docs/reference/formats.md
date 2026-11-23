@@ -29,6 +29,10 @@ Malformed or unsupported data in a file is an error. So is a MOL, SDF, MOL2, PDB
 with no molecule in it, such as an empty file or an SDF file read as MOL2. MOL, SDF, and MOL2 files
 may use LF or CRLF line endings.
 
+Python and the command line read a file whole or not at all. One record that is refused, such as a
+molecule with a query atom among thousands in an SDF file, refuses the file, and you get no
+molecules from it. The error names the record; remove it from the file and read the file again.
+
 An error says why the file was refused as one of these kinds, which Python gives as
 `ParseError.kind` and C++ as `ParseError::kind()`:
 
@@ -75,7 +79,8 @@ skipped. From each record, ChargeFW reads:
   in a record without `M  CHG` and `M  RAD` lines, from the charge field of the atom lines.
 
 Two-letter element symbols can also be uppercase, as in PDB ligand downloads: `SE` and `Se` both
-mean selenium.
+mean selenium. `D` and `T`, which some programs write for deuterium and tritium, are read as
+hydrogen.
 
 Everything else in a record is ignored without a warning, for example isotopes, stereochemistry,
 atom aliases, S-groups, and V3000 blocks other than `ATOM` and `BOND`. Because S-groups are ignored,
@@ -499,7 +504,10 @@ number, insertion code, and names. Remarks, `CONECT` records, and segment names 
 
 Use the converted file to view or pass on the charges, and keep the PDB file for calculations. The
 converted file has no `CONECT` bonds, so reading it can give a ligand without bonds and other
-charges than the PDB file gives.
+charges than the PDB file gives. For an mmCIF file that has the bonds of the calculation, write the
+[mmCIF output](#mmcif) instead, with `--output-mmcif` or `chargefw.io.write()`. Its bonds from
+`CONECT` records are written as single bonds, and reading it does not report
+`bond_orders_unknown` for them.
 
 Calculate all results of one file from the same input. ChargeFW refuses an mmCIF block that already
 has partial charges unless you ask it to replace them or to append to them. Appending keeps the charge

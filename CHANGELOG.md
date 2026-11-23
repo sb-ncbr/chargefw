@@ -6,6 +6,12 @@
 
 - MOL and SDF input now accepts uppercase two-letter element symbols, such as `SE` in PDB ligand
   downloads.
+- MOL and SDF input reads the atom symbols `D` and `T`, which some programs write for deuterium and
+  tritium, as hydrogen. They used to be a `malformed` `ParseError`.
+- **Breaking change:** The query atoms `X`, `XH`, `M`, `MH`, `AH`, and `QH` in MOL and SDF input
+  are an `unsupported` `ParseError`, as `A` and `Q` already were. They used to be `malformed`, as
+  unknown elements. `X` is how the wwPDB writes an atom of no particular element in its ligand SDF
+  files.
 - PDB and mmCIF input can take the bonds of ligands and modified residues from a component
   dictionary, the bonds of the wwPDB Chemical Component Dictionary in the new `chargefw-ccd`
   package (`pip install "chargefw[ccd]"`). Name its file with `components` in

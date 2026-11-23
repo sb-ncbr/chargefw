@@ -13,6 +13,8 @@
 #include <chargefw/core/position.h>
 #include <chargefw/io/parse_error.h>
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <sstream>
@@ -35,8 +37,16 @@ constexpr std::string_view v30_prefix{"M  V30 "};
     -> core::Atom {
     const auto normalized = common::trim(symbol);
 
-    if (normalized.empty() || normalized == "*" || normalized == "A" || normalized == "Q" ||
-        normalized == "L" || normalized == "LP" || normalized == "R" || normalized == "R#" ||
+    // Some programs write deuterium and tritium as D and T; isotopes are not kept.
+    if (normalized == "D" || normalized == "T") {
+        return core::Atom{1, formal_charge};
+    }
+
+    // Besides the query atoms of the format, the ones other programs add: X is a halogen, M a
+    // metal, and a trailing H also allows hydrogen.
+    static constexpr auto query_atoms = std::to_array<std::string_view>(
+        {"*", "A", "AH", "Q", "QH", "X", "XH", "M", "MH", "L", "LP", "R", "R#"});
+    if (normalized.empty() || std::ranges::contains(query_atoms, normalized) ||
         // A V3000 atom list, [C,N] or NOT [C,N].
         (normalized.starts_with('[') && normalized.ends_with(']')) || normalized == "NOT") {
         throw ParseError{ParseErrorKind::unsupported,
