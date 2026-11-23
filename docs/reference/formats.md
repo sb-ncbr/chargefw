@@ -75,7 +75,8 @@ skipped. From each record, ChargeFW reads:
   in a record without `M  CHG` and `M  RAD` lines, from the charge field of the atom lines.
 
 Two-letter element symbols can also be uppercase, as in PDB ligand downloads: `SE` and `Se` both
-mean selenium.
+mean selenium. `D` and `T`, which some programs write for deuterium and tritium, are read as
+hydrogen.
 
 Everything else in a record is ignored without a warning, for example isotopes, stereochemistry,
 atom aliases, S-groups, and V3000 blocks other than `ATOM` and `BOND`. Because S-groups are ignored,

@@ -124,6 +124,18 @@ TEST_CASE("native numeric parsing is complete and locale independent", "[io][nat
     }
 }
 
+TEST_CASE("MOL and SDF read D and T as hydrogen", "[io][mol]") {
+    std::istringstream sdf{"heavy water\n\n\n  3  2  0  0  0  0  0  0  0  0999 V2000\n"
+                           "    0.0000    0.0000    0.0000 O   0  0\n"
+                           "    0.9600    0.0000    0.0000 D   0  0\n"
+                           "   -0.2400    0.9300    0.0000 T   0  0\n"
+                           "  1  2  1  0\n  1  3  1  0\nM  END\n$$$$\n"};
+    const auto record = io::SdfReader{sdf, "water.sdf"}.next();
+    REQUIRE(record.has_value());
+    CHECK(record->molecule.atom(1).atomic_number() == 1);
+    CHECK(record->molecule.atom(2).atomic_number() == 1);
+}
+
 TEST_CASE("MOL and SDF read uppercase two-letter elements", "[io][mol]") {
     std::istringstream sdf{"MSE\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n"
                            "    0.0000    0.0000    0.0000 SE  0  0\nM  END\n$$$$\n"};
@@ -860,6 +872,8 @@ TEST_CASE("native readers give the kind of refusal", "[io][native]") {
          {std::pair<std::string_view, Kind>{"[C,N]", Kind::unsupported},
           {"NOT [C,N]", Kind::unsupported},
           {"LP", Kind::unsupported},
+          {"X", Kind::unsupported},
+          {"MH", Kind::unsupported},
           {"XX", Kind::malformed},
           {"cl", Kind::malformed},
           {"[C,N", Kind::malformed}}) {
