@@ -4,19 +4,6 @@ This file lists unfinished product, integration, scientific-qualification, distr
 infrastructure work. Implemented behavior is documented under [`docs/`](docs/), and developer and release
 procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.md).
 
-## 3.0.0 release
-
-- [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version. Do it
-  after the release workflow has pushed the tag and before approving the PyPI upload, so that the
-  `/en/stable/` links of the package description and the `$id` addresses of the JSON Schemas work
-  from the start.
-- [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` in the
-  release that is announced; 3.0.0 keeps `4 - Beta`.
-- [ ] Check the documentation links of the 3.0.0 page on PyPI, which replaces 0.1.7 as the default
-  project page. The 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs pages `PYTHON.html`,
-  `FORMATS.html`, `PROJECT.html`, and `recipes/README.html`, which return 404; decide whether they
-  need redirects.
-
 ## Distribution
 
 - [ ] When Gemmi releases a version that builds with nanobind 3 or has CPython 3.15 wheels
@@ -24,6 +11,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   Gemmi pins to it (`pyproject.toml`, `cmake/dependencies.cmake`, the CI and container installs, and
   the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
   `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
+
+- [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` in the
+  release that is announced; until then it stays `4 - Beta`.
 
 - [ ] Publish the Figshare item before the ChargeFW publication, and add a badge with its DOI to
   `README.md`.
