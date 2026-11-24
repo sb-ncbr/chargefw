@@ -30,7 +30,9 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 ## Integrations
 
 - [ ] ACC III migration: the development ACC runs on ChargeFW 3, and production still uses
-  ChargeFW2. [ACC.md](ACC.md) has the working notes; remove it when production has moved.
+  ChargeFW2. Outside ChargeFW, the Mol* partial-charges extension should read `parameter_set` of
+  charges dictionary 1.1; until it does, ACC writes `method/parameter set` into `method` for its
+  viewer.
 
 ## Parameterization
 

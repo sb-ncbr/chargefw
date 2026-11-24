@@ -117,15 +117,14 @@ or use **Actions → Release → Run workflow** on `main`. The jobs run in this 
 | `github-release` | Creates the GitHub Release with the artifacts, manifest, and changelog section |
 | `docker-image` | Pushes `sbncbr/chargefw:VERSION`; final releases also move `MAJOR.MINOR` and `latest` |
 
-When the run stops at `pypi`, check the TestPyPI project page. For a final release, also wait until
-Read the Docs has built `stable` from the new tag: the package description on PyPI links to
-`/en/stable/` and cannot be edited after the upload. Then approve the deployment in the run
-(**Review deployments**).
+When the run stops at `pypi`, check the TestPyPI project page and wait until Read the Docs has built
+the `vVERSION` documentation from the new tag. `stable` moves to it only when it is the newest final
+release; the package description on PyPI links to `/en/stable/` and cannot be edited after the
+upload. Then approve the deployment in the run (**Review deployments**).
 
 ## 5. After the release
 
-- Check that the release appears as a new version of the Figshare item and that Read the Docs built the
-  `vVERSION` documentation.
+- Check that the release appears as a new version of the Figshare item.
 - Add a new `## Unreleased` section to `CHANGELOG.md` with the next user-visible change.
 
 ## Recovery
