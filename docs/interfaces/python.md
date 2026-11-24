@@ -605,7 +605,7 @@ raises `CalculationCancelledError`; its result has status `"cancelled"` and no c
 
 ## RDKit
 
-`pip install --pre "chargefw[rdkit]"` installs the RDKit integration in `chargefw.io.rdkit`.
+`pip install "chargefw[rdkit]"` installs the RDKit integration in `chargefw.io.rdkit`.
 
 ```python
 from chargefw.io import rdkit as chargefw_rdkit
@@ -646,7 +646,7 @@ not to a conformer, so keep separate copies or property names to store several s
 ## Gemmi
 
 ChargeFW reads PDB and mmCIF files without the Gemmi Python package. To convert Gemmi objects, install
-the integration with `pip install --pre "chargefw[gemmi]"`. `chargefw.io.gemmi` can be imported
+the integration with `pip install "chargefw[gemmi]"`. `chargefw.io.gemmi` can be imported
 without it; its functions then raise an `ImportError` that says what to install.
 
 ```python

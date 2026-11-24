@@ -6,33 +6,20 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## 3.0.0 release
 
-- [ ] Write the 3.0.0 changelog section by hand instead of renaming `## Unreleased`: open it with the
-  summary from the 3.0.0rc5 section, rewritten for the final release without `--pre`, followed by any
-  changes since rc5. Move the 3.0.0rc5 section under `## 3.0.0 pre-releases`, one heading level
-  lower, so that the 3.0.0 release notes do not repeat its breaking changes.
-- [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version.
+- [ ] Reactivate the Read the Docs `stable` version at 3.0.0 and make it the default version. Do it
+  after the release workflow has pushed the tag and before approving the PyPI upload, so that the
+  `/en/stable/` links of the package description and the `$id` addresses of the JSON Schemas work
+  from the start.
 - [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
-- [ ] Drop the pre-release instructions at 3.0.0: remove `--pre` and the notes about it from both
-  READMEs, the documentation, and the ChargeFW installation in `ccd.yml`, show the Docker image as
-  plain `sbncbr/chargefw`, and remove the image tag update from `utils/release/01-prepare.sh` and
-  RELEASING.md. The script fails if the tag is
-  missing from the files that show it, so change the script and the documents in one commit.
-- [ ] Point the documentation links in `README.md`, `python/README.md`, and `pyproject.toml` at
-  `/en/stable/` instead of `/en/latest/` in the release commit: a published PyPI description cannot be
-  edited.
-- [ ] Add a PyPI version badge to `README.md` at 3.0.0
-  (`https://img.shields.io/pypi/v/chargefw`). shields.io shows only final releases, so until then it
-  shows 0.1.7.
-- [ ] Check the documentation links on PyPI after the documentation reorganization. The default project
-  page shows 0.1.7, whose description links to `docs/PYTHON.md`, `docs/FORMATS.md`, `docs/PROJECT.md`,
-  and `docs/recipes/` on GitHub `main`; the 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs
-  pages `PYTHON.html`, `FORMATS.html`, `PROJECT.html`, and `recipes/README.html`. All of them return
-  404. Published descriptions cannot be edited. The 3.0.0 release replaces the default page; confirm
-  that its links work and decide whether the remaining old pages need redirects or placeholder files.
+- [ ] Check the documentation links of the 3.0.0 page on PyPI, which replaces 0.1.7 as the default
+  project page. The 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs pages `PYTHON.html`,
+  `FORMATS.html`, `PROJECT.html`, and `recipes/README.html`, which return 404; decide whether they
+  need redirects.
 
 ## Distribution
 
-- [ ] When Gemmi releases a version that builds with nanobind 3 or has CPython 3.15 wheels, move the
+- [ ] When Gemmi releases a version that builds with nanobind 3 or has CPython 3.15 wheels
+  ([project-gemmi/gemmi#471](https://github.com/project-gemmi/gemmi/issues/471)), move the
   Gemmi pins to it (`pyproject.toml`, `cmake/dependencies.cmake`, the CI and container installs, and
   the license notice) and remove the nanobind build constraint from `tests/python/build-constraints.txt`,
   `pyproject.toml`, `docker/Dockerfile.fedora-45`, the installation guide, and RELEASING.md.
@@ -42,9 +29,8 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
 
 ## Integrations
 
-- [ ] ACC III migration: ChargeFW provides the reading options, method and parameter catalogs,
-  applicability, calculation, and MOL2, PQR, and mmCIF output that ACC uses. Add an append mode to
-  `chargefw.io.gemmi.attach_charges()` only if ACC needs to add charge sets to an existing file.
+- [ ] ACC III migration: the development ACC runs on ChargeFW 3, and production still uses
+  ChargeFW2. [ACC.md](ACC.md) has the working notes; remove it when production has moved.
 
 ## Parameterization
 

@@ -3,10 +3,10 @@
 Working notes for the migration of [Atomic Charge Calculator III](https://acc.biodata.ceitec.cz/)
 (ACC) from ChargeFW2 to ChargeFW 3, and for the ChargeFW changes the migration calls for. They record an
 analysis made on 2026-11-14 with ChargeFW 3.0.0rc5; where they say rc5, they describe that release.
-The ChargeFW changes listed in [ChargeFW work](#chargefw-work) were made after rc5 and are in the
-Unreleased section of `CHANGELOG.md`; ACC needs the first release that contains them. Nothing in ACC
-has been changed yet. Remove this file when the migration is complete; move what remains open to
-`TODO.md`.
+The ChargeFW changes listed in [ChargeFW work](#chargefw-work) were made after rc5 and released in
+3.0.0rc6. The sections below describe ACC as it was before the migration; the work on ACC has since
+started on its `chargefw-new` branch. Remove this file when the migration is complete; move what
+remains open to `TODO.md`.
 
 ## Goal and rules
 
@@ -315,7 +315,7 @@ Details that matter:
 
 ## ChargeFW work
 
-In the order proposed to the maintainer; all are resolved after rc5 and wait for the next release.
+In the order proposed to the maintainer; all were resolved after rc5 and released in 3.0.0rc6.
 
 1. **Alternative residues at one position (bug).** 1CBN has PRO or SER at position 22 and LEU or ILE
    at 25, as alternate locations A and C. ChargeFW picks an alternate location for each atom name of

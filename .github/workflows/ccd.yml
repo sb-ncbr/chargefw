@@ -87,7 +87,7 @@ jobs:
       - name: Read 1EHZ with the released ChargeFW and the wheel
         working-directory: ${{ runner.temp }}
         run: |
-          environment/bin/python -m pip install --quiet --pre chargefw
+          environment/bin/python -m pip install --quiet chargefw
           curl --fail --location --retry 3 --output 1EHZ.cif https://files.rcsb.org/download/1EHZ.cif
           environment/bin/python -I -c '
           import chargefw, chargefw_ccd

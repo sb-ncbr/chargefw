@@ -285,18 +285,18 @@ ChargeFW, which keeps its builds within the 15-minute limit of the free plan.
 
 Read the Docs builds `latest` from `main` and a preview for every pull request. An automation rule
 activates every tag matching `^v\d+\.\d+\.\d+`, so each release, including pre-releases, gets its own
-documentation version. `stable` follows the newest final release; it stays inactive until 3.0.0. A
-version of an abandoned release is deactivated by hand.
+documentation version. `stable` follows the newest final release and is the default version, the one
+the READMEs and the package metadata link to. A version of an abandoned release is deactivated by hand.
 
 ## Platforms
 
 The C++ library and its native installation, including the native command line, are supported on Linux.
 The Python package, which includes its own `chargefw` command line, is supported wherever wheels are
-published: Linux x86-64 and aarch64, macOS arm64, and Windows x86-64 (see RELEASING.md). CI builds and
-tests every published wheel, so each platform gates releases. Further platforms are welcome as wheels
-when they need no significant extra machinery, and gate releases once their wheels are published. Intel
-Macs are not planned: macOS 26 is their last release. Wheels and the native library are qualified
-separately.
+published: Linux x86-64 and aarch64, macOS arm64, and Windows x86-64 (see
+[RELEASING.md](RELEASING.md#current-wheel-matrix)). CI builds and tests every published wheel, so each
+platform gates releases. Further platforms are welcome as wheels when they need no significant extra
+machinery, and gate releases once their wheels are published. Intel Macs are not planned: macOS 26 is
+their last release. Wheels and the native library are qualified separately.
 
 Wheel builds set `CHARGEFW_BUILD_LIBRARY=OFF` in `pyproject.toml`: the extension and the packaged command
 line link the library objects, so the shared library and its installation are not built. Native builds

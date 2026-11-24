@@ -27,7 +27,7 @@ before a calculation.
 ## Installation
 
 ```bash
-pip install --pre chargefw
+pip install chargefw
 ```
 
 The [installation page](getting-started/installation.md) also covers the Docker image and building

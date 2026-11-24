@@ -7,23 +7,23 @@ ChargeFW is the new implementation of ChargeFW2, the calculation core of
 ([Raček et al., 2026](https://doi.org/10.1093/nar/gkag379)). It calculates charges with the 20 methods
 and the parameter sets of ChargeFW2, works with molecules in memory and with RDKit and Gemmi objects,
 gives charges for every conformer, explains why a method does not apply, and records every calculation.
-[Differences from ChargeFW2](https://chargefw.readthedocs.io/en/latest/about/chargefw2.html) describes
+[Differences from ChargeFW2](https://chargefw.readthedocs.io/en/stable/about/chargefw2.html) describes
 what changed and how to move over.
 
 ## Installation
 
-ChargeFW 3 is currently a pre-release, so pip needs `--pre`. It requires Python 3.12 or newer on Linux
-(x86-64 or aarch64), macOS 14 or newer on Apple silicon, or 64-bit Windows:
+ChargeFW requires Python 3.12 or newer on Linux (x86-64 or aarch64), macOS 14 or newer on Apple
+silicon, or 64-bit Windows:
 
 ```bash
-pip install --pre chargefw
+pip install chargefw
 ```
 
 The RDKit and Gemmi integrations are optional:
 
 ```bash
-pip install --pre "chargefw[rdkit]"
-pip install --pre "chargefw[gemmi]"
+pip install "chargefw[rdkit]"
+pip install "chargefw[gemmi]"
 ```
 
 ## Usage
@@ -55,15 +55,15 @@ Name both the method and the parameter set when the results must be reproducible
 
 The documentation is at [chargefw.readthedocs.io](https://chargefw.readthedocs.io/):
 
-- [First calculation](https://chargefw.readthedocs.io/en/latest/getting-started/first-calculation.html):
+- [First calculation](https://chargefw.readthedocs.io/en/stable/getting-started/first-calculation.html):
   an example with its output.
-- [Preparing input](https://chargefw.readthedocs.io/en/latest/guide/input.html): what a molecule needs
+- [Preparing input](https://chargefw.readthedocs.io/en/stable/guide/input.html): what a molecule needs
   before a calculation.
-- [Methods and parameter sets](https://chargefw.readthedocs.io/en/latest/guide/methods.html): the
+- [Methods and parameter sets](https://chargefw.readthedocs.io/en/stable/guide/methods.html): the
   available methods and how to choose one.
-- [Python](https://chargefw.readthedocs.io/en/latest/interfaces/python.html): the complete Python
+- [Python](https://chargefw.readthedocs.io/en/stable/interfaces/python.html): the complete Python
   interface.
-- [Examples](https://chargefw.readthedocs.io/en/latest/examples/index.html): complete scripts.
+- [Examples](https://chargefw.readthedocs.io/en/stable/examples/index.html): complete scripts.
 
 The source code is at [github.com/sb-ncbr/chargefw](https://github.com/sb-ncbr/chargefw). ChargeFW is
 distributed under the MIT license.
