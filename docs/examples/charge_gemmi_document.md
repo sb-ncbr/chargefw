@@ -5,7 +5,7 @@ other data of the file is kept. The output is mmCIF with the charges in the SB N
 charges categories. For the Trp-cage miniprotein [1l2y-h.cif](../guide/1l2y-h.cif):
 
 ```console
-$ pip install --pre "chargefw[gemmi]"
+$ pip install "chargefw[gemmi]"
 $ python charge_gemmi_document.py 1l2y-h.cif charged.cif
 ```
 

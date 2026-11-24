@@ -4,7 +4,7 @@ This script generates conformers of a molecule with RDKit, calculates EEM charge
 the atoms whose charges vary most between the conformers:
 
 ```console
-$ pip install --pre "chargefw[rdkit]"
+$ pip install "chargefw[rdkit]"
 $ python analyze_rdkit_conformer_charges.py "CCO" --conformers 20
 Method: eem/EEM_NEEMP_ccd2016_npa
 Conformers: 20 equally weighted, unoptimized ETKDGv3 structures

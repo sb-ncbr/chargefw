@@ -52,10 +52,10 @@ the full version, for example `3.0.0rc1`:
 ./utils/release/01-prepare.sh NEW_VERSION
 ```
 
-The script updates both version parts in `CMakeLists.txt` and the Docker image tag in `README.md` and
-`docs/getting-started/installation.md`. Rename the `## Unreleased` heading in `CHANGELOG.md` to
-`## NEW_VERSION`; the workflow requires that section and uses it as the GitHub Release notes, so its
-links must be absolute. Commit these files, for example as "Prepare release NEW_VERSION".
+The script updates both version parts in `CMakeLists.txt`. Rename the `## Unreleased` heading in
+`CHANGELOG.md` to `## NEW_VERSION`; the workflow requires that section and uses it as the GitHub
+Release notes, so its links must be absolute. Commit these files, for example as
+"Prepare release NEW_VERSION".
 
 ## 2. Validate locally
 
@@ -117,13 +117,14 @@ or use **Actions → Release → Run workflow** on `main`. The jobs run in this 
 | `github-release` | Creates the GitHub Release with the artifacts, manifest, and changelog section |
 | `docker-image` | Pushes `sbncbr/chargefw:VERSION`; final releases also move `MAJOR.MINOR` and `latest` |
 
-When the run stops at `pypi`, check the TestPyPI project page, then approve the deployment in the run
-(**Review deployments**).
+When the run stops at `pypi`, check the TestPyPI project page and wait until Read the Docs has built
+the `vVERSION` documentation from the new tag. `stable` moves to it only when it is the newest final
+release; the package description on PyPI links to `/en/stable/` and cannot be edited after the
+upload. Then approve the deployment in the run (**Review deployments**).
 
 ## 5. After the release
 
-- Check that the release appears as a new version of the Figshare item and that Read the Docs built the
-  `vVERSION` documentation.
+- Check that the release appears as a new version of the Figshare item.
 - Add a new `## Unreleased` section to `CHANGELOG.md` with the next user-visible change.
 
 ## Recovery

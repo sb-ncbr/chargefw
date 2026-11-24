@@ -10,7 +10,7 @@ or mmCIF file, the conformers of an RDKit molecule, and the conformers in molecu
 conformers. Methods that use only the molecular graph give one set of charges per molecule.
 
 ChargeFW calls each set of charges an assignment. Here ethanol gets three RDKit conformers; the
-RDKit integration needs `pip install --pre "chargefw[rdkit]"`:
+RDKit integration needs `pip install "chargefw[rdkit]"`:
 
 ```python
 from rdkit import Chem

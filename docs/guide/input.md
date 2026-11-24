@@ -62,7 +62,7 @@ print(result.assignments[0].values)
 
 The charges sum to −1, the formal charge of acetate. `from_mol()` accepts single, double, and triple
 bonds, so `Chem.Kekulize()` first replaces any aromatic bonds with them. The RDKit integration needs
-`pip install --pre "chargefw[rdkit]"`; see [Python](../interfaces/python.md#rdkit) for
+`pip install "chargefw[rdkit]"`; see [Python](../interfaces/python.md#rdkit) for
 the conversion options and for writing charges back to RDKit molecules.
 
 Files that already contain hydrogens and formal charges, such as SDF files from a docking program or a
@@ -121,7 +121,7 @@ The transfer RNA [1EHZ](https://www.rcsb.org/structure/1EHZ) has 11 kinds of mod
 As downloaded from the RCSB PDB, the file has no bonds within them:
 
 ```console
-$ pip install --pre "chargefw[ccd]"
+$ pip install "chargefw[ccd]"
 $ chargefw inspect 1EHZ.cif
 records: 1
 record 0 (1EHZ) atoms=1821 bonds=1501 conformers=1 coordinates=true formal_charge=0 elements=C:746,N:294,O:696,Mg:6,P:76,Mn:3

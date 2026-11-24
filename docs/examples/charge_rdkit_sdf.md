@@ -4,7 +4,7 @@ This script reads an SDF file with RDKit, calculates charges for all records, an
 RDKit atom properties. For [paracetamol.sdf](../getting-started/paracetamol.sdf):
 
 ```console
-$ pip install --pre "chargefw[rdkit]"
+$ pip install "chargefw[rdkit]"
 $ python charge_rdkit_sdf.py paracetamol.sdf charged.sdf --method eem
 Model: eem/EEM_NEEMP_ccd2016_npa
 'paracetamol': total=+0.000 most positive=C2 (+0.478)

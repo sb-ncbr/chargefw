@@ -1,8 +1,31 @@
 # Changelog
 
-## 3.0.0rc7
+## 3.0.0
 
-### Input
+ChargeFW 3.0.0 is the first release of ChargeFW 3, the successor of
+[ChargeFW2](https://github.com/sb-ncbr/ChargeFW2). ChargeFW has the same 20 methods and parameter
+sets as ChargeFW2 in a new implementation: a Python package for CPython 3.12 and newer on Linux,
+macOS, and Windows; a command line, also as the Docker image `sbncbr/chargefw`; and a C++ library.
+[Differences from ChargeFW2](https://chargefw.readthedocs.io/en/stable/about/chargefw2.html)
+describes what is new and how to move over. The version number continues from ChargeFW2, so the
+`chargefw` Python package moves from 0.1.7 to 3.0.0.
+
+ChargeFW itself is unchanged since 3.0.0rc7.
+
+### Installation
+
+- `pip install chargefw` installs ChargeFW 3; `--pre` is no longer needed.
+- The Docker image has the tags `latest` and `3.0`, which follow the newest final release, so
+  `sbncbr/chargefw` without a tag works.
+
+## 3.0.0 pre-releases
+
+Each pre-release lists its changes since the previous one. A breaking change in them breaks only
+code written for the previous pre-release.
+
+### 3.0.0rc7
+
+#### Input
 
 - MOL and SDF input now accepts uppercase two-letter element symbols, such as `SE` in PDB ligand
   downloads.
@@ -75,7 +98,7 @@
   a refusal of the input is no longer raised as `ParseError`.
 - An mmCIF formal charge outside -128 to 127 is an error; it was read as a different charge.
 
-### Output
+#### Output
 
 - A result that a format cannot hold, a document or RDKit molecule that changed since it was read,
   charges already present, a failed calculation, and molecules that were not read from the input
@@ -96,7 +119,7 @@
   such as `water` and `Water`, which now become `data_water` and `data_Water_2`. CIF block names
   are case-insensitive, and Gemmi refused the files with `data_water` and `data_Water`.
 
-### Calculation
+#### Calculation
 
 - A request for an assessment or a calculation that is invalid in itself is reported as
   `RequestError`, with a kind: `unknown_method`, `unknown_parameter_set`,
@@ -120,15 +143,15 @@
   rounding. In C++, a method called directly through `Method::calculate()` uses the threads of the
   oneTBB arena it is called from.
 
-### Fitting
+#### Fitting
 
 - `chargefw.parameterization.EvaluationError` has `failure`: what the method reported when it
   could not calculate the charges for the values, with its `kind`, `message`, `molecule_index`, and
   `conformer_index`, or `None` when no calculation of a method failed. The messages are unchanged.
 
-## 3.0.0rc6
+### 3.0.0rc6
 
-### Input
+#### Input
 
 - Under `hybrid`, mmCIF input takes the order of a bond that a residue's template has from the
   template, so each HIS or ARG gets the bonds that fit its hydrogens and formal charges. Previously
@@ -144,7 +167,7 @@
   mmCIF molecule is named by its data block. A file without an ID code is still named by the file
   name.
 
-### Output
+#### Output
 
 - ChargeFW can write the PDB or mmCIF structure it read with the charges added:
   `--annotate-mmcif` on the command line, `chargefw.io.annotate()` in Python, and
@@ -160,7 +183,7 @@
 - MOL2 output writes coordinates with four decimal places, such as `0.0008`, instead of the fewest
   digits that read back as the same value, which could have an exponent, such as `8e-04`.
 
-### Diagnostics
+#### Diagnostics
 
 Warnings, reasons for rejections, and failures now give the same information in the same way: a
 code, a reason, and where the problem is as fields. Parse errors give their reason and where the
@@ -210,7 +233,7 @@ reader stopped as fields.
   change: in C++, these readers throw `io::ParseError`, a `std::runtime_error`, also for values a
   molecule cannot hold, which were `std::invalid_argument`.
 
-## 3.0.0rc5
+### 3.0.0rc5
 
 This is the last release candidate for ChargeFW 3.0.0, the first stable release of the successor
 of [ChargeFW2](https://github.com/sb-ncbr/ChargeFW2). ChargeFW has the same 20 methods and
@@ -223,7 +246,7 @@ describes what is new and how to move over. The version number continues from Ch
 
 The changes since 3.0.0rc4 follow.
 
-### Installation
+#### Installation
 
 - The wheels are tested on CPython 3.15. Gemmi 0.7.4 has no wheel for it, and building Gemmi from
   source fails with nanobind 3, so the `gemmi` extra needs a build constraint there;
@@ -232,22 +255,17 @@ The changes since 3.0.0rc4 follow.
 - Native installations put the documentation, license notices, and JSON Schemas directly in
   `share/doc/chargefw/` instead of `share/doc/chargefw/chargefw/`.
 
-### Command line
+#### Command line
 
 - `chargefw --version` prints the version, such as `ChargeFW 3.0.0`.
 
-### Output
+#### Output
 
 - Breaking change: the JSON Schemas are `result-1.schema.json` and `molecule-input-1.schema.json`,
   without the minor version, because each one accepts every 1.x document. Their `$id` is the address
   where the documentation publishes them, such as
   `https://chargefw.readthedocs.io/en/stable/schemas/result-1.schema.json`, instead of a
   `urn:chargefw:schema:` name.
-
-## 3.0.0 pre-releases
-
-Each pre-release lists its changes since the previous one. A breaking change in them breaks only
-code written for the previous pre-release.
 
 ### 3.0.0rc4
 

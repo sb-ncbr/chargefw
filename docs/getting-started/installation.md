@@ -3,14 +3,13 @@
 ## Python package
 
 You need Python 3.12 or newer on Linux (x86-64 or aarch64), macOS 14 or newer on Apple silicon, or
-64-bit Windows. ChargeFW 3 is currently a pre-release, so tell pip to accept it with `--pre`:
+64-bit Windows:
 
 ```bash
-pip install --pre chargefw
+pip install chargefw
 ```
 
-Without `--pre`, pip installs 0.1.7, the last release of the previous series. One wheel serves CPython
-3.12 and newer, and pip installs NumPy 2.0 or newer with it.
+One wheel serves CPython 3.12 and newer, and pip installs NumPy 2.0 or newer with it.
 
 On Linux, the wheels need glibc 2.27 or newer (2.26 on aarch64), as in Ubuntu 18.04, Debian 10, RHEL 8,
 and later releases. There are no wheels for Alpine Linux and other systems based on musl; pip then tries
@@ -29,14 +28,14 @@ downloads one for you:
 ```bash
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install --pre chargefw
+uv pip install chargefw
 ```
 
 Reading and writing Gemmi structures, and converting RDKit molecules, need the optional extras:
 
 ```bash
-pip install --pre "chargefw[gemmi]"
-pip install --pre "chargefw[rdkit]"
+pip install "chargefw[gemmi]"
+pip install "chargefw[rdkit]"
 ```
 
 The `gemmi` extra installs exactly Gemmi 0.7.4 and replaces any other Gemmi version in the
@@ -48,7 +47,7 @@ ChargeFW uses for
 name it:
 
 ```bash
-pip install --pre "chargefw[ccd]"
+pip install "chargefw[ccd]"
 ```
 
 Gemmi 0.7.4 has no wheel for Python 3.15, so pip builds it from source there, and that build fails
@@ -58,7 +57,7 @@ newer, a C++ compiler, and the Python development headers (`python3-devel` on Fe
 
 ```bash
 echo "nanobind<3" > build-constraints.txt
-pip install --pre --build-constraint build-constraints.txt "chargefw[gemmi]"
+pip install --build-constraint build-constraints.txt "chargefw[gemmi]"
 ```
 
 pip also installs the `chargefw` command line. Check both:
@@ -75,11 +74,12 @@ sets. Mount the directory with your structures and run a command in it:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-    sbncbr/chargefw:3.0.0rc7 calculate molecule.sdf output
+    sbncbr/chargefw calculate molecule.sdf output
 ```
 
-The charges are written to `output/`. `--user` makes the output files yours rather than root's. Every
-release has its own tag; from 3.0.0 on, `latest` points to the newest final release.
+The charges are written to `output/`. `--user` makes the output files yours rather than root's. Without
+a tag, Docker uses `latest`, the newest final release. Every release also has its own tag, such as
+`sbncbr/chargefw:3.0.0`; name one when the results must stay the same.
 
 ## From source
 

@@ -87,7 +87,8 @@ jobs:
       - name: Read 1EHZ with the released ChargeFW and the wheel
         working-directory: ${{ runner.temp }}
         run: |
-          environment/bin/python -m pip install --quiet --pre chargefw
+          # Naming a pre-release lets pip choose one, so this works before 3.0.0 is on PyPI too.
+          environment/bin/python -m pip install --quiet "chargefw>=3.0.0rc7"
           curl --fail --location --retry 3 --output 1EHZ.cif https://files.rcsb.org/download/1EHZ.cif
           environment/bin/python -I -c '
           import chargefw, chargefw_ccd
