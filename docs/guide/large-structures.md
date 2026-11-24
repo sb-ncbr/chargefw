@@ -3,7 +3,8 @@
 Most geometry-dependent methods solve a system of linear equations for the whole molecule. Their time
 grows with the cube of the number of atoms and their memory with its square, so a full calculation of a
 large protein complex can take hours or not fit into memory. For such structures, ChargeFW can calculate
-charges from overlapping fragments instead, with two approximations called cutoff and cover.
+charges from overlapping fragments instead, with two approximations called
+[cutoff and cover](#how-cutoff-and-cover-work).
 
 ## What ChargeFW does by default
 
