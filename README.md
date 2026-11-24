@@ -1,7 +1,7 @@
 # ChargeFW
 
 [![CI](https://github.com/sb-ncbr/chargefw/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sb-ncbr/chargefw/actions/workflows/ci.yml)
-[![Documentation](https://app.readthedocs.org/projects/chargefw/badge/?version=stable)](https://chargefw.readthedocs.io/en/stable/)
+[![Documentation](https://img.shields.io/readthedocs/chargefw/stable?label=docs)](https://chargefw.readthedocs.io/en/stable/)
 [![PyPI](https://img.shields.io/pypi/v/chargefw)](https://pypi.org/project/chargefw/)
 [![Cite: NAR 2026](https://img.shields.io/badge/cite-NAR%202026-blue)](https://doi.org/10.1093/nar/gkag379)
 
