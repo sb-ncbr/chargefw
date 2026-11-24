@@ -10,7 +10,8 @@ procedures are in [DEVELOPMENT.md](DEVELOPMENT.md) and [RELEASING.md](RELEASING.
   after the release workflow has pushed the tag and before approving the PyPI upload, so that the
   `/en/stable/` links of the package description and the `$id` addresses of the JSON Schemas work
   from the start.
-- [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` at 3.0.0.
+- [ ] Set the `Development Status` classifier in `pyproject.toml` to `5 - Production/Stable` in the
+  release that is announced; 3.0.0 keeps `4 - Beta`.
 - [ ] Check the documentation links of the 3.0.0 page on PyPI, which replaces 0.1.7 as the default
   project page. The 3.0.0a1 and 3.0.0a2 pages link to the old Read the Docs pages `PYTHON.html`,
   `FORMATS.html`, `PROJECT.html`, and `recipes/README.html`, which return 404; decide whether they
